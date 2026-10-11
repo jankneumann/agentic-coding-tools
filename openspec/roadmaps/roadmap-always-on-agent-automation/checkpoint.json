@@ -4,7 +4,7 @@
   "current_item_id": "ri-11",
   "phase": "planning",
   "created_at": "2026-10-10T21:03:19.589753+00:00",
-  "updated_at": "2026-10-11T01:48:55.896062+00:00",
+  "updated_at": "2026-10-11T04:50:28.198375+00:00",
   "gate_decisions": [
     {
       "gate": "roadmap_approval",
@@ -103,6 +103,221 @@
       "roadmap_id": "roadmap-always-on-agent-automation",
       "roadmap_fingerprint": "9094ab852ea06a35a472da50a9a800f0bd5cf2ac7fb9921de686efab27a142f8",
       "note": "operator re-approved after ri-25 refinement (3019b27e); same /supervise execute session"
+    }
+  ],
+  "dispatch_attempts": [
+    {
+      "dispatch_id": "batch-913508fa11d0da93a9594473:ri-20:attempt-1",
+      "item_id": "ri-20",
+      "change_id": "migrate-ci-to-self-hosted-gx10-runners",
+      "phase": "autopilot",
+      "attempt": 1,
+      "status": "parked",
+      "prepared_at": "2026-10-11T01:50:46.066735+00:00",
+      "launch_digest": "sha256:46902a3fd1d528028348ae17c215691513058f672c409812768da4aef92046f4",
+      "launch_marker_path": ".supervised-dispatch/migrate-ci-to-self-hosted-gx10-runners/ri-20-attempt-1.marker",
+      "lease_generation": 1,
+      "launch_history": [
+        {
+          "generation": 1,
+          "owner_nonce": "z5AiADvsBITIjrLHNcY0tjve6iO_Kb4b",
+          "state": "claimed",
+          "marker_path": ".supervised-dispatch/migrate-ci-to-self-hosted-gx10-runners/ri-20-attempt-1.marker",
+          "observed_at": "2026-10-11T01:51:21.090032+00:00"
+        },
+        {
+          "generation": 1,
+          "owner_nonce": "z5AiADvsBITIjrLHNcY0tjve6iO_Kb4b",
+          "state": "acknowledged",
+          "marker_path": ".supervised-dispatch/migrate-ci-to-self-hosted-gx10-runners/ri-20-attempt-1.marker",
+          "observed_at": "2026-10-11T01:51:44.787030+00:00",
+          "handle": "a3af76c8bf84f247f"
+        },
+        {
+          "generation": 1,
+          "owner_nonce": "z5AiADvsBITIjrLHNcY0tjve6iO_Kb4b",
+          "state": "go_released",
+          "marker_path": ".supervised-dispatch/migrate-ci-to-self-hosted-gx10-runners/ri-20-attempt-1.marker",
+          "observed_at": "2026-10-11T01:51:44.787030+00:00",
+          "handle": "a3af76c8bf84f247f"
+        },
+        {
+          "generation": 1,
+          "owner_nonce": "z5AiADvsBITIjrLHNcY0tjve6iO_Kb4b",
+          "state": "entered",
+          "marker_path": ".supervised-dispatch/migrate-ci-to-self-hosted-gx10-runners/ri-20-attempt-1.marker",
+          "observed_at": "2026-10-11T01:52:08.687545+00:00",
+          "handle": "a3af76c8bf84f247f"
+        }
+      ],
+      "scope": {
+        "proof": "serial_indeterminate",
+        "write_allow": [],
+        "lock_keys": []
+      },
+      "isolation": {
+        "mode": "managed_worktree",
+        "worktree_ref": "migrate-ci-to-self-hosted-gx10-runners",
+        "branch": "openspec/migrate-ci-to-self-hosted-gx10-runners",
+        "host_id": "machine-8ce412f9e16ce285"
+      },
+      "context": {},
+      "execution_profile": {
+        "lanes": {
+          "review": [
+            "antigravity",
+            "claude_code",
+            "codex",
+            "grok",
+            "pi"
+          ],
+          "alternative": [
+            "antigravity",
+            "claude_code",
+            "codex",
+            "grok",
+            "pi"
+          ],
+          "quick": [
+            "antigravity",
+            "claude_code",
+            "codex",
+            "grok",
+            "pi"
+          ]
+        },
+        "location": "local",
+        "isolation": "managed_worktree",
+        "probe_command": "python3 <skill-base-dir>/../parallel-infrastructure/scripts/review_dispatcher.py --check-vendors --json"
+      },
+      "review_requirements": {
+        "min_quorum": {
+          "PLAN_REVIEW": 2,
+          "IMPL_REVIEW": 2,
+          "VAL_REVIEW": 2
+        },
+        "counting_lanes": [
+          "antigravity",
+          "claude_code",
+          "codex",
+          "grok",
+          "pi",
+          "ocr"
+        ],
+        "quorum_policy": {
+          "environment": "host",
+          "policy_id": null,
+          "sunset": null
+        }
+      },
+      "roadmap_approval_ref": "gate-decision:2d683b7a-2f39-4b59-96d9-3abdf22f8a8f",
+      "lease": {
+        "generation": 1,
+        "owner_nonce": "z5AiADvsBITIjrLHNcY0tjve6iO_Kb4b",
+        "state": "released",
+        "acquired_at": "2026-10-11T01:51:21.090032+00:00",
+        "heartbeat_at": "2026-10-11T01:51:21.090032+00:00",
+        "expires_at": "2026-10-11T02:01:21.090032+00:00"
+      },
+      "launch_evidence": {
+        "kind": "host_ack",
+        "generation": 1,
+        "handle": "a3af76c8bf84f247f",
+        "observed_at": "2026-10-11T01:51:44.787030+00:00"
+      },
+      "launch_gate": {
+        "generation": 1,
+        "state": "entered",
+        "handle": "a3af76c8bf84f247f",
+        "go_released_at": "2026-10-11T01:51:44.787030+00:00",
+        "entered_at": "2026-10-11T01:52:08.687545+00:00"
+      },
+      "application_journal": {
+        "schema_version": 1,
+        "state": "effects_applied",
+        "result": {
+          "attempt": 1,
+          "branch": "openspec/migrate-ci-to-self-hosted-gx10-runners",
+          "change_id": "migrate-ci-to-self-hosted-gx10-runners",
+          "degradations": [
+            {
+              "code": "coordinator_projection_forbidden",
+              "detail": "project-state submit returned forbidden",
+              "phase": "INIT"
+            },
+            {
+              "code": "audit_sink_failed",
+              "detail": "audit sink reported failure for gate proposal_approval decision auto",
+              "phase": "PLAN"
+            },
+            {
+              "code": "audit_sink_failed",
+              "detail": "audit sink reported failure for gate pr_creation decision auto",
+              "phase": "SUBMIT_PR"
+            },
+            {
+              "code": "audit_sink_failed",
+              "detail": "audit sink reported failure for gate merge decision posture_block",
+              "phase": "SUBMIT_PR"
+            }
+          ],
+          "dispatch_id": "batch-913508fa11d0da93a9594473:ri-20:attempt-1",
+          "evidence": {
+            "commit": "e2616646f40bb80d9a8720821908571e5c88b00c",
+            "loop_state_digest": "95853d11d073f49067bf9ab7a24db066d5220846b4d0418455d6e48e8ce8d170",
+            "loop_state_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/loop-state.json"
+          },
+          "host_id": "machine-8ce412f9e16ce285",
+          "lease_generation": 1,
+          "outcome": "parked",
+          "parked": {
+            "deadline": null,
+            "gate": "merge",
+            "kind": "pending_gate",
+            "reason": "Authorize merging this pull request? (autopilot records the authorization only; /cleanup-feature merges)",
+            "resume_hint": "answer gate merge through the resume request's gate_answer"
+          },
+          "schema_version": 2,
+          "worktree_ref": "migrate-ci-to-self-hosted-gx10-runners"
+        },
+        "result_digest": "aaae7e118779d87a66be3d9b56cd706a1310de4ca2864d9e41a1cb1a78735f66",
+        "bound_at": "2026-10-11T04:50:28.174461+00:00",
+        "callback_started_at": "2026-10-11T04:50:28.179509+00:00",
+        "callback_acknowledged_at": "2026-10-11T04:50:28.182692+00:00",
+        "terminal_persisted_at": "2026-10-11T04:50:28.185525+00:00",
+        "effects_applied_at": "2026-10-11T04:50:28.197184+00:00"
+      },
+      "outcome": "parked",
+      "resolved_at": "2026-10-11T04:50:28.185512+00:00",
+      "degradations": [
+        {
+          "code": "coordinator_projection_forbidden",
+          "detail": "project-state submit returned forbidden",
+          "phase": "INIT"
+        },
+        {
+          "code": "audit_sink_failed",
+          "detail": "audit sink reported failure for gate proposal_approval decision auto",
+          "phase": "PLAN"
+        },
+        {
+          "code": "audit_sink_failed",
+          "detail": "audit sink reported failure for gate pr_creation decision auto",
+          "phase": "SUBMIT_PR"
+        },
+        {
+          "code": "audit_sink_failed",
+          "detail": "audit sink reported failure for gate merge decision posture_block",
+          "phase": "SUBMIT_PR"
+        }
+      ],
+      "parked": {
+        "deadline": null,
+        "gate": "merge",
+        "kind": "pending_gate",
+        "reason": "Authorize merging this pull request? (autopilot records the authorization only; /cleanup-feature merges)",
+        "resume_hint": "answer gate merge through the resume request's gate_answer"
+      }
     }
   ]
 }

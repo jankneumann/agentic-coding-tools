@@ -159,6 +159,10 @@ items:
     in an integration test.
 - item_id: ri-25
   title: Commit a supervise execute driver core with per-harness host bindings
+  status: candidate
+  priority: 2
+  effort: M
+  depends_on: []
   description: Add a committed, harness-neutral driver for /supervise execute that
     owns the ExecutionAdapter call order (prepare, child-start, acknowledge, enter,
     collect, apply, route escalations, reconcile) and a per-harness host binding interface
@@ -170,8 +174,7 @@ items:
   rationale: Makes delegated roadmap execution repeatable across harnesses, keeps
     the risky sequencing logic in one tested place, and gives the ri-08 dispatcher
     daemon a binding slot instead of a parallel implementation.
-  effort: M
-  depends_on: []
+  change_id: add-supervise-execute-driver-and-host-bindings
   acceptance_outcomes:
   - A committed execute driver core drives ExecutionAdapter end to end with no harness-specific
     code in it.
@@ -182,9 +185,6 @@ items:
     and emits a candidate-work stub for the binding.
   - A local Claude Code binding (GX10) is committed and used by a subsequent /supervise
     execute run without regenerating driver code.
-  change_id: add-supervise-execute-driver-and-host-bindings
-  priority: 2
-  status: candidate
 - item_id: ri-08
   title: Build dispatcher daemon on the always-on host
   status: candidate
@@ -438,7 +438,7 @@ items:
   - Ambient review ledger findings are available to sync-point gates.
 - item_id: ri-20
   title: Migrate CI to self-hosted GX10 runners
-  status: approved
+  status: in_progress
   priority: 2
   effort: M
   depends_on: []
@@ -543,7 +543,7 @@ items:
     a 7-day soak.
   - When no ready work exists, an explore-feature run proposes candidates as draft
     issues.
-updated_at: '2026-10-10T21:15:13.046973+00:00'
+updated_at: '2026-10-11T04:50:28.188864+00:00'
 refinements:
 - timestamp: '2026-10-10T21:15:13.046973+00:00'
   actor: supervisor (operator-approved, Jan Neumann)
