@@ -52,6 +52,12 @@ emit "$COORD_TMP" COORDINATION_API_KEY_IDENTITIES "$COORD_PATH" coordination_api
 emit "$COORD_TMP" COORDINATION_API_KEY "$COORD_PATH" coordination_api_key
 emit "$COORD_TMP" COORDINATOR_SSE_SIGNING_KEY "$COORD_PATH" sse_signing_key
 
+# Cloudflare Access origin verification. Not secret, but instance-specific
+# and required: the compose forces CF_ACCESS_ENABLED, so without these the
+# API refuses to start instead of serving the tunnel unauthenticated.
+emit "$COORD_TMP" CF_ACCESS_TEAM_DOMAIN "$COORD_PATH" cf_access_team_domain
+emit "$COORD_TMP" CF_ACCESS_AUD "$COORD_PATH" cf_access_aud
+
 # Langfuse: the coordinator's OWN project in the shared instance, so its
 # traces and its retention window are separate from the analyzer's.
 emit "$COORD_TMP" LANGFUSE_PUBLIC_KEY "$COORD_PATH" langfuse_public_key
