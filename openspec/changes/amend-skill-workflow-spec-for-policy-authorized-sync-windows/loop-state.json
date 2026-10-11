@@ -1,0 +1,59 @@
+{
+  "blocking_findings": [],
+  "change_id": "amend-skill-workflow-spec-for-policy-authorized-sync-windows",
+  "cli_review_enabled": true,
+  "current_phase": "PLAN",
+  "degradations": [
+    {
+      "code": "coordinator_projection_forbidden",
+      "detail": "project-state submit returned forbidden",
+      "phase": "INIT"
+    }
+  ],
+  "error": null,
+  "escalation_reason": null,
+  "findings_trend": [],
+  "force": false,
+  "gate_decisions": [],
+  "gate_signals": {
+    "external_dep_count": 0,
+    "has_broad_write_scope": false,
+    "has_db_migration": false,
+    "has_proposal": false,
+    "has_security_signal": false,
+    "has_specs": false,
+    "has_tasks": false,
+    "has_work_packages": false,
+    "package_count": 0,
+    "total_loc_estimate": null
+  },
+  "gate_verdict": "proceed_with_review",
+  "goal_gate": null,
+  "handoff_ids": [
+    "gatekeeper-amend-skill-workflow-spec-for-policy-authorized-sync-windows-20261011T0500Z"
+  ],
+  "implementation_strategy": {},
+  "iteration": 0,
+  "last_handoff_id": "gatekeeper-amend-skill-workflow-spec-for-policy-authorized-sync-windows-20261011T0500Z",
+  "max_phase_iterations": 3,
+  "memory_ids": [],
+  "package_authors": {},
+  "packages_status": {},
+  "park": null,
+  "pending_gate": null,
+  "phase_archetype": "architect",
+  "phase_history": [
+    {
+      "at": "2026-10-11T04:54:31.066575+00:00",
+      "outcome": "proceed_with_review",
+      "phase": "GATEKEEPER"
+    }
+  ],
+  "phase_started_at": "2026-10-11T04:54:31.141350+00:00",
+  "previous_phase": null,
+  "schema_version": 6,
+  "started_at": "2026-10-11T04:52:56.233172+00:00",
+  "total_iterations": 2,
+  "val_review_enabled": true,
+  "vendor_availability": {}
+}
