@@ -25,6 +25,7 @@ Read these before contributing infrastructure changes:
 - [Cloud Session Hooks](../cloud-session-hooks.md) — Lifecycle hooks for hosted harness sessions
 - [Cloud vs Local Execution](../cloud-vs-local-execution.md) — Environment detection and worktree short-circuit behavior
 - [Cloudflare Setup](../cloudflare-setup.md) — Cloudflare integration for hosted endpoints
+- [Self-Hosted CI Runners](self-hosted-ci-runners.md) — Operator runbook O1-O12 for routing CI to ephemeral GX10 runners, with rollback and fork-PR isolation
 - [Local Migration](../local-migration.md) — Runbook for moving the coordinator from Railway to a local box behind a Cloudflare Tunnel
 - [OpenBao Secret Management](../openbao-secret-management.md) — Setup options, seeding, API key resolution for SDK dispatch
 
