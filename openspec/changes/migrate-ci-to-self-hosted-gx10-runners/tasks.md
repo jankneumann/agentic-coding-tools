@@ -355,7 +355,7 @@ Everything of that kind is in § 7 (operator-only).
 
 ## Phase 5 — Operator runbook
 
-- [ ] 5.1 Write `test_runbook.py` (XS)
+- [x] 5.1 Write `test_runbook.py` (XS)
   - `docs/guides/self-hosted-ci-runners.md` has headings `O1` through `O12`.
   - Each section contains at least one fenced `bash` verification block.
   - The runbook states the hard boundary.
@@ -365,7 +365,7 @@ Everything of that kind is in § 7 (operator-only).
   verification command"
   **Design decisions**: D9
   **Dependencies**: 1.3
-- [ ] 5.2 Author `docs/guides/self-hosted-ci-runners.md` (S)
+- [x] 5.2 Author `docs/guides/self-hosted-ci-runners.md` (S)
   - Write steps O1–O12 from § 7, each with its exact commands and verification.
   - Include the queued-run detection command for D9.
   - Include the GitHub App upgrade path for D5.
@@ -378,7 +378,7 @@ Everything of that kind is in § 7 (operator-only).
     `pasta:--no-map-gw` only through a reviewed unit change (A11).
 
   **Dependencies**: 5.1
-- [ ] 5.3 Link the runbook from `docs/guides/documentation.md`, under setup and deployment (XS)
+- [x] 5.3 Link the runbook from `docs/guides/documentation.md`, under setup and deployment (XS)
 
   **Dependencies**: 5.2
 - [ ] Checkpoint: run tests, review diff, verify scope
