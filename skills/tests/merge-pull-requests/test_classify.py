@@ -151,7 +151,7 @@ class TestPrOriginsVocabulary:
         _pr("claude/session-1"),
         _pr("feature/x", author="dependabot[bot]"),
         _pr("feature/x", author="renovate[bot]"),
-        _pr("feature/x", author="google-labs-jules[bot]"),
+        _pr("feature/x", author="jules[bot]"),
         _pr("sentinel-fix-1", author="google-labs-jules[bot]"),
         _pr("bolt-fast-1", author="google-labs-jules[bot]"),
         _pr("palette-ui-1", author="google-labs-jules[bot]"),
@@ -169,6 +169,8 @@ class TestPrOriginsVocabulary:
             origin = classify_pr(payload)["origin"]
             seen.add(origin)
             assert origin in gc.PR_ORIGINS
-        assert seen  # fixtures produced origins
+        # Exhaustive both ways: every origin the fixtures produce is declared,
+        # and every declared origin is reachable from classify_pr.
+        assert seen == gc.PR_ORIGINS
         for origin in gc.PR_ORIGINS:
             assert gc.to_pr_card_origin(origin)

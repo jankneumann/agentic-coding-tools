@@ -132,7 +132,7 @@ declares none, so the commented-out example below is inert:
 | field | rules |
 |---|---|
 | `id` | kebab-case (`^[a-z0-9]+(-[a-z0-9]+)*$`), unique within the list |
-| `cadence` | exactly five whitespace-separated fields of `[0-9*/,-]`, interpreted in **UTC**. Only the shape is validated here: `@daily`, `MON` and six-field forms are rejected, while `99 * * * *` passes and is refused by the scheduler that computes fire times |
+| `cadence` | exactly five fields of `[0-9*/,-]` separated by spaces (no tabs, no leading or trailing whitespace), interpreted in **UTC**. Only the shape is validated here: `@daily`, `MON` and six-field forms are rejected, while `99 * * * *` passes and is refused by the scheduler that computes fire times |
 | `skills` | non-empty, no repeats, from `merge-pull-requests`, `update-specs`, `cleanup-feature` |
 | `allowed_sources` | non-empty, no repeats, PR origins from `openspec`, `sentinel`, `bolt`, `palette`, `jules`, `codex`, `dependabot`, `renovate`, `other` |
 | `auto_merge_ceiling` | `none` < `automation` < `plan` < `implementation`; a ceiling permits a PR kind only at or below it, and never an unknown kind |
@@ -145,8 +145,9 @@ Rules:
 - **Guards unchanged.** A window changes who may *start* a sync-point skill, not
   what the skill checks once running; every guard and validation gate still applies.
 - **Necessary, never sufficient.** A window does not change any gate
-  disposition. A scheduled `/merge-pull-requests` run still evaluates the
-  `merge` gate (and any other gate that applies), and `block` stops it.
+  disposition. A scheduled run still evaluates every
+  gate that its scheduled caller's change declares applicable, and `block`
+  stops it; a window never implies `auto` for any gate.
 - **Digest.** The posture digest covers declared windows (order-independent).
   Declaring or editing a window therefore re-evaluates posture-derived gate
   decisions, and in-flight supervised children whose worktree posture predates
