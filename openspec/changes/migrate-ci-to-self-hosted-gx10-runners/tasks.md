@@ -303,7 +303,7 @@ Everything of that kind is in § 7 (operator-only).
 
 ## Phase 4 — Measurement and run verification (`scripts/ci/ci_wallclock.py`)
 
-- [ ] 4.1 Write `test_ci_wallclock.py` over JSON fixtures in `skills/tests/ci_runners/fixtures/` (S)
+- [x] 4.1 Write `test_ci_wallclock.py` over JSON fixtures in `skills/tests/ci_runners/fixtures/` (S)
   - The median uses `success` runs only.
   - `compare` checks the 600/540/500 threshold cases and n<5 (insufficient sample).
   - `verify_run` flags each of these:
@@ -337,12 +337,12 @@ Everything of that kind is in § 7 (operator-only).
   filtered and bounded", "Runs with mixed placement are excluded from comparison"
   **Design decisions**: D8
   **Dependencies**: 1.2, 1.3
-- [ ] 4.2 Implement the pure functions `median_wallclock`, `compare` and `verify_run` in
+- [x] 4.2 Implement the pure functions `median_wallclock`, `compare` and `verify_run` in
       `scripts/ci/ci_wallclock.py` (S)
   - Use the standard library plus PyYAML only.
 
   **Dependencies**: 4.1
-- [ ] 4.3 Add the CLI subcommands `median`, `compare` and `verify-run` (S)
+- [x] 4.3 Add the CLI subcommands `median`, `compare` and `verify-run` (S)
   - Each fetches through `gh api` read-only GETs, bounded by `--limit` (default 200).
   - `median` and `compare` select runs with `--workflow` (required), `--head-sha`, `--event`,
     `--since` and `--until` (D8).
