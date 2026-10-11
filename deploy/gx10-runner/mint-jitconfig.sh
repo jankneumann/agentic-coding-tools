@@ -16,6 +16,7 @@
 #                            (default 300; keep < TimeoutStartSec). Restart=always re-runs this
 #                            script every RestartSec, so without it a revoked token or a bad
 #                            config would hot-loop every instance against the API.
+#   GX10_MINT_REQ_MAX        per-request time bound in seconds (default 30; tests only)
 #   GX10_RUNNER_CACHE_ARGS   validated here: empty, or exactly the documented cache volume
 #   GX10_RUNNER_TOKEN_FILE   credential fallback when $CREDENTIALS_DIRECTORY is unset
 #   GX10_GITHUB_API          API base (default https://api.github.com)
@@ -37,10 +38,31 @@ max_pages=10
 
 log() { printf 'mint-jitconfig[%s]: %s\n' "$instance" "$*" >&2; }
 
-# Non-retryable failure: hold off, then fail, so the unit's restart loop polls slowly.
+# --- one time budget for EVERYTHING this script does (sweep, mint, hold-off) ----------
+# TimeoutStartSec bounds the whole ExecStartPre, so the clock starts here, before any API
+# call. Every request is bounded by req_max (curl --max-time) and is only started when it
+# can finish inside the budget, so total run time stays <= GX10_MINT_MAX_ELAPSED.
+req_max="${GX10_MINT_REQ_MAX:-30}"
+now_us() { local t="${EPOCHREALTIME/./}"; printf '%s' "$t"; }
+budget_us="$(awk -v s="$max_elapsed" 'BEGIN { printf "%d", s * 1000000 }')"
+start_us="$(now_us)"
+elapsed_us() { printf '%s' "$(( $(now_us) - start_us ))"; }
+# fits SECONDS -> true when SECONDS more, plus one bounded request, fit in the budget.
+fits() {
+  local extra_us
+  extra_us="$(awk -v d="$1" -v r="$req_max" 'BEGIN { printf "%d", (d + r) * 1000000 }')"
+  (( $(elapsed_us) + extra_us <= budget_us ))
+}
+
+# Non-retryable failure: hold off, then fail, so the unit's restart loop polls slowly. The
+# hold-off is clipped to what is left of the budget.
 fail_slow() {
-  log "$* (holding off ${GX10_MINT_FAIL_HOLDOFF:-300}s before exiting)"
-  sleep "${GX10_MINT_FAIL_HOLDOFF:-300}"
+  local hold="${GX10_MINT_FAIL_HOLDOFF:-300}" left
+  left=$(( (budget_us - $(elapsed_us)) / 1000000 ))
+  (( left < 0 )) && left=0
+  (( hold > left )) && hold="$left"
+  log "$* (holding off ${hold}s before exiting)"
+  sleep "$hold"
   exit 1
 }
 
@@ -78,7 +100,7 @@ trap 'rm -rf "$work"' EXIT
 # $work/hdr. A transport failure prints 000.
 api_call() {
   local method="$1" url="$2" data="${3:-}" code
-  local args=(-sS --max-time 30 -X "$method"
+  local args=(-sS --max-time "$req_max" -X "$method"
     -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28"
     -H "@$work/auth" -D "$work/hdr" -o "$work/body" -w '%{http_code}')
   [[ -n "$data" ]] && args+=(-d "$data")
@@ -91,7 +113,13 @@ api_call() {
 # later runners onto pages already read, so the next page request would skip them.
 sweep() {
   local page=1 url code id name status has_next stale=()
+  # The sweep may use at most half the budget; the mint keeps the rest.
+  local sweep_cap_us=$(( budget_us / 2 ))
   while (( page <= max_pages )); do
+    if (( $(elapsed_us) > sweep_cap_us )); then
+      log "sweep: time cap reached on page ${page}; leaving the rest for the next start"
+      break
+    fi
     url="${api}/repos/${repo}/actions/runners?per_page=100&page=${page}"
     code="$(api_call GET "$url")"
     if [[ "$code" != 2* ]]; then
@@ -115,6 +143,10 @@ sweep() {
   fi
   local entry
   for entry in "${stale[@]}"; do
+    if (( $(elapsed_us) > sweep_cap_us )); then
+      log "sweep: time cap reached; remaining stale runners are left for the next start"
+      break
+    fi
     id="${entry%%$'\t'*}"
     name="${entry#*$'\t'}"
     code="$(api_call DELETE "${api}/repos/${repo}/actions/runners/${id}")"
@@ -134,9 +166,6 @@ body="$(jq -nc --arg name "$name" --argjson labels "$custom_labels" \
   '{name: $name, runner_group_id: 1, labels: $labels, work_folder: "_work"}')"
 
 # --- mint with bounded exponential backoff --------------------------------------------
-now_us() { local t="${EPOCHREALTIME/./}"; printf '%s' "$t"; }
-budget_us="$(awk -v s="$max_elapsed" 'BEGIN { printf "%d", s * 1000000 }')"
-start_us="$(now_us)"
 attempt=0
 env_dir="${XDG_RUNTIME_DIR:?XDG_RUNTIME_DIR is not set}/gx10-runner"
 env_file="${env_dir}/${instance}.env"
@@ -145,6 +174,10 @@ chmod 700 "$env_dir"
 rm -f "$env_file"
 
 while :; do
+  if ! fits 0; then
+    log "retry budget of ${max_elapsed}s spent before attempt $((attempt + 1))"
+    exit 1
+  fi
   code="$(api_call POST "${api}/repos/${repo}/actions/runners/generate-jitconfig" "$body")"
   if [[ "$code" == 2* ]]; then
     jit="$(jq -r '.encoded_jit_config // empty' "$work/body")"
@@ -162,9 +195,7 @@ while :; do
     fail_slow "generate-jitconfig failed with non-retryable HTTP $code"
   fi
   delay="$(awk -v b="$base_delay" -v n="$attempt" 'BEGIN { d = b * (2 ^ n); if (d > 300) d = 300; print d }')"
-  elapsed_us=$(( $(now_us) - start_us ))
-  next_us="$(awk -v d="$delay" 'BEGIN { printf "%d", d * 1000000 }')"
-  if (( elapsed_us + next_us > budget_us )); then
+  if ! fits "$delay"; then
     log "retry budget of ${max_elapsed}s spent after $((attempt + 1)) attempt(s) (last HTTP $code)"
     exit 1
   fi

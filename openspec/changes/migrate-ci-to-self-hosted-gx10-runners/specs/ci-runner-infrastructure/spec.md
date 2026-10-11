@@ -47,6 +47,10 @@ Both `ci.yml` and `security.yml` SHALL declare a `workflow_dispatch` trigger wit
 - **WHEN** the reference evaluator resolves the expression for a `merge_group` event with `CI_RUNNER_LANE` set to `self-hosted`
 - **THEN** the result is `ubuntu-latest`, because a merge-group commit can contain an approved fork pull request's code
 
+#### Scenario: Any other event stays hosted
+- **WHEN** the reference evaluator resolves the expression for an event outside `push`, `workflow_dispatch` and `pull_request` (for example `schedule`) with `CI_RUNNER_LANE` set to `self-hosted`
+- **THEN** the result is `ubuntu-latest`
+
 #### Scenario: Dispatch trigger and lane input are declared
 - **WHEN** the fork guard test reads `ci.yml` and `security.yml`
 - **THEN** each declares `workflow_dispatch` with a `runner_lane` choice input of options `auto`, `hosted`, `self-hosted` and default `auto`

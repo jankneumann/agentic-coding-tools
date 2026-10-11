@@ -20,6 +20,13 @@ ALLOWLIST: list[tuple[str, str, str, str]] = []
 _SEPARATORS = re.compile(r"&&|\|\||;|\||\$\(|\(")
 
 
+# Words after which the next word is still in command position: wrappers and shell keywords.
+_PASS_THROUGH = {
+    "sudo", "env", "if", "then", "else", "elif", "do", "while", "until", "!",
+    "time", "exec", "timeout", "nohup", "xargs", "command",
+}
+
+
 def commands_in(run_text: str) -> set[str]:
     """Hosted-only commands invoked in command position within a ``run:`` block.
 
@@ -38,9 +45,11 @@ def commands_in(run_text: str) -> set[str]:
                 head = words[0]
                 if head in watched:
                     found.add(head)
-                if head in ("sudo", "env"):
+                if head in _PASS_THROUGH:
                     words = words[1:]
                     while head == "env" and words and "=" in words[0]:
+                        words = words[1:]
+                    while head == "timeout" and words and re.fullmatch(r"[\d.]+[smhd]?|-\S+", words[0]):
                         words = words[1:]
                     continue
                 break
@@ -73,6 +82,13 @@ def test_script_path_is_not_an_invocation():
         ("v=$(npm bin)", {"npm"}),
         ("# docker is not run here", set()),
         ("echo go", set()),
+        ("if test -f x; then docker build .; fi", {"docker"}),
+        ("for f in *; do podman load < $f; done", {"podman"}),
+        ("time docker run x", {"docker"}),
+        ("timeout 60 apt-get update", {"apt-get"}),
+        ("ls | xargs docker rmi", {"docker"}),
+        ("if ! sudo -n true; then echo no; fi", {"sudo"}),
+        ("echo docker", set()),
     ],
 )
 def test_matcher(text, expected):

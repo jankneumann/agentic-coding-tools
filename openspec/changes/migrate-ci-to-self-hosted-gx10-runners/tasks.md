@@ -414,6 +414,8 @@ Everything of that kind is in § 7 (operator-only).
 > O12 to roll back if needed.
 
 - [ ] O1 Create the dedicated host user and enable linger *(outcome 4, host half)*
+  - Install the host prerequisites `podman curl jq nftables` (the mint and cleanup scripts run
+    on the host, not in the image) and verify `command -v podman curl jq nft`.
   - Run `sudo useradd --system --create-home --shell /usr/sbin/nologin ghrunner`, then give it
     a subordinate id range, which `useradd --system` does not allocate and rootless podman
     needs for the non-root `runner` user in the image. Pick a 65536-id range that overlaps no
