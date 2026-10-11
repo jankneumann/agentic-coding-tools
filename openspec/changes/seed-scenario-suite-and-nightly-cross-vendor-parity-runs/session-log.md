@@ -104,3 +104,32 @@ Iteration 1 fixed 5 high and 8 medium findings verified against ri-15 code: gh s
 
 ### Context
 Plan review converged after orchestrator adjudication. grok was unavailable all passes (CLI 1.0.5 rejected with HTTP 426). Review artifacts are under `.review-cache/pass{1,2}-round-1` and `.review-cache/round-1` (pass 3), ledger in `.review-ledger/ledger.json`.
+
+---
+
+## Phase: Implementation (2026-10-11)
+
+**Agent**: claude_code (IMPLEMENT phase sub-agent) | **Session**: N/A
+
+### Decisions
+1. **Dispatched without worktree isolation, sequentially, in the canonical worktree** `architectural: skill-procedure-deviation` — The orchestrator dispatch note said the canonical managed worktree already exists; worktree.py setup and per-package child worktrees were skipped and all six work packages were implemented in DAG order in one worktree, one commit per package group
+2. **Edits slightly outside a package's write_allow** `architectural: skill-procedure-deviation` — `tests/test_findings_emitter.py` (its `implement-feature-basic` pass case relied on the removed GitHub `pr` gate), `skills/tests/improve-harness/test_export_shared_learnings.py` (fixture `created_at` pinned a past date that the repaired client-side window now drops), `pyproject.toml` ruff per-file-ignores (embedded shim source, hyphenated outcome module names, compact test tables) and `runner.py` left untouched; each is the minimal change the in-scope work forced
+3. **skills_sha is computed once per run by the nightly runner (and carried on RunResult by the executors)** `architectural: agent-trajectory-harness` — `runner.py` is outside every package scope and its public API must stay unchanged, so per-pair verdicts cannot carry the executor's value; the checkout is the same for every pair of a run
+4. **Outcome modules are callables `golden(workdir)` / `broken(workdir)` plus `BROKEN_GATE`** `architectural: agent-trajectory-harness` — Merge-family golden outcomes need real git operations against the local origin; FakeExecutor accepts a callable that receives the workspace and returns an Outcome, so no executor change was needed
+5. **State directory is the results file's parent** `architectural: agent-trajectory-harness` — Lock, spool, findings and workspaces default next to `results.path`, which keeps every artifact of a run (and every test) under one configurable root and makes the in-progress-run lock probe consistent between runner and query CLI
+6. **improve-harness `query_memory` repaired with unchanged signatures** `architectural: harness-engineering` — build_memory_query(time_window_days, limit) still returns the payload (now without the unsupported time_window_days, with agent_id); query_memory gained an optional agent_id; entries are filtered client-side on created_at; `memories` envelope read first
+
+### Archive-order constraints (task 6.4)
+- Archive `build-agent-trajectory-scenario-harness` (ri-15) before this change, so ri-15 creates `openspec/specs/agent-trajectory-harness/spec.md` and this change's ADDED requirements merge into it
+- Whichever of this change and `add-a-judged-first-stage-to-coordinator-audit-triage` archives second adds `scenario-parity` to the "Capability Gap Detection" `source` enum in `openspec/specs/harness-engineering/spec.md`
+
+### Completed Work
+- wp-foundation: schemas as package data, `FixtureSpec.local_remote`/`prs`, `HERMETIC_SCRUB` + `build_vendor_env`, `gh` shim, whole-tree skill materialization, timeout message
+- wp-scenarios: 11-scenario seed suite, golden/broken outcome modules, coverage-floor guard
+- wp-results: `JsonlResultsStore`, `results query|trend|latest`
+- wp-gaps: gap emitter + sinks + spool, improve-harness repair, consumer test, tag docs
+- wp-nightly: guards/caps/run loop, subcommand CLI, systemd templates, example config, runbook
+- wp-integration: broken-skill and 2-vendor nightly acceptance tests
+
+### Context
+Hard boundaries respected: no systemd/crontab installed, no vendor CLI or paid matrix run, no live coordinator contact, `TRUST_POSTURE.md` untouched. Section 7 operator tasks remain unchecked.

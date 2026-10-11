@@ -159,15 +159,15 @@ doubles — no vendor CLI, no network, no `systemctl`, no database.
 
 ## 6. Integration and acceptance (wp-integration)
 
-- [ ] 6.1 Write broken-skill acceptance test `tests/test_acceptance_broken_skill.py` [M]
+- [x] 6.1 Write broken-skill acceptance test `tests/test_acceptance_broken_skill.py` [M]
   Temp `skills_root` with a skill; a test executor that reads the materialized SKILL.md and plays the scenario's golden outcome, or its broken outcome when the skill carries the break marker; run `nightly` (enabled, temp state dir, stub coordinator) → `fail` result in store, gap entry with `affected_skill` and `source:scenario-parity`, findings file; then the same with the intact skill → pass, no gap.
   **Spec scenarios**: ath.Scenario failures feed the capability-gap pipeline/a deliberately broken skill change produces a capability gap
   **Design decisions**: D3, D5
   **Dependencies**: 5.3, 2.9, 1.7
-- [ ] 6.2 Write 2-vendor nightly acceptance test over the full seed suite with golden outcomes (22 result records + 1 run record; `results trend` per vendor × skill returns 100% pass) [S]
+- [x] 6.2 Write 2-vendor nightly acceptance test over the full seed suite with golden outcomes (22 result records + 1 run record; `results trend` per vendor × skill returns 100% pass) [S]
   **Spec scenarios**: ath.Durable results store/results are appended per scenario and vendor; ath.Durable results store/trend aggregates pass rate per bucket
   **Dependencies**: 5.5, 2.9
-- [ ] 6.4 Record the archive-order constraints in the PR description and session log [XS]
+- [x] 6.4 Record the archive-order constraints in the PR description and session log [XS]
   Archive `build-agent-trajectory-scenario-harness` (ri-15) before this change, so ri-15 creates `openspec/specs/agent-trajectory-harness/spec.md` and this change's ADDED requirements merge into it; and whichever of this change and `add-a-judged-first-stage-to-coordinator-audit-triage` archives second adds `scenario-parity` to the "Capability Gap Detection" `source` enum (design D3 base-spec enum).
   **Dependencies**: None
 - [ ] 6.3 Run full quality gates: package `uv run pytest`, `ruff`, `mypy --strict`; skills gate set; `openspec validate seed-scenario-suite-and-nightly-cross-vendor-parity-runs --strict` [S]
