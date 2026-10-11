@@ -39,6 +39,10 @@ Both `ci.yml` and `security.yml` SHALL declare a `workflow_dispatch` trigger wit
 - **THEN** the result is `ubuntu-latest`
 - **AND** with `runner_lane` set to `self-hosted` while the variable is unset, the result is the self-hosted label set
 
+#### Scenario: Expression is tied to every manifest routing field
+- **WHEN** the routing test changes the manifest's `routing.self_hosted_labels`, `routing.repository_variable` or `routing.dispatch_input` without changing the workflows
+- **THEN** the test fails, because the expression's `fromJSON` labels, its `vars.<name>` reference and its `inputs.<name>` reference must equal those three fields
+
 #### Scenario: Merge queue runs stay hosted
 - **WHEN** the reference evaluator resolves the expression for a `merge_group` event with `CI_RUNNER_LANE` set to `self-hosted`
 - **THEN** the result is `ubuntu-latest`, because a merge-group commit can contain an approved fork pull request's code
@@ -53,7 +57,7 @@ Both `ci.yml` and `security.yml` SHALL declare a `workflow_dispatch` trigger wit
 
 ### Requirement: Hosted-Pinned Jobs Are Explicit
 
-Every `hosted` job SHALL declare a literal `runs-on: ubuntu-latest` and MUST NOT use the routing expression. A `routed` job MUST NOT declare `services:`, and its `run:` blocks MUST NOT invoke `docker`, `podman`, `sudo` or `apt-get` in command position, except for an entry in the tool-parity allowlist that names the workflow, job and command with a justifying comment (the allowlist starts empty). A `routed` job that invokes `npm`, `npx`, `node`, `java` or `go` in command position MUST include the matching setup action. A command name that appears only inside a path or identifier, such as `scripts/check_docker_imports.py`, is not an invocation.
+Every `hosted` job SHALL declare a literal `runs-on: ubuntu-latest` and MUST NOT use the routing expression. A `routed` job MUST NOT declare `services:`, and its `run:` blocks MUST NOT invoke `docker`, `podman`, `sudo` or `apt-get` in command position, except for an entry in the tool-parity allowlist that names the workflow, job and command with a justifying comment (the allowlist starts empty). A `routed` job that invokes `npm`, `npx`, `node`, `java` or `go` in command position MUST include the matching setup action. A command name that appears only inside a path or identifier, such as `scripts/check_docker_imports.py`, is not an invocation. The scan covers `run:` text only; a command invoked indirectly from inside a script that a step calls is outside its reach and is caught by the operator's self-hosted dry run (O6), which moves such a job to `hosted` through the manifest.
 
 #### Scenario: Container-engine job marked routed is rejected
 - **WHEN** a job that declares `services:` or runs `docker`, `podman`, `sudo` or `apt-get` is classified `routed`
@@ -95,7 +99,9 @@ A `pull_request` event whose head repository differs from the base repository, a
 
 The runner kit under `deploy/gx10-runner/` SHALL meet all of the following:
 - It SHALL register each runner with a single-use just-in-time configuration minted on the host before the container starts.
-- It SHALL run the runner in a container started with `--rm`, so that one container serves exactly one job.
+- It SHALL run the runner in a container started with `--rm`, so that one container serves exactly one job, and with `--replace`, so that a container left over from an unclean stop cannot wedge the restart loop.
+- It SHALL delete the instance's own registration on stop (`ExecStopPost` runs `cleanup-runner.sh`) and, before minting, SHALL delete only the instance's own stale offline registrations, identified by the runner-name prefix `gx10-<hostname>-<instance>-`.
+- It SHALL load its operator configuration through `EnvironmentFile=` and deliver the registration credential through `LoadCredential=`.
 - It SHALL NOT pass the registration credential, a container engine socket, host networking or privileged mode into the container.
 - It SHALL pin the container network explicitly to `slirp4netns:allow_host_loopback=false`, so that host loopback services stay unreachable regardless of the host's podman default.
 - It SHALL start only the locally built image (`--pull=never`).
@@ -123,19 +129,30 @@ The runner kit under `deploy/gx10-runner/` SHALL meet all of the following:
 - **THEN** `mint-jitconfig.sh` retries with growing delays, exits non-zero once the budget is spent, and writes no env file
 - **AND** the unit's `TimeoutStartSec` is greater than the default `GX10_MINT_MAX_ELAPSED` in the example env file
 
+#### Scenario: Unit wiring delivers configuration and credential
+- **WHEN** the unit test parses `gx10-runner@.service` and `gx10-runner.env.example`
+- **THEN** `[Service]` declares `EnvironmentFile=` for the operator env file and `LoadCredential=github-token:<path>`
+- **AND** every variable referenced by `ExecStartPre` or `ExecStart` is defined in the example env file
+
+#### Scenario: Stale registrations of the instance are swept before minting
+- **WHEN** the stubbed runners API lists an offline runner `gx10-<host>-1-<epoch>`, an online runner with the same prefix, and an offline runner `gx10-<host>-2-<epoch>`, and `mint-jitconfig.sh 1` runs
+- **THEN** it deletes only the offline instance-1 runner before requesting a new JIT config
+
 #### Scenario: Shared cache is off unless the operator opts in
 - **WHEN** the unit test expands `ExecStart` with the example env file's `GX10_RUNNER_CACHE_ARGS` (empty)
 - **THEN** no `--volume` argument is present
 - **AND** with the documented opt-in value the only added arguments are `--volume gx10-runner-uv-cache:/home/runner/.cache/uv`
 
 #### Scenario: Operator verifies host services are unreachable on every host address
-- **WHEN** the operator probes `:54322` and the coordinator API port from inside a runner container at `10.0.2.2` and at every address printed by `hostname -I`
-- **THEN** every probe fails
-- **AND** either the nftables rule dropping `ghrunner`-owned traffic to local addresses is listed, or `ss -ltnp` shows those ports bound to `127.0.0.1` only
+- **WHEN** the operator attempts a TCP connect (not an HTTP request) to `:54322` and the coordinator API port from inside a runner container at `10.0.2.2` and at every address printed by `hostname -I`
+- **THEN** every connect is refused or times out
+- **AND** either the nftables rules (a DNS exemption for the host stub resolver followed by a drop of `ghrunner`-owned traffic to local addresses) are listed, or `ss -ltnp` shows those ports bound to `127.0.0.1` only
+- **AND** `ghrunner` can still resolve `api.github.com`
 
 #### Scenario: JIT labels match the routing labels
 - **WHEN** the runner-kit test compares the labels requested by `mint-jitconfig.sh` with `routing.self_hosted_labels`
-- **THEN** they are equal
+- **THEN** the request carries no runner default label (`self-hosted`, `Linux`, `ARM64`)
+- **AND** the defaults together with the requested labels equal `routing.self_hosted_labels`, compared case-insensitively
 
 #### Scenario: Base image is pinned
 - **WHEN** the runner-kit test reads `deploy/gx10-runner/Containerfile`
@@ -148,7 +165,7 @@ The runner kit under `deploy/gx10-runner/` SHALL meet all of the following:
 
 ### Requirement: Runners Survive Host Reboot Via systemd
 
-The runner kit SHALL provide a systemd user template unit, `gx10-runner@.service`, with `Restart=always` and an explicit `TimeoutStartSec` in `[Service]`, `StartLimitIntervalSec=0` in `[Unit]`, and `WantedBy=default.target` in `[Install]`. The unit is intended to run under a dedicated lingering, unprivileged host user. Enabling linger and the units is an operator-only step.
+The runner kit SHALL provide a systemd user template unit, `gx10-runner@.service`, with `Restart=always` and an explicit `TimeoutStartSec` in `[Service]`, `StartLimitIntervalSec=0` in `[Unit]`, and `WantedBy=default.target` in `[Install]`. The unit is intended to run under a dedicated lingering, unprivileged host user. Enabling linger and the units is an operator-only step. The kit's `install-units.sh` SHALL only copy files beneath its `--prefix` and print, never execute, the `loginctl` and `systemctl` commands that enable them.
 
 #### Scenario: Unit restart and install properties
 - **WHEN** the unit test parses `gx10-runner@.service`
@@ -174,6 +191,14 @@ The repository SHALL provide `scripts/ci/ci_wallclock.py` with three functions:
 - `verify_run(jobs, manifest, workflow, expected_lane="self-hosted")` SHALL report: every routed job that did not run on a `gx10`-labelled runner (or, with `expected_lane="hosted"`, every routed job that ran on a self-hosted runner); every hosted job that ran on a self-hosted runner; every job that concluded anything other than `success` or `skipped`, except that a job declared `continue-on-error: true` SHALL be reported as a warning rather than a violation; every `skipped` job whose definition has no job-level `if:`; and every manifest job missing from the run. A `skipped` job that has a job-level `if:` SHALL NOT be reported, and its runner placement SHALL NOT be checked. `verify_run` SHALL correlate manifest job ids with jobs-API entries through the display name derived from the workflow definition (the job id, or a literal `name:`; matrix expansions match `<display name> (` and are each checked), and SHALL report any jobs-API entry that matches no manifest job.
 
 The CLI SHALL select runs only through explicit filters (`--workflow`, `--head-sha`, `--event`, `--since`, `--until`) and SHALL cap fetched runs with `--limit`.
+
+#### Scenario: CLI fetches are filtered and bounded
+- **WHEN** `ci_wallclock.py compare` runs under test with a stubbed `gh` that records its calls and serves more matching runs than `--limit 10`, with `--workflow ci.yml --event workflow_dispatch --head-sha <sha>`
+- **THEN** the recorded `gh api` requests carry the workflow, event and `head_sha` filters, are all GET requests, and stop fetching pages once 10 runs are collected
+
+#### Scenario: Runs with mixed placement are excluded from comparison
+- **WHEN** `compare` receives a run whose routed jobs ran partly on `gx10` runners and partly on hosted runners
+- **THEN** that run is excluded from both samples and listed in the result's `excluded_runs` with a reason
 
 #### Scenario: Median ignores cancelled and failed runs
 - **WHEN** `median_wallclock` receives runs whose conclusions include `cancelled` and `failure`

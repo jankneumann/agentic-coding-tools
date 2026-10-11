@@ -77,11 +77,15 @@ Everything of that kind is in § 7 (operator-only).
   - It asserts every row of the D3 evaluation table.
   - It asserts that every routed job's `runs-on` equals the canonical string after whitespace
     normalization.
-  - It asserts that the labels inside `fromJSON(...)` equal `routing.self_hosted_labels`.
+  - It asserts that the labels inside `fromJSON(...)` equal `routing.self_hosted_labels`, that
+    the `vars.<name>` reference equals `routing.repository_variable`, and that the
+    `inputs.<name>` references equal `routing.dispatch_input` (mutating any one manifest field
+    makes the test fail).
 
   **Spec scenarios**: ci-runner-infrastructure / "Unset variable keeps CI on hosted runners",
   "Variable opts same-repository events into the self-hosted lane", "Dispatch input overrides
-  the variable in both directions", "Merge queue runs stay hosted", "Routed job drifts from the
+  the variable in both directions", "Expression is tied to every manifest routing field",
+  "Merge queue runs stay hosted", "Routed job drifts from the
   canonical expression", "Fork pull request routes to hosted even with the self-hosted lane
   enabled"
   **Contracts**: .github/runner-lanes.schema.json
@@ -152,6 +156,10 @@ Everything of that kind is in § 7 (operator-only).
   - `validate-specs` needs `npm` and gets `actions/setup-node` at the repository's pinned
     major version. Any other job that 2.4 flags gets the same treatment.
   - The setup step goes after the D4 guard, which must stay the first step.
+  - Every routed job that uses `astral-sh/setup-uv` passes
+    `cache-local-path: /home/runner/.cache/uv`, so an opted-in shared cache is actually used
+    (D6); on the hosted lane the path is harmless because the hosted user is also `runner`.
+    Test 2.4 asserts it for routed jobs.
 
   **Dependencies**: 2.4, 2.7 (serial; edits `ci.yml` after routing)
 - [ ] 2.9 Run the existing tests that parse workflows and confirm they stay green (XS)
@@ -175,7 +183,10 @@ Everything of that kind is in § 7 (operator-only).
   - `Restart=always` and `TimeoutStartSec` (> 90, and > the example env file's
     `GX10_MINT_MAX_ELAPSED`) are in `[Service]`; `StartLimitIntervalSec=0` is in `[Unit]`.
   - `ExecStartPre` invokes `mint-jitconfig.sh`, and `ExecStopPost` invokes `cleanup-runner.sh`.
-  - `ExecStart` is `podman run` with each of these: `--rm`, `--pull=never`, `--env-file`,
+  - `[Service]` has `EnvironmentFile=%h/.config/gx10-runner/env` and
+    `LoadCredential=github-token:%h/.config/gx10-runner/token` (D7), and every `$VAR` that
+    `ExecStartPre`/`ExecStart` reference is defined in `gx10-runner.env.example`.
+  - `ExecStart` is `podman run` with each of these: `--rm`, `--replace`, `--pull=never`, `--env-file`,
     `--cap-drop ALL`, `--security-opt no-new-privileges`,
     `--network slirp4netns:allow_host_loopback=false`, `--pids-limit`, `--cpus`, `--memory`.
   - `ExecStart` contains none of these: `--privileged`, `--network host`/`--network=host`, any
@@ -190,7 +201,8 @@ Everything of that kind is in § 7 (operator-only).
 
   **Spec scenarios**: ci-runner-infrastructure / "Unit runs a removable container with a
   single-use config", "Dangerous container options are absent", "Unit restart and install
-  properties"
+  properties", "Unit wiring delivers configuration and credential", "Shared cache is off unless
+  the operator opts in"
   **Design decisions**: D5, D6, D7
   **Dependencies**: 1.3
 - [ ] 3.2 Author `deploy/gx10-runner/systemd/gx10-runner@.service` and
@@ -198,7 +210,8 @@ Everything of that kind is in § 7 (operator-only).
   - The example env file sets: repo slug, instance CPU and memory limits, image reference,
     `GX10_RUNNER_CACHE_ARGS=` (empty: no shared cache, D6/A10), `GX10_MINT_MAX_ELAPSED`
     (default 600), and labels mirrored from the
-    manifest.
+    manifest. It does not set `GX10_RUNNER_TOKEN_FILE`: the unit delivers the credential
+    through `LoadCredential=` (D7).
 
   **Dependencies**: 3.1
 - [ ] 3.3 Write `test_jit_scripts.py` (M)
@@ -206,17 +219,22 @@ Everything of that kind is in § 7 (operator-only).
     The stub records its arguments and returns fixture JSON, so the test never touches the
     network.
   - The mint script refuses a credential file whose mode is wider than 0600.
-  - The mint script POSTs to `actions/runners/generate-jitconfig`, and its labels equal
-    `routing.self_hosted_labels`.
+  - The mint script POSTs to `actions/runners/generate-jitconfig` with only the custom labels;
+    the runner defaults (`self-hosted`, `Linux`, `ARM64`) ∪ the requested labels equal
+    `routing.self_hosted_labels`, compared case-insensitively (D5).
   - The output env file has mode 0600 and contains only `ACTIONS_RUNNER_INPUT_JITCONFIG` and
     `GX10_RUNNER_ID`.
   - The mint script retries with backoff on HTTP 5xx and exits non-zero, writing no env file,
     once `GX10_MINT_MAX_ELAPSED` is spent. The test overrides the base delay and the budget so
     it stays fast.
   - The cleanup script issues a DELETE only for an offline runner id and always exits 0.
+  - Before minting, the mint script DELETEs only **offline** runners whose name starts with
+    `gx10-<hostname>-<instance>-`; an online runner, another instance's runner and another
+    host's runner are left alone, and a failing sweep does not stop the mint (D5).
 
   **Spec scenarios**: ci-runner-infrastructure / "Credential stays on the host", "Mint retries
-  are bounded below the start timeout", "JIT labels match the routing labels"
+  are bounded below the start timeout", "JIT labels match the routing labels", "Stale
+  registrations of the instance are swept before minting"
   **Design decisions**: D5
   **Dependencies**: 1.2, 1.3
 - [ ] Checkpoint: run tests, review diff, verify scope
@@ -225,6 +243,7 @@ Everything of that kind is in § 7 (operator-only).
   - Read the credential from `$CREDENTIALS_DIRECTORY/github-token`, falling back to
     `GX10_RUNNER_TOKEN_FILE`.
   - Write with umask 077.
+  - Sweep this instance's stale offline registrations before minting (D5).
   - Use exponential backoff with a per-attempt cap of 300 s, inside the total budget
     `GX10_MINT_MAX_ELAPSED` (default 600 s).
 
@@ -239,6 +258,7 @@ Everything of that kind is in § 7 (operator-only).
     and does not use `latest`.
   - Every package in `toolchain.txt` is installed by the Containerfile.
   - The final `USER` is not root.
+  - The image sets `ENV UV_CACHE_DIR=/home/runner/.cache/uv` (D6).
   - No `sudoers` grant is added.
 
   **Spec scenarios**: ci-runner-infrastructure / "Base image is pinned"
@@ -285,13 +305,22 @@ Everything of that kind is in § 7 (operator-only).
   - `verify_run` does **not** flag `dependency-update-remediation` concluding `skipped` with no
     runner (it has a job-level `if:`).
   - The CLI's argument parsing, including `--head-sha`, `--event`, `--since`, `--until`,
-    `--limit` and `--expect-lane`, works with no network access. `gh` is stubbed.
+    `--limit`, `--expect-lane` and `--workflow-file`, works with no network access. `gh` is
+    stubbed.
+  - With a recording `gh` stub that serves more matching runs than `--limit`, the issued
+    requests are GETs carrying the workflow/event/`head_sha` filters, and paging stops once
+    `--limit` runs are collected (no fetch-all-then-truncate).
+  - `compare` excludes a run with mixed routed-job placement (or no assigned routed runner)
+    from both samples and lists it in `excluded_runs`.
+  - `verify-run` without `--workflow-file` fetches the definition at the run's `head_sha`
+    (asserted on the recorded `gh api .../contents/...?ref=<sha>` call).
 
   **Spec scenarios**: ci-runner-infrastructure / "Median ignores cancelled and failed runs",
   "Comparison enforces threshold and sample size", "Run verification flags misrouted jobs",
   "Conditionally skipped job is not a violation", "Unconditional job skipped by an upstream
   failure is a violation", "Rollback check expects hosted placement", "Matrix expansions are
-  correlated to their job id"
+  correlated to their job id", "Failed continue-on-error job is a warning", "CLI fetches are
+  filtered and bounded", "Runs with mixed placement are excluded from comparison"
   **Design decisions**: D8
   **Dependencies**: 1.2, 1.3
 - [ ] 4.2 Implement the pure functions `median_wallclock`, `compare` and `verify_run` in
@@ -374,7 +403,10 @@ Everything of that kind is in § 7 (operator-only).
 - [ ] O2 Provision the registration credential
   - Create a fine-grained PAT for this repository only, with *Administration: read and write*
     and an expiry of 90 days or less.
-  - Store it as `~ghrunner/.config/gx10-runner/token` with mode 0600.
+  - Store it as `~ghrunner/.config/gx10-runner/token` with mode 0600; the unit's
+    `LoadCredential=github-token:%h/.config/gx10-runner/token` reads it from there (D7).
+  - Copy `deploy/gx10-runner/gx10-runner.env.example` to `~ghrunner/.config/gx10-runner/env`
+    and fill in the repository slug and image reference (`EnvironmentFile=`, D7).
   - **Verify**: `stat -c %a ~ghrunner/.config/gx10-runner/token` prints `600`, and
     `GH_TOKEN=$(sudo cat …) gh api repos/{owner}/{repo}/actions/runners --jq .total_count`
     exits 0.
@@ -382,22 +414,29 @@ Everything of that kind is in § 7 (operator-only).
   - Run `podman build -t localhost/gx10-runner:<sha> deploy/gx10-runner`.
   - **Verify**: `podman image inspect localhost/gx10-runner:<sha> --format '{{.Architecture}}'`
     prints `arm64`.
-- [ ] O4 Install and enable the units
-  - Run `deploy/gx10-runner/install-units.sh`, then `systemctl --user daemon-reload` and
+- [ ] O4 Install the host-service isolation control, then install and enable the units
+  - First, as root, install the isolation control (D6). Preferred: an nftables `output` hook
+    chain with, in order, `meta skuid ghrunner ip daddr 127.0.0.53 udp dport 53 accept`, the
+    same rule for `tcp`, and `meta skuid ghrunner fib daddr type local drop`. Fallback: rebind
+    every host service the runners must not reach to `127.0.0.1`.
+  - Then run `deploy/gx10-runner/install-units.sh`, then `systemctl --user daemon-reload` and
     `systemctl --user enable --now gx10-runner@{1..8}` as `ghrunner`.
   - **Verify**:
     `gh api repos/{owner}/{repo}/actions/runners --jq '[.runners[]|select(any(.labels[];.name=="gx10"))|.status]'`
     lists 8 entries, all `online`.
-  - Before enabling the units, install the host-service isolation control (D6): the nftables
-    rule `meta skuid ghrunner fib daddr type local drop` in an `output` hook chain (preferred),
-    or rebind every host service the runners must not reach to `127.0.0.1` (fallback).
   - **Also verify**: for each address in `10.0.2.2 $(hostname -I)` and each port in
     `54322 <coordinator-port>`,
-    `podman exec gx10-runner-1 bash -c 'curl -sm 3 http://<addr>:<port> >/dev/null && echo reachable || echo unreachable'`
-    prints `unreachable`; `sudo nft list ruleset | grep 'skuid'` shows the rule (or
-    `ss -ltnp` shows those ports bound to `127.0.0.1` only); and
+    `podman exec gx10-runner-1 bash -c 'timeout 3 bash -c "exec 3<>/dev/tcp/<addr>/<port>" && echo reachable || echo unreachable'`
+    prints `unreachable` (a transport-level connect; an HTTP `curl` probe is wrong here, because
+    it fails after connecting to a non-HTTP service such as Postgres);
+    `sudo -u ghrunner getent hosts api.github.com` resolves (the DNS exemption works);
+    `sudo nft list ruleset | grep skuid` shows the rules (or `ss -ltnp` shows those ports bound
+    to `127.0.0.1` only); and
     `podman inspect gx10-runner-1 --format '{{.HostConfig.NetworkMode}}'` shows `slirp4netns`.
     A probe of `10.0.2.2` alone is not sufficient (D6).
+  - If the operator opts in to the shared uv cache (D6/A10), fill in the runbook's
+    risk-acceptance line (date; confirmation that every same-repository writer, including
+    Dependabot and agent branches, is acceptable) before setting `GX10_RUNNER_CACHE_ARGS`.
 - [ ] O5 Set the fork-PR approval policy *(outcome 3, settings half)*
   - Run `gh api -X PUT repos/{owner}/{repo}/actions/permissions/fork-pr-contributor-approval -f approval_policy=all_external_contributors`.
   - Confirm the runners are repository-scoped, not organization-scoped.

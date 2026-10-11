@@ -123,8 +123,10 @@ which costs wall-clock time.
 downstream parsers in this repository do not handle them uniformly. Repeating the expression
 and enforcing it with a test is the safer option.
 
-The labels inside `fromJSON(...)` must equal `routing.self_hosted_labels` in the manifest. A
-test checks this.
+The labels inside `fromJSON(...)` must equal `routing.self_hosted_labels` in the manifest, the
+`vars.<name>` reference must name `routing.repository_variable`, and the `inputs.<name>`
+references must name `routing.dispatch_input`. A test checks all three, so no field of the
+manifest's routing block is decorative.
 
 ### D4 — Defense in depth: in-job fork guard and trigger allowlist
 
@@ -172,8 +174,11 @@ It works in four steps:
    `POST /repos/{owner}/{repo}/actions/runners/generate-jitconfig` with:
    - `name=gx10-<hostname>-<instance>-<epoch>`
    - `runner_group_id=1`
-   - `labels` = manifest `self_hosted_labels`, read from the env file that the install docs
-     generate
+   - `labels` = the **custom** labels only: manifest `self_hosted_labels` minus the labels the
+     runner assigns itself (`self-hosted`, `Linux`, `ARM64`, compared case-insensitively),
+     i.e. `["gx10"]` today, read from the env file. The API documents `labels` as custom
+     labels, so sending the defaults risks a 422; the effective label set is defaults ∪
+     requested, which must equal the manifest set (case-insensitively)
    - `work_folder=_work`
 3. It writes `ACTIONS_RUNNER_INPUT_JITCONFIG=<encoded>` and the runner id into
    `$XDG_RUNTIME_DIR/gx10-runner/<instance>.env`, with umask 077.
@@ -184,8 +189,14 @@ It works in four steps:
    takes effect (the API is hammered every ~10 s instead). A test pins
    `GX10_MINT_MAX_ELAPSED < TimeoutStartSec`.
 
-The container receives only the single-use encoded JIT config, through `--env-file`. A job that
-reads it gains nothing, because the config is consumed by the runner it already belongs to.
+The container receives only the single-use encoded JIT config, through `--env-file`. That value
+is not inert: it encodes the runner's identity and Actions-service credentials, and because it
+is in the runner's environment every job step inherits it, so PR code could act as that runner
+against the Actions service (read its own job message, post status) **while the job runs**.
+Ephemerality bounds this to one job on one single-use registration that cannot be reused after
+the job, and it grants nothing on the host or on other jobs. This residual is **accepted**. A
+narrower option, deferred, is an entrypoint wrapper that reads the variable, `unset`s it and
+passes it as `--jitconfig` (at the cost of the value appearing briefly in `ps`).
 
 **Credential choice.** A fine-grained PAT scoped to this repository with
 *Administration: read and write*, expiring in 90 days or less (A3).
@@ -199,6 +210,17 @@ host. It is recorded as the upgrade path in the runbook.
 `cleanup-runner.sh <instance>` runs as `ExecStopPost`. If the JIT runner id from the env file
 is still registered and offline, it deletes the registration. Deletion is best-effort and
 always exits 0.
+
+`ExecStopPost` does not run after a power loss or hard reboot, so never-used registrations can
+survive it. Before minting, `mint-jitconfig.sh <instance>` therefore **sweeps** stale
+registrations: it lists the repository's runners (read-only GET, bounded by `per_page=100`)
+and deletes every **offline** runner whose name starts with `gx10-<hostname>-<instance>-`
+(the instance's own prefix, so it never touches another instance's or another host's runners).
+The sweep is best-effort: a failure is logged and does not consume the mint retry budget.
+
+**Host DNS must stay reachable for `ghrunner`.** The mint script resolves `api.github.com`
+through the host resolver; on Ubuntu 24.04 that is systemd-resolved's stub at `127.0.0.53`, a
+local address. The D6 nftables control therefore exempts the resolver (see D6).
 
 ### D6 — Container hardening and isolation
 
@@ -241,19 +263,27 @@ service listening on `0.0.0.0` or on the host's LAN or Tailscale address (a comp
 `0.0.0.0:54322` Postgres is the common case; the coordinator API and the ri-08 daemon may also
 bind non-loopback) stays reachable from PR code through the host's real IP. Isolation of host
 services therefore rests on one of two operator-enforced controls, and O4 must prove it:
-1. **Preferred — an nftables egress rule for the runner user**: drop every packet whose socket
-   owner is `ghrunner` and whose destination is a local host address
-   (`meta skuid ghrunner fib daddr type local drop` in an `output` hook chain). Because
-   slirp4netns runs as `ghrunner`, this blocks every host-local destination regardless of how
-   services bind, while leaving internet egress intact. Installing the rule is operator-only.
+1. **Preferred — an nftables egress rule for the runner user**: in an `output` hook chain,
+   first accept DNS to the host stub resolver
+   (`meta skuid ghrunner ip daddr 127.0.0.53 udp dport 53 accept` and the same for `tcp`), then
+   drop every other packet whose socket owner is `ghrunner` and whose destination is a local
+   host address (`meta skuid ghrunner fib daddr type local drop`). Because slirp4netns runs as
+   `ghrunner`, this blocks every host-local service regardless of how it binds, while leaving
+   internet egress and name resolution intact (both for the mint script and for container DNS,
+   which slirp4netns forwards through the host resolver). Without the DNS exemption the mint
+   script cannot resolve `api.github.com`, burns its retry budget on every start, and no
+   instance ever comes online. Installing the rule is operator-only.
 2. **Fallback — loopback-only binding**: every host service the runners must not reach binds to
    `127.0.0.1` only (compose ports published as `127.0.0.1:54322:5432`), checked with
    `ss -ltnp`.
 
 O4's verification probes the coordinator API port and `:54322` on **each** host address
 (`10.0.2.2`, the LAN address and the Tailscale address, from `hostname -I`) from inside a
-runner container and requires every probe to fail. A probe of `10.0.2.2` alone is not
-sufficient evidence.
+runner container and requires every **TCP connect** to be refused or to time out. The probe is
+transport-level (`timeout 3 bash -c 'exec 3<>/dev/tcp/<addr>/<port>'`), not an HTTP request:
+`curl` against a non-HTTP service such as Postgres fails *after* connecting, which would report
+"unreachable" exactly when the port is reachable. A probe of `10.0.2.2` alone is not sufficient
+evidence. O4 also confirms DNS still works for `ghrunner` (`getent hosts api.github.com`).
 
 **Shared uv cache trade-off: off by default, explicit operator opt-in.** A cache shared across
 jobs speeds up `uv sync`. It is also a cross-trust poisoning vector: a same-repository PR job
@@ -312,8 +342,21 @@ dedicated `ghrunner` account (A4). It has these properties:
 - `TimeoutStartSec=900`, which bounds `ExecStartPre` and must exceed the mint script's total
   retry budget `GX10_MINT_MAX_ELAPSED` (D5). The default of 90 s would kill the script in the
   middle of its backoff.
+- `EnvironmentFile=%h/.config/gx10-runner/env`: the operator's copy of
+  `gx10-runner.env.example`. It supplies the repository slug, image reference, CPU and memory
+  limits, labels, `GX10_MINT_MAX_ELAPSED` and `GX10_RUNNER_CACHE_ARGS` to `ExecStartPre` and
+  `ExecStart`; without it they are all unset. It is distinct from the per-instance container
+  env file `%t/gx10-runner/%i.env` that the mint script writes (JIT config and runner id only).
+- `LoadCredential=github-token:%h/.config/gx10-runner/token`: the registration credential (O2
+  stores it at that path, mode 0600). systemd exposes it to `ExecStartPre` as
+  `$CREDENTIALS_DIRECTORY/github-token`, the mint script's primary source;
+  `GX10_RUNNER_TOKEN_FILE` remains only as a fallback for running the script by hand and is
+  not set in the env file.
 - `ExecStartPre` is the mint script.
-- `ExecStart` is `podman run …` (D6).
+- `ExecStart` is `podman run --replace …` (D6). `--replace` removes a leftover container of the
+  same name (from an unclean stop or a crash before `--rm` cleanup) instead of failing on the
+  name conflict, which would otherwise make `Restart=always` retry every 10 s forever while the
+  instance silently drops out of the pool.
 - `ExecStopPost` is the cleanup script.
 - `TimeoutStopSec=90`.
 - `[Install] WantedBy=default.target`.
@@ -376,6 +419,12 @@ name from the workflow definition:
 - a `name:` that contains an expression (`${{`) is rejected by the manifest completeness test,
   because it cannot be resolved statically.
 
+`verify-run` reads the workflow definition **at the run's `head_sha`**, fetched read-only with
+`gh api repos/{owner}/{repo}/contents/.github/workflows/<file>?ref=<head_sha>` (or from a local
+file passed with `--workflow-file`, which the tests use), never from the local checkout, so a
+run of an older or newer commit is judged against the job-level `if:`, `name:`,
+`strategy.matrix` and `continue-on-error` it actually ran with.
+
 Today no job in `ci.yml` or `security.yml` sets `name:` or `strategy.matrix`, so every display
 name equals its job id. The completeness test (task 2.2) asserts that derived display names are
 unique within each workflow, so the mapping is one-to-one; an API entry that matches no
@@ -383,7 +432,11 @@ manifest job is reported as a violation ("unknown job"), which also catches a re
 
 A run's lane is derived from where its routed jobs actually ran, using the runner labels in the
 jobs API. It is not derived from dispatch inputs, because the runs API does not expose them.
-`compare --baseline-lane hosted --candidate-lane self-hosted` groups runs on that basis.
+`compare --baseline-lane hosted --candidate-lane self-hosted` groups runs on that basis. A run
+is classified only when **all** its routed jobs that were assigned a runner ran on the same
+lane. A run with mixed placement, or with no routed job assigned a runner, is **excluded** from
+both samples and listed in a diagnostic (`excluded_runs` with a reason), so it cannot distort
+the ratio.
 
 Run selection for `median` and `compare` is explicit, so that the A6 measurement is reproducible:
 - `--workflow <file>` (required);
