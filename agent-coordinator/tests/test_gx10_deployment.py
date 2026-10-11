@@ -184,3 +184,60 @@ def test_the_renderer_refuses_a_tunnel_config_exposing_a_secret_store() -> None:
     script = (DEPLOY / "openbao" / "render-coordinator-secrets.sh").read_text(encoding="utf-8")
     assert "8200" in script
     assert "must never be public" in script
+
+
+KANBAN_BUILD = DEPLOY / "build-kanban.sh"
+
+
+def test_the_kanban_bundle_never_carries_a_key() -> None:
+    """Anything baked into the JavaScript is readable by whoever loads the page.
+    Caddy injects the key; the build must neither bake one nor let an
+    untracked .env.local in the checkout supply one."""
+    script = KANBAN_BUILD.read_text(encoding="utf-8")
+    assert "-e VITE_COORDINATOR_API_KEY= " in script
+    assert "-e VITE_COORDINATOR_AUTH=proxy" in script
+    assert "git -C \"$ROOT_DIR\" archive HEAD" in script
+
+
+def test_the_kanban_build_is_served_under_its_route() -> None:
+    """Without the base, index.html requests /assets/... and Caddy hands that
+    path to the analyzer API: a blank page with no obvious error."""
+    script = KANBAN_BUILD.read_text(encoding="utf-8")
+    assert "BASE=/kanban/" in script
+    assert "--base $BASE" in script
+    assert "-e VITE_COORDINATOR_URL=/kanban/api" in script
+    assert 'grep -q "src=\\"${BASE}assets/"' in script
+
+
+def test_the_kanban_build_image_is_pinned_or_fails_closed() -> None:
+    script = KANBAN_BUILD.read_text(encoding="utf-8")
+    assert '"${GX10_NODE_IMAGE:?' in script
+    assert "*@sha256:*" in script
+
+
+def test_the_kanban_release_switch_survives_the_bind_mount() -> None:
+    """Caddy mounts the parent and serves `current`; a relative link resolves
+    inside the container, an absolute host path would not."""
+    script = KANBAN_BUILD.read_text(encoding="utf-8")
+    assert 'ln -sfn "releases/$sha"' in script
+    assert "mv -T" in script
+
+
+def test_the_public_api_verifies_cloudflare_access_itself(compose: dict) -> None:
+    """The tunnel makes the API public. Forcing verification on means a missing
+    team domain or AUD stops the API at startup instead of serving it open."""
+    env = compose["services"]["coordinator-api"]["environment"]
+    assert env["CF_ACCESS_ENABLED"] == "true"
+    script = (DEPLOY / "openbao" / "render-coordinator-secrets.sh").read_text(encoding="utf-8")
+    assert "CF_ACCESS_TEAM_DOMAIN" in script
+    assert "CF_ACCESS_AUD" in script
+
+
+def test_only_the_analyzers_caddy_skips_access(compose: dict) -> None:
+    """Caddy's fixed address is the one exception (kanban board). It is matched
+    on the TCP peer; trusting forwarded headers would let a tunnel client claim
+    it, so uvicorn's FORWARDED_ALLOW_IPS must never be widened here."""
+    env = compose["services"]["coordinator-api"]["environment"]
+    assert env["CF_ACCESS_TRUSTED_PEERS"] == "10.89.1.250"
+    assert "FORWARDED_ALLOW_IPS" not in env
+    assert "forwarded-allow-ips" not in COMPOSE.read_text(encoding="utf-8")
