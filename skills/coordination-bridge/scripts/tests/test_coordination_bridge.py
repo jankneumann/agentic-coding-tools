@@ -861,11 +861,13 @@ def _ok() -> dict[str, Any]:
     return {"status_code": 200, "data": {"success": True}, "error": None}
 
 
-def _capture_bridge(monkeypatch, responses: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _capture_bridge(
+    monkeypatch, responses: list[dict[str, Any]], capability: str = "CAN_LOCK"
+) -> list[dict[str, Any]]:
     captured: list[dict[str, Any]] = []
     queue = list(responses)
     monkeypatch.setattr(
-        coordination_bridge, "detect_coordination", lambda **_: _state(CAN_LOCK=True)
+        coordination_bridge, "detect_coordination", lambda **_: _state(**{capability: True})
     )
     monkeypatch.setattr(
         coordination_bridge,
@@ -929,6 +931,44 @@ def test_try_unlock_retries_without_identity_when_the_key_is_bound(monkeypatch) 
         "merge-pull-requests-sync-point",
         "",
     ]
+
+
+def test_try_remember_retries_without_identity_when_the_key_is_bound(monkeypatch) -> None:
+    """The approval-gate audit sink writes as "approval-gate"; a bound key
+    refused that and every gate decision went unaudited."""
+    captured = _capture_bridge(monkeypatch, [_refusal(), _ok()], "CAN_MEMORY")
+
+    result = coordination_bridge.try_remember(
+        agent_id="approval-gate",
+        event_type="approval_gate_decision",
+        summary="s",
+        details={"agent_id": "approval-gate"},
+        api_key="bound-key-xyz",
+    )
+
+    assert result["status"] == "ok"
+    assert [c["payload"]["agent_id"] for c in captured] == ["approval-gate", ""]
+    assert captured[1]["payload"]["details"] == {"agent_id": "approval-gate"}
+
+
+def test_try_remember_keeps_caller_identity_for_an_unbound_key(monkeypatch) -> None:
+    """Without a refusal the caller's identity is the memory's author."""
+    captured = _capture_bridge(monkeypatch, [_ok()], "CAN_MEMORY")
+
+    coordination_bridge.try_remember(
+        agent_id="claude-code-1", event_type="e", summary="s", api_key="k"
+    )
+
+    assert len(captured) == 1
+    assert captured[0]["payload"]["agent_id"] == "claude-code-1"
+
+
+def test_try_recall_retries_without_identity_when_the_key_is_bound(monkeypatch) -> None:
+    captured = _capture_bridge(monkeypatch, [_refusal(), _ok()], "CAN_MEMORY")
+
+    coordination_bridge.try_recall(agent_id="approval-gate", api_key="bound-key-xyz")
+
+    assert [c["payload"]["agent_id"] for c in captured] == ["approval-gate", ""]
 
 
 def test_an_unrelated_403_is_not_retried(monkeypatch) -> None:
