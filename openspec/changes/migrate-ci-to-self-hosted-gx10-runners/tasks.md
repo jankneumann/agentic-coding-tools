@@ -68,7 +68,7 @@ Everything of that kind is in § 7 (operator-only).
 
 ## Phase 2 — Workflow routing (`ci.yml`, `security.yml` on this branch)
 
-- [ ] 2.1 Write `test_routing_expression.py` (M)
+- [x] 2.1 Write `test_routing_expression.py` (M)
   - It contains a minimal reference evaluator for the D3 expression grammar:
     - the `&&`/`||` value semantics of GitHub expressions;
     - `==`/`!=`;
@@ -91,7 +91,7 @@ Everything of that kind is in § 7 (operator-only).
   **Contracts**: .github/runner-lanes.schema.json
   **Design decisions**: D3
   **Dependencies**: 1.2, 1.3
-- [ ] 2.2 Write `test_manifest_completeness.py` (S)
+- [x] 2.2 Write `test_manifest_completeness.py` (S)
   - The set of job ids in each workflow equals the manifest's job set for that workflow, so
     unclassified and stale entries are both caught.
   - Every hosted job has `runs-on == "ubuntu-latest"` as a literal string.
@@ -102,7 +102,7 @@ Everything of that kind is in § 7 (operator-only).
   manifest entry fails the suite", "Hosted job uses a literal hosted label"
   **Design decisions**: D1, D2
   **Dependencies**: 1.2, 1.3
-- [ ] 2.3 Write `test_fork_guard.py` (S)
+- [x] 2.3 Write `test_fork_guard.py` (S)
   - Every routed job's first step is the D4 guard: its `if` condition and its `exit 1`.
   - The guard's eligibility clause equals, after whitespace normalization, the negated
     event-eligibility clause of the canonical D3 expression (so `merge_group` and fork PRs are
@@ -116,7 +116,7 @@ Everything of that kind is in § 7 (operator-only).
   "Privileged trigger is introduced", "Dispatch trigger and lane input are declared"
   **Design decisions**: D4
   **Dependencies**: 1.2, 1.3
-- [ ] 2.4 Write `test_tool_parity.py` (S)
+- [x] 2.4 Write `test_tool_parity.py` (S)
   - A routed job must not declare `services:`.
   - A routed job's `run:` blocks must not invoke `docker`, `podman`, `sudo` or `apt-get` in
     command position (D10 matching rule), except for entries in the commented allowlist, which
