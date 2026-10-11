@@ -127,9 +127,16 @@ def load_agents_yaml(path: Path | None = None) -> dict:
 
     base_url = os.environ.get("COORDINATION_API_URL")
     if base_url:
+        headers = {"User-Agent": "agentic-coding-tools/0.1"}
+        # Behind Cloudflare Access the edge refuses requests without the service token.
+        cf_id = os.environ.get("CF_ACCESS_CLIENT_ID", "").strip()
+        cf_secret = os.environ.get("CF_ACCESS_CLIENT_SECRET", "").strip()
+        if cf_id and cf_secret:
+            headers["CF-Access-Client-Id"] = cf_id
+            headers["CF-Access-Client-Secret"] = cf_secret
         request = Request(
             f"{base_url.rstrip('/')}/agents/dispatch-configs",
-            headers={"User-Agent": "agentic-coding-tools/0.1"},
+            headers=headers,
         )
         try:
             with urlopen(request, timeout=3.0) as response:
