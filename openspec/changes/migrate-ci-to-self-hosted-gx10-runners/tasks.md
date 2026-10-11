@@ -26,7 +26,7 @@ Everything of that kind is in § 7 (operator-only).
 ## Status
 
 - [x] Planning
-- [ ] Implementation
+- [x] Implementation
 - [ ] Testing
 - [ ] Review
 - [ ] Done
@@ -64,7 +64,7 @@ Everything of that kind is in § 7 (operator-only).
     `skills/tests/ci_coverage/test_ci_test_coverage.py` stays green.
 
   **Dependencies**: none
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 
 ## Phase 2 — Workflow routing (`ci.yml`, `security.yml` on this branch)
 
@@ -132,7 +132,7 @@ Everything of that kind is in § 7 (operator-only).
   without setup-node"
   **Design decisions**: D2, D10
   **Dependencies**: 1.2, 1.3
-- [ ] Checkpoint: run tests (expect 2.1–2.4 RED), review diff, verify scope
+- [x] Checkpoint: run tests (expect 2.1–2.4 RED), review diff, verify scope
 > **Same-file chain.** 2.5 → 2.6 → 2.7 → 2.8 all edit `ci.yml` and/or `security.yml` and run
 > serially inside `wp-workflows`; they are never split across agents.
 
@@ -174,7 +174,7 @@ Everything of that kind is in § 7 (operator-only).
   Fix only by adjusting this change's workflow edits, never by editing those tests' contracts.
 
   **Dependencies**: 2.5, 2.6, 2.7, 2.8
-- [ ] Checkpoint: run tests (2.1–2.4 GREEN), review diff, verify scope
+- [x] Checkpoint: run tests (2.1–2.4 GREEN), review diff, verify scope
 
 ## Phase 3 — Runner kit (`deploy/gx10-runner/`), written and never installed
 
@@ -240,7 +240,7 @@ Everything of that kind is in § 7 (operator-only).
   registrations of the instance are swept before minting"
   **Design decisions**: D5
   **Dependencies**: 1.2, 1.3
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 - [x] 3.4 Author `deploy/gx10-runner/mint-jitconfig.sh` (S)
   - Use `set -euo pipefail`.
   - Read the credential from `$CREDENTIALS_DIRECTORY/github-token`, falling back to
@@ -299,7 +299,7 @@ Everything of that kind is in § 7 (operator-only).
   - Use the copy-and-print-only behaviour of D7.
 
   **Dependencies**: 3.8
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 
 ## Phase 4 — Measurement and run verification (`scripts/ci/ci_wallclock.py`)
 
@@ -351,7 +351,7 @@ Everything of that kind is in § 7 (operator-only).
     not change the exit code.
 
   **Dependencies**: 4.2
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 
 ## Phase 5 — Operator runbook
 
@@ -381,11 +381,11 @@ Everything of that kind is in § 7 (operator-only).
 - [x] 5.3 Link the runbook from `docs/guides/documentation.md`, under setup and deployment (XS)
 
   **Dependencies**: 5.2
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 
 ## Phase 6 — Integration
 
-- [ ] 6.1 Run the full skills suite and validators (S)
+- [x] 6.1 Run the full skills suite and validators (S)
   - Run the full skills suite with `skills/.venv/bin/python -m pytest skills/tests -q`.
   - Run `openspec validate migrate-ci-to-self-hosted-gx10-runners --strict`.
   - If `actionlint` is available, run it over both workflows. Otherwise record it as skipped.
