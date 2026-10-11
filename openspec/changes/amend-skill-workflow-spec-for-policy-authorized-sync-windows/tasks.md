@@ -75,7 +75,7 @@ only produce merge conflicts on a ~350 LOC change.
 - [ ] Checkpoint: run `skills/.venv/bin/python -m pytest skills/shared/tests skills/tests/merge-pull-requests -q`,
   then `skills/.venv/bin/python -m pytest skills/tests/supervise skills/tests/autopilot skills/autopilot/tests -q`
   (digest consumers), review diff, verify scope
-- [ ] 2.3 Mirror `sync_windows` in `openspec/schemas/trust-posture.schema.json`
+- [x] 2.3 Mirror `sync_windows` in `openspec/schemas/trust-posture.schema.json`
   (`SyncWindow` `$def`, closed enums, `uniqueItems`, id and cadence patterns)
   and add schema tests to `test_trust_posture_sync_windows.py`: the template and
   a sample window validate, `sync_windows` absent, `null` and `[]` all validate,

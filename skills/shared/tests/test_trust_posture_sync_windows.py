@@ -298,3 +298,84 @@ def test_live_and_template_validate_with_no_window(name: str) -> None:
     path = REPO_ROOT / name
     assert tp.validate_posture_file(path) == []
     assert tp.load_posture(path=path).sync_windows == ()
+
+
+# --------------------------------------------------------------------------- #
+# JSON schema mirror
+# --------------------------------------------------------------------------- #
+
+try:
+    import jsonschema
+except ImportError:  # pragma: no cover - schema tests only
+    jsonschema = None
+needs_jsonschema = pytest.mark.skipif(jsonschema is None, reason="jsonschema not installed")
+SCHEMA = json.loads(
+    (REPO_ROOT / "openspec" / "schemas" / "trust-posture.schema.json").read_text()
+)
+
+
+def _front_matter(path: Path) -> dict:
+    return yaml.safe_load(path.read_text().split("---")[1])
+
+
+def _schema_errors(front: dict) -> list:
+    return list(jsonschema.Draft202012Validator(SCHEMA).iter_errors(front))
+
+
+def _front(windows: object = ...) -> dict:
+    front = _front_matter(REPO_ROOT / "TRUST_POSTURE.template.md")
+    if windows is not ...:
+        front["sync_windows"] = windows
+    return front
+
+
+@needs_jsonschema
+def test_schema_template_and_sample_window_validate() -> None:
+    assert _schema_errors(_front_matter(REPO_ROOT / "TRUST_POSTURE.template.md")) == []
+    assert _schema_errors(_front([WINDOW])) == []
+
+
+@pytest.mark.parametrize("value", [..., None, []])
+@needs_jsonschema
+def test_schema_absent_null_empty_validate(value: object) -> None:
+    assert _schema_errors(_front(value)) == []
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        window(extra=1),
+        _without("skills"),
+        window(skills=[]),
+        window(skills=["update-specs", "update-specs"]),
+        window(skills=[5]),
+        window(allowed_sources="jules"),
+        window(allowed_sources=[None]),
+        window(auto_merge_ceiling="all"),
+        window(auto_merge_ceiling=3),
+        window(id="Bad_Id"),
+        window(id=7),
+        window(cadence="@daily"),
+        window(cadence="0 3 * * MON"),
+        window(cadence="0 3 * *"),
+        window(cadence="0 0 3 * * 1"),
+        window(cadence=5),
+        "not-a-mapping",
+    ],
+)
+@needs_jsonschema
+def test_schema_rejects_malformed_window(bad: object) -> None:
+    assert _schema_errors(_front([bad]))
+
+
+@needs_jsonschema
+def test_schema_rejects_non_list_container() -> None:
+    assert _schema_errors(_front("daily"))
+
+
+@needs_jsonschema
+def test_schema_enums_equal_python_frozensets() -> None:
+    props = SCHEMA["$defs"]["SyncWindow"]["properties"]
+    assert set(props["skills"]["items"]["enum"]) == tp.SYNC_SKILLS
+    assert set(props["allowed_sources"]["items"]["enum"]) == tp.SYNC_SOURCES
+    assert set(props["auto_merge_ceiling"]["enum"]) == {c.value for c in tp.MergeCeiling}
