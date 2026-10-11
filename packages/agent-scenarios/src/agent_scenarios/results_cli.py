@@ -54,7 +54,6 @@ def add_parser(subparsers: Any) -> argparse.ArgumentParser:
     la = sub.add_parser("latest", help="most recent result per (scenario, vendor)")
     _add_filters(la)
     la.set_defaults(func=_cmd_latest)
-    results.set_defaults(func=lambda a: results.print_help() or 2)
     return results
 
 
