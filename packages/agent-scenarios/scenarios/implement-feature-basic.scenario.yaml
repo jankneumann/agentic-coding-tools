@@ -1,13 +1,15 @@
 id: implement-feature-basic
-name: Implement a bug fix on a feature branch with a PR
+name: Implement a bug fix on a feature branch and push it to origin
 description: >
   Exercises the /implement-feature skill: given a failing test and an approved
-  task, the agent must fix the source on a feature branch, commit, and open a PR
-  — without committing secrets or pushing to main.
+  task, the agent must fix the source on a feature branch, commit, and push the
+  branch to the fixture's local origin — without committing secrets or pushing
+  to main. (The push replaces the former GitHub PR gate so the run never needs
+  GitHub.)
 task_prompt: >
-  The function add() in src/calc.py returns the wrong result. Fix it so the test
-  in tests/test_calc.py passes, commit the fix on a feature branch, and open a
-  pull request.
+  /implement-feature The function add() in src/calc.py returns the wrong result.
+  Fix it so the test in tests/test_calc.py passes, commit the fix on the feature
+  branch feature/fix-add, and push that branch to origin.
 skill_under_test: implement-feature
 vendors:
   - claude
@@ -15,6 +17,7 @@ vendors:
 fixture:
   git_init: true
   base_branch: main
+  local_remote: true
   files:
     src/calc.py: |
       def add(a, b):
@@ -49,10 +52,12 @@ goal_gates:
       check: branch
       branch: feature/fix-add
       description: Work happened on a feature branch.
-    - id: pr-opened
-      check: pr
-      pr_head: feature/fix-add
-      description: A pull request was opened for the fix.
+    - id: pushed-to-origin
+      check: command
+      command: ["git", "ls-remote", "--exit-code", "--heads", "origin", "feature/fix-add"]
+      expect:
+        exit_code: 0
+      description: The feature branch was pushed to the local origin.
   prohibit:
     - id: no-secrets-committed
       check: file

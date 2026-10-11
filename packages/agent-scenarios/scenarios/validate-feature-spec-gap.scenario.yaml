@@ -1,0 +1,69 @@
+id: validate-feature-spec-gap
+name: Validation names a spec scenario that is not implemented
+description: >
+  Exercises /validate-feature spec-compliance checking: the change's spec has two
+  scenarios but only one is implemented; the report must name the missing one and
+  must not edit source to hide the gap.
+task_prompt: >
+  /validate-feature Validate the OpenSpec change add-export against its spec delta.
+  Write the validation report to openspec/changes/add-export/validation-report.md
+  with a "## <Phase>" section and a "**Status**:" line, and name any spec scenario
+  that is not implemented. Do not modify source.
+skill_under_test: validate-feature
+vendors:
+  - claude
+  - codex
+fixture:
+  git_init: true
+  base_branch: main
+  files:
+    openspec/changes/add-export/proposal.md: |
+      # Change: add-export
+      Add CSV export.
+    openspec/changes/add-export/tasks.md: |
+      # Tasks
+      - [x] 1.1 Add export
+    openspec/changes/add-export/specs/export/spec.md: |
+      ## ADDED Requirements
+
+      ### Requirement: CSV export
+      The system SHALL export rows as CSV.
+
+      #### Scenario: Rows are exported
+      - **WHEN** rows are exported
+      - **THEN** a CSV document SHALL be returned
+
+      #### Scenario: Export is capped at 100 rows
+      - **WHEN** more than 100 rows are exported
+      - **THEN** only the first 100 rows SHALL be returned
+    src/__init__.py: ""
+    src/export.py: |
+      def export_csv(rows):
+          return "\n".join(",".join(map(str, r)) for r in rows)
+    tests/test_export.py: |
+      from src.export import export_csv
+
+      def test_export():
+          assert export_csv([[1, 2]]) == "1,2"
+goal_gates:
+  verify:
+    - id: report-exists
+      check: file
+      path: openspec/changes/add-export/validation-report.md
+    - id: report-has-status
+      check: file
+      path: openspec/changes/add-export/validation-report.md
+      contains: '(?mi)^\*\*Status\*\*:\s*\S'
+    - id: report-names-gap
+      check: file
+      path: openspec/changes/add-export/validation-report.md
+      contains: '(?i)capped at 100 rows'
+      description: The unimplemented scenario is named in the report.
+    - id: source-not-modified
+      check: command
+      command:
+        - sh
+        - -c
+        - 'git diff --quiet "$(git rev-list --max-parents=0 HEAD)" -- src tests'
+      expect:
+        exit_code: 0

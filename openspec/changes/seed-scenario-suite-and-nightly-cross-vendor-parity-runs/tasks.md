@@ -42,34 +42,34 @@ doubles — no vendor CLI, no network, no `systemctl`, no database.
 
 ## 2. Seed suite (wp-scenarios)
 
-- [ ] 2.1 Write suite guard test `tests/test_seed_suite.py` [S]
+- [x] 2.1 Write suite guard test `tests/test_seed_suite.py` [S]
   Floor (≥10, ≥2 per family, ≥2 vendors, unique ids), every `task_prompt` contains `/<skill_under_test>`, outcome-module presence, `pr`-gate-requires-`local_remote` rule, plus negative cases against temp suite dirs.
   **Spec scenarios**: ath.Seed scenario suite coverage floor/the shipped suite meets the coverage floor; ath.Seed scenario suite coverage floor/removing scenarios below the floor fails the guard; ath.Seed scenario suite coverage floor/a seed prompt that does not invoke its skill fails the guard; ath.Seed scenarios are self-tested/a seed scenario without outcomes is rejected; ath.Live runs never reach real GitHub/PR gates require a local remote
   **Design decisions**: D6
   **Dependencies**: None
-- [ ] 2.2 Add `suite.py` with `SKILL_FAMILIES` and `skill_family()` [XS]
+- [x] 2.2 Add `suite.py` with `SKILL_FAMILIES` and `skill_family()` [XS]
   **Dependencies**: 2.1
-- [ ] 2.3 Write parametrized golden/broken self-test `tests/test_seed_outcomes.py` [S]
+- [x] 2.3 Write parametrized golden/broken self-test `tests/test_seed_outcomes.py` [S]
   **Spec scenarios**: ath.Seed scenarios are self-tested/golden outcome passes every gate; ath.Seed scenarios are self-tested/broken outcome fails a named gate
   **Design decisions**: D6
   **Dependencies**: None
-- [ ] 2.4 Revise `implement-feature-basic` to gate on a push to the local origin [S]
+- [x] 2.4 Revise `implement-feature-basic` to gate on a push to the local origin [S]
   Replace the GitHub `pr` gate; set `local_remote: true`; prefix `task_prompt` with `/implement-feature`; add its outcomes module.
   **Dependencies**: 1.3, 2.3
-- [ ] 2.5 Add outcomes module for `plan-feature-basic` and prefix its `task_prompt` with `/plan-feature` [XS]
+- [x] 2.5 Add outcomes module for `plan-feature-basic` and prefix its `task_prompt` with `/plan-feature` [XS]
+  **Dependencies**: 2.3
+- [x] Checkpoint: run tests, review diff, verify scope
+- [x] 2.6 Author plan scenarios `plan-feature-spec-delta` + `iterate-on-plan-split-fused-task` with outcome modules [M]
+  **Dependencies**: 2.3
+- [x] 2.7 Author implement scenarios `implement-feature-tdd-new-function` + `implement-feature-respects-scope` with outcome modules [M]
   **Dependencies**: 2.3
 - [ ] Checkpoint: run tests, review diff, verify scope
-- [ ] 2.6 Author plan scenarios `plan-feature-spec-delta` + `iterate-on-plan-split-fused-task` with outcome modules [M]
+- [x] 2.8 Author validate scenarios `validate-feature-flags-failing-test`, `validate-feature-clean-pass`, `validate-feature-spec-gap` with outcome modules [M]
   **Dependencies**: 2.3
-- [ ] 2.7 Author implement scenarios `implement-feature-tdd-new-function` + `implement-feature-respects-scope` with outcome modules [M]
-  **Dependencies**: 2.3
-- [ ] Checkpoint: run tests, review diff, verify scope
-- [ ] 2.8 Author validate scenarios `validate-feature-flags-failing-test`, `validate-feature-clean-pass`, `validate-feature-spec-gap` with outcome modules [M]
-  **Dependencies**: 2.3
-- [ ] 2.9 Author merge scenarios `merge-pull-requests-local-merge` + `cleanup-feature-archive` (`local_remote: true`, seeded `prs:`) with outcome modules [M]
+- [x] 2.9 Author merge scenarios `merge-pull-requests-local-merge` + `cleanup-feature-archive` (`local_remote: true`, seeded `prs:`) with outcome modules [M]
   Golden outcomes perform the merge through the shim's state (or equivalent git ops on the local origin) so gates are proven satisfiable.
   **Dependencies**: 1.3, 1.7, 2.3
-- [ ] Checkpoint: guard test green with 11 scenarios; review diff, verify scope
+- [x] Checkpoint: guard test green with 11 scenarios; review diff, verify scope
 
 ## 3. Results store and query CLI (wp-results)
 

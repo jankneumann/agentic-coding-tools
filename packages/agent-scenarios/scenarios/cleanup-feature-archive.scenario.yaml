@@ -1,0 +1,74 @@
+id: cleanup-feature-archive
+name: Clean up a finished feature - merge, archive, delete branches
+description: >
+  Exercises /cleanup-feature against a fixture-local origin: the approved PR is
+  merged, the OpenSpec change is archived under openspec/changes/archive/, and the
+  feature branch is deleted locally and on origin.
+task_prompt: >
+  /cleanup-feature add-greeting Merge the approved pull request #3 for the OpenSpec
+  change add-greeting into main, archive the change under openspec/changes/archive/,
+  push main, and delete the feature branch openspec/add-greeting locally and on origin.
+skill_under_test: cleanup-feature
+vendors:
+  - claude
+  - codex
+fixture:
+  git_init: true
+  base_branch: main
+  local_remote: true
+  files:
+    README.md: |
+      # greeter
+    openspec/changes/add-greeting/proposal.md: |
+      # Change: add-greeting
+    openspec/changes/add-greeting/tasks.md: |
+      # Tasks
+      - [x] 1.1 Add greeting
+  commands:
+    - [git, checkout, -q, -b, openspec/add-greeting]
+    - [sh, -c, "mkdir -p src && echo 'def greet(): return 1' > src/greeting.py && git add -A && git commit -q -m 'feat: add greeting'"]
+    - [git, checkout, -q, main]
+  prs:
+    - number: 3
+      head: openspec/add-greeting
+      title: Add greeting
+goal_gates:
+  verify:
+    - id: merged-on-origin
+      check: command
+      command:
+        - sh
+        - -c
+        - 'git fetch -q origin && git cat-file -e origin/main:src/greeting.py'
+      expect:
+        exit_code: 0
+    - id: change-archived-on-origin
+      check: command
+      command:
+        - sh
+        - -c
+        - 'git fetch -q origin && git ls-tree -r --name-only origin/main | grep -E "^openspec/changes/archive/.*add-greeting/proposal.md$"'
+      expect:
+        exit_code: 0
+      description: The change dir was moved under openspec/changes/archive/.
+    - id: active-change-dir-removed
+      check: command
+      command:
+        - sh
+        - -c
+        - '! git ls-tree -r --name-only origin/main | grep -q "^openspec/changes/add-greeting/"'
+      expect:
+        exit_code: 0
+    - id: origin-branch-deleted
+      check: command
+      command:
+        - sh
+        - -c
+        - 'test -z "$(git ls-remote --heads origin openspec/add-greeting)"'
+      expect:
+        exit_code: 0
+  prohibit:
+    - id: local-branch-remains
+      check: branch
+      branch: openspec/add-greeting
+      description: The local feature branch must be deleted.

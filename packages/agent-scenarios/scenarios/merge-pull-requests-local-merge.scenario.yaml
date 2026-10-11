@@ -1,0 +1,48 @@
+id: merge-pull-requests-local-merge
+name: Merge an open PR into main without rewriting history
+description: >
+  Exercises /merge-pull-requests against a fixture-local origin with a seeded PR
+  (served by the gh shim): the PR content must land on origin/main and the original
+  main history must be preserved (no force-push).
+task_prompt: >
+  /merge-pull-requests Review and merge the open pull request #5 into main using a
+  merge commit. Never force-push or rewrite main.
+skill_under_test: merge-pull-requests
+vendors:
+  - claude
+  - codex
+fixture:
+  git_init: true
+  base_branch: main
+  local_remote: true
+  files:
+    README.md: |
+      # greeter
+  commands:
+    - [git, checkout, -q, -b, feature/add-greeting]
+    - [sh, -c, "mkdir -p src && echo 'def greet(): return 1' > src/greeting.py && git add -A && git commit -q -m 'feat: add greeting'"]
+    - [git, checkout, -q, main]
+  prs:
+    - number: 5
+      head: feature/add-greeting
+      title: Add greeting
+goal_gates:
+  verify:
+    - id: pr-content-on-origin-main
+      check: command
+      command:
+        - sh
+        - -c
+        - 'git fetch -q origin && git cat-file -e origin/main:src/greeting.py'
+      expect:
+        exit_code: 0
+      description: The PR's change is on origin/main.
+    - id: origin-history-preserved
+      check: command
+      command:
+        - sh
+        - -c
+        - 'git fetch -q origin && git merge-base --is-ancestor "$(git rev-list --max-parents=0 HEAD)" origin/main'
+      expect:
+        exit_code: 0
+      description: The original main commit is still an ancestor of origin/main.

@@ -1,0 +1,59 @@
+id: validate-feature-clean-pass
+name: Validation of a clean change produces a machine-readable PASS report
+description: >
+  Exercises /validate-feature on a healthy change: the report must carry a bare
+  "## <Phase>" section and a "**Status**:" line with a PASS verdict.
+task_prompt: >
+  /validate-feature Validate the OpenSpec change add-greeting. Run its tests and
+  write the validation report to openspec/changes/add-greeting/validation-report.md
+  with a machine-readable "## <Phase>" section and a "**Status**:" line.
+skill_under_test: validate-feature
+vendors:
+  - claude
+  - codex
+fixture:
+  git_init: true
+  base_branch: main
+  files:
+    openspec/changes/add-greeting/proposal.md: |
+      # Change: add-greeting
+      Add a greeting helper.
+    openspec/changes/add-greeting/tasks.md: |
+      # Tasks
+      - [x] 1.1 Add greet()
+    src/__init__.py: ""
+    src/greeting.py: |
+      def greet(name):
+          return f"Hello, {name}!"
+    tests/test_greeting.py: |
+      from src.greeting import greet
+
+      def test_greet():
+          assert greet("Ada") == "Hello, Ada!"
+goal_gates:
+  verify:
+    - id: report-exists
+      check: file
+      path: openspec/changes/add-greeting/validation-report.md
+    - id: report-has-phase-section
+      check: file
+      path: openspec/changes/add-greeting/validation-report.md
+      contains: '(?m)^## \S'
+    - id: report-has-status
+      check: file
+      path: openspec/changes/add-greeting/validation-report.md
+      contains: '(?mi)^\*\*Status\*\*:\s*PASS'
+      description: The report carries a machine-readable PASS status.
+    - id: tests-still-pass
+      check: command
+      command: ["python", "-m", "pytest", "-q"]
+      expect:
+        exit_code: 0
+    - id: source-not-modified
+      check: command
+      command:
+        - sh
+        - -c
+        - 'git diff --quiet "$(git rev-list --max-parents=0 HEAD)" -- src tests'
+      expect:
+        exit_code: 0

@@ -1,0 +1,74 @@
+id: plan-feature-spec-delta
+name: Plan a change with a well-formed spec delta
+description: >
+  Exercises /plan-feature on a repo that already has a billing spec: the proposal
+  must carry a delta spec using the ADDED Requirements format with at least one
+  scenario, never a full-spec "## Requirements" rewrite, and must leave product
+  source untouched.
+task_prompt: >
+  /plan-feature Create an OpenSpec change proposal named add-invoice-export that
+  adds CSV invoice export to the existing billing capability. Scaffold the change
+  with proposal.md, tasks.md and a spec delta under specs/billing/spec.md. Do not
+  implement anything yet.
+skill_under_test: plan-feature
+vendors:
+  - claude
+  - codex
+fixture:
+  git_init: true
+  base_branch: main
+  files:
+    README.md: |
+      # billing-service
+    src/billing.py: |
+      def total(lines):
+          return sum(lines)
+    openspec/project.md: |
+      # Project Context
+      Billing service fixture.
+    openspec/specs/billing/spec.md: |
+      # billing Specification
+
+      ## Requirements
+
+      ### Requirement: Invoice total
+      The system SHALL compute an invoice total as the sum of its lines.
+
+      #### Scenario: Sum of lines
+      - **WHEN** an invoice has lines 2 and 3
+      - **THEN** the total SHALL be 5
+judge_criteria: >
+  Is the spec delta scoped to the new behaviour and written as a delta rather
+  than a copy of the whole spec?
+goal_gates:
+  verify:
+    - id: proposal-exists
+      check: file
+      path: openspec/changes/add-invoice-export/proposal.md
+    - id: tasks-exists
+      check: file
+      path: openspec/changes/add-invoice-export/tasks.md
+    - id: spec-delta-added-header
+      check: file
+      path: openspec/changes/add-invoice-export/specs/billing/spec.md
+      contains: '(?m)^## ADDED Requirements'
+      description: The delta uses the ADDED Requirements section.
+    - id: spec-delta-has-scenario
+      check: file
+      path: openspec/changes/add-invoice-export/specs/billing/spec.md
+      contains: '(?m)^#### Scenario:'
+      description: The delta carries at least one scenario.
+    - id: on-change-branch
+      check: branch
+      branch: openspec/add-invoice-export
+  prohibit:
+    - id: spec-delta-no-full-requirements-header
+      check: file
+      path: openspec/changes/add-invoice-export/specs/billing/spec.md
+      contains: '(?m)^## Requirements\s*$'
+      description: A delta must not restate the whole spec under "## Requirements".
+    - id: no-source-edit
+      check: file
+      path: src/billing.py
+      contains: "(?i)csv"
+      description: Planning must not modify product source.

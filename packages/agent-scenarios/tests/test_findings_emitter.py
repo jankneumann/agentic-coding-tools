@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 
 import jsonschema
 import pytest
 
-from agent_scenarios import FakeExecutor, Outcome, PRRef, load_scenario, run_scenario
+from agent_scenarios import FakeExecutor, Outcome, load_scenario, run_scenario
 from agent_scenarios.findings_emitter import build_findings, emit_findings
 from agent_scenarios.models import (
     GateVerdict,
@@ -114,12 +115,19 @@ def test_end_to_end_emit_from_runner(scenarios_dir: Path, tmp_path: Path) -> Non
 
 def test_pass_run_emits_empty_findings(scenarios_dir: Path, tmp_path: Path) -> None:
     scenario = load_scenario(scenarios_dir / "implement-feature-basic.scenario.yaml")
-    good = Outcome(
-        write_files={"src/calc.py": "def add(a, b):\n    return a + b\n"},
-        new_branch="feature/fix-add",
-        commit_message="fix: correct add",
-        pr=PRRef(number=1, head="feature/fix-add", url="http://pr/1"),
-    )
+
+    def good(workdir: Path) -> Outcome:
+        # implement-feature-basic gates on a push to the fixture's local origin.
+        for cmd in (
+            ["checkout", "-q", "-b", "feature/fix-add"],
+            ["commit", "-q", "-am", "fix: correct add"],
+            ["push", "-q", "origin", "feature/fix-add"],
+        ):
+            if cmd[0] == "commit":
+                (workdir / "src/calc.py").write_text("def add(a, b):\n    return a + b\n")
+            subprocess.run(["git", *cmd], cwd=workdir, check=True, capture_output=True)
+        return Outcome()
+
     matrix = run_scenario(scenario, FakeExecutor({scenario.id: good}))
     # Deterministic gates should all pass for this scripted-correct outcome.
     assert matrix.all_vendors_pass

@@ -5,7 +5,7 @@ description: >
   fixture repo, the agent must produce an OpenSpec change scaffold (proposal +
   tasks) on a dedicated branch, and must NOT touch product source or main.
 task_prompt: >
-  Create an OpenSpec change proposal for adding a health-check endpoint to the
+  /plan-feature Create an OpenSpec change proposal for adding a health-check endpoint to the
   service. Scaffold the change directory with a proposal.md and tasks.md. Do not
   implement the endpoint yet.
 skill_under_test: plan-feature

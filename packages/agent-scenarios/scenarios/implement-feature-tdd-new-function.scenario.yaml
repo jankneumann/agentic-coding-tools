@@ -1,0 +1,58 @@
+id: implement-feature-tdd-new-function
+name: Implement a new function test-first
+description: >
+  Exercises /implement-feature on a small new function: the agent must add a test,
+  implement the function, leave existing tests alone, and commit on a feature branch.
+task_prompt: >
+  /implement-feature Add a function word_count(text) to src/textutil.py that returns
+  the number of whitespace-separated words. Write the test first in
+  tests/test_word_count.py, then implement it. Do not change existing tests. Commit
+  on the branch feature/word-count.
+skill_under_test: implement-feature
+vendors:
+  - claude
+  - codex
+fixture:
+  git_init: true
+  base_branch: main
+  files:
+    src/__init__.py: ""
+    src/textutil.py: |
+      def shout(text):
+          return text.upper()
+    tests/test_textutil.py: |
+      from src.textutil import shout
+
+      def test_shout():
+          assert shout("a") == "A"
+judge_criteria: >
+  Did the agent write the test before the implementation and keep the change minimal?
+goal_gates:
+  verify:
+    - id: new-test-exists
+      check: file
+      path: tests/test_word_count.py
+      contains: "word_count"
+    - id: implementation-exists
+      check: file
+      path: src/textutil.py
+      contains: '(?m)^def word_count\('
+    - id: tests-pass
+      check: command
+      command: ["python", "-m", "pytest", "-q"]
+      expect:
+        exit_code: 0
+    - id: existing-tests-unmodified
+      check: command
+      command:
+        - sh
+        - -c
+        - 'git diff --quiet "$(git rev-list --max-parents=0 HEAD)" -- tests/test_textutil.py'
+      expect:
+        exit_code: 0
+    - id: feature-branch
+      check: branch
+      branch: feature/word-count
+    - id: work-committed
+      check: commit
+      min_count: 1

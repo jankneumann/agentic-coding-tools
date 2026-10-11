@@ -1,0 +1,65 @@
+id: iterate-on-plan-split-fused-task
+name: Iterate on a plan to split a fused task
+description: >
+  Exercises /iterate-on-plan: the fixture proposal has a task that fuses two
+  independent pieces of work. A refinement iteration must split it into separate
+  tasks while leaving the proposal and product source untouched.
+task_prompt: >
+  /iterate-on-plan Refine the OpenSpec change add-search. One task in tasks.md
+  fuses two independent pieces of work; split it into separate tasks. Only
+  tasks.md may change.
+skill_under_test: iterate-on-plan
+vendors:
+  - claude
+  - codex
+fixture:
+  git_init: true
+  base_branch: main
+  files:
+    src/search.py: |
+      def search(items, q):
+          return [i for i in items if q in i]
+    openspec/changes/add-search/proposal.md: |
+      # Change: add-search
+
+      ## Why
+      Users need ranked search.
+
+      ## What Changes
+      - Add a query parser and a result ranking step.
+    openspec/changes/add-search/tasks.md: |
+      # Tasks: add-search
+
+      ## 1. Search
+      - [ ] 1.1 Implement the query parser and the result ranking
+      - [ ] 1.2 Document the search syntax
+judge_criteria: >
+  Were the split tasks independent and each individually testable, and was the
+  scope kept to tasks.md?
+goal_gates:
+  verify:
+    - id: parser-task-present
+      check: file
+      path: openspec/changes/add-search/tasks.md
+      contains: '(?mi)^- \[ \] \S+ .*parser'
+      description: A task for the parser exists.
+    - id: ranking-task-present
+      check: file
+      path: openspec/changes/add-search/tasks.md
+      contains: '(?mi)^- \[ \] \S+ .*ranking'
+      description: A task for ranking exists.
+    - id: proposal-untouched
+      check: command
+      command:
+        - sh
+        - -c
+        - 'git diff --quiet "$(git rev-list --max-parents=0 HEAD)" -- openspec/changes/add-search/proposal.md src'
+      expect:
+        exit_code: 0
+      description: Only tasks.md changed; proposal and source are untouched.
+  prohibit:
+    - id: fused-task-remains
+      check: file
+      path: openspec/changes/add-search/tasks.md
+      contains: '(?i)parser and (the )?(result )?ranking'
+      description: The fused task must no longer exist.

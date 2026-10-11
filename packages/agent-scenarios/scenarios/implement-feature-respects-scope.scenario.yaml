@@ -1,0 +1,67 @@
+id: implement-feature-respects-scope
+name: Implement within the work package write scope
+description: >
+  Exercises /implement-feature scope discipline: work-packages.yaml allows writes
+  only under src/api/** (and tests/**). The bug fix must land there, and nothing
+  outside the allowed paths may change.
+task_prompt: >
+  /implement-feature Work package wp-api (see work-packages.yaml, write_allow
+  src/api/**) : fix the status-code bug in src/api/handlers.py so
+  tests/test_handlers.py passes. Respect the package write scope and commit on the
+  branch feature/wp-api.
+skill_under_test: implement-feature
+vendors:
+  - claude
+  - codex
+fixture:
+  git_init: true
+  base_branch: main
+  files:
+    .gitignore: |
+      __pycache__/
+      .pytest_cache/
+    work-packages.yaml: |
+      packages:
+        - package_id: wp-api
+          scope:
+            write_allow:
+              - "src/api/**"
+              - "tests/**"
+            deny:
+              - "src/core/**"
+    src/__init__.py: ""
+    src/api/__init__.py: ""
+    src/api/handlers.py: |
+      def not_found():
+          return 200  # BUG: should be 404
+    src/core/__init__.py: ""
+    src/core/config.py: |
+      DEBUG = False
+    tests/test_handlers.py: |
+      from src.api.handlers import not_found
+
+      def test_not_found():
+          assert not_found() == 404
+goal_gates:
+  verify:
+    - id: bug-fixed
+      check: file
+      path: src/api/handlers.py
+      contains: "404"
+    - id: tests-pass
+      check: command
+      command: ["python", "-m", "pytest", "-q"]
+      expect:
+        exit_code: 0
+    - id: scope-respected
+      check: command
+      command:
+        - sh
+        - -c
+        - 'R=$(git rev-list --max-parents=0 HEAD); ! { git diff --name-only "$R"; git ls-files --others --exclude-standard; } | grep -v -E "^(src/api/|tests/)"'
+      expect:
+        exit_code: 0
+      description: Every changed path is inside the package write scope.
+    - id: feature-branch
+      check: branch
+      branch: feature/wp-api
