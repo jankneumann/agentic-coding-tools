@@ -133,3 +133,14 @@ Plan review converged after orchestrator adjudication. grok was unavailable all 
 
 ### Context
 Hard boundaries respected: no systemd/crontab installed, no vendor CLI or paid matrix run, no live coordinator contact, `TRUST_POSTURE.md` untouched. Section 7 operator tasks remain unchecked.
+
+## Phase: Implementation Iteration (2026-10-11)
+
+**Agent**: claude | **Session**: impl-iterate
+
+### Decisions
+1. **Hermetic tests** - autouse conftest fixture deletes COORDINATION_API_URL/KEY so nightly tests with the default coordinator sink can never reach a developer's live coordinator.
+2. **context-refresh exit 2** - verified branch-vs-main: a git-initialised export of origin/main yields the identical 69 `spec:*` "pending merge" failures and exit 2; pre-existing, not introduced by this branch.
+
+### Deviations
+- `skill-procedure-deviation`: dispatched without worktree isolation (canonical worktree exists), per orchestrator note.

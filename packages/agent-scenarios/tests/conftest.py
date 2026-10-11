@@ -32,3 +32,10 @@ def git_workspace(tmp_path: Path) -> Path:
 @pytest.fixture
 def scenarios_dir() -> Path:
     return SCENARIOS_DIR
+
+
+@pytest.fixture(autouse=True)
+def _no_live_coordinator(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Hermetic tests: a developer's coordinator URL/key must never be reachable from tests."""
+    for var in ("COORDINATION_API_URL", "COORDINATION_API_KEY"):
+        monkeypatch.delenv(var, raising=False)
