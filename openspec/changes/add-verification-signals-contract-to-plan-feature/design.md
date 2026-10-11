@@ -5,7 +5,7 @@
 
 ## Context
 
-Make plan-feature emit a required verification-signals section in proposals, naming each quantitative signal, its emitting layer, its control or baseline, and its tolerance, with an explicit opt-out marker for docs-only changes. Add a repo-local proposal check and an iterate-on-plan finding for signals that are missing or lack an emitting layer or baseline.
+Make plan-feature emit a required verification-signals section in proposals, naming each quantitative signal, its emitting layer, its control or baseline, and its tolerance. The section is always present; planning-only and documentation-only changes state not applicable together with the reason instead of omitting it. Add a blocking proposal check for that structure (changes already in flight are grandfathered) and an advisory iterate-on-plan finding for declared signals that lack an emitting layer or baseline.
 
 ## Why this item exists
 

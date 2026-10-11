@@ -7,7 +7,7 @@
 
 ## Summary
 
-Make plan-feature emit a required verification-signals section in proposals, naming each quantitative signal, its emitting layer, its control or baseline, and its tolerance, with an explicit opt-out marker for docs-only changes. Add a repo-local proposal check and an iterate-on-plan finding for signals that are missing or lack an emitting layer or baseline.
+Make plan-feature emit a required verification-signals section in proposals, naming each quantitative signal, its emitting layer, its control or baseline, and its tolerance. The section is always present; planning-only and documentation-only changes state not applicable together with the reason instead of omitting it. Add a blocking proposal check for that structure (changes already in flight are grandfathered) and an advisory iterate-on-plan finding for declared signals that lack an emitting layer or baseline.
 
 ## Dependencies
 
@@ -15,8 +15,8 @@ Make plan-feature emit a required verification-signals section in proposals, nam
 
 ## Acceptance Outcomes
 
-- The proposal check reports a new proposal that lacks a verification-signals section and lacks the docs-only opt-out marker, and fails it when run in blocking mode.
-- The check ships in advisory mode by default, and its mode and observed false-positive count are recorded before it can be set to blocking.
+- The proposal check fails a new proposal whose verification-signals section is absent, empty, or marked not applicable without a stated reason.
+- A planning-only or documentation-only proposal whose section reads not applicable with a reason passes, and changes in flight before the check landed are not failed.
 - iterate-on-plan reports a finding when a declared signal names no emitting layer or no baseline.
 
 ## Rationale
