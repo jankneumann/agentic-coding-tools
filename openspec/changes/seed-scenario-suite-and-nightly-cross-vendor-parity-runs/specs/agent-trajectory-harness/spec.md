@@ -33,7 +33,7 @@ Every seed scenario SHALL have a scripted golden outcome and a scripted broken o
 
 ### Requirement: Live runs never reach real GitHub
 
-Seed scenarios SHALL NOT depend on GitHub side effects. Push and merge behaviour MUST be exercised against a fixture-local bare `origin` repository, and the live executor SHALL remove configured credential variables from the vendor subprocess environment.
+Seed scenarios SHALL NOT depend on GitHub side effects. Push and merge behaviour MUST be exercised against a fixture-local bare `origin` repository, every live run SHALL resolve `gh` to a local shim instead of the real GitHub CLI, and the live executor SHALL remove configured credential variables from the vendor subprocess environment and point skill coordinator detection at an unreachable address.
 
 #### Scenario: local remote fixture
 - **WHEN** a scenario fixture sets `local_remote: true`
@@ -47,19 +47,40 @@ Seed scenarios SHALL NOT depend on GitHub side effects. Push and merge behaviour
 - **WHEN** the live executor runs a vendor command with `env_scrub` containing `GH_TOKEN` and `GITHUB_TOKEN`
 - **THEN** neither variable SHALL be present in the vendor subprocess environment
 
+#### Scenario: the runner's coordinator credential never reaches an agent
+- **WHEN** the live executor runs a vendor command while the variable named by `gaps.api_key_env` is set in the runner's environment, even if `env_scrub` omits it
+- **THEN** that variable SHALL NOT be present in the vendor subprocess environment
+- **AND** `COORDINATION_API_URL` in the vendor subprocess environment SHALL equal the configured `env_set` value (default `http://127.0.0.1:9`)
+
+#### Scenario: gh resolves to the shim
+- **WHEN** a live run executes and the vendor command invokes `gh pr merge <n> --squash` for a PR seeded in the fixture's `prs` list
+- **THEN** the `gh` executable found first on the vendor's `PATH` SHALL be the shim outside the workspace
+- **AND** the PR head SHALL be merged into the base branch of the local `origin` and the PR SHALL be reported as merged by a subsequent `gh pr view <n> --json state`
+
+#### Scenario: an unsupported gh call is an infrastructure error
+- **WHEN** the agent invokes a `gh` subcommand the shim does not implement
+- **THEN** the shim SHALL exit 1 and log the call
+- **AND** the pair's deterministic status SHALL be `error` with a message naming the unsupported call, and no capability-gap entry SHALL be emitted for it
+
 ### Requirement: Skill under test is materialized from the checkout being evaluated
 
-When a skills root is configured, the live executor SHALL copy the scenario's skill under test (and any declared support skills) from that root into the workspace's project-local skill directories before running the vendor, and SHALL record the skills revision on each result.
+When a skills root is configured, the live executor SHALL verify that the scenario's skill under test exists in that root, copy the whole skills tree (excluding test, virtual-environment and cache directories) into the workspace's project-local skill directories before running the vendor, and SHALL record the skills revision on each result.
 
 #### Scenario: skill copied into the workspace
 - **WHEN** the executor runs a scenario whose `skill_under_test` is `validate-feature` with `skills_root` set
 - **THEN** `.claude/skills/validate-feature/` and `.agents/skills/validate-feature/` SHALL exist in the workspace with the contents of `skills_root/validate-feature/`
+- **AND** sibling skills such as `.claude/skills/worktree/` SHALL also exist, so `<skill-base-dir>/../<sibling>/` references resolve
+- **AND** no `tests/` or `.venv/` directory from `skills_root` SHALL be copied
 - **AND** those paths SHALL be excluded from git in the workspace so they never appear in agent commits
 
 #### Scenario: missing skill is an executor error
 - **WHEN** `skills_root` does not contain the scenario's skill under test
 - **THEN** the run SHALL produce deterministic status `error` with a message naming the missing skill
 - **AND** no vendor command SHALL be executed
+
+#### Scenario: a timeout is distinguishable from a missing CLI
+- **WHEN** the vendor command exceeds the per-pair timeout
+- **THEN** the result SHALL have deterministic status `error` with a message stating the timeout in seconds, distinct from the message for an unavailable CLI
 
 ### Requirement: Durable per-vendor per-skill results store
 
@@ -82,6 +103,11 @@ Each nightly run SHALL append one schema-versioned result record per scenario an
 - **WHEN** the store ends with a partial line or contains a record with an unknown `schema_version`
 - **THEN** the reader SHALL skip those lines with a warning and return all valid records
 
+#### Scenario: results survive an interrupted run
+- **WHEN** a nightly run is killed after 5 of its planned pairs have been scored
+- **THEN** the store SHALL contain those 5 `result` records and no `run` record for that `run_id`
+- **AND** `results query` SHALL return them marked as belonging to an interrupted run
+
 #### Scenario: latest result per scenario and vendor
 - **WHEN** an operator runs `agent-scenarios results latest --skill implement-feature`
 - **THEN** exactly one record per (scenario, vendor) SHALL be returned, the most recent by `recorded_at`
@@ -92,7 +118,7 @@ Every deterministic scenario failure SHALL be emitted as a capability-gap episod
 
 #### Scenario: a failing gate produces a tagged gap entry
 - **WHEN** a result has deterministic status `fail` for scenario `validate-feature-clean-pass` on vendor `codex` with failed gate `report-has-status`
-- **THEN** the emitter SHALL send one entry with tags including `capability_gap`, `capability_gap:scenario-parity/validate-feature-clean-pass/report-has-status`, `failure_type:verification_failed`, `affected_skill:validate-feature`, `severity:high`, `source:scenario-parity` and `vendor:codex`
+- **THEN** the emitter SHALL send one entry whose `capability_gap:` tag names the first failed gate in scenario declaration order, with tags including `capability_gap`, `capability_gap:scenario-parity/validate-feature-clean-pass/report-has-status`, `failure_type:verification_failed`, `affected_skill:validate-feature`, `severity:high`, `source:scenario-parity` and `vendor:codex`
 - **AND** the entry's `session_id` SHALL be the nightly `run_id`
 
 #### Scenario: errors and judge findings do not emit gaps
@@ -107,6 +133,14 @@ Every deterministic scenario failure SHALL be emitted as a capability-gap episod
 - **WHEN** `agent-scenarios gaps flush` runs and the coordinator is reachable
 - **THEN** spooled entries SHALL be delivered and removed from the spool
 - **AND** entries that still fail delivery SHALL remain in the spool
+
+#### Scenario: no coordinator URL configured spools instead of guessing
+- **WHEN** the variable named by `gaps.coordinator_url_env` is unset
+- **THEN** every entry SHALL be spooled and no HTTP request SHALL be made to any host
+
+#### Scenario: concurrent flush and emission lose nothing
+- **WHEN** `agent-scenarios gaps flush` and a nightly emission touch the spool concurrently
+- **THEN** after both finish, every entry SHALL be either delivered or present exactly once in the spool
 
 #### Scenario: a deliberately broken skill change produces a capability gap
 - **WHEN** the suite runs against a skills root in which a skill under test has been deliberately broken so that its scenario's gates fail
@@ -140,18 +174,34 @@ The package SHALL provide a nightly command that runs the suite across an allowl
 #### Scenario: fewer than two effective vendors is a config error
 - **WHEN** the vendor allowlist intersected with the suite's declared vendors yields fewer than 2 vendors
 - **THEN** the command SHALL exit 2 without launching any pair
+- **AND** a `run` record with status `config_error` SHALL be appended
+
+#### Scenario: invalid config writes nothing
+- **WHEN** the config file is unparsable, violates the config schema, or lists a vendor without a `vendor_commands` entry
+- **THEN** the command SHALL exit 2 with a message naming the problem, launch no pair and write no record
 
 #### Scenario: overlapping runs are refused
 - **WHEN** a nightly run starts while another holds the run lock
 - **THEN** it SHALL record status `locked` and exit 0 without launching any pair
 
 #### Scenario: dry run plans without executing
-- **WHEN** `agent-scenarios nightly --dry-run` runs with an enabled config
-- **THEN** it SHALL print the planned pairs and cap evaluation and SHALL NOT launch any pair or write result records
+- **WHEN** `agent-scenarios nightly --dry-run` runs with a valid config, whether `enabled` is true or false
+- **THEN** it SHALL print the off-switch state, the effective vendors, the planned pairs and the cap evaluation
+- **AND** it SHALL NOT construct an executor, take the run lock, launch any pair or write any record
 
 #### Scenario: failing scenarios make the run exit non-zero
 - **WHEN** a completed nightly run has at least one `fail` result
-- **THEN** the command SHALL exit 1 after writing results, findings and gaps
+- **THEN** the command SHALL exit 1 after writing results, findings and gaps, whether or not the wall-clock budget was exhausted
+
+#### Scenario: an infrastructure-only failure is not a green night
+- **WHEN** a nightly run has no `fail` result but at least one `error` result
+- **THEN** the command SHALL exit 3
+- **AND** no capability-gap entry SHALL be emitted for the `error` results
+
+#### Scenario: workspaces are bounded
+- **WHEN** a nightly run finishes
+- **THEN** the workspaces of its `pass` pairs SHALL have been deleted and those of its `fail` and `error` pairs SHALL remain
+- **AND** at the start of the next run, run directories older than the newest `retain_failed_runs` SHALL be deleted
 
 ### Requirement: Schedule shipped as templates only
 

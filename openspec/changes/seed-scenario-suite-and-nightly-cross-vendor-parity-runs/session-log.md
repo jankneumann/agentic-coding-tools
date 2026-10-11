@@ -40,3 +40,36 @@
 ### Context
 Planned ri-16 non-interactively under supervised autopilot: an 11-scenario seed suite (plan 3, implement 3, validate 3, merge 2; >=2 vendors each) with golden/broken self-tests, a package-local nightly runner with off-switch and pair/wall-clock caps, an append-only JSONL results store with a query/trend/latest CLI, and scenario failures emitted as source:scenario-parity capability gaps via the coordinator memory API with a spool fallback. Gate 1 resolved autonomously to Approach 1; Gate 2 deferred to the orchestrator's proposal_approval gate.
 
+---
+
+## Phase: Plan Iteration 1 (2026-10-11)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **gh shim on every live run's PATH, unsupported calls force error** `architectural: agent-trajectory-harness` — Merge-family skills require gh; without a shim they fail every night for non-skill reasons; error (not fail) keeps capability gaps clean
+2. **Materialize the whole skills tree, drop support_skills** `architectural: agent-trajectory-harness` — Skills resolve helpers through <skill-base-dir>/../ sibling paths
+3. **Hermetic vendor env: scrub coordinator/GitHub credentials and set COORDINATION_API_URL to a discard-port sentinel** `architectural: agent-trajectory-harness` — coordination_bridge falls back to localhost:3000, the live coordinator on the GX10
+4. **Exit code precedence 2>1>3>0 with new exit 3 for errors-only nights** `architectural: agent-trajectory-harness` — An all-error night must not look green to systemd
+5. **Skipped worktree setup; worked in the existing canonical worktree** `architectural: skill-procedure-deviation` — Orchestrator dispatched without isolation into the existing managed worktree and forbade creating another
+6. **Assumptions decided autonomously instead of AskUserQuestion** `architectural: skill-procedure-deviation` — Non-interactive supervised child; decisions recorded as A12-A15 in design.md
+7. **Step 10 multi-vendor review not dispatched from this phase** `architectural: skill-procedure-deviation` — Autopilot runs a dedicated PLAN_REVIEW phase with vendor review; dispatching here would duplicate paid vendor runs the dispatch scope forbids
+8. **Ran analysis inline plus one non-isolated Explore code-verification sub-agent instead of five dimension analysts** `architectural: skill-procedure-deviation` — Nested isolated dispatch forbidden; the plan's risk was code-claim accuracy, which one verifier covers
+
+### Alternatives Considered
+- Drop live merge-family scenarios: rejected because Breaks the roadmap's four-family acceptance
+- Scrub COORDINATION_API_URL only: rejected because Bridge falls back to localhost:3000, still the live coordinator
+
+### Trade-offs
+- Accepted gh shim fidelity gap vs real GitHub over GitHub side effects in unattended runs because Suite measures skill behaviour, not GitHub API compatibility
+- Accepted Standalone-tier-only scenario runs over exercising coordinated paths because Hermeticity of nightly runs
+
+### Open Questions
+- [ ] Exact gh subcommand surface the merge skills need beyond the initial shim set (surfaced as exit-3 errors on first live runs)
+
+### Completed Work
+- 15 findings addressed (5 high, 8 medium, 2 low); plan-findings.md written; work-packages.yaml plan_revision 2
+
+### Context
+Iteration 1 fixed 5 high and 8 medium findings verified against ri-15 code: gh shim for GitHub-free merge-family runs, whole-tree skill materialization, hermetic vendor env that keeps fixture agents off the live coordinator, dry-run while disabled, exit 3 for infrastructure-only nights, incremental result appends, workspace retention and spool locking. Iteration 2 found nothing at or above medium; converged.
+

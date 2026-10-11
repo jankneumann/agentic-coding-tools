@@ -4,54 +4,201 @@
   "title": "agent-scenarios results store record",
   "description": "One line of the append-only JSONL results store (design D2).",
   "oneOf": [
-    {"$ref": "#/$defs/result"},
-    {"$ref": "#/$defs/run"}
+    {
+      "$ref": "#/$defs/result"
+    },
+    {
+      "$ref": "#/$defs/run"
+    }
   ],
   "$defs": {
-    "iso_ts": {"type": "string", "format": "date-time"},
+    "iso_ts": {
+      "type": "string",
+      "format": "date-time"
+    },
     "result": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["schema_version", "record_type", "run_id", "recorded_at", "scenario_id",
-                   "skill_under_test", "skill_family", "vendor", "deterministic_status",
-                   "failed_gates"],
+      "required": [
+        "schema_version",
+        "record_type",
+        "run_id",
+        "recorded_at",
+        "scenario_id",
+        "skill_under_test",
+        "skill_family",
+        "vendor",
+        "deterministic_status",
+        "failed_gates"
+      ],
       "properties": {
-        "schema_version": {"const": 1},
-        "record_type": {"const": "result"},
-        "run_id": {"type": "string", "minLength": 1},
-        "recorded_at": {"$ref": "#/$defs/iso_ts"},
-        "scenario_id": {"type": "string", "minLength": 1},
-        "skill_under_test": {"type": "string", "minLength": 1},
-        "skill_family": {"enum": ["plan", "implement", "validate", "merge", "other"]},
-        "vendor": {"type": "string", "minLength": 1},
-        "deterministic_status": {"enum": ["pass", "fail", "error", "skipped_budget"]},
-        "failed_gates": {"type": "array", "items": {"type": "string"}},
-        "trajectory_status": {"enum": ["pass", "fail", "skip", null]},
-        "duration_seconds": {"type": ["number", "null"], "minimum": 0},
-        "repo_sha": {"type": ["string", "null"]},
-        "skills_sha": {"type": ["string", "null"]},
-        "error": {"type": ["string", "null"]}
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "result"
+        },
+        "run_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "recorded_at": {
+          "$ref": "#/$defs/iso_ts"
+        },
+        "scenario_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "skill_under_test": {
+          "type": "string",
+          "minLength": 1
+        },
+        "skill_family": {
+          "enum": [
+            "plan",
+            "implement",
+            "validate",
+            "merge",
+            "other"
+          ]
+        },
+        "vendor": {
+          "type": "string",
+          "minLength": 1
+        },
+        "deterministic_status": {
+          "enum": [
+            "pass",
+            "fail",
+            "error",
+            "skipped_budget"
+          ]
+        },
+        "failed_gates": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "trajectory_status": {
+          "enum": [
+            "pass",
+            "fail",
+            "skip",
+            null
+          ]
+        },
+        "duration_seconds": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "repo_sha": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "skills_sha": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "error": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
       }
     },
     "run": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["schema_version", "record_type", "run_id", "started_at", "status",
-                   "planned_pairs", "executed_pairs"],
+      "required": [
+        "schema_version",
+        "record_type",
+        "run_id",
+        "started_at",
+        "status",
+        "planned_pairs",
+        "executed_pairs"
+      ],
       "properties": {
-        "schema_version": {"const": 1},
-        "record_type": {"const": "run"},
-        "run_id": {"type": "string", "minLength": 1},
-        "started_at": {"$ref": "#/$defs/iso_ts"},
-        "finished_at": {"oneOf": [{"$ref": "#/$defs/iso_ts"}, {"type": "null"}]},
-        "status": {"enum": ["completed", "disabled", "cap_exceeded", "budget_exhausted", "locked"]},
-        "planned_pairs": {"type": "integer", "minimum": 0},
-        "executed_pairs": {"type": "integer", "minimum": 0},
-        "vendors": {"type": "array", "items": {"type": "string"}},
-        "config_digest": {"type": ["string", "null"]},
-        "repo_sha": {"type": ["string", "null"]},
-        "skills_sha": {"type": ["string", "null"]},
-        "reason": {"type": ["string", "null"]}
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "run"
+        },
+        "run_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "started_at": {
+          "$ref": "#/$defs/iso_ts"
+        },
+        "finished_at": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/iso_ts"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "enum": [
+            "completed",
+            "disabled",
+            "cap_exceeded",
+            "budget_exhausted",
+            "locked",
+            "config_error"
+          ]
+        },
+        "planned_pairs": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "executed_pairs": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "vendors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "config_digest": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "repo_sha": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "skills_sha": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
       }
     }
   }

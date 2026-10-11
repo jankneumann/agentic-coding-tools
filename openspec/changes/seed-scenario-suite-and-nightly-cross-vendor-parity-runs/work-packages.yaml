@@ -7,7 +7,7 @@ schema_version: 1
 feature:
   id: seed-scenario-suite-and-nightly-cross-vendor-parity-runs
   title: Seed scenario suite and nightly cross-vendor parity runs
-  plan_revision: 1
+  plan_revision: 2
   created_by: claude-code
 contracts:
   revision: 1
@@ -30,9 +30,9 @@ packages:
 - package_id: wp-foundation
   title: Foundation — package schemas, local_remote fixture, env scrub, skill materialization
   task_type: implementation
-  description: 'Tasks 1.1–1.5. Promote contracts/schemas/*.json into package data; add FixtureSpec.local_remote
+  description: 'Tasks 1.1–1.7. Promote contracts/schemas/*.json into package data; add FixtureSpec.local_remote
 
-    (sibling bare origin), CLIVendorExecutor env_scrub, and skills_root/support_skills materialization
+    (sibling bare origin), CLIVendorExecutor env_scrub/env_set (hermetic env), gh shim, timeout message, and whole-tree skills_root materialization
 
     with git-exclude and skills_sha capture. Backward-compatible defaults. Design D5.
 
@@ -55,6 +55,8 @@ packages:
     - packages/agent-scenarios/src/agent_scenarios/models.py
     - packages/agent-scenarios/src/agent_scenarios/executor.py
     - packages/agent-scenarios/src/agent_scenarios/materialize.py
+    - packages/agent-scenarios/src/agent_scenarios/gh_shim.py
+    - packages/agent-scenarios/tests/test_gh_shim.py
     - packages/agent-scenarios/tests/test_schemas.py
     - packages/agent-scenarios/tests/test_fixture_extensions.py
     - packages/agent-scenarios/tests/test_skill_materialization.py
@@ -103,7 +105,7 @@ packages:
         result_keys:
         - foundation_mypy_clean
   metadata:
-    loc_estimate: 350
+    loc_estimate: 600
     complexity: medium
     package_kind: data_model
   inputs: {}

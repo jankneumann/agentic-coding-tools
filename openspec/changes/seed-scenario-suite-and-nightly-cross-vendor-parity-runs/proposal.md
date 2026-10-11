@@ -37,10 +37,16 @@ the parts that make the harness *pay off* (its `tasks.md` §10 defers them here)
    all-four-families / ≥2-vendors floor. `implement-feature-basic` is revised to gate
    on a push to a local bare `origin` instead of a real GitHub PR.
 2. **Harness extensions for live runs** — fixture `local_remote` (a sibling bare repo
-   wired as `origin`, so push/merge skills never touch GitHub), skill-under-test
-   materialization from a configurable `skills_root` into the workspace's
-   `.claude/skills/` and `.agents/skills/`, and an environment scrub list for vendor
-   subprocesses (default drops `GH_TOKEN` / `GITHUB_TOKEN`).
+   wired as `origin`, so push/merge skills never touch GitHub) with seeded `prs:`; a
+   small `gh` shim on every live run's `PATH` backed by that local origin, so the
+   merge-family skills (which require `gh`) run without GitHub and unsupported `gh`
+   calls surface as infrastructure errors; materialization of the **whole skills
+   tree** from a configurable `skills_root` (skills reference siblings via
+   `<skill-base-dir>/../`) into the workspace's `.claude/skills/` and
+   `.agents/skills/`; and a hermetic vendor environment — GitHub and coordinator
+   credentials scrubbed, `COORDINATION_API_URL` pointed at an unreachable sentinel so
+   fixture agents run standalone and never write to the live coordinator; a timeout
+   reported distinctly from a missing CLI.
 3. **Durable results store + query CLI** — an append-only, schema-versioned JSONL
    store (one record per run × scenario × vendor, plus a run-summary record) and
    `agent-scenarios results {query,trend,latest}` filtering by vendor, skill, skill
@@ -55,8 +61,11 @@ the parts that make the harness *pay off* (its `tasks.md` §10 defers them here)
    flush → suite load → vendor allowlist → cap check → run → results append →
    findings file → capability gaps. Explicit off-switch (config `enabled: false` by
    default *and* a kill-file), per-run size/spend caps (max scenario×vendor pairs,
-   max pairs per vendor, wall-clock budget, per-pair timeout), and a run lock against
-   overlapping runs.
+   max pairs per vendor, wall-clock budget, per-pair timeout), a run lock against
+   overlapping runs, incremental result appends (a killed run keeps its completed
+   pairs), bounded workspace retention, a `--dry-run` that works while still disabled,
+   and exit codes that distinguish skill failures (1) from infrastructure-only
+   failures (3) and config/cap errors (2).
 6. **Deploy templates, not deployments** — systemd user `.service`/`.timer`
    *templates* and an example config under `packages/agent-scenarios/deploy/`, plus a
    runbook. Nothing is installed or enabled by this change.
@@ -129,8 +138,8 @@ rejected primarily on trust posture (vendor keys in CI).
 
 ## Impact
 
-- **Code**: `packages/agent-scenarios/` (new modules `suite.py`, `results_store.py`,
-  `results_cli.py`, `gap_emitter.py`, `nightly.py`; extensions to `models.py`,
+- **Code**: `packages/agent-scenarios/` (new modules `suite.py`, `materialize.py`,
+  `gh_shim.py`, `results_store.py`, `results_cli.py`, `gap_emitter.py`, `nightly.py`; extensions to `models.py`,
   `executor.py`, `__main__.py`; new `schemas/`; new `deploy/`; 9 new scenarios).
 - **Skills/docs**: `docs/guides/memory-conventions.md` (new `source:scenario-parity`),
   `skills/session-log/tests/test_memory_tag_conventions.py` (vocabulary constant),
@@ -153,5 +162,9 @@ rejected primarily on trust posture (vendor keys in CI).
 | Cost control | wall-clock per nightly run | stops launching new pairs after `caps.max_wall_clock_minutes` (default 240) | unit tests with fake clock |
 | Operability | off-switch | `enabled: false` or kill-file present → exit 0, no executor call, a `disabled` run record | unit tests |
 | Resilience | coordinator unreachable during gap emission | 0 gaps lost: all spooled, replayed by next run | unit tests |
+| Resilience | run killed mid-way | every completed pair's `result` record retained | unit tests (simulated kill) |
+| Hermeticity | vendor subprocess environment | no GitHub/coordinator credential; `COORDINATION_API_URL` = sentinel; `gh` resolves to the shim | unit tests |
+| Operability | infrastructure-only failure night | exit 3 (unit marked failed), 0 capability gaps | unit tests |
+| Resource bound | kept workspaces | ≤ `retain_failed_runs` (default 7) run directories | unit tests |
 | Performance | `results trend` over 15k records | < 2 s on the GX10 | integration test with synthetic 15k-record store (< 2 s budget on CI hardware) |
 | Compatibility | record schema | every record carries `schema_version`; readers skip unknown future versions with a warning | unit tests |

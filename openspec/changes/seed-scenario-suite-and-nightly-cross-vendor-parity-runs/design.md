@@ -52,8 +52,24 @@ override via config `results.path` or `--store`). Two record types, both carryin
   `deterministic_status` (`pass | fail | error | skipped_budget`), `failed_gates`
   (ids), `trajectory_status`, `duration_seconds`, `repo_sha`, `skills_sha`, `error`.
 - `run` — one per nightly invocation: `run_id`, `started_at`, `finished_at`,
-  `status` (`completed | disabled | cap_exceeded | budget_exhausted | locked`),
-  `planned_pairs`, `executed_pairs`, `config_digest`, `vendors`.
+  `status` (`completed | disabled | cap_exceeded | budget_exhausted | locked |
+  config_error`), `planned_pairs`, `executed_pairs`, `config_digest`, `vendors`.
+
+**Field mapping from ri-15 types** (verified against `models.py`; ri-15's
+`VendorRunVerdict` has neither a duration nor a flat trajectory status):
+`failed_gates` = `[g.gate_id for g in verdict.failed_gates]` (gates whose status is
+`fail` or `error`, in scenario declaration order); `trajectory_status` =
+`verdict.trajectory.status`; `duration_seconds` is measured by the nightly runner with
+a monotonic clock around each single-vendor `run_scenario` call; `error` =
+`verdict.error`. `skipped_budget` records carry `failed_gates: []`,
+`duration_seconds: null`.
+
+**Incremental append**: the nightly runner appends each `result` record as soon as
+its pair is scored, and the `run` record last. A run killed mid-way (systemd
+`TimeoutStartSec`, SIGKILL, host reboot) therefore keeps every completed pair's
+result; `result` records whose `run_id` has no `run` record are reported by
+`results query`/`trend` as belonging to an *interrupted* run and are otherwise
+counted normally.
 
 **Why not SQLite**: SQLite would also work, but at ~12k records/year a full scan is
 cheap; JSONL is append-only by construction (no in-place updates, no migrations),
@@ -106,9 +122,14 @@ Notes:
   the bare tag is harmless to `_extract_tag` (it only reads `prefix:`-tags).
 - **Stable `capability_gap` value** (`scenario-parity/<scenario>/<gate>`) so
   `/improve-harness` groups repeated nightly failures of the same gate into one
-  finding whose frequency rises night over night. Dedup key
-  `(capability_gap, affected_skill, session_id)` with `session_id = run_id` keeps one
-  entry per run.
+  finding whose frequency rises night over night. `<gate>` is the first failed gate
+  in **scenario declaration order** (not verdict order), so the key is stable. The
+  consumer's dedup key `(capability_gap, affected_skill, session_id)` with
+  `session_id = run_id` collapses the same gate failing on several vendors in one run
+  into one finding occurrence — intended: frequency counts *nights*, and per-vendor
+  attribution stays available in the entries' `vendor:` tags and the results store.
+- **Detail bound**: each `failed_gates[].detail` is truncated to 500 characters, so a
+  command gate's captured output cannot bloat memory or carry large log excerpts.
 - **Only `fail` emits gaps.** `error` (CLI missing, timeout, fixture failure) and
   `skipped_budget` are infrastructure outcomes: recorded in the results store and the
   run summary, never as skill capability gaps. Judge findings never emit gaps (D3 of
@@ -116,8 +137,14 @@ Notes:
 - **Severity `high`** for every deterministic failure (gates are explicit contract
   violations); not `critical`, which the D4 schema reserves for incidents.
 - **Sinks** (`MemorySink` protocol): `CoordinatorMemorySink` — stdlib `urllib` POST to
-  `${COORDINATOR_URL}/memory/store` with `X-API-Key: ${COORDINATION_API_KEY}` and
-  `agent_id` from config (default `agent-scenarios-nightly`); `SpoolMemorySink` —
+  `${COORDINATION_API_URL}/memory/store` with `X-API-Key: ${COORDINATION_API_KEY}`
+  (variable names configurable via `gaps.coordinator_url_env` / `gaps.api_key_env`;
+  the defaults follow the repo-wide convention in
+  `docs/coordination-detection-template.md`, whereas `analyze_failures.py` reads
+  `COORDINATOR_URL` — the runbook requires both to name the same coordinator), a 10 s
+  request timeout, and `agent_id` from config (default `agent-scenarios-nightly`).
+  An unset URL variable means "spool everything" (no localhost fallback, so a
+  misconfigured host never writes to an unintended coordinator); `SpoolMemorySink` —
   appends the identical payload to `<state>/gap-spool.jsonl`. The emitter tries the
   coordinator and spools any entry that fails. `agent-scenarios gaps flush` (also run
   at the start of every nightly) replays the spool and rewrites it with only the
@@ -151,7 +178,10 @@ repo_root: ~/agentic-coding-tools    # checkout under test (repo_sha, skills_roo
 skills_root: skills                  # relative to repo_root
 vendors: [claude, codex]             # allowlist ∩ scenario.vendors; must be ≥ 2
 vendor_commands: {claude: "claude -p {prompt} ...", codex: "codex exec {prompt} ..."}
-env_scrub: [GH_TOKEN, GITHUB_TOKEN]
+env_scrub: [GH_TOKEN, GITHUB_TOKEN, GH_ENTERPRISE_TOKEN, COORDINATION_API_KEY, COORDINATOR_URL]
+env_set: {COORDINATION_API_URL: "http://127.0.0.1:9"}   # force skills into standalone tier (D5)
+workspaces_root: ~/.local/state/agent-scenarios/workspaces
+retain_failed_runs: 7
 caps:
   max_pairs: 30
   max_pairs_per_vendor: 15
@@ -159,33 +189,60 @@ caps:
   per_pair_timeout_seconds: 1200
 results: {path: ~/.local/state/agent-scenarios/results.jsonl}
 findings: {path: ~/.local/state/agent-scenarios/findings/{run_id}.json}
-gaps: {enabled: true, spool_path: ~/.local/state/agent-scenarios/gap-spool.jsonl, agent_id: agent-scenarios-nightly}
+gaps: {enabled: true, spool_path: ~/.local/state/agent-scenarios/gap-spool.jsonl, agent_id: agent-scenarios-nightly,
+       coordinator_url_env: COORDINATION_API_URL, api_key_env: COORDINATION_API_KEY}
 judge: {enabled: false}
 ```
 
 Ordered guards (each writes a `run` record with the matching status and exits 0
 unless noted):
 
+0. Config file missing, unparsable or schema-invalid (including a vendor in
+   `vendors` without a `vendor_commands` entry) → message on stderr, **exit 2, no
+   record written** (the store path itself may be unknown).
 1. `enabled: false` → `disabled`; **no executor constructed**.
 2. `disable_file` exists → `disabled`.
 3. Run lock (`flock` on `<state>/nightly.lock`) held → `locked`, exit 0 (overlap is
    expected-benign; systemd also prevents it).
-4. Planned pairs = Σ over scenarios of |scenario.vendors ∩ config.vendors|. If
+4. Effective vendors = `config.vendors ∩ ⋃ scenario.vendors`. Fewer than 2 →
+   `config_error` run record, exit 2, nothing launched.
+5. Planned pairs = Σ over scenarios of |scenario.vendors ∩ config.vendors|. If
    `> max_pairs` or any vendor `> max_pairs_per_vendor` → `cap_exceeded`, **exit 2,
    nothing launched** (fail-closed rather than silently truncating coverage).
-5. Fewer than 2 vendors effective → config error, exit 2.
 6. During the run, once elapsed ≥ `max_wall_clock_minutes`, remaining pairs are not
-   launched and are recorded `skipped_budget`; run status `budget_exhausted`, exit 0.
+   launched and are recorded `skipped_budget`; run status `budget_exhausted`.
+
+Pair order is deterministic (scenarios sorted by id, then vendors in config order) so
+a budget cut drops the same tail every night and trends stay comparable.
 
 **Spend cap rationale**: vendor CLIs do not expose dollar cost synchronously, so the
 cap is expressed in launched pairs, wall clock and per-pair timeout — the levers the
 runner controls. Dollar accounting belongs to the model-usage-ledger work.
 
-`--dry-run` prints the planned pair list and cap evaluation and exits without
-executing (used by the operator before enabling the timer).
+`--dry-run` runs guard 0, then evaluates guards 1–5 **without acting on them**: it
+prints the off-switch state (`enabled`, kill-file present), the effective vendors,
+the planned pair list and the cap evaluation, takes no lock, writes no record of any
+kind, constructs no executor, and exits 0 (2 when guard 0, 4 or 5 would fail). It
+deliberately ignores `enabled: false` because the runbook's pre-enable check
+(task 7.2) runs it while the config is still disabled.
 
-Exit codes: 0 success/benign skip, 1 one or more scenario `fail` (so systemd marks
-the unit failed and `OnFailure=` hooks can notify), 2 config/cap error.
+Exit codes, highest precedence first: 2 config/cap error; 1 one or more scenario
+`fail` (so systemd marks the unit failed and `OnFailure=` hooks can notify); 3 no
+`fail` but one or more `error` results (infrastructure broken — a CLI missing, keys
+expired, timeouts — which must not look like a green night); 0 otherwise, including
+`disabled`, `locked` and a `budget_exhausted` run whose executed pairs all passed.
+
+**Workspaces**: each pair runs in `<workspaces_root>/<run_id>/<scenario_id>--<vendor>/`
+(default `workspaces_root` = `<state>/workspaces`). Workspaces (and their sibling
+`.origin.git`) of `pass` and `skipped_budget` pairs are deleted after scoring;
+`fail`/`error` workspaces are kept for diagnosis. At the start of each run, run
+directories beyond the newest `retain_failed_runs` (default 7) are deleted, so disk
+use is bounded at ~7 × 22 workspaces.
+
+**Spool concurrency**: emitting to and flushing the gap spool both take an exclusive
+`flock` on `<spool>.lock`; `flush` rewrites the spool via a temp file + `os.replace`
+under that lock, so a manual `gaps flush` concurrent with a nightly cannot drop or
+duplicate entries.
 
 The runner calls the ri-15 `run_scenario` per scenario but passes a *filtered copy*
 of the scenario (vendors ∩ allowlist) and checks the wall-clock budget between
@@ -198,20 +255,62 @@ public API is unchanged).
 A broken skill change can only fail the suite if the agent actually runs the changed
 skill. `CLIVendorExecutor` gains:
 
-- `skills_root: Path | None` — when set, after fixture materialization it copies
-  `skills_root/<skill_under_test>/` into `workdir/.claude/skills/<skill>/` and
-  `workdir/.agents/skills/<skill>/` (the project-local skill locations the vendor CLIs
-  read), plus any skills listed in a new optional scenario field
-  `support_skills: [..]`. The copied skills are added to the fixture's
+- `skills_root: Path | None` — when set, after fixture materialization it first
+  checks that `skills_root/<skill_under_test>/SKILL.md` exists (else an executor
+  `error` naming the skill, no vendor launched), then copies **the whole skills
+  tree** — every top-level directory of `skills_root`, excluding `tests/`, `.venv/`,
+  `__pycache__/` and `node_modules/` — into `workdir/.claude/skills/` and
+  `workdir/.agents/skills/` (the project-local skill locations the vendor CLIs read).
+  The whole tree is required, not just the skill under test: skills resolve helpers
+  through sibling paths (`<skill-base-dir>/../worktree/scripts/worktree.py`,
+  `../shared/checkout_policy.py`, `../session-log/scripts/…`), so a single-skill copy
+  would make most live runs fail for reasons unrelated to the skill. This mirrors the
+  runtime layout `install.sh` produces. Both directories are added to the fixture's
   `.git/info/exclude` so they never appear in agent commits or gate checks.
   `skills_sha` (git HEAD of the repo containing `skills_root`, `+dirty` if modified)
   is recorded on every result.
-- `env_scrub: list[str]` — removed from the vendor subprocess environment.
-- `timeout_seconds` is fed from `caps.per_pair_timeout_seconds`.
+- **Hermetic environment** — `env_scrub: list[str]` removes variables from the vendor
+  subprocess environment and `env_set: dict[str, str]` overrides others. Defaults:
+  scrub `GH_TOKEN`, `GITHUB_TOKEN`, `GH_ENTERPRISE_TOKEN`, `COORDINATION_API_KEY`,
+  `COORDINATOR_URL`; set `COORDINATION_API_URL=http://127.0.0.1:9` (the discard
+  port). The override is needed because `coordination_bridge.py` falls back to
+  `http://localhost:3000` when the variable is absent — on the GX10 that *is* the live
+  coordinator, so scrubbing alone would let fixture agents take locks, write handoffs
+  and store memories in production. With the sentinel, coordinator detection fails
+  fast and every skill runs in its standalone tier. The variable named by
+  `gaps.api_key_env` is always scrubbed, whatever `env_scrub` says, so the runner's
+  own coordinator credential never reaches an agent. Vendor credentials
+  (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, …) are untouched. MCP-based coordinator
+  access configured under the user's HOME is handled operationally (dedicated HOME,
+  task 7.1).
+- **`gh` shim** — the executor writes a stub `gh` executable into
+  `<workdir>.bin/` (sibling, outside the workspace) and prepends it to the vendor's
+  `PATH`, for every live run. It serves a deliberately small surface from a state file
+  seeded by the fixture's optional `prs:` list: `gh auth status` (ok),
+  `gh repo view --json`, `gh pr list|view|status --json`, `gh pr create` (records a
+  PR whose head branch must exist on the local origin), `gh pr merge
+  [--merge|--squash|--rebase] [--delete-branch]` (performs the merge with git against
+  the local origin and marks the PR merged), and `gh api repos/{o}/{r}` returning
+  `permissions.push: true` with branch protection reported absent (404). Any other
+  invocation exits 1 and is appended to `<workdir>.bin/gh-unsupported.log`. This makes
+  the merge-family skills runnable without GitHub, makes `pr` gates satisfiable
+  against the local origin (the executor's post-run `gh pr view` resolves through the
+  same shim), and guarantees no `gh` call reaches GitHub even if a credential leaks
+  through `~/.config/gh`. **If the unsupported-call log is non-empty after the run,
+  the verdict is forced to `error`** ("gh shim: unsupported call …"), so shim coverage
+  gaps surface as infrastructure errors (exit 3, no capability gap) rather than being
+  blamed on the skill; the shim's surface is widened by later changes as such errors
+  appear.
+- `timeout_seconds` is fed from `caps.per_pair_timeout_seconds`, and a
+  `TimeoutExpired` now yields an error message `vendor CLI timed out after <N>s`
+  distinct from `vendor CLI unavailable` (today both return exit 127 with the same
+  message, which would make the runbook's triage impossible).
 
 `FixtureSpec` gains `local_remote: bool = false`: create a bare repo at
 `<workdir>.origin.git` (sibling, outside the workspace), `git remote add origin`, and
-push the base branch. Push/merge skills then operate against a local origin and never
+push the base branch; and `prs: list[{number, head, base, title}] = []`, the seed
+state for the `gh` shim (head branches are pushed to the local origin at
+materialization). Push/merge skills then operate against a local origin and never
 reach GitHub. Gates for these scenarios use `command` checks such as
 `git ls-remote origin <branch>` or `git -C ... merge-base --is-ancestor`.
 
@@ -262,7 +361,10 @@ effect) unless it also sets `local_remote` — enforced so live runs never need 
 `packages/agent-scenarios/deploy/`:
 - `systemd/agent-scenarios-nightly.service.template` — `Type=oneshot`,
   `ExecStart=<uv> run --project <repo>/packages/agent-scenarios agent-scenarios nightly --config %h/.config/agent-scenarios/nightly.yaml`,
-  `TimeoutStartSec` = wall-clock cap + margin, `Nice=10`.
+  `TimeoutStartSec` ≥ `max_wall_clock_minutes` + `per_pair_timeout_seconds` + 10 min
+  (the budget is only checked between pairs, so the last pair may overrun it by up to
+  one per-pair timeout; defaults → 270 min), `Nice=10`,
+  `SuccessExitStatus=0` only (exit 1 and 3 mark the unit failed).
 - `systemd/agent-scenarios-nightly.timer.template` — `OnCalendar=*-*-* 02:30`,
   `Persistent=false` (a missed night is skipped, not burst-replayed),
   `RandomizedDelaySec=15m`.
@@ -280,7 +382,8 @@ config parses with `enabled: false`. Nothing in the change, its tests, or CI cal
 `__main__.py` becomes a subcommand dispatcher while keeping the current flags working:
 `agent-scenarios validate --scenarios DIR` (and the legacy
 `--scenarios DIR [--validate-only]` form, unchanged behaviour), `nightly`,
-`results {query,trend,latest}`, `gaps flush`. Subcommand modules own their own
+`results {query,trend,latest}`, `gaps flush`. The module docstring's stale
+`--target`/`--out` flags (never implemented by ri-15) are removed. Subcommand modules own their own
 `add_parser(subparsers)` so packages can be built in parallel without both editing
 argument parsing in one file (only `wp-nightly` edits `__main__.py`).
 
@@ -316,6 +419,10 @@ codebase:
 | A9 | Schedule time? | 02:30 local, randomized 15 min, non-persistent. | Off-peak for an always-on box; avoid replay bursts. |
 | A10 | Dispatcher gating on parity results? | Out of scope; `results latest` provides the signal. | Roadmap item text lists no gating outcome. |
 | A11 | Incident auto-seeding? | Out of scope (ri-17). | Caller instruction; ri-15 §10. |
+| A12 | How do merge-family skills (which require an authenticated `gh` and GitHub PRs) run without GitHub? | A small `gh` shim on the vendor's `PATH` backed by the local origin; unsupported calls force `error`, not `fail` (D5). Alternative rejected: dropping live merge coverage, which breaks the four-family acceptance. | `merge-pull-requests` / `cleanup-feature` SKILL.md require `gh auth status`, `gh pr merge`. (Plan iteration 1.) |
+| A13 | Copy only the skill under test, or the whole skills tree? | Whole tree (D5); `support_skills` dropped. | Skills reference siblings via `<skill-base-dir>/../`. (Plan iteration 1.) |
+| A14 | May fixture agents reach the live coordinator? | No — credential scrub plus an unreachable `COORDINATION_API_URL` sentinel; skills run standalone (D5). | `coordination_bridge.py` falls back to `localhost:3000`. (Plan iteration 1.) |
+| A15 | Should an all-`error` night exit 0? | No — exit 3 (D4) so systemd flags broken infrastructure; still no capability gaps. | Unattended operability. (Plan iteration 1.) |
 
 Gate 1 (direction) was resolved autonomously to Approach 1. Gate 2 (plan approval) is
 handled by the autopilot orchestrator's recorded `proposal_approval` gate.
@@ -331,6 +438,14 @@ handled by the autopilot orchestrator's recorded `proposal_approval` gate.
   `skills_sha` makes attribution explicit.
 - **Store locality** — trends are only queryable on the host that owns the file.
   Accepted (single GX10 host); `ResultsStore` seam allows a coordinator backend.
+- **`gh` shim fidelity** — the shim is not GitHub; a skill that works against the
+  shim may still break against real GitHub (and vice versa). Accepted: the suite
+  measures skill *behaviour* (did it merge the right branch, keep history, archive the
+  change), not GitHub API compatibility; unsupported calls are surfaced as `error`
+  so the gap list stays clean.
+- **Standalone-tier only** — scenario agents never see a coordinator, so coordinated
+  -tier code paths are not exercised by this suite. Accepted for hermeticity; a
+  coordinator-in-fixture mode is future work.
 - **New tag vocabulary value** — consumers that enumerate sources (export of shared
   learnings, skill-audit evidence join) will see a new value; they treat `source:` as
   open-ended today (verified in `analyze_failures.rank_findings`). Shared-learnings
@@ -343,9 +458,13 @@ handled by the autopilot orchestrator's recorded `proposal_approval` gate.
   `http.server` stub; the spool path is tested by pointing at a closed port.
 - No DB is touched (no migration in this change), so the `migrated_database`
   throwaway-DB rule does not apply.
-- Tests that read change artifacts (e.g. contract example payloads) resolve the change
-  directory with `change_dir()` from a vendored `tests/_shared/openspec_paths.py`;
-  preferred is to promote schemas into the package (`src/agent_scenarios/schemas/`)
-  and test against the package copy.
+- Package tests never read this change directory: schemas and the example payload
+  are promoted into package data (`src/agent_scenarios/schemas/`, task 1.1) and tests
+  use the package copies, so no `openspec_paths.py` needs to be vendored into
+  `packages/agent-scenarios/tests/` (none exists today). `jsonschema` stays a dev /
+  optional dependency: runtime validation of config and records is done by pydantic
+  models; the tests check that pydantic output validates against the JSON schemas.
+- The `gh` shim is tested directly (subprocess against a temp local origin) and via
+  the merge-family golden/broken outcomes.
 - `skills/` edits run the skills gate set (pytest for touched skill tests,
   `install.sh --check`, sync of runtime copies).

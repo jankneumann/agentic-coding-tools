@@ -5,56 +5,175 @@
   "description": "Operator-authored config for `agent-scenarios nightly` (design D4). Paths may use ~ and are expanded at load.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["enabled", "scenarios_dir", "repo_root", "vendors", "vendor_commands", "caps"],
+  "required": [
+    "enabled",
+    "scenarios_dir",
+    "repo_root",
+    "vendors",
+    "vendor_commands",
+    "caps"
+  ],
   "properties": {
-    "enabled": {"type": "boolean", "default": false},
-    "disable_file": {"type": ["string", "null"]},
-    "scenarios_dir": {"type": "string"},
-    "repo_root": {"type": "string"},
-    "skills_root": {"type": ["string", "null"], "default": "skills"},
-    "vendors": {"type": "array", "minItems": 2, "uniqueItems": true, "items": {"type": "string"}},
+    "enabled": {
+      "type": "boolean",
+      "default": false
+    },
+    "disable_file": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "scenarios_dir": {
+      "type": "string"
+    },
+    "repo_root": {
+      "type": "string"
+    },
+    "skills_root": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": "skills"
+    },
+    "vendors": {
+      "type": "array",
+      "minItems": 2,
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      }
+    },
     "vendor_commands": {
       "type": "object",
-      "additionalProperties": {"type": "string", "minLength": 1}
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1
+      }
     },
-    "env_scrub": {"type": "array", "items": {"type": "string"}, "default": ["GH_TOKEN", "GITHUB_TOKEN"]},
-    "workspaces_root": {"type": ["string", "null"]},
+    "env_scrub": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [
+        "GH_TOKEN",
+        "GITHUB_TOKEN",
+        "GH_ENTERPRISE_TOKEN",
+        "COORDINATION_API_KEY",
+        "COORDINATOR_URL"
+      ],
+      "description": "Removed from the vendor subprocess environment. The variable named by gaps.api_key_env is always scrubbed in addition."
+    },
+    "env_set": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "default": {
+        "COORDINATION_API_URL": "http://127.0.0.1:9"
+      },
+      "description": "Overrides applied to the vendor subprocess environment; the default sentinel forces skills into their standalone (no-coordinator) tier."
+    },
+    "workspaces_root": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Default <state>/workspaces."
+    },
+    "retain_failed_runs": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 7,
+      "description": "Run directories holding kept fail/error workspaces beyond this many newest runs are deleted at run start."
+    },
     "caps": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["max_pairs", "max_pairs_per_vendor", "max_wall_clock_minutes", "per_pair_timeout_seconds"],
+      "required": [
+        "max_pairs",
+        "max_pairs_per_vendor",
+        "max_wall_clock_minutes",
+        "per_pair_timeout_seconds"
+      ],
       "properties": {
-        "max_pairs": {"type": "integer", "minimum": 1, "default": 30},
-        "max_pairs_per_vendor": {"type": "integer", "minimum": 1, "default": 15},
-        "max_wall_clock_minutes": {"type": "integer", "minimum": 1, "default": 240},
-        "per_pair_timeout_seconds": {"type": "integer", "minimum": 30, "default": 1200}
+        "max_pairs": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 30
+        },
+        "max_pairs_per_vendor": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 15
+        },
+        "max_wall_clock_minutes": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 240
+        },
+        "per_pair_timeout_seconds": {
+          "type": "integer",
+          "minimum": 30,
+          "default": 1200
+        }
       }
     },
     "results": {
       "type": "object",
       "additionalProperties": false,
-      "properties": {"path": {"type": "string"}}
+      "properties": {
+        "path": {
+          "type": "string"
+        }
+      }
     },
     "findings": {
       "type": "object",
       "additionalProperties": false,
-      "properties": {"path": {"type": "string", "description": "may contain {run_id}"}}
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "may contain {run_id}"
+        }
+      }
     },
     "gaps": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "enabled": {"type": "boolean", "default": true},
-        "spool_path": {"type": "string"},
-        "agent_id": {"type": "string", "default": "agent-scenarios-nightly"},
-        "coordinator_url_env": {"type": "string", "default": "COORDINATOR_URL"},
-        "api_key_env": {"type": "string", "default": "COORDINATION_API_KEY"}
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "spool_path": {
+          "type": "string"
+        },
+        "agent_id": {
+          "type": "string",
+          "default": "agent-scenarios-nightly"
+        },
+        "coordinator_url_env": {
+          "type": "string",
+          "default": "COORDINATION_API_URL"
+        },
+        "api_key_env": {
+          "type": "string",
+          "default": "COORDINATION_API_KEY"
+        }
       }
     },
     "judge": {
       "type": "object",
       "additionalProperties": false,
-      "properties": {"enabled": {"type": "boolean", "default": false}}
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        }
+      }
     }
   }
 }

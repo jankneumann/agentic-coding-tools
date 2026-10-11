@@ -10,23 +10,34 @@ doubles — no vendor CLI, no network, no `systemctl`, no database.
 - [ ] 1.1 Promote contract schemas into package data (with schema tests) [S]
   Copy `contracts/schemas/*.json` into `packages/agent-scenarios/src/agent_scenarios/schemas/`
   (package data); write `tests/test_schemas.py` asserting each is a valid Draft 2020-12
-  schema and that the capability-gap example payload validates.
+  schema and that the capability-gap example payload validates. Also copy the example
+  payload into package data. `jsonschema` is already in the dev group; do not make it a
+  runtime dependency.
   **Contracts**: contracts/schemas/results-record.schema.json, capability-gap-entry.schema.json, nightly-config.schema.json
   **Dependencies**: None
-- [ ] 1.2 Write tests for fixture `local_remote` + env scrub [S]
-  **Spec scenarios**: ath.Live runs never reach real GitHub/local remote fixture; ath.Live runs never reach real GitHub/credential variables are scrubbed
+- [ ] 1.2 Write tests for fixture `local_remote`/`prs`, hermetic env and timeout message [S]
+  `env_scrub` + `env_set` applied; `gaps.api_key_env` variable always scrubbed; `COORDINATION_API_URL` sentinel; `TimeoutExpired` → "timed out after Ns" distinct from "unavailable".
+  **Spec scenarios**: ath.Live runs never reach real GitHub/local remote fixture; ath.Live runs never reach real GitHub/credential variables are scrubbed; ath.Live runs never reach real GitHub/the runner's coordinator credential never reaches an agent; ath.Skill under test is materialized/a timeout is distinguishable from a missing CLI
   **Design decisions**: D5
   **Dependencies**: None
-- [ ] 1.3 Implement `FixtureSpec.local_remote` + `CLIVendorExecutor(env_scrub=...)` [M]
-  Sibling bare repo `<workdir>.origin.git`, `origin` remote, base branch pushed; backward-compatible defaults.
+- [ ] 1.3 Implement `FixtureSpec.local_remote` + `FixtureSpec.prs` + `CLIVendorExecutor(env_scrub=..., env_set=..., always_scrub=...)` + timeout message [M]
+  Sibling bare repo `<workdir>.origin.git`, `origin` remote, base branch and PR head branches pushed; backward-compatible defaults (no env change when both are empty).
   **Dependencies**: 1.2
 - [ ] 1.4 Write tests for skill-under-test materialization [S]
+  Whole-tree copy (siblings present; `tests/`, `.venv/`, `__pycache__/`, `node_modules/` excluded), git-exclude, `skills_sha` with `+dirty`.
   **Spec scenarios**: ath.Skill under test is materialized/skill copied into the workspace; ath.Skill under test is materialized/missing skill is an executor error
   **Design decisions**: D5
   **Dependencies**: None
-- [ ] 1.5 Implement `skills_root` + `support_skills` materialization with git-exclude and `skills_sha` capture [M]
+- [ ] 1.5 Implement whole-tree `skills_root` materialization in `materialize.py` with git-exclude and `skills_sha` capture [M]
   Shared helper usable by both `CLIVendorExecutor` and `FakeExecutor` (opt-in) so the acceptance drill can exercise it.
   **Dependencies**: 1.4
+- [ ] 1.6 Write tests for the `gh` shim `tests/test_gh_shim.py` [S]
+  Subprocess-level against a temp local origin: `auth status`, `repo view`, `pr list|view|status --json`, `pr create`, `pr merge --merge|--squash|--rebase [--delete-branch]` (merge visible on origin, state `MERGED`), `api repos/{o}/{r}` permissions + protection 404, unsupported call → exit 1 + logged → executor forces `error`; executor's post-run `gh pr view` resolves through the shim.
+  **Spec scenarios**: ath.Live runs never reach real GitHub/gh resolves to the shim; ath.Live runs never reach real GitHub/an unsupported gh call is an infrastructure error
+  **Design decisions**: D5
+  **Dependencies**: None
+- [ ] 1.7 Implement `gh_shim.py` (stdlib-only script body + installer writing `<workdir>.bin/gh`, PATH prepend in `CLIVendorExecutor`, unsupported-log check forcing `error`) [M]
+  **Dependencies**: 1.6, 1.3
 - [ ] Checkpoint: run `uv run pytest` in packages/agent-scenarios, review diff, verify scope
 
 ## 2. Seed suite (wp-scenarios)
@@ -55,15 +66,16 @@ doubles — no vendor CLI, no network, no `systemctl`, no database.
 - [ ] Checkpoint: run tests, review diff, verify scope
 - [ ] 2.8 Author validate scenarios `validate-feature-flags-failing-test`, `validate-feature-clean-pass`, `validate-feature-spec-gap` with outcome modules [M]
   **Dependencies**: 2.3
-- [ ] 2.9 Author merge scenarios `merge-pull-requests-local-merge` + `cleanup-feature-archive` (`local_remote: true`) with outcome modules [M]
-  **Dependencies**: 1.3, 2.3
+- [ ] 2.9 Author merge scenarios `merge-pull-requests-local-merge` + `cleanup-feature-archive` (`local_remote: true`, seeded `prs:`) with outcome modules [M]
+  Golden outcomes perform the merge through the shim's state (or equivalent git ops on the local origin) so gates are proven satisfiable.
+  **Dependencies**: 1.3, 1.7, 2.3
 - [ ] Checkpoint: guard test green with 11 scenarios; review diff, verify scope
 
 ## 3. Results store and query CLI (wp-results)
 
 - [ ] 3.1 Write tests for `ResultsStore` append/read [S]
-  Record shape vs schema, flock-protected append, torn final line and unknown `schema_version` skipped with warning.
-  **Spec scenarios**: ath.Durable per-vendor per-skill results store/results are appended per scenario and vendor; ath.Durable results store/reader tolerates a torn final line and unknown versions
+  Record shape vs schema (field mapping from ri-15 `VendorRunVerdict` per D2), flock-protected append, torn final line and unknown `schema_version` skipped with warning, `result` records without a `run` record flagged as interrupted.
+  **Spec scenarios**: ath.Durable per-vendor per-skill results store/results are appended per scenario and vendor; ath.Durable results store/reader tolerates a torn final line and unknown versions; ath.Durable results store/results survive an interrupted run
   **Contracts**: contracts/schemas/results-record.schema.json
   **Design decisions**: D2
   **Dependencies**: 1.1
@@ -83,13 +95,13 @@ doubles — no vendor CLI, no network, no `systemctl`, no database.
 ## 4. Capability-gap emission (wp-gaps)
 
 - [ ] 4.1 Write tests for gap entry construction [S]
-  Fail → one entry with the D3 tag set and `session_id = run_id`; error / skipped_budget / judge-only → none; payload validates against the schema and matches the example's tag shape.
+  Fail → one entry with the D3 tag set and `session_id = run_id`; gap key uses the first failed gate in declaration order; `detail` truncated to 500 chars; error / skipped_budget / judge-only → none; payload validates against the schema and matches the example's tag shape.
   **Spec scenarios**: ath.Scenario failures feed the capability-gap pipeline/a failing gate produces a tagged gap entry; ath.Scenario failures feed the capability-gap pipeline/errors and judge findings do not emit gaps
   **Contracts**: contracts/schemas/capability-gap-entry.schema.json, contracts/examples/capability-gap-entry.example.json
   **Design decisions**: D3
   **Dependencies**: 1.1
-- [ ] 4.2 Write tests for sinks: coordinator sink against a local `http.server` stub (headers, body), spool on unreachable port, flush retains still-failing entries [S]
-  **Spec scenarios**: ath.Scenario failures feed the capability-gap pipeline/coordinator unreachable spools entries; ath.Scenario failures feed the capability-gap pipeline/spool replay
+- [ ] 4.2 Write tests for sinks: coordinator sink against a local `http.server` stub (headers, body, URL from `gaps.coordinator_url_env`), unset URL variable → spool with no HTTP request, spool on unreachable port, flush retains still-failing entries, concurrent flush + emit under the spool lock loses/duplicates nothing [S]
+  **Spec scenarios**: ath.Scenario failures feed the capability-gap pipeline/coordinator unreachable spools entries; ath.Scenario failures feed the capability-gap pipeline/spool replay; ath.Scenario failures feed the capability-gap pipeline/no coordinator URL configured spools instead of guessing; ath.Scenario failures feed the capability-gap pipeline/concurrent flush and emission lose nothing
   **Dependencies**: 1.1
 - [ ] 4.3 Implement `gap_emitter.py` (`build_gap_entries`, `MemorySink`, `CoordinatorMemorySink`, `SpoolMemorySink`, `emit_gaps`, `flush_spool`, `add_parser` for `gaps flush`) [M]
   **Dependencies**: 4.1, 4.2
@@ -111,14 +123,14 @@ doubles — no vendor CLI, no network, no `systemctl`, no database.
 ## 5. Nightly runner, CLI and deploy templates (wp-nightly)
 
 - [ ] 5.1 Write tests for nightly config loading and guards [M]
-  `enabled: false` (executor factory never called), kill-file, run lock, over-cap (`max_pairs` and per-vendor) exit 2 with nothing launched, < 2 effective vendors exit 2, `--dry-run`.
-  **Spec scenarios**: ath.Nightly runner/disabled by default; ath.Nightly runner/kill-file disables an enabled config; ath.Nightly runner/over-cap plan refuses to start; ath.Nightly runner/fewer than two effective vendors is a config error; ath.Nightly runner/overlapping runs are refused; ath.Nightly runner/dry run plans without executing
+  Guard order per D4: invalid config / missing `vendor_commands` entry → exit 2, no record; `enabled: false` (executor factory never called); kill-file; run lock; < 2 effective vendors → `config_error` record + exit 2; over-cap (`max_pairs` and per-vendor) → `cap_exceeded` + exit 2 with nothing launched; `--dry-run` with `enabled: false` and with `enabled: true` (no lock, no record, no executor).
+  **Spec scenarios**: ath.Nightly runner/disabled by default; ath.Nightly runner/kill-file disables an enabled config; ath.Nightly runner/over-cap plan refuses to start; ath.Nightly runner/fewer than two effective vendors is a config error; ath.Nightly runner/invalid config writes nothing; ath.Nightly runner/overlapping runs are refused; ath.Nightly runner/dry run plans without executing
   **Contracts**: contracts/schemas/nightly-config.schema.json
   **Design decisions**: D4
   **Dependencies**: 1.1
 - [ ] 5.2 Write tests for the run loop with an injected fake clock [M]
-  Wall-clock budget → `skipped_budget` + `budget_exhausted`; results/findings/gaps written; exit 1 on any fail, 0 on all pass; spool flushed first.
-  **Spec scenarios**: ath.Nightly runner/wall-clock budget stops launching new pairs; ath.Nightly runner/failing scenarios make the run exit non-zero; ath.Durable results store/results are appended per scenario and vendor
+  Wall-clock budget → `skipped_budget` + `budget_exhausted` (deterministic pair order); results appended incrementally (simulated kill after N pairs leaves N records, no `run` record); findings/gaps written; exit-code precedence 2 > 1 > 3 > 0 (fail + budget_exhausted → 1; errors only → 3; all pass → 0); spool flushed first; pass workspaces deleted, fail/error kept, old run dirs pruned beyond `retain_failed_runs`; `duration_seconds` measured per pair.
+  **Spec scenarios**: ath.Nightly runner/wall-clock budget stops launching new pairs; ath.Nightly runner/failing scenarios make the run exit non-zero; ath.Nightly runner/an infrastructure-only failure is not a green night; ath.Nightly runner/workspaces are bounded; ath.Durable results store/results are appended per scenario and vendor; ath.Durable results store/results survive an interrupted run
   **Design decisions**: D4
   **Dependencies**: 1.1
 - [ ] 5.3 Implement `nightly.py` (config model, guards, pair planning, run loop with budget, wiring of results store, findings emitter, gap emitter, executor factory with `skills_root`/`env_scrub`/timeout) [L]
@@ -128,15 +140,16 @@ doubles — no vendor CLI, no network, no `systemctl`, no database.
 - [ ] 5.4 Write tests for the `__main__` subcommand dispatcher (legacy `--scenarios`/`--validate-only` form unchanged; `validate`, `nightly`, `results`, `gaps` routed) [S]
   **Design decisions**: D8
   **Dependencies**: None
-- [ ] 5.5 Rewrite `__main__.py` as a subcommand dispatcher [S]
+- [ ] 5.5 Rewrite `__main__.py` as a subcommand dispatcher (drop the stale `--target`/`--out` docstring) [S]
   **Dependencies**: 5.4, 3.5, 4.3, 5.3
-- [ ] 5.6 Write tests for deploy assets (placeholders present, example config parses with `enabled: false`, no `systemctl` invocation anywhere in package code/tests) [XS]
+- [ ] 5.6 Write tests for deploy assets (placeholders present, `TimeoutStartSec` ≥ wall-clock cap + per-pair timeout of the example config, example config parses with `enabled: false`, no `systemctl` invocation anywhere in package code/tests) [XS]
   **Spec scenarios**: ath.Schedule shipped as templates only/templates and example config are inert
   **Design decisions**: D7
   **Dependencies**: None
 - [ ] 5.7 Add `deploy/systemd/*.template` + `deploy/nightly.example.yaml` [S]
   **Dependencies**: 5.6
 - [ ] 5.8 Write runbook `docs/guides/agent-scenarios-nightly.md` (+ package README update) [S]
+  Must cover: exit codes 0/1/2/3 and triage, `COORDINATION_API_URL` vs `COORDINATOR_URL` (gap emitter vs `/improve-harness`) pointing at the same coordinator, dedicated HOME without global skills or coordinator MCP config, workspace retention, `gh` shim unsupported-call errors.
   **Dependencies**: 5.7
 - [ ] Checkpoint: run tests, review diff, verify scope
 
@@ -146,7 +159,7 @@ doubles — no vendor CLI, no network, no `systemctl`, no database.
   Temp `skills_root` with a skill; a test executor that reads the materialized SKILL.md and plays the scenario's golden outcome, or its broken outcome when the skill carries the break marker; run `nightly` (enabled, temp state dir, stub coordinator) → `fail` result in store, gap entry with `affected_skill` and `source:scenario-parity`, findings file; then the same with the intact skill → pass, no gap.
   **Spec scenarios**: ath.Scenario failures feed the capability-gap pipeline/a deliberately broken skill change produces a capability gap
   **Design decisions**: D3, D5
-  **Dependencies**: 5.3, 2.9
+  **Dependencies**: 5.3, 2.9, 1.7
 - [ ] 6.2 Write 2-vendor nightly acceptance test over the full seed suite with golden outcomes (22 result records + 1 run record; `results trend` per vendor × skill returns 100% pass) [S]
   **Spec scenarios**: ath.Durable results store/results are appended per scenario and vendor; ath.Durable results store/trend aggregates pass rate per bucket
   **Dependencies**: 5.5, 2.9
