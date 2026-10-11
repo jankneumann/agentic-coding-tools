@@ -257,7 +257,7 @@ Everything of that kind is in § 7 (operator-only).
     best-effort and always exits 0.
 
   **Dependencies**: 3.3
-- [ ] 3.6 Write `test_runner_image.py` (XS)
+- [x] 3.6 Write `test_runner_image.py` (XS)
   - The `FROM` line of `Containerfile` names `ghcr.io/actions/actions-runner:<version>@sha256:<64 hex>`
     and does not use `latest`.
   - Every package in `toolchain.txt` is installed by the Containerfile.
@@ -275,7 +275,7 @@ Everything of that kind is in § 7 (operator-only).
   the hook", "Runner hook refuses a fork PR that rewrote its workflow"
   **Design decisions**: D6
   **Dependencies**: 1.3
-- [ ] 3.7 Author `deploy/gx10-runner/Containerfile`, `deploy/gx10-runner/toolchain.txt` and
+- [x] 3.7 Author `deploy/gx10-runner/Containerfile`, `deploy/gx10-runner/toolchain.txt` and
       `deploy/gx10-runner/job-started-hook.sh` (S)
   - Pin the base image digest: read it from the registry manifest with `podman manifest
     inspect` or `skopeo inspect`. Reading is allowed; building or running an image is not.
