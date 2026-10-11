@@ -53,7 +53,7 @@ Seed scenarios SHALL NOT depend on GitHub side effects. Push and merge behaviour
 - **THEN** none of those variables SHALL be present in the vendor subprocess environment
 
 #### Scenario: config cannot re-open the live coordinator path
-- **WHEN** a nightly config sets `env_set` with a key `COORDINATION_API_URL`, `COORDINATOR_URL` or any other built-in denylisted variable
+- **WHEN** a nightly config sets `env_set` with a key `COORDINATION_API_URL`, `COORDINATOR_URL`, any other built-in denylisted variable, any `env_scrub` entry, or the name configured in `gaps.api_key_env` or `gaps.coordinator_url_env`
 - **THEN** the config SHALL be rejected as invalid (exit 2, no record written)
 - **AND** for any valid config, `COORDINATION_API_URL` in the vendor subprocess environment SHALL equal `http://127.0.0.1:9`
 

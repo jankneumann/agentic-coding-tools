@@ -73,3 +73,34 @@ Planned ri-16 non-interactively under supervised autopilot: an 11-scenario seed 
 ### Context
 Iteration 1 fixed 5 high and 8 medium findings verified against ri-15 code: gh shim for GitHub-free merge-family runs, whole-tree skill materialization, hermetic vendor env that keeps fixture agents off the live coordinator, dry-run while disabled, exit 3 for infrastructure-only nights, incremental result appends, workspace retention and spool locking. Iteration 2 found nothing at or above medium; converged.
 
+
+---
+
+## Phase: Plan Review (2026-10-11)
+
+**Agent**: claude_code (PLAN_REVIEW phase sub-agent) | **Session**: N/A
+
+### Decisions
+1. **Ran converge() as the whole PLAN_REVIEW phase with the real multi-vendor dispatcher** `architectural: skill-procedure-deviation` — Driver in the session scratchpad (agents.yaml orchestrator, inline PLAN_FIX through a sentinel handshake); three converge() passes because pass 1 ended in adjudication_required and pass 2 in quorum_lost
+2. **Orchestrator adjudication of 7 single-vendor high judgment findings** `architectural: agent-trajectory-harness` — Valid: hermetic denylist gaps (#1), improve-harness query incompatible with /memory/query (#12), wp-nightly missing wp-scenarios dependency (#13), budget_exhausted exiting 0 (#15). Partially valid: skill invocation (#11), fail-closed hermeticity (#14, isolated HOME rejected), frequency unit (#16, consumer ranking repair out of scope)
+3. **Fail-closed hermetic environment** `architectural: agent-trajectory-harness` — Built-in HERMETIC_SCRUB denylist config can extend but not shrink; COORDINATION_API_URL sentinel always forced; env_set may not name any scrubbed variable; two drift tests
+4. **improve-harness memory query repaired in this change (task 4.4a)** `architectural: harness-engineering` — Without it the emitted scenario-parity gaps are never read by /improve-harness
+5. **Lane changes between passes** `architectural: skill-procedure-deviation` — antigravity excluded (E2BIG on the ~330 KB packet, a size signal); pi switched to stdin (verified pi -p reads stdin); per-vendor timeout raised 500s→900s after codex timed out (transient) in pass 2; quorum 2 never lowered
+
+### Alternatives Considered
+- Isolated HOME for vendor subprocesses: rejected because vendor CLIs authenticate from HOME; handled operationally (task 7.1)
+- Repair /improve-harness ranking to count nights: rejected because the in-source BUG note scopes it to its own change
+
+### Trade-offs
+- Accepted skill invocation verified by prompt + artifacts over a vendor-neutral load trace because no such trace exists across vendors
+
+### Open Questions
+- [ ] pi lane misclassified as auth_required in pass 3: the echoed packet contains the token "401" (same echo issue the driver already patches for codex)
+
+### Completed Work
+- Pass 1: claude_code + codex, 18 findings, adjudication_required → 17 fixed, #8 advisory
+- Pass 2: quorum_lost (codex 500s timeout; only claude_code succeeded) — no ledger change
+- Pass 3: claude_code + codex, converged round 1 (0 blocking, 0 adjudication, 12 advisory); the 6 distinct advisory issues both lanes raised were fixed post-convergence
+
+### Context
+Plan review converged after orchestrator adjudication. grok was unavailable all passes (CLI 1.0.5 rejected with HTTP 426). Review artifacts are under `.review-cache/pass{1,2}-round-1` and `.review-cache/round-1` (pass 3), ledger in `.review-ledger/ledger.json`.

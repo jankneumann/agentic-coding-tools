@@ -1,0 +1,57 @@
+{
+  "review_type": "plan",
+  "target": "seed-scenario-suite-and-nightly-cross-vendor-parity-runs",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Optional: `specs/harness-engineering/spec.md` adds `scenario-parity` as a source, but the base `Capability Gap Detection` requirement and its in-flight MODIFIED copy still define a closed four-value source enum. Archiving both changes would leave contradictory requirements unless the existing requirement is explicitly extended or a follow-up modification is recorded.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "optional",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Optional: `contracts/schemas/nightly-config.schema.json` independently duplicates the executor's `HERMETIC_SCRUB` names in `env_set.propertyNames`, while the planned drift test checks only the Python denylist against coordination-bridge variables. A later denylist addition could therefore remain schema-accepted and reopen a scrubbed variable through `env_set`. Add a parity assertion between the schema enum and `HERMETIC_SCRUB` plus `COORDINATION_API_URL`.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "optional",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Nit: The static `env_set` prohibition does not cover dynamically configured `gaps.api_key_env`, `gaps.coordinator_url_env`, or additional `env_scrub` names. Because overrides are applied after scrubbing, a valid config can scrub a custom coordinator credential and then re-inject it through `env_set`. Require the Pydantic cross-field validator to reject all dynamically scrubbed names and add a scenario covering reinjection.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "nit",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "style",
+      "criticality": "low",
+      "description": "Nit: `design.md` attributes `COORDINATOR_URL` to `coordination_bridge.py`, but that module's URL aliases do not include it; the variable is read by `skills/improve-harness/scripts/analyze_failures.py`. Scrubbing it is correct, but the attribution and described bridge-only drift test are incomplete and could cause the variable to be dropped during future reconciliation.",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "nit",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Nit: The final tier-A `wp-integration` verification runs `skills/tests/improve-harness` and `skills/session-log/tests` but omits `skills/improve-harness/tests`, even though task 4.4a modifies that test tree. The package-specific gate covers it earlier, but the final convergence gate would not catch a later-package regression. Include every touched improve-harness test directory in the final command.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "nit",
+      "evidence_class": "judgment"
+    }
+  ]
+}

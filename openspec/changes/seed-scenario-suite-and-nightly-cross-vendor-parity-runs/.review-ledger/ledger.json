@@ -131,7 +131,7 @@
     },
     {
       "id": 8,
-      "status": "open",
+      "status": "addressed",
       "axis": "architecture",
       "type": "architecture",
       "criticality": "low",
@@ -144,6 +144,7 @@
         "claude_code"
       ],
       "description": "ri-15's change `build-agent-trajectory-scenario-harness` is merged in code but not archived: it still lives under `openspec/changes/` and there is no `openspec/specs/agent-trajectory-harness/spec.md`. This change's `agent-trajectory-harness` delta is therefore ADDED-only against a capability that does not yet exist in `openspec/specs/`, which is valid, and the revised `implement-feature-basic` still satisfies ri-15's 'Seed scenarios exercising plan and implement skills' requirement (verify + prohibit gates, two vendors). But archive order matters: archiving ri-16 before ri-15 would create the capability spec from ri-16's deltas alone, and ri-15's later archive must then merge into it.",
+      "resolution": "fixed: archive-order note in proposal Impact + task 6.4",
       "consensus_status": "unconfirmed"
     },
     {
@@ -324,6 +325,223 @@
       ],
       "description": "Nit: The sink plan treats transport reachability as delivery but does not require checking the memory endpoint's application-level response. `POST /memory/store` can return HTTP 200 with `success: false`; if that is treated as delivered, the entry will be removed rather than spooled, violating the zero-loss requirement. Specify that only a valid response with `success: true` acknowledges delivery and add a 200/false replay test.",
       "resolution": "fixed: only 2xx + success:true acknowledges delivery (D3, spec scenario, task 4.2)",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 19,
+      "status": "addressed",
+      "axis": "architecture",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/specs/harness-engineering/spec.md",
+      "spec_file": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/specs/harness-engineering/spec.md",
+      "fingerprint": "06d1ad167c6f81c5",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The ADDED requirement extends the `source` vocabulary, but the base `openspec/specs/harness-engineering/spec.md` requirement 'Capability Gap Detection' still states `source (enum: self-reported, coordinator-emitted, session-log, transcript-mined)` in 'Structured failure recording schema' and 'one or more of: self-reported, coordinator-emitted, session-log, transcript-mined' in 'Report includes source attribution'. The in-flight `add-a-judged-first-stage-to-coordinator-audit-triage` MODIFIED copy keeps both closed lists verbatim (its spec.md lines 9 and 47). After archive the capability spec will contain two requirements that contradict each other on the enum. The decision to ADD rather than MODIFY is sound (delta collision), but the ADDED requirement should say explicitly that it extends the `source` enum of 'Capability Gap Detection' and the two scenarios' source lists, and tasks.md should carry a follow-up note to fold the value into that requirement once the judged-triage change archives.",
+      "resolution": "fixed: ADDED requirement states it extends the Capability Gap Detection enum; D3 base-spec enum note; task 6.4 reconciles at archive",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 20,
+      "status": "addressed",
+      "axis": "security",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/contracts/schemas/nightly-config.schema.json",
+      "fingerprint": "239be7be881655df",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Group 5 mirrored-copy check: the `env_set.propertyNames.not.enum` list is a second, hand-maintained copy of the executor's `HERMETIC_SCRUB` denylist (plus `COORDINATION_API_URL`). The planned drift test (D5, task 1.2) only asserts `HERMETIC_SCRUB` \u2287 the coordination-bridge variable names; nothing asserts the schema's enum equals `HERMETIC_SCRUB \u222a {COORDINATION_API_URL}`. A later change that adds a name to the Python constant (e.g. a new bridge alias caught by the drift test) leaves the JSON schema, and therefore the promoted package copy and the pydantic `propertyNames` mirror, accepting that name in `env_set`, silently re-opening the path the fail-closed design is meant to shut. Today the 14 names match the design list, so this is a drift risk, not a current defect.",
+      "resolution": "fixed: drift test schema env_set.propertyNames == HERMETIC_SCRUB \u222a {COORDINATION_API_URL} (D5, task 1.2)",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 21,
+      "status": "addressed",
+      "axis": "security",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/design.md",
+      "fingerprint": "8b9fa402a197d1fa",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "D5 orders the executor as scrub \u2192 apply `env_set` \u2192 force the sentinel, and the rejection rule for `env_set` keys covers only the built-in denylist and `COORDINATION_API_URL`. Variables that are scrubbed dynamically \u2014 names listed in `env_scrub` and the names configured via `gaps.api_key_env` / `gaps.coordinator_url_env` when they are not the defaults \u2014 are not rejected, so a config with `gaps.api_key_env: MY_COORD_KEY` and `env_set: {MY_COORD_KEY: ...}` passes guard 0 and re-injects the runner's coordinator credential after the scrub. The spec scenario 'the runner's coordinator credential never reaches an agent' only covers `env_scrub` omitting the name, not `env_set` re-adding it. Low because the default names are in the static enum; the pydantic model (which can see cross-field values) should close it.",
+      "resolution": "fixed: env_set may not name any effective-scrub variable incl. env_scrub entries and gaps.*_env names (D5, spec, task 5.1)",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 22,
+      "status": "addressed",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/design.md",
+      "fingerprint": "ee1f16a636cfec7b",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "D5 attributes `COORDINATOR_URL` to the coordination bridge's URL aliases, but `coordination_bridge.py` `_HTTP_URL_ENV_KEYS` is `(COORDINATION_API_URL, COORDINATOR_HTTP_URL, AGENT_COORDINATOR_API_URL, AGENT_COORDINATOR_HTTP_URL)`; `COORDINATOR_URL` is read by `skills/improve-harness/scripts/analyze_failures.py` (and D3 itself says so). Scrubbing it is still right (an improve-harness invocation inside a fixture would otherwise find the live coordinator), but the sentence misattributes the source and the drift test as described would not cover it. Clarify so a future reader does not drop it when reconciling against the bridge.",
+      "resolution": "fixed: COORDINATOR_URL attributed to analyze_failures.py, not the bridge",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 23,
+      "status": "addressed",
+      "axis": "architecture",
+      "type": "architecture",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/work-packages.yaml",
+      "fingerprint": "7f516f9bd544b563",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "wp-integration (tier A, the final gate) runs `skills/tests/improve-harness` and `skills/session-log/tests` but omits `skills/improve-harness/tests`, which task 4.4a explicitly edits (`test_improve_harness.py` pins the old `build_memory_query` payload and must be updated). wp-gaps' own verification does include that directory, so the gap only matters if a later package or the convergence step regresses the skill; but the tier-A gate should cover every touched test tree. Task 6.3 ('skills gate set') is vaguer than the package verification step.",
+      "resolution": "fixed: wp-integration gate runs skills/improve-harness/tests",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 24,
+      "status": "addressed",
+      "axis": "compatibility",
+      "type": "compatibility",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/design.md",
+      "fingerprint": "2ae629e1bb7cfc57",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Both the new gap sink (D3) and the repaired `analyze_failures.query_memory` (task 4.4a, he spec scenario) authenticate with `X-API-Key`. `coordination_api.verify_api_key` documents that header as 'legacy header retained for backward compatibility' and lists `Authorization: Bearer <key>` as the preferred form. It works today and existing skills use it, so no change is required; noting so the implementer can choose `Authorization: Bearer` (or accept both in the stub test) rather than extending the legacy surface.",
+      "resolution": "fixed (verified verify_api_key: Authorization Bearer preferred, X-API-Key legacy): sink and repaired query use Authorization: Bearer",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 25,
+      "status": "addressed",
+      "axis": "architecture",
+      "type": "architecture",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/proposal.md",
+      "fingerprint": "fb3baa4bf9cbca25",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verification of open ledger item [8]: still accurate. `openspec/changes/build-agent-trajectory-scenario-harness/` is present and unarchived and `openspec/specs/` has no `agent-trajectory-harness` directory, so this change's ADDED-only delta targets a capability that exists only in ri-15's unarchived delta. None of the requirement names in this delta collide with ri-15's six (`Agent scenario model\u2026`, `Deterministic goal-gate scoring\u2026`, `Injectable per-vendor executor\u2026`, `Injectable additive LLM-judge\u2026`, `Findings emitter\u2026`, `Seed scenarios exercising plan and implement skills`), so either archive order produces a valid merged spec; the only consequence is that ri-15's later archive must merge into a spec created by ri-16. Nothing in tasks.md records the preferred order. Accept as a low operator note.",
+      "resolution": "fixed with #8",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 26,
+      "status": "addressed",
+      "axis": "architecture",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/specs/harness-engineering/spec.md",
+      "fingerprint": "ef02eed2a780daec",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "Optional: `specs/harness-engineering/spec.md` adds `scenario-parity` as a source, but the base `Capability Gap Detection` requirement and its in-flight MODIFIED copy still define a closed four-value source enum. Archiving both changes would leave contradictory requirements unless the existing requirement is explicitly extended or a follow-up modification is recorded.",
+      "resolution": "fixed with #19 (codex duplicate)",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 27,
+      "status": "addressed",
+      "axis": "security",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/contracts/schemas/nightly-config.schema.json",
+      "fingerprint": "86ea35c71e2a685d",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "Optional: `contracts/schemas/nightly-config.schema.json` independently duplicates the executor's `HERMETIC_SCRUB` names in `env_set.propertyNames`, while the planned drift test checks only the Python denylist against coordination-bridge variables. A later denylist addition could therefore remain schema-accepted and reopen a scrubbed variable through `env_set`. Add a parity assertion between the schema enum and `HERMETIC_SCRUB` plus `COORDINATION_API_URL`.",
+      "resolution": "fixed with #20 (codex duplicate)",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 28,
+      "status": "addressed",
+      "axis": "security",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/design.md",
+      "fingerprint": "9a5899e9f1df1d55",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "Nit: The static `env_set` prohibition does not cover dynamically configured `gaps.api_key_env`, `gaps.coordinator_url_env`, or additional `env_scrub` names. Because overrides are applied after scrubbing, a valid config can scrub a custom coordinator credential and then re-inject it through `env_set`. Require the Pydantic cross-field validator to reject all dynamically scrubbed names and add a scenario covering reinjection.",
+      "resolution": "fixed with #21 (codex duplicate)",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 29,
+      "status": "addressed",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/design.md",
+      "fingerprint": "3b65cc4d53bb359f",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "Nit: `design.md` attributes `COORDINATOR_URL` to `coordination_bridge.py`, but that module's URL aliases do not include it; the variable is read by `skills/improve-harness/scripts/analyze_failures.py`. Scrubbing it is correct, but the attribution and described bridge-only drift test are incomplete and could cause the variable to be dropped during future reconciliation.",
+      "resolution": "fixed with #22 (codex duplicate)",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 30,
+      "status": "addressed",
+      "axis": "architecture",
+      "type": "architecture",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/work-packages.yaml",
+      "fingerprint": "09786db329918988",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "Nit: The final tier-A `wp-integration` verification runs `skills/tests/improve-harness` and `skills/session-log/tests` but omits `skills/improve-harness/tests`, even though task 4.4a modifies that test tree. The package-specific gate covers it earlier, but the final convergence gate would not catch a later-package regression. Include every touched improve-harness test directory in the final command.",
+      "resolution": "fixed with #23 (codex duplicate)",
       "consensus_status": "unconfirmed"
     }
   ]

@@ -2,7 +2,7 @@
 
 ### Requirement: Scenario-parity capability-gap source
 
-The shared capability-gap tag schema SHALL accept `scenario-parity` as an additional `source` value, emitted by the agent-scenarios nightly runner for deterministic scenario failures, and `/improve-harness` SHALL consume and attribute it like the other sources without requiring source-specific code.
+The shared capability-gap tag schema SHALL accept `scenario-parity` as an additional `source` value, extending the `source` enum stated in "Capability Gap Detection", emitted by the agent-scenarios nightly runner for deterministic scenario failures, and `/improve-harness` SHALL consume and attribute it like the other sources without requiring source-specific code.
 
 #### Scenario: source value is documented and pinned
 - **WHEN** the memory tag convention tests run
@@ -25,6 +25,6 @@ The shared capability-gap tag schema SHALL accept `scenario-parity` as an additi
 
 #### Scenario: the improve-harness memory query matches the coordinator API
 - **WHEN** `/improve-harness` queries `POST /memory/query` against a coordinator that requires `agent_id` and an API key and answers with a `memories` list envelope
-- **THEN** the request SHALL include `agent_id` and, when `COORDINATION_API_KEY` is set, an `X-API-Key` header
+- **THEN** the request SHALL include `agent_id` and, when `COORDINATION_API_KEY` is set, an `Authorization: Bearer` header
 - **AND** the entries in the `memories` list SHALL be returned to failure analysis
 - **AND** entries older than the requested time window SHALL be dropped by `created_at` on the client side

@@ -160,6 +160,9 @@ rejected primarily on trust posture (vendor keys in CI).
   delta collision).
 - **No** database migration, coordinator API change, CI workflow change, or trust
   posture change.
+- **Archive order**: ri-15 (`build-agent-trajectory-scenario-harness`) is merged but
+  not archived; it must archive first so its `agent-trajectory-harness` capability
+  spec exists before this change's ADDED requirements merge into it (task 6.4).
 
 ## Non-Functional Requirements
 

@@ -16,7 +16,7 @@ doubles — no vendor CLI, no network, no `systemctl`, no database.
   **Contracts**: contracts/schemas/results-record.schema.json, capability-gap-entry.schema.json, nightly-config.schema.json
   **Dependencies**: None
 - [ ] 1.2 Write tests for fixture `local_remote`/`prs`, hermetic env and timeout message [S]
-  Built-in `HERMETIC_SCRUB` denylist applied with an empty `env_scrub` (GitHub tokens, every coordination-bridge URL/API-key/CF Access variable); `env_scrub` extends it; `gaps.api_key_env` / `gaps.coordinator_url_env` variables always scrubbed; `COORDINATION_API_URL` forced to the sentinel after `env_set`; drift test `HERMETIC_SCRUB` ⊇ `coordination_bridge` `_HTTP_URL_ENV_KEYS` ∪ `_API_KEY_ENV_KEYS` ∪ CF names (skip when the skills tree is absent); `TimeoutExpired` → "timed out after Ns" distinct from "unavailable".
+  Built-in `HERMETIC_SCRUB` denylist applied with an empty `env_scrub` (GitHub tokens, every coordination-bridge URL/API-key/CF Access variable); `env_scrub` extends it; `gaps.api_key_env` / `gaps.coordinator_url_env` variables always scrubbed; `COORDINATION_API_URL` forced to the sentinel after `env_set`; drift test `HERMETIC_SCRUB` ⊇ `coordination_bridge` `_HTTP_URL_ENV_KEYS` ∪ `_API_KEY_ENV_KEYS` ∪ CF names (skip when the skills tree is absent); drift test config-schema `env_set.propertyNames` enum == `HERMETIC_SCRUB ∪ {COORDINATION_API_URL}`; `TimeoutExpired` → "timed out after Ns" distinct from "unavailable".
   **Spec scenarios**: ath.Live runs never reach real GitHub/local remote fixture; ath.Live runs never reach real GitHub/credential variables are scrubbed; ath.Live runs never reach real GitHub/the runner's coordinator credential never reaches an agent; ath.Live runs never reach real GitHub/the denylist covers every coordinator variable the skills read; ath.Skill under test is materialized/a timeout is distinguishable from a missing CLI
   **Design decisions**: D5
   **Dependencies**: None
@@ -107,12 +107,12 @@ doubles — no vendor CLI, no network, no `systemctl`, no database.
   **Dependencies**: 4.1, 4.2
 - [ ] Checkpoint: run tests, review diff, verify scope
 - [ ] 4.4 Write improve-harness consumer test `skills/tests/improve-harness/test_scenario_parity_source.py` [S]
-  Copies the example payload to `skills/tests/improve-harness/fixtures/`. (a) Drives `analyze_failures.query_memory` against a local `http.server` stub that enforces the real `MemoryQueryRequest` shape (`agent_id` required, `X-API-Key` checked when configured) and answers with the real `memories` list envelope; asserts the entries come back and that entries older than the window are dropped by `created_at`. (b) Feeds the payload (two vendors in one run, plus a later run's copy) through `normalize_memory_entries`/`rank_findings`; asserts `scenario-parity` in sources and frequency 3.
+  Copies the example payload to `skills/tests/improve-harness/fixtures/`. (a) Drives `analyze_failures.query_memory` against a local `http.server` stub that enforces the real `MemoryQueryRequest` shape (`agent_id` required, `Authorization: Bearer` checked when configured) and answers with the real `memories` list envelope; asserts the entries come back and that entries older than the window are dropped by `created_at`. (b) Feeds the payload (two vendors in one run, plus a later run's copy) through `normalize_memory_entries`/`rank_findings`; asserts `scenario-parity` in sources and frequency 3.
   **Spec scenarios**: he.Scenario-parity capability-gap source/improve-harness attributes scenario-parity findings; he.Scenario-parity capability-gap source/frequency counts failing run-and-vendor pairs; he.Scenario-parity capability-gap source/scenario-parity entries are retrievable by the improve-harness memory query; he.Scenario-parity capability-gap source/the improve-harness memory query matches the coordinator API
   **Contracts**: contracts/examples/capability-gap-entry.example.json
   **Dependencies**: None
 - [ ] 4.4a Repair (signatures unchanged — `skills/skill-audit/scripts/evidence_join.py` and `export_shared_learnings.py` call them) `analyze_failures.query_memory` / `build_memory_query` in `skills/improve-harness/scripts/analyze_failures.py` [S]
-  Send `agent_id` (default `improve-harness`, `--agent-id` / `IMPROVE_HARNESS_AGENT_ID` override) and `X-API-Key` from `COORDINATION_API_KEY` when set; drop the unsupported `time_window_days` request field and filter by `created_at` client-side; read the `memories` envelope (keep `entries` / bare list for older coordinators). Ranking semantics unchanged (D3: frequency unit is (run, vendor)). Update the skill's existing tests that pin the old payload.
+  Send `agent_id` (default `improve-harness`, `--agent-id` / `IMPROVE_HARNESS_AGENT_ID` override) and `Authorization: Bearer` from `COORDINATION_API_KEY` when set; drop the unsupported `time_window_days` request field and filter by `created_at` client-side; read the `memories` envelope (keep `entries` / bare list for older coordinators). Ranking semantics unchanged (D3: frequency unit is (run, vendor)). Update the skill's existing tests that pin the old payload.
   **Design decisions**: D3
   **Dependencies**: 4.4
 - [ ] 4.5 Add `scenario-parity` to `SOURCE_VOCABULARY` in `skills/session-log/tests/test_memory_tag_conventions.py` [XS]
@@ -127,7 +127,7 @@ doubles — no vendor CLI, no network, no `systemctl`, no database.
 ## 5. Nightly runner, CLI and deploy templates (wp-nightly)
 
 - [ ] 5.1 Write tests for nightly config loading and guards [M]
-  Guard order per D4: invalid config / missing `vendor_commands` entry / `env_set` naming a denylisted variable or `COORDINATION_API_URL` → exit 2, no record; config omitting `caps` / `enabled` / `disable_file` takes the documented defaults; `enabled: false` (executor factory never called); kill-file; run lock; < 2 effective vendors → `config_error` record + exit 2; over-cap (`max_pairs` and per-vendor) → `cap_exceeded` + exit 2 with nothing launched; `--dry-run` with `enabled: false` and with `enabled: true` (no lock, no record, no executor).
+  Guard order per D4: invalid config / missing `vendor_commands` entry / `env_set` naming a denylisted variable, `COORDINATION_API_URL`, an `env_scrub` entry or a `gaps.*_env` name → exit 2, no record; config omitting `caps` / `enabled` / `disable_file` takes the documented defaults; `enabled: false` (executor factory never called); kill-file; run lock; < 2 effective vendors → `config_error` record + exit 2; over-cap (`max_pairs` and per-vendor) → `cap_exceeded` + exit 2 with nothing launched; `--dry-run` with `enabled: false` and with `enabled: true` (no lock, no record, no executor).
   **Spec scenarios**: ath.Live runs never reach real GitHub/config cannot re-open the live coordinator path; ath.Nightly runner/disabled by default; ath.Nightly runner/kill-file disables an enabled config; ath.Nightly runner/over-cap plan refuses to start; ath.Nightly runner/fewer than two effective vendors is a config error; ath.Nightly runner/invalid config writes nothing; ath.Nightly runner/overlapping runs are refused; ath.Nightly runner/dry run plans without executing
   **Contracts**: contracts/schemas/nightly-config.schema.json
   **Design decisions**: D4
@@ -167,6 +167,9 @@ doubles — no vendor CLI, no network, no `systemctl`, no database.
 - [ ] 6.2 Write 2-vendor nightly acceptance test over the full seed suite with golden outcomes (22 result records + 1 run record; `results trend` per vendor × skill returns 100% pass) [S]
   **Spec scenarios**: ath.Durable results store/results are appended per scenario and vendor; ath.Durable results store/trend aggregates pass rate per bucket
   **Dependencies**: 5.5, 2.9
+- [ ] 6.4 Record the archive-order constraints in the PR description and session log [XS]
+  Archive `build-agent-trajectory-scenario-harness` (ri-15) before this change, so ri-15 creates `openspec/specs/agent-trajectory-harness/spec.md` and this change's ADDED requirements merge into it; and whichever of this change and `add-a-judged-first-stage-to-coordinator-audit-triage` archives second adds `scenario-parity` to the "Capability Gap Detection" `source` enum (design D3 base-spec enum).
+  **Dependencies**: None
 - [ ] 6.3 Run full quality gates: package `uv run pytest`, `ruff`, `mypy --strict`; skills gate set; `openspec validate seed-scenario-suite-and-nightly-cross-vendor-parity-runs --strict` [S]
   **Dependencies**: 6.1, 6.2, 4.7, 5.8
 

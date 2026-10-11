@@ -554,7 +554,7 @@ packages:
         - integration_mypy_clean
     - name: skills suites for touched skills pass
       kind: command
-      command: skills/.venv/bin/python -m pytest skills/tests/improve-harness skills/session-log/tests -q
+      command: skills/.venv/bin/python -m pytest skills/tests/improve-harness skills/improve-harness/tests skills/session-log/tests -q
       cwd: .
       expect_exit_code: 0
       evidence:

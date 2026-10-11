@@ -150,7 +150,8 @@ Notes:
 - **Severity `high`** for every deterministic failure (gates are explicit contract
   violations); not `critical`, which the D4 schema reserves for incidents.
 - **Sinks** (`MemorySink` protocol): `CoordinatorMemorySink` — stdlib `urllib` POST to
-  `${COORDINATION_API_URL}/memory/store` with `X-API-Key: ${COORDINATION_API_KEY}`
+  `${COORDINATION_API_URL}/memory/store` with `Authorization: Bearer ${COORDINATION_API_KEY}`
+  (the coordinator's preferred header; `X-API-Key` is its legacy alias)
   (variable names configurable via `gaps.coordinator_url_env` / `gaps.api_key_env`;
   the defaults follow the repo-wide convention in
   `docs/coordination-detection-template.md`, whereas `analyze_failures.py` reads
@@ -166,6 +167,12 @@ Notes:
   at the start of every nightly) replays the spool and rewrites it with only the
   entries that still failed. No dependency on `skills/coordination-bridge` (the
   package must stay installable on its own).
+- **Base-spec enum**: `openspec/specs/harness-engineering/spec.md` "Capability Gap
+  Detection" still lists a closed four-value `source` enum, and the in-flight
+  `add-a-judged-first-stage-to-coordinator-audit-triage` MODIFIES that requirement.
+  The ADDED requirement here states that it extends that enum; whichever of the two
+  changes archives second reconciles the enum text (adds `scenario-parity` to the
+  MODIFIED copy, or files a follow-up MODIFIED delta) — tracked as task 6.4.
 - **Shared tag schema**: `source:scenario-parity` is a *new vocabulary value*. It is
   documented in `docs/guides/memory-conventions.md` and added to the
   `SOURCE_VOCABULARY` constant in `skills/session-log/tests/test_memory_tag_conventions.py`
@@ -182,7 +189,7 @@ Notes:
   `MemoryQueryRequest`), sends no `X-API-Key`, sends `time_window_days` (not a request
   field — ignored), and reads `entries` while `/memory/query` returns a `memories`
   list envelope. The fix: send `agent_id` (default `improve-harness`, overridable),
-  send `X-API-Key` from `COORDINATION_API_KEY` when set, read `memories` (keeping
+  send `Authorization: Bearer` from `COORDINATION_API_KEY` when set, read `memories` (keeping
   `entries`/bare-list for older coordinators), and apply the time window client-side
   on `created_at`. A consumer test drives `query_memory` against a local
   `http.server` stub that enforces the real request model and returns the real
@@ -298,23 +305,28 @@ skill. `CLIVendorExecutor` gains:
 - **Hermetic environment (fail-closed, not configurable away)** — the executor owns
   a built-in `HERMETIC_SCRUB` denylist that config can extend (`env_scrub`) but never
   shrink: GitHub tokens (`GH_TOKEN`, `GITHUB_TOKEN`, `GH_ENTERPRISE_TOKEN`,
-  `GITHUB_ENTERPRISE_TOKEN`) and every coordinator variable that
+  `GITHUB_ENTERPRISE_TOKEN`); every coordinator variable that
   `skills/coordination-bridge/scripts/coordination_bridge.py` reads — the URL aliases
-  `COORDINATOR_URL`, `COORDINATOR_HTTP_URL`, `AGENT_COORDINATOR_API_URL`,
-  `AGENT_COORDINATOR_HTTP_URL`, `AGENT_COORDINATOR_REST_PORT`, the API keys
-  `COORDINATION_API_KEY`, `COORDINATOR_API_KEY`, and the Cloudflare Access service
-  token `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET` — plus the variables named
+  `COORDINATOR_HTTP_URL`, `AGENT_COORDINATOR_API_URL`, `AGENT_COORDINATOR_HTTP_URL`,
+  `AGENT_COORDINATOR_REST_PORT`, the API keys `COORDINATION_API_KEY`,
+  `COORDINATOR_API_KEY`, and the Cloudflare Access service token
+  `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET`; and `COORDINATOR_URL`, which
+  `skills/improve-harness/scripts/analyze_failures.py` reads — plus the variables named
   by `gaps.api_key_env` and `gaps.coordinator_url_env`. After scrubbing and applying
   `env_set`, the executor **always** sets `COORDINATION_API_URL=http://127.0.0.1:9`
   (the discard port, which `_validate_url` accepts as loopback). The sentinel is
   needed because `coordination_bridge.py` falls back to `http://localhost:3000` when
   no URL variable is set — on the GX10 that *is* the live coordinator. `env_set` may
-  not name a denylisted variable or `COORDINATION_API_URL` (schema `propertyNames`,
-  enforced again by the pydantic model → guard 0, exit 2), so no schema-valid config
-  can re-open the live-coordinator path. A drift test (skipped when the skills tree
-  is absent) asserts `HERMETIC_SCRUB` ⊇ the bridge's `_HTTP_URL_ENV_KEYS`,
-  `_API_KEY_ENV_KEYS` and CF variable names, so a new bridge alias cannot silently
-  bypass the scrub. Vendor credentials (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, …) are
+  not name any variable in the effective scrub set — the built-in denylist,
+  `COORDINATION_API_URL`, any `env_scrub` entry, and the names in
+  `gaps.api_key_env` / `gaps.coordinator_url_env` (the static part via schema
+  `propertyNames`, the whole set by the pydantic model → guard 0, exit 2), so no
+  valid config can re-open the live-coordinator path. Two drift tests guard the
+  copies: `HERMETIC_SCRUB` ⊇ the bridge's `_HTTP_URL_ENV_KEYS`, `_API_KEY_ENV_KEYS` and
+  CF variable names (skipped when the skills tree is absent), so a new bridge alias
+  cannot silently bypass the scrub; and the config schema's
+  `env_set.propertyNames` list equals `HERMETIC_SCRUB ∪ {COORDINATION_API_URL}`, so
+  the schema and the executor cannot diverge. Vendor credentials (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, …) are
   untouched, and `HOME` is not replaced: vendor CLIs keep their auth there. MCP-based
   coordinator access and git transport credentials (SSH keys, credential helpers,
   `insteadOf` rewrites) configured under that HOME are therefore handled
