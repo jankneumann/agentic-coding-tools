@@ -15,6 +15,7 @@ import type {
   AuditPayload,
 } from "../lib/coordinator-types";
 import { toIssueCard } from "../lib/coordinator-types";
+import { authHeaders, endpoint } from "../lib/coordinatorAuth";
 import type { AgentActivity } from "../components/VendorSwimlanes";
 
 export interface UseCoordinatorOptions {
@@ -70,7 +71,7 @@ async function fetchIssuesForSingleChange(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
+      ...authHeaders(apiKey),
     },
     body: JSON.stringify({ labels: [`change:${changeId}`] }),
   });
@@ -120,7 +121,7 @@ async function mintEventsToken(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
+      ...authHeaders(apiKey),
     },
     body: JSON.stringify({ change_ids: changeIds }),
   });
@@ -216,7 +217,7 @@ export function useCoordinator({
 
   const startSSE = useCallback(
     async (token: string) => {
-      const url = new URL(`${apiUrl}/events/work`);
+      const url = endpoint(apiUrl, "/events/work");
       url.searchParams.set("change_ids", stableChangeIds.join(","));
       url.searchParams.set("token", token);
 

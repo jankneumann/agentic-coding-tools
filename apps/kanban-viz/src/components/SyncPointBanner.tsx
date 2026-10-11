@@ -11,6 +11,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { SyncPointStatus } from "../lib/coordinator-types";
+import { authHeaders } from "../lib/coordinatorAuth";
 import { ConsentPrompt } from "./ConsentPrompt";
 
 interface Props {
@@ -26,7 +27,7 @@ async function fetchSyncStatus(
   apiKey: string,
 ): Promise<SyncPointStatus[]> {
   const res = await fetch(`${apiUrl}/sync-points/status`, {
-    headers: { Authorization: `Bearer ${apiKey}` },
+    headers: { ...authHeaders(apiKey) },
   });
   if (!res.ok) throw new Error(`fetchSyncStatus: ${res.status}`);
   return (await res.json()) as SyncPointStatus[];
@@ -112,7 +113,7 @@ export function SyncPointBanner({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
+          ...authHeaders(apiKey),
         },
         body: JSON.stringify({
           change_id: changeId,
