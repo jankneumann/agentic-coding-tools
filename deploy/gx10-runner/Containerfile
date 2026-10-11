@@ -1,0 +1,34 @@
+# GX10 ephemeral runner image (design D4, D6). Built by the OPERATOR as `ghrunner` (O3):
+#   podman build -t localhost/gx10-runner:<sha> deploy/gx10-runner
+#
+# Base: official multi-arch actions-runner image, pinned by version AND index digest (read
+# with `skopeo inspect --raw docker://ghcr.io/actions/actions-runner:<version> | sha256sum`).
+# Bump both together; never use `latest`.
+FROM ghcr.io/actions/actions-runner:2.338.0@sha256:4ffadc0002b2581327e06101fc8c06cd189232baf79fe561fac9caeb76f5e807
+
+USER root
+
+# Baseline toolchain (D6), one package per line in toolchain.txt.
+COPY toolchain.txt /tmp/toolchain.txt
+RUN apt-get update \
+    && xargs -a /tmp/toolchain.txt apt-get install -y --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/* /tmp/toolchain.txt
+
+# Runner-side fork enforcement (D4). Root-owned and read-only to the runner user, so job
+# steps cannot edit it; the runner executes it before any step of every job.
+COPY job-started-hook.sh /opt/gx10/job-started-hook.sh
+RUN chmod 0755 /opt/gx10/job-started-hook.sh && chown -R root:root /opt/gx10
+ENV ACTIONS_RUNNER_HOOK_JOB_STARTED=/opt/gx10/job-started-hook.sh
+
+# uv cache location (D6). Empty unless the operator opts in to mounting a shared volume.
+ENV UV_CACHE_DIR=/home/runner/.cache/uv
+RUN mkdir -p /home/runner/.cache/uv && chown -R runner:runner /home/runner/.cache
+
+# The upstream image may ship a passwordless-sudo grant for `runner`. Remove it: jobs must
+# not be able to escalate (and --cap-drop ALL / no-new-privileges back this up at runtime).
+RUN sed -i '/NOPASSWD/d' /etc/sudoers 2>/dev/null || true
+
+USER runner
+WORKDIR /home/runner
+# The JIT config arrives as ACTIONS_RUNNER_INPUT_JITCONFIG in the environment.
+ENTRYPOINT ["/home/runner/run.sh"]
