@@ -17,7 +17,10 @@ the dry run, O7 flips the lane, O8-O11 measure and verify, O12 is the rollback d
 Notation: `{owner}/{repo}` is filled in by `gh` from the current checkout. The account has
 no login shell, so run "as `ghrunner`" commands as
 `sudo -u ghrunner XDG_RUNTIME_DIR=/run/user/$(id -u ghrunner) <command>`, or use
-`systemctl --user --machine=ghrunner@ ...` for unit operations.
+`systemctl --user --machine=ghrunner@ ...` for unit operations. Every `sudo -u ghrunner`
+command below carries that `XDG_RUNTIME_DIR`, so rootless podman always uses the same
+runtime directory and storage as the units. Run the steps from a checkout `ghrunner` can
+read (Ubuntu home directories are `0750`), for example a clone under `~ghrunner/src`.
 
 Where things live:
 
@@ -76,7 +79,7 @@ not to the kit.
 ## O3 - Build the runner image on the GX10 as `ghrunner`
 
 ```bash
-sudo -u ghrunner podman build -t localhost/gx10-runner:<sha> deploy/gx10-runner
+sudo -u ghrunner XDG_RUNTIME_DIR=/run/user/$(id -u ghrunner) podman build -t localhost/gx10-runner:<sha> deploy/gx10-runner
 sudo -u ghrunner sed -i 's#^GX10_RUNNER_IMAGE=.*#GX10_RUNNER_IMAGE=localhost/gx10-runner:<sha>#' \
   ~ghrunner/.config/gx10-runner/env
 ```
@@ -84,7 +87,7 @@ sudo -u ghrunner sed -i 's#^GX10_RUNNER_IMAGE=.*#GX10_RUNNER_IMAGE=localhost/gx1
 Verify:
 
 ```bash
-sudo -u ghrunner podman image inspect localhost/gx10-runner:<sha> --format '{{.Architecture}}'   # arm64
+sudo -u ghrunner XDG_RUNTIME_DIR=/run/user/$(id -u ghrunner) podman image inspect localhost/gx10-runner:<sha> --format '{{.Architecture}}'   # arm64
 ```
 
 The base image is pinned by version and digest in the `Containerfile`; bump both together.
@@ -121,7 +124,14 @@ NFT
 # ufw/firewalld reloads that would flush a hand-added table.
 grep -q 'nftables.d/gx10-runner.nft' /etc/nftables.conf || \
   echo 'include "/etc/nftables.d/gx10-runner.nft"' | sudo tee -a /etc/nftables.conf
-sudo nft -c -f /etc/nftables.conf && sudo systemctl enable --now nftables
+sudo nft -c -f /etc/nftables.conf
+# Load the table now, explicitly: `systemctl enable --now nftables` does NOT reload an
+# nftables.service that is already active, and `systemctl restart nftables` would replay the
+# stock config's `flush ruleset`, wiping ufw/podman tables. The file is idempotent
+# (declare, delete, redefine), so loading it directly is safe. `enable` gives boot persistence.
+sudo nft -f /etc/nftables.d/gx10-runner.nft
+sudo systemctl enable --now nftables
+sudo nft list table inet gx10_runner_isolation >/dev/null && echo loaded   # before any unit starts
 ```
 
 **Fallback:** rebind every host service the runners must not reach to `127.0.0.1` (for example
@@ -146,16 +156,16 @@ gh api repos/{owner}/{repo}/actions/runners \
 for addr in 10.0.2.2 $(hostname -I); do
   for port in 54322 <coordinator-port>; do
     echo -n "$addr:$port "
-    sudo -u ghrunner podman exec gx10-runner-1 bash -c \
+    sudo -u ghrunner XDG_RUNTIME_DIR=/run/user/$(id -u ghrunner) podman exec gx10-runner-1 bash -c \
       "timeout 3 bash -c 'exec 3<>/dev/tcp/$addr/$port' && echo reachable || echo unreachable"
   done
 done                                                                # every line: unreachable
 
-sudo -u ghrunner podman exec gx10-runner-1 getent hosts api.github.com   # resolves (DNS exemption works)
+sudo -u ghrunner XDG_RUNTIME_DIR=/run/user/$(id -u ghrunner) podman exec gx10-runner-1 getent hosts api.github.com   # resolves (DNS exemption works)
 grep -c 'nftables.d/gx10-runner.nft' /etc/nftables.conf                  # non-zero: the include is persistent
 grep -c skuid /etc/nftables.d/gx10-runner.nft                            # non-zero: the rules are in the included file
 sudo nft list ruleset | grep skuid                                       # rules are loaded
-sudo -u ghrunner podman inspect gx10-runner-1 --format '{{.HostConfig.NetworkMode}}'   # slirp4netns
+sudo -u ghrunner XDG_RUNTIME_DIR=/run/user/$(id -u ghrunner) podman inspect gx10-runner-1 --format '{{.HostConfig.NetworkMode}}'   # slirp4netns
 ```
 
 A probe of `10.0.2.2` alone is not sufficient evidence. A host-side `getent` does not exercise
@@ -185,7 +195,7 @@ sudo -u ghrunner sed -i 's#^GX10_RUNNER_CACHE_ARGS=.*#GX10_RUNNER_CACHE_ARGS=--v
   ~ghrunner/.config/gx10-runner/env
 # disable again
 sudo -u ghrunner sed -i 's#^GX10_RUNNER_CACHE_ARGS=.*#GX10_RUNNER_CACHE_ARGS=#' ~ghrunner/.config/gx10-runner/env
-sudo -u ghrunner podman volume rm gx10-runner-uv-cache
+sudo -u ghrunner XDG_RUNTIME_DIR=/run/user/$(id -u ghrunner) podman volume rm gx10-runner-uv-cache
 ```
 
 A move to multiplayer team mode requires the cache to be disabled.
@@ -291,9 +301,9 @@ gx10-runner@{9..N}`), or move the slowest routed jobs to `hosted` with
 Verify, after three or more jobs have run on instance 1:
 
 ```bash
-journalctl --user -u gx10-runner@1 | grep -c 'Listening for Jobs'                    # 3 or more
+sudo journalctl _UID=$(id -u ghrunner) --user-unit gx10-runner@1.service | grep -c 'Listening for Jobs'   # 3 or more
 gh api repos/{owner}/{repo}/actions/runs/<run-id>/jobs --jq '.jobs[].runner_name'    # distinct names
-sudo -u ghrunner podman ps -a --filter name=gx10-runner --filter status=exited       # empty
+sudo -u ghrunner XDG_RUNTIME_DIR=/run/user/$(id -u ghrunner) podman ps -a --filter name=gx10-runner --filter status=exited       # empty
 ```
 
 JIT runners deregister after their job, so the runners list cannot show them; the runner names

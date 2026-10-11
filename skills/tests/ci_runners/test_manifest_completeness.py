@@ -15,16 +15,21 @@ def test_workflow_set_is_ci_and_security(manifest):
     assert _workflows(manifest) == ["ci.yml", "security.yml"]
 
 
-def test_job_sets_match_manifest(manifest, load_workflow):
+def classification_errors(manifest, load_workflow) -> list[str]:
+    """Every workflow job without a manifest entry, and every stale manifest entry."""
+    errors: list[str] = []
     for wf_name, wf in manifest["workflows"].items():
         declared = set(load_workflow(wf_name)["jobs"])
         classified = set(wf["jobs"])
-        assert not (declared - classified), (
-            f"{wf_name}: unclassified job(s) {sorted(declared - classified)}"
-        )
-        assert not (classified - declared), (
-            f"{wf_name}: stale manifest entr(ies) {sorted(classified - declared)}"
-        )
+        if declared - classified:
+            errors.append(f"{wf_name}: unclassified job(s) {sorted(declared - classified)}")
+        if classified - declared:
+            errors.append(f"{wf_name}: stale manifest entr(ies) {sorted(classified - declared)}")
+    return errors
+
+
+def test_job_sets_match_manifest(manifest, load_workflow):
+    assert classification_errors(manifest, load_workflow) == []
 
 
 def test_job_counts(manifest):
@@ -56,6 +61,14 @@ def test_display_names_are_unique_and_literal(manifest, load_workflow):
 
 @pytest.mark.parametrize("missing", ["ci.yml", "security.yml"])
 def test_unclassified_job_is_reported(manifest, load_workflow, missing):
-    del manifest["workflows"][missing]["jobs"][next(iter(manifest["workflows"][missing]["jobs"]))]
-    declared = set(load_workflow(missing)["jobs"])
-    assert declared - set(manifest["workflows"][missing]["jobs"])
+    jobs = manifest["workflows"][missing]["jobs"]
+    dropped = next(iter(jobs))
+    del jobs[dropped]
+    errors = classification_errors(manifest, load_workflow)
+    assert errors == [f"{missing}: unclassified job(s) {[dropped]}"]
+
+
+def test_stale_manifest_entry_is_reported(manifest, load_workflow):
+    manifest["workflows"]["ci.yml"]["jobs"]["no-such-job"] = {"lane": "routed"}
+    errors = classification_errors(manifest, load_workflow)
+    assert errors == ["ci.yml: stale manifest entr(ies) ['no-such-job']"]

@@ -180,6 +180,11 @@ def test_sweep_deletes_only_own_offline_runners_across_pages(mint, tmp_path):
     assert deletes == ["1", "6"]
     order = [c["method"] for c in calls]
     assert order.index("POST") > max(i for i, m in enumerate(order) if m == "DELETE")
+    # Every listing page is read before the first DELETE: deleting while paging shifts later
+    # runners onto pages already read, and the next page request would skip them.
+    last_get = max(i for i, m in enumerate(order) if m == "GET")
+    first_delete = min(i for i, m in enumerate(order) if m == "DELETE")
+    assert last_get < first_delete, order
 
 
 def test_failing_sweep_does_not_stop_the_mint(mint, tmp_path):
