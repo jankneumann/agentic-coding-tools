@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { IssueCard } from "../lib/coordinator-types";
+import { authHeaders, canAuthenticate } from "../lib/coordinatorAuth";
 import { classify } from "../lib/reversibility";
 import { VendorSwimlanes } from "./VendorSwimlanes";
 import type { AgentActivity } from "./VendorSwimlanes";
@@ -55,14 +56,14 @@ export function Card({
   // coordinator API is reachable. It's hidden once the label is already
   // present (idempotent UX — a second click would be a no-op anyway).
   const canMarkReady =
-    Boolean(apiUrl && apiKey) && isInFlight && !alreadyReady;
+    Boolean(apiUrl) && canAuthenticate(apiKey) && isInFlight && !alreadyReady;
 
   const [readyStatus, setReadyStatus] = useState<
     "idle" | "submitting" | "marked" | "error"
   >("idle");
 
   const handleMarkReady = async () => {
-    if (!apiUrl || !apiKey) return;
+    if (!apiUrl || !canAuthenticate(apiKey)) return;
     setReadyStatus("submitting");
     const klass = classify("drag-to-ready");
     try {
@@ -70,7 +71,7 @@ export function Card({
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
+          ...authHeaders(apiKey),
         },
         body: JSON.stringify({ add: ["pending-approval"], remove: [] }),
       });
