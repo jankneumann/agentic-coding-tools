@@ -28,7 +28,7 @@ Everything of that kind is in § 7 (operator-only).
 - [x] Planning
 - [x] Implementation
 - [x] Testing
-- [ ] Review
+- [x] Review
 - [ ] Done
 
 ## Phase 1 — Contracts: manifest schema, manifest, test package
