@@ -1,0 +1,50 @@
+{
+  "attempt": 1,
+  "branch": "openspec/openrouter-review-lane",
+  "change_id": "openrouter-review-lane",
+  "degradations": [
+    {
+      "code": "coordinator_projection_forbidden",
+      "detail": "project-state submit returned forbidden",
+      "phase": "INIT"
+    },
+    {
+      "code": "audit_sink_failed",
+      "detail": "audit sink reported failure for gate proposal_approval decision posture_block",
+      "phase": "PLAN"
+    },
+    {
+      "code": "audit_sink_failed",
+      "detail": "audit sink reported failure for gate proposal_approval decision auto (gen 3)",
+      "phase": "PLAN"
+    },
+    {
+      "code": "single_vendor_review",
+      "detail": "vendor=claude_code; cloud policy cloud-container-single-vendor-2026-10-09 min_quorum 1",
+      "phase": "PLAN_REVIEW"
+    },
+    {
+      "code": "audit_sink_failed",
+      "detail": "audit sink reported failure for gate escalate_resume decision posture_block",
+      "phase": "ESCALATE"
+    }
+  ],
+  "dispatch_id": "batch-d8913c4d8e973cd7940e2d09:ri-22:attempt-1",
+  "evidence": {
+    "commit": "c72e91158b0ac8685f444a2b31393ad1a7754a13",
+    "loop_state_digest": "f209ef7c01c21cc7d7a79bdbe08aa7196cc338faf23bd9a5fced21eda744d60b",
+    "loop_state_path": "openspec/changes/openrouter-review-lane/loop-state.json"
+  },
+  "host_id": "machine-dc39bf1e25efdf45",
+  "lease_generation": 3,
+  "outcome": "parked",
+  "parked": {
+    "deadline": null,
+    "gate": "escalate_resume",
+    "kind": "pending_gate",
+    "reason": "Has this escalation been resolved? Resume the loop?",
+    "resume_hint": "answer gate escalate_resume through the resume request's gate_answer"
+  },
+  "schema_version": 2,
+  "worktree_ref": "openrouter-review-lane"
+}
