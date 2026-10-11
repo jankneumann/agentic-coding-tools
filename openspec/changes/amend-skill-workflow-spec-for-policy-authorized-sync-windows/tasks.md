@@ -72,7 +72,7 @@ only produce merge conflicts on a ~350 LOC change.
   (windows sorted by id), and `show` output in `skills/shared/trust_posture.py` (S)
   **Design decisions**: D2, D3, D4, D5, D6, D8
   **Dependencies**: 2.1
-- [ ] Checkpoint: run `skills/.venv/bin/python -m pytest skills/shared/tests skills/tests/merge-pull-requests -q`,
+- [x] Checkpoint: run `skills/.venv/bin/python -m pytest skills/shared/tests skills/tests/merge-pull-requests -q`,
   then `skills/.venv/bin/python -m pytest skills/tests/supervise skills/tests/autopilot skills/autopilot/tests -q`
   (digest consumers), review diff, verify scope
 - [x] 2.3 Mirror `sync_windows` in `openspec/schemas/trust-posture.schema.json`
@@ -86,7 +86,7 @@ only produce merge conflicts on a ~350 LOC change.
 
 ## 3. Documentation
 
-- [ ] 3.1 Document the `sync_windows` block in `TRUST_POSTURE.template.md`: a
+- [x] 3.1 Document the `sync_windows` block in `TRUST_POSTURE.template.md`: a
   commented-out example, a field table, the fail-closed rule, the
   guards-unchanged rule, the necessary-not-sufficient rule (D8), and the
   advice to declare windows while no supervised run is in flight (digest
@@ -94,5 +94,5 @@ only produce merge conflicts on a ~350 LOC change.
   `TRUST_POSTURE.md` (XS)
   **Design decisions**: D5, D7, D8
   **Dependencies**: 2.2
-- [ ] Checkpoint: run tests, `openspec validate --strict`, confirm
+- [x] Checkpoint: run tests, `openspec validate --strict`, confirm
   `git diff origin/main -- TRUST_POSTURE.md` is empty, review diff, verify scope
