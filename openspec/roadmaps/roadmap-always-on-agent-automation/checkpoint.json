@@ -4,7 +4,7 @@
   "current_item_id": "ri-11",
   "phase": "planning",
   "created_at": "2026-10-10T21:03:19.589753+00:00",
-  "updated_at": "2026-10-11T04:51:40.929451+00:00",
+  "updated_at": "2026-10-11T05:49:10.072328+00:00",
   "completed_items": [
     "ri-01",
     "ri-02",
@@ -12,6 +12,10 @@
     "ri-05",
     "ri-06",
     "ri-15"
+  ],
+  "serial_indeterminate_items": [
+    "ri-16",
+    "ri-17"
   ],
   "gate_decisions": [
     {
@@ -297,6 +301,219 @@
       },
       "outcome": "parked",
       "resolved_at": "2026-10-11T04:50:28.185512+00:00",
+      "degradations": [
+        {
+          "code": "coordinator_projection_forbidden",
+          "detail": "project-state submit returned forbidden",
+          "phase": "INIT"
+        },
+        {
+          "code": "audit_sink_failed",
+          "detail": "audit sink reported failure for gate proposal_approval decision auto",
+          "phase": "PLAN"
+        },
+        {
+          "code": "audit_sink_failed",
+          "detail": "audit sink reported failure for gate pr_creation decision auto",
+          "phase": "SUBMIT_PR"
+        },
+        {
+          "code": "audit_sink_failed",
+          "detail": "audit sink reported failure for gate merge decision posture_block",
+          "phase": "SUBMIT_PR"
+        }
+      ],
+      "parked": {
+        "deadline": null,
+        "gate": "merge",
+        "kind": "pending_gate",
+        "reason": "Authorize merging this pull request? (autopilot records the authorization only; /cleanup-feature merges)",
+        "resume_hint": "answer gate merge through the resume request's gate_answer"
+      }
+    },
+    {
+      "dispatch_id": "batch-bb11fb2566458676be71b75a:ri-11:attempt-1",
+      "item_id": "ri-11",
+      "change_id": "amend-skill-workflow-spec-for-policy-authorized-sync-windows",
+      "phase": "autopilot",
+      "attempt": 1,
+      "status": "parked",
+      "prepared_at": "2026-10-11T04:52:10.507032+00:00",
+      "launch_digest": "sha256:1503d8e2cd91be8903713a6f790dc6d10baa57244a72f15ab0719462420f699b",
+      "launch_marker_path": ".supervised-dispatch/amend-skill-workflow-spec-for-policy-authorized-sync-windows/ri-11-attempt-1.marker",
+      "lease_generation": 1,
+      "launch_history": [
+        {
+          "generation": 1,
+          "owner_nonce": "ia2SuIT723pNjgMypWiOs4lHEj5lC2VX",
+          "state": "claimed",
+          "marker_path": ".supervised-dispatch/amend-skill-workflow-spec-for-policy-authorized-sync-windows/ri-11-attempt-1.marker",
+          "observed_at": "2026-10-11T04:52:10.664593+00:00"
+        },
+        {
+          "generation": 1,
+          "owner_nonce": "ia2SuIT723pNjgMypWiOs4lHEj5lC2VX",
+          "state": "acknowledged",
+          "marker_path": ".supervised-dispatch/amend-skill-workflow-spec-for-policy-authorized-sync-windows/ri-11-attempt-1.marker",
+          "observed_at": "2026-10-11T04:52:31.628774+00:00",
+          "handle": "ae6259e86f991e46a"
+        },
+        {
+          "generation": 1,
+          "owner_nonce": "ia2SuIT723pNjgMypWiOs4lHEj5lC2VX",
+          "state": "go_released",
+          "marker_path": ".supervised-dispatch/amend-skill-workflow-spec-for-policy-authorized-sync-windows/ri-11-attempt-1.marker",
+          "observed_at": "2026-10-11T04:52:31.628774+00:00",
+          "handle": "ae6259e86f991e46a"
+        },
+        {
+          "generation": 1,
+          "owner_nonce": "ia2SuIT723pNjgMypWiOs4lHEj5lC2VX",
+          "state": "entered",
+          "marker_path": ".supervised-dispatch/amend-skill-workflow-spec-for-policy-authorized-sync-windows/ri-11-attempt-1.marker",
+          "observed_at": "2026-10-11T04:52:37.920605+00:00",
+          "handle": "ae6259e86f991e46a"
+        }
+      ],
+      "scope": {
+        "proof": "serial_indeterminate",
+        "write_allow": [],
+        "lock_keys": []
+      },
+      "isolation": {
+        "mode": "managed_worktree",
+        "worktree_ref": "amend-skill-workflow-spec-for-policy-authorized-sync-windows",
+        "branch": "openspec/amend-skill-workflow-spec-for-policy-authorized-sync-windows",
+        "host_id": "machine-8ce412f9e16ce285"
+      },
+      "context": {},
+      "execution_profile": {
+        "lanes": {
+          "review": [
+            "antigravity",
+            "claude_code",
+            "codex",
+            "grok",
+            "pi"
+          ],
+          "alternative": [
+            "antigravity",
+            "claude_code",
+            "codex",
+            "grok",
+            "pi"
+          ],
+          "quick": [
+            "antigravity",
+            "claude_code",
+            "codex",
+            "grok",
+            "pi"
+          ]
+        },
+        "location": "local",
+        "isolation": "managed_worktree",
+        "probe_command": "python3 <skill-base-dir>/../parallel-infrastructure/scripts/review_dispatcher.py --check-vendors --json"
+      },
+      "review_requirements": {
+        "min_quorum": {
+          "PLAN_REVIEW": 2,
+          "IMPL_REVIEW": 2,
+          "VAL_REVIEW": 2
+        },
+        "counting_lanes": [
+          "antigravity",
+          "claude_code",
+          "codex",
+          "grok",
+          "pi",
+          "ocr"
+        ],
+        "quorum_policy": {
+          "environment": "host",
+          "policy_id": null,
+          "sunset": null
+        }
+      },
+      "roadmap_approval_ref": "gate-decision:2d683b7a-2f39-4b59-96d9-3abdf22f8a8f",
+      "lease": {
+        "generation": 1,
+        "owner_nonce": "ia2SuIT723pNjgMypWiOs4lHEj5lC2VX",
+        "state": "released",
+        "acquired_at": "2026-10-11T04:52:10.664593+00:00",
+        "heartbeat_at": "2026-10-11T04:52:10.664593+00:00",
+        "expires_at": "2026-10-11T05:02:10.664593+00:00"
+      },
+      "launch_evidence": {
+        "kind": "host_ack",
+        "generation": 1,
+        "handle": "ae6259e86f991e46a",
+        "observed_at": "2026-10-11T04:52:31.628774+00:00"
+      },
+      "launch_gate": {
+        "generation": 1,
+        "state": "entered",
+        "handle": "ae6259e86f991e46a",
+        "go_released_at": "2026-10-11T04:52:31.628774+00:00",
+        "entered_at": "2026-10-11T04:52:37.920605+00:00"
+      },
+      "application_journal": {
+        "schema_version": 1,
+        "state": "effects_applied",
+        "result": {
+          "attempt": 1,
+          "branch": "openspec/amend-skill-workflow-spec-for-policy-authorized-sync-windows",
+          "change_id": "amend-skill-workflow-spec-for-policy-authorized-sync-windows",
+          "degradations": [
+            {
+              "code": "coordinator_projection_forbidden",
+              "detail": "project-state submit returned forbidden",
+              "phase": "INIT"
+            },
+            {
+              "code": "audit_sink_failed",
+              "detail": "audit sink reported failure for gate proposal_approval decision auto",
+              "phase": "PLAN"
+            },
+            {
+              "code": "audit_sink_failed",
+              "detail": "audit sink reported failure for gate pr_creation decision auto",
+              "phase": "SUBMIT_PR"
+            },
+            {
+              "code": "audit_sink_failed",
+              "detail": "audit sink reported failure for gate merge decision posture_block",
+              "phase": "SUBMIT_PR"
+            }
+          ],
+          "dispatch_id": "batch-bb11fb2566458676be71b75a:ri-11:attempt-1",
+          "evidence": {
+            "commit": "c789d1e8e05818ac77e9f24ddb4af40c8a72de81",
+            "loop_state_digest": "7850f73f35f857a09523e23a2de0d4801c4addafa6aae9247013694745998d93",
+            "loop_state_path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/loop-state.json"
+          },
+          "host_id": "machine-8ce412f9e16ce285",
+          "lease_generation": 1,
+          "outcome": "parked",
+          "parked": {
+            "deadline": null,
+            "gate": "merge",
+            "kind": "pending_gate",
+            "reason": "Authorize merging this pull request? (autopilot records the authorization only; /cleanup-feature merges)",
+            "resume_hint": "answer gate merge through the resume request's gate_answer"
+          },
+          "schema_version": 2,
+          "worktree_ref": "amend-skill-workflow-spec-for-policy-authorized-sync-windows"
+        },
+        "result_digest": "79464e471d7357b98832b1bfcb0fbae6559400df55329a89427935abd692585c",
+        "bound_at": "2026-10-11T05:49:10.044792+00:00",
+        "callback_started_at": "2026-10-11T05:49:10.050110+00:00",
+        "callback_acknowledged_at": "2026-10-11T05:49:10.054117+00:00",
+        "terminal_persisted_at": "2026-10-11T05:49:10.058572+00:00",
+        "effects_applied_at": "2026-10-11T05:49:10.071137+00:00"
+      },
+      "outcome": "parked",
+      "resolved_at": "2026-10-11T05:49:10.058559+00:00",
       "degradations": [
         {
           "code": "coordinator_projection_forbidden",
