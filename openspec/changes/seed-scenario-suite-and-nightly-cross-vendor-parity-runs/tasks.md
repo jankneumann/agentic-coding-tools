@@ -170,7 +170,7 @@ doubles — no vendor CLI, no network, no `systemctl`, no database.
 - [x] 6.4 Record the archive-order constraints in the PR description and session log [XS]
   Archive `build-agent-trajectory-scenario-harness` (ri-15) before this change, so ri-15 creates `openspec/specs/agent-trajectory-harness/spec.md` and this change's ADDED requirements merge into it; and whichever of this change and `add-a-judged-first-stage-to-coordinator-audit-triage` archives second adds `scenario-parity` to the "Capability Gap Detection" `source` enum (design D3 base-spec enum).
   **Dependencies**: None
-- [ ] 6.3 Run full quality gates: package `uv run pytest`, `ruff`, `mypy --strict`; skills gate set; `openspec validate seed-scenario-suite-and-nightly-cross-vendor-parity-runs --strict` [S]
+- [x] 6.3 Run full quality gates: package `uv run pytest`, `ruff`, `mypy --strict`; skills gate set; `openspec validate seed-scenario-suite-and-nightly-cross-vendor-parity-runs --strict` [S]
   **Dependencies**: 6.1, 6.2, 4.7, 5.8
 
 ## 7. Operator tasks (post-merge)

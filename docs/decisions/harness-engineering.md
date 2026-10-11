@@ -18,9 +18,31 @@
 
 ## 2026-10-11 — seed-scenario-suite-and-nightly-cross-vendor-parity-runs
 
+### Phase: Plan Review
+
+**improve-harness memory query repaired in this change (task 4.4a)** — Without it the emitted scenario-parity gaps are never read by /improve-harness
+
+- Status: `active`
+- Source: [openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/session-log.md](/openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/session-log.md) (D4)
+
+---
+
+## 2026-10-11 — seed-scenario-suite-and-nightly-cross-vendor-parity-runs
+
 ### Phase: Plan
 
 **Spec delta ADDs a harness-engineering requirement instead of MODIFYING Capability Gap Detection** — add-a-judged-first-stage-to-coordinator-audit-triage already modifies that requirement; avoid archive-time collision
+
+- Status: `active`
+- Source: [openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/session-log.md](/openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/session-log.md) (D6)
+
+---
+
+## 2026-10-11 — seed-scenario-suite-and-nightly-cross-vendor-parity-runs
+
+### Phase: Implementation
+
+**improve-harness `query_memory` repaired with unchanged signatures** — build_memory_query(time_window_days, limit) still returns the payload (now without the unsupported time_window_days, with agent_id); query_memory gained an optional agent_id; entries are filtered client-side on created_at; `memories` envelope read first
 
 - Status: `active`
 - Source: [openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/session-log.md](/openspec/changes/seed-scenario-suite-and-nightly-cross-vendor-parity-runs/session-log.md) (D6)
