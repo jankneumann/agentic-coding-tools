@@ -18,6 +18,17 @@
 
 ## 2026-10-11 — amend-skill-workflow-spec-for-policy-authorized-sync-windows
 
+### Phase: Implementation
+
+**Window-less posture keeps gates-only digest** — Live digest pinned to e8262346... so existing launch markers stay valid
+
+- Status: `active`
+- Source: [openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md](/openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md) (D1)
+
+---
+
+## 2026-10-11 — amend-skill-workflow-spec-for-policy-authorized-sync-windows
+
 ### Phase: Plan
 
 **Posture digest unchanged when no windows are declared** — Avoids invalidating existing launch markers and recorded gate decisions while making any window edit re-trigger posture-derived decisions

@@ -76,3 +76,24 @@ Planned ri-11: amend the skill-workflow sync-point requirement so sync-point ski
 ### Context
 Two iterations; converged with no medium-or-higher findings left. Fixed a contradicting skill-workflow requirement (Merge Conductor still said user-invoked), corrected the PR-origin vocabulary source to github_classifier with a new exported PR_ORIGINS for the parity test, made the digest window-order-invariant, made the scheduled-invocation scenarios enforceable via the trigger and the authorization check, and recorded the window-vs-gate and digest-coupling decisions.
 
+---
+
+## Phase: Implementation (2026-10-11)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Window-less posture keeps gates-only digest** `architectural: trust-posture` — Live digest pinned to e8262346... so existing launch markers stay valid
+
+### Completed Work
+- tasks 1.1-3.1 incl 2.0
+
+### Next Steps
+- validate-feature: confirm live TRUST_POSTURE.md untouched
+
+### Relevant Files
+- `skills/shared/trust_posture.py` — sync window contract
+
+### Context
+Added PR_ORIGINS export, sync_windows parsing/validation, authorize_sync_window, digest extension, show output, JSON schema mirror and template docs. No deviations from plan.
+

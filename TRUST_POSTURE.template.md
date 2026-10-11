@@ -113,6 +113,47 @@ carries the posture's digest — a SHA-256 over the parsed `gates:` map, so pros
 edits and key order never count as a posture change — and is re-evaluated when
 that digest changes; a human answer is final.
 
+## Sync windows (optional)
+
+A *sync window* authorizes a sync-point skill to be started by a non-user trigger
+(a scheduler) instead of by a person. It is declared in the same front matter,
+as an optional top-level `sync_windows` list beside `gates`. This template
+declares none, so the commented-out example below is inert:
+
+```yaml
+# sync_windows:
+#   - id: nightly-drain
+#     cadence: "0 3 * * 1-5"
+#     skills: [merge-pull-requests, update-specs]
+#     allowed_sources: [openspec, dependabot]
+#     auto_merge_ceiling: plan
+```
+
+| field | rules |
+|---|---|
+| `id` | kebab-case (`^[a-z0-9]+(-[a-z0-9]+)*$`), unique within the list |
+| `cadence` | exactly five whitespace-separated fields of `[0-9*/,-]`, interpreted in **UTC**. Only the shape is validated here: `@daily`, `MON` and six-field forms are rejected, while `99 * * * *` passes and is refused by the scheduler that computes fire times |
+| `skills` | non-empty, no repeats, from `merge-pull-requests`, `update-specs`, `cleanup-feature` |
+| `allowed_sources` | non-empty, no repeats, PR origins from `openspec`, `sentinel`, `bolt`, `palette`, `jules`, `codex`, `dependabot`, `renovate`, `other` |
+| `auto_merge_ceiling` | `none` < `automation` < `plan` < `implementation`; a ceiling permits a PR kind only at or below it, and never an unknown kind |
+
+Rules:
+
+- **Fail closed.** `sync_windows` absent, `null` or `[]` declares no window, and
+  `authorize_sync_window` refuses every window id and skill. A present but
+  malformed window is a validation error; it is never silently dropped.
+- **Guards unchanged.** A window changes who may *start* a sync-point skill, not
+  what the skill checks once running; every guard and validation gate still applies.
+- **Necessary, never sufficient.** A window does not change any gate
+  disposition. A scheduled `/merge-pull-requests` run still evaluates the
+  `merge` gate (and any other gate that applies), and `block` stops it.
+- **Digest.** The posture digest covers declared windows (order-independent).
+  Declaring or editing a window therefore re-evaluates posture-derived gate
+  decisions, and in-flight supervised children whose worktree posture predates
+  the edit take no `auto` disposition until rebased. Declare windows while no
+  supervised run is in flight. A posture with no windows keeps the digest it
+  had before this field existed.
+
 ## Worked example
 
 A posture that auto-creates PRs, notifies-with-a-one-hour-timeout on merge
