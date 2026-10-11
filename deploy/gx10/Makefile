@@ -26,7 +26,7 @@ HERE := $(ROOT)/deploy/gx10
 UNITS := $(wildcard $(HERE)/systemd/*.service)
 COORD_UNITS := aca-gx10-coordinator-secrets aca-gx10-coordinator
 
-.PHONY: help require-root install ownership preflight image start stop status logs
+.PHONY: help require-root install ownership preflight image kanban start stop status logs
 
 help: ## List targets
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -57,6 +57,9 @@ image: require-root ## Build coord-<sha> from the checked-out commit, push, prin
 	@digest="$$(skopeo inspect --format '{{.Digest}}' docker://$(IMAGE):coord-$(SHA))"; \
 	  echo; echo "pin this in $(IMAGES_ENV), then restart:"; \
 	  echo "GX10_COORD_IMAGE=$(IMAGE):coord-$(SHA)@$$digest"
+
+kanban: require-root ## Build the board from the checked-out commit for Caddy's /kanban/ route
+	$(HERE)/build-kanban.sh
 
 start: require-root install ## Render secrets and start the coordinator
 	systemctl restart aca-gx10-coordinator-secrets.service

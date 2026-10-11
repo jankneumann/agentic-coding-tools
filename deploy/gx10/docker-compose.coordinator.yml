@@ -98,6 +98,15 @@ services:
       # Every host called over HTTP must be listed, or httpx hands the request
       # to Squid -- which denies internal destinations, so a purely local call
       # fails on our own SSRF rule. This bit the analyzer once already.
+      # Public via the tunnel, so the API itself refuses any request that did
+      # not pass Cloudflare Access (team domain + AUD come from OpenBao; a
+      # missing value fails the API at startup rather than serving open).
+      # The one exception is the analyzer's Caddy at its fixed address, which
+      # serves the kanban board behind basic_auth and injects its own key.
+      # Matched on the TCP peer, so FORWARDED_ALLOW_IPS must stay unset here:
+      # trusting X-Forwarded-For would let a tunnel client claim that address.
+      CF_ACCESS_ENABLED: 'true'
+      CF_ACCESS_TRUSTED_PEERS: 10.89.1.250
       NO_PROXY: localhost,127.0.0.1,.gx10.internal,coordinator-postgres,langfuse-web,10.89.3.251
       no_proxy: localhost,127.0.0.1,.gx10.internal,coordinator-postgres,langfuse-web,10.89.3.251
     networks:
