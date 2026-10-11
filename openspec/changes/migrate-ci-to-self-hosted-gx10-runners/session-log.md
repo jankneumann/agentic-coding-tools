@@ -18,3 +18,47 @@
 ### Context
 Verdict: proceed_with_review. ri-20 has four concrete, checkable acceptance outcomes; all autonomous writes are branch-only (workflow YAML, systemd units, scripts, docs, tests) and reversible behind the mandatory human merge gate. Security-sensitive surface (self-hosted runners exposed to PR code, fork-approval) warrants the extra VAL_REVIEW phase.
 
+---
+
+## Phase: PLAN (2026-10-11)
+
+**Agent**: autopilot-plan | **Session**: N/A
+
+### Decisions
+1. **Lane manifest as routing source of truth** `architectural: ci-runner-infrastructure` — Every job is routed or hosted, and each hosted pin carries a closed reason_code plus a written reason. Tests compare the workflows with the manifest, so an unclassified job fails CI.
+2. **Inline canonical runs-on expression defaulting to hosted** `architectural: ci-runner-infrastructure` — With the variable unset the result is ubuntu-latest, so merging is a no-op. There is no serial routing job, which preserves the wall-clock outcome. A dispatch input runner_lane allows A/B measurement.
+3. **Fork PRs never route to self-hosted, even after approval** `architectural: ci-runner-infrastructure` — The fork check sits in the routing expression, the first step of every routed job is a runner.environment guard, and a trigger allowlist bans pull_request_target, workflow_run and issue_comment. The approval policy is set by the operator in step O5.
+4. **Host-minted single-use JIT config; credential never in container** `architectural: ci-runner-infrastructure` — ExecStartPre mints generate-jitconfig with a 0600 fine-grained PAT owned by a dedicated lingering ghrunner user. The container receives only the consumed JIT config and has no engine socket, no host network and no privileges.
+5. **Container-engine and write-token jobs stay hosted in v1** `architectural: ci-runner-infrastructure` — test-integration, gen-eval, test-openbao-live and docker-smoke-import need a container engine, and docker-smoke-import also validates an amd64 production image. dependency-update-remediation holds contents:write.
+6. **Measurable threshold for 'median drops'** `architectural: ci-runner-infrastructure` — The candidate median must be at most 0.85x the baseline, with n>=5 paired dispatch runs per lane, corroborated by at least 20 PR runs before and after. This is implemented as pure functions in scripts/ci/ci_wallclock.py.
+
+### Alternatives Considered
+- Routing job computing runs-on once (needs.route.outputs): rejected because It adds a serial hosted hop in front of every job, against outcome 2, and an automatic availability probe would need an admin-scoped token in a workflow that runs PR code.
+- actions-runner-controller on k3s: rejected because It adds Kubernetes as an operational dependency on a podman/systemd host, which is too much for a single box.
+- Registration token with config.sh --ephemeral inside the container: rejected because The reusable credential or registration token would sit inside the container that runs PR code.
+- YAML anchors for the runs-on expression: rejected because Parser and tool support across the repository's workflow tests and actionlint is not uniform.
+
+### Trade-offs
+- Accepted Manual hosted fallback by flipping CI_RUNNER_LANE over Automatic fallback because Automatic fallback needs a runner-listing token or a host watchdog that mutates repository variables, which is outside the boundary. It is deferred to follow-up work on the ri-18 status surface.
+- Accepted Shared uv cache volume across ephemeral jobs over Cold caches per job because This is the main source of speedup. Forks never route here, locked hash verification applies, and the operator can disable it with GX10_RUNNER_UV_CACHE=off.
+- Accepted Long routing expression repeated across 23 jobs over Single-source routing job because It costs no latency, and a test pins it.
+
+### Open Questions
+- [ ] Does gitleaks-action resolve a linux/arm64 binary? This is settled by the O6 dry run; if not, move the job to amd64-only.
+- [ ] Is 8 runner instances enough to beat about 20 parallel hosted jobs on critical path? Tune in O8.
+- [ ] Should the GitHub App replace the fine-grained PAT before the PAT's 90-day expiry?
+
+### Next Steps
+- IMPLEMENT: start with wp-contracts (schema promotion and manifest), then run wp-workflows, wp-runner-kit, wp-tooling and wp-docs in parallel.
+- Keep the hard boundary: no runner registration, token minting, repository-setting changes or host unit/container install.
+
+### Relevant Files
+- `openspec/changes/migrate-ci-to-self-hosted-gx10-runners/proposal.md` — approaches, selected approach A, assumptions A1-A9
+- `openspec/changes/migrate-ci-to-self-hosted-gx10-runners/design.md` — decisions D1-D10
+- `openspec/changes/migrate-ci-to-self-hosted-gx10-runners/specs/ci-runner-infrastructure/spec.md` — WHEN/THEN requirements
+- `openspec/changes/migrate-ci-to-self-hosted-gx10-runners/tasks.md` — implementation phases 1-6 and operator-only O1-O12
+- `openspec/changes/migrate-ci-to-self-hosted-gx10-runners/work-packages.yaml` — 6-package DAG
+
+### Context
+Planned ri-20 non-interactively (coordinated tier, Gate 2 skipped for supervisor proposal_approval). Selected Approach A: a lane manifest classifying all 28 ci.yml/security.yml jobs, an inline test-pinned runs-on expression that defaults to ubuntu-latest and never routes fork PRs, and host-minted JIT runners in hardened rootless podman containers under a systemd user template unit. Live outcomes (green on arm64, wall-clock drop, approval setting, reboot survival) are operator-only steps O1-O12 with verification commands.
+
