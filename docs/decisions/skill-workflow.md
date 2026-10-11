@@ -5,6 +5,28 @@
 
 ---
 
+## 2026-10-11 — openrouter-review-lane
+
+### Phase: Plan Iteration 1
+
+**agent_lane gains a CompositeOrchestrator (claude_code handshake plus include_lanes HTTP dispatch), and converge maps a mid-run vendor_unavailable/auth_required quorum loss to capability_unavailable** — This is the only path by which a cloud worker reaches quorum 2, and it makes 'exceeding the ceiling parks' true mid-run as well as at the probe.
+
+- Status: `active`
+- Source: [openspec/changes/openrouter-review-lane/session-log.md](/openspec/changes/openrouter-review-lane/session-log.md) (D6)
+
+---
+
+## 2026-10-11 — openrouter-review-lane
+
+### Phase: Plan Iteration 1
+
+**Retiring TRUST_POSTURE's cloud section and the policy entry is the last task, gated by an evidence file and a guard test** — The roadmap says the policy is removed once the lane passes in cloud. Live cloud evidence cannot run in CI, so it is an operator-run step with a recorded artifact.
+
+- Status: `active`
+- Source: [openspec/changes/openrouter-review-lane/session-log.md](/openspec/changes/openrouter-review-lane/session-log.md) (D7)
+
+---
+
 ## 2026-10-09 — 2026-10-10-dispatch-contract
 
 ### Phase: Plan Review

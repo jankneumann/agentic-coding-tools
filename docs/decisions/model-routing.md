@@ -5,6 +5,17 @@
 
 ---
 
+## 2026-10-11 — openrouter-review-lane
+
+### Phase: Plan Iteration 1
+
+**Spend: fail-closed budget check at probe time (coordinator ceiling > 0 or key credit limit); record through a new POST /routing/spend; spool and replay when the coordinator is unreachable, with a new degradation code metered_spend_unrecorded** — The existing ceiling is advisory and LedgerService.record has no caller. Cloud workers are known to hit coordinator_projection_forbidden, so the key limit bounds spend while records sit in the spool.
+
+- Status: `active`
+- Source: [openspec/changes/openrouter-review-lane/session-log.md](/openspec/changes/openrouter-review-lane/session-log.md) (D4)
+
+---
+
 ## 2026-09-24 — 2026-09-27-retain-static-model-until-routing-evidence
 
 ### Phase: Implementation
