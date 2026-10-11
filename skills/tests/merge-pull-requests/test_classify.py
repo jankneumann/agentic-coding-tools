@@ -160,6 +160,8 @@ class TestPrOriginsVocabulary:
     ]
 
     def test_every_classified_origin_is_declared_and_folds(self) -> None:
+        if str(REPO_ROOT) not in sys.path:
+            sys.path.insert(0, str(REPO_ROOT))
         from shared import github_classifier as gc
 
         seen = set()
