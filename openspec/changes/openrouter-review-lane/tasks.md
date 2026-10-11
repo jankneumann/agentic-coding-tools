@@ -214,10 +214,12 @@ parallel-infrastructure "Metered Review Lane Spend Accounting" (checkpoint part)
     `lanes` (the lane ids that returned a successful result), `quorum_received`, a per-lane
     `{model_used, generation_id, cost_usd, cost_source}` map, and `degradations` (including
     `metered_spend_unrecorded`). Task 6.4's park and degradation rules read these fields.
-  - After each run, `agent_lane.py` writes `ConvergenceResult.consensus` to
-    `openspec/changes/<id>/reviews/consensus-<review_type>.json` (for PLAN_REVIEW:
-    `consensus-plan.json`), which the D9 evidence and task 7.2 cite. `converge()` itself never
-    writes this file.
+  - After each run, `agent_lane.py` writes `ConvergenceResult.consensus` (with `quorum_received`)
+    to `openspec/changes/<id>/reviews/`, using one file per phase so the two implementation phases
+    do not collide: `consensus-plan.json` (PLAN_REVIEW), `consensus-impl-review.json`
+    (IMPL_REVIEW), `consensus-val-review.json` (VAL_REVIEW). This matches the skill-workflow
+    "Composite Agent-Lane Review" requirement. The D9 evidence and task 7.2 cite
+    `consensus-plan.json`. `converge()` itself never writes these files.
 
 ## 6. Supervisor ranking, apply-time replay, and worker protocol
 
