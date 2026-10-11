@@ -7,9 +7,31 @@
 
 ## 2026-10-11 — amend-skill-workflow-spec-for-policy-authorized-sync-windows
 
+### Phase: Plan Iteration 1
+
+**Also MODIFY 'Merge Conductor Invokes Iterate Skills'** — Its sentence 'The merge skill remains the user-invoked sync-point' would contradict the amended sync-point requirement once a scheduled merge exists
+
+- Status: `active`
+- Source: [openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md](/openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md) (D1)
+
+---
+
+## 2026-10-11 — amend-skill-workflow-spec-for-policy-authorized-sync-windows
+
 ### Phase: Plan
 
 **Absent/empty sync_windows fails closed; scheduled runs never use the force escape hatch** — Mirrors absent-file all-block invariant; only an explicit operator may force past the active-agent guard
+
+- Status: `active`
+- Source: [openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md](/openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md) (D2)
+
+---
+
+## 2026-10-11 — amend-skill-workflow-spec-for-policy-authorized-sync-windows
+
+### Phase: Plan Iteration 1
+
+**Sync window is necessary, never sufficient (D8)** — A window authorizes starting a sync point unattended; it does not imply auto for any gate. Fail-closed reading; the alternative widens two controls with one edit
 
 - Status: `active`
 - Source: [openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md](/openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md) (D2)

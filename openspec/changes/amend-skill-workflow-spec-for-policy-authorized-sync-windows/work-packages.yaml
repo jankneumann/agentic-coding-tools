@@ -3,7 +3,7 @@ schema_version: 1
 feature:
   id: amend-skill-workflow-spec-for-policy-authorized-sync-windows
   title: "Amend skill-workflow spec for policy-authorized sync windows"
-  plan_revision: 1
+  plan_revision: 2
   created_by: claude-code
 
 contracts:
@@ -32,13 +32,15 @@ packages:
       sync-window requirement, extends skills/shared/trust_posture.py and the
       trust posture schema with a fail-closed sync_windows declaration and
       authorization check, documents it in the template, and tests it.
-      Implements tasks 1.1-3.1.
+      Also exports PR_ORIGINS from skills/shared/github_classifier.py for the
+      vocabulary parity test. Implements tasks 1.1-3.1 (including 2.0).
     role: implementer
     priority: 1
     depends_on: []
     locks:
       files:
         - "skills/shared/trust_posture.py"
+        - "skills/shared/github_classifier.py"
         - "openspec/schemas/trust-posture.schema.json"
         - "TRUST_POSTURE.template.md"
       keys:
@@ -50,6 +52,8 @@ packages:
         - "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/**"
         - "skills/shared/trust_posture.py"
         - "skills/shared/tests/test_trust_posture_sync_windows.py"
+        - "skills/shared/github_classifier.py"
+        - "skills/tests/merge-pull-requests/test_classify.py"
         - "openspec/schemas/trust-posture.schema.json"
         - "TRUST_POSTURE.template.md"
       read_allow:
@@ -67,12 +71,20 @@ packages:
       steps:
         - name: "trust posture tests"
           kind: command
-          command: "skills/.venv/bin/python -m pytest skills/shared/tests -q"
+          command: "skills/.venv/bin/python -m pytest skills/shared/tests skills/tests/merge-pull-requests -q"
           cwd: "."
           expect_exit_code: 0
           evidence:
             artifacts: []
             result_keys: ["trust_posture_tests_pass"]
+        - name: "posture digest consumers"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/supervise skills/tests/autopilot skills/autopilot/tests -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["digest_consumers_pass"]
         - name: "openspec strict validation"
           kind: command
           command: "openspec validate amend-skill-workflow-spec-for-policy-authorized-sync-windows --strict"
@@ -95,5 +107,5 @@ packages:
       package_kind: config
     inputs: {}
     outputs:
-      result_keys: ["trust_posture_tests_pass", "openspec_valid", "live_posture_valid"]
+      result_keys: ["trust_posture_tests_pass", "digest_consumers_pass", "openspec_valid", "live_posture_valid"]
       artifacts: []

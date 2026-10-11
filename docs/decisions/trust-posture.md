@@ -27,6 +27,39 @@
 
 ---
 
+## 2026-10-11 — amend-skill-workflow-spec-for-policy-authorized-sync-windows
+
+### Phase: Plan Iteration 1
+
+**allowed_sources uses github_classifier's detailed origins; export PR_ORIGINS there** — discover_prs.py only passes origins through and no exported set existed, so the parity test had nothing to pin; detailed origins let a window admit sentinel without all Jules PRs
+
+- Status: `active`
+- Source: [openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md](/openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md) (D3)
+
+---
+
+## 2026-10-11 — amend-skill-workflow-spec-for-policy-authorized-sync-windows
+
+### Phase: Plan Iteration 1
+
+**Digest sorts windows by id** — Matches the existing invariant that front-matter ordering never changes the digest; ids are unique so order carries no meaning
+
+- Status: `active`
+- Source: [openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md](/openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md) (D4)
+
+---
+
+## 2026-10-11 — amend-skill-workflow-spec-for-policy-authorized-sync-windows
+
+### Phase: Plan Iteration 1
+
+**Keep windows inside the single posture digest and document the consequence** — A window edit re-evaluates posture_block reuse and drops auto for in-flight children until rebased; accepted as fail-closed over a separate digest that existing checks would ignore
+
+- Status: `active`
+- Source: [openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md](/openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md) (D5)
+
+---
+
 ## 2026-10-06 — 2026-10-10-dispatch-contract
 
 ### Phase: Plan Iteration 2
