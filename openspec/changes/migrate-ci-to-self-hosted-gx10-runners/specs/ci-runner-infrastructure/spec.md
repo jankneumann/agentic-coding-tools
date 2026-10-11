@@ -158,7 +158,7 @@ The runner kit under `deploy/gx10-runner/` SHALL meet all of the following:
 #### Scenario: Operator verifies host services are unreachable on every host address
 - **WHEN** the operator attempts a TCP connect (not an HTTP request) to `:54322` and the coordinator API port from inside a runner container at `10.0.2.2` and at every address printed by `hostname -I`
 - **THEN** every connect is refused or times out
-- **AND** either the persistent `table inet` nftables rules (a DNS exemption for the host stub resolver, then drops of `ghrunner`-owned traffic to local addresses and to private, CGNAT and link-local ranges) are listed and persisted through `/etc/nftables.conf` (directly or by an `include` of the file that holds them), or `ss -ltnp` shows those ports bound to `127.0.0.1` only
+- **AND** either the persistent `table inet` nftables rules (a DNS exemption for the host stub resolver, then drops of `ghrunner`-owned traffic to local addresses and to private, CGNAT and link-local ranges) are listed and persisted by a dedicated boot-time unit that loads only that table (never through `nftables.service`, whose stock configuration flushes the whole ruleset), or `ss -ltnp` shows those ports bound to `127.0.0.1` only
 - **AND** `api.github.com` resolves from inside the runner container
 - **AND** after a host reboot the same rules are listed and the same probes still fail
 

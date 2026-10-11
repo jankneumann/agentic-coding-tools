@@ -420,13 +420,18 @@ Everything of that kind is in § 7 (operator-only).
     entry in `/etc/subuid` or `/etc/subgid` (start above the highest existing end), then
     `sudo usermod --add-subuids <start>-<start+65535> --add-subgids <start>-<start+65535> ghrunner`.
   - Run `sudo loginctl enable-linger ghrunner`.
+  - Delegate the `cpu cpuset io memory pids` cgroup controllers to user managers with a
+    `/etc/systemd/system/user@.service.d/delegate.conf` drop-in (`[Service]`
+    `Delegate=cpu cpuset io memory pids`) and `sudo systemctl daemon-reload`: the unit's
+    `--cpus`/`--memory`/`--pids-limit` fail under rootless podman without them.
   - Because the account has no login shell, run every later "as `ghrunner`" command as
     `sudo -u ghrunner XDG_RUNTIME_DIR=/run/user/$(id -u ghrunner) <command>` (or
     `systemctl --user --machine=ghrunner@ …` for unit operations).
   - **Verify**: `loginctl show-user ghrunner -p Linger` prints `Linger=yes`, and
     `grep ghrunner /etc/subuid /etc/subgid` shows one range in each file, and no two entries in
     either file overlap (`sort -t: -k2 -n /etc/subuid` shows each start above the previous
-    entry's end).
+    entry's end), and the `cgroup.controllers` file of `user@$(id -u ghrunner).service` lists
+    `cpu`, `io`, `memory` and `pids`.
 - [ ] O2 Provision the registration credential
   - Create a fine-grained PAT for this repository only, with *Administration: read and write*
     and an expiry of 90 days or less.
@@ -447,10 +452,11 @@ Everything of that kind is in § 7 (operator-only).
     the same rule for `tcp`, `meta skuid ghrunner fib daddr type local drop`, and drops for
     `ghrunner`-owned traffic to `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`,
     `100.64.0.0/10`, `169.254.0.0/16`, `fc00::/7`, `fe80::/10` and out of `tailscale0`.
-    Persist it in `/etc/nftables.d/gx10-runner.nft`, included from `/etc/nftables.conf`; load
-    it with `sudo nft -f /etc/nftables.d/gx10-runner.nft` (an already-active
-    `nftables.service` is not reloaded by `enable --now`) and `sudo systemctl enable nftables`
-    for boot persistence. Fallback: rebind
+    Persist it in `/etc/nftables.d/gx10-runner.nft` (create the directory first) and load it
+    at boot with a dedicated oneshot unit, `gx10-runner-isolation.service`
+    (`ExecStart=/usr/sbin/nft -f /etc/nftables.d/gx10-runner.nft`, ordered before
+    `systemd-user-sessions.service`), never through `nftables.service`, whose stock config
+    begins with `flush ruleset` and would wipe the host's other firewall tables. Fallback: rebind
     every host service the runners must not reach to `127.0.0.1`.
   - Then run `deploy/gx10-runner/install-units.sh`, then `systemctl --user daemon-reload` and
     `systemctl --user enable --now gx10-runner@{1..8}` as `ghrunner`.
@@ -465,8 +471,9 @@ Everything of that kind is in § 7 (operator-only).
     the loop includes the host's IPv6 addresses;
     `podman exec gx10-runner-1 getent hosts api.github.com` resolves (the DNS exemption works;
     a host-side `getent` does not exercise it);
-    `grep -c 'nftables.d/gx10-runner.nft' /etc/nftables.conf` and
-    `grep -c skuid /etc/nftables.d/gx10-runner.nft` are non-zero (the rules are persistent);
+    `systemctl is-enabled gx10-runner-isolation.service` prints `enabled` and
+    `grep -c skuid /etc/nftables.d/gx10-runner.nft` is non-zero (the rules are persistent),
+    and `nft list ruleset | grep -c '^table'` did not drop when the unit was started;
     `sudo nft list ruleset | grep skuid` shows the rules (or `ss -ltnp` shows those ports bound
     to `127.0.0.1` only); and
     `podman inspect gx10-runner-1 --format '{{.HostConfig.NetworkMode}}'` shows `slirp4netns`.
@@ -501,7 +508,8 @@ Everything of that kind is in § 7 (operator-only).
     `measured-slower`.
 - [ ] O9 Check per-job ephemerality *(outcome 4)*
   - **Verify**: after 3 or more jobs have run on instance 1,
-    `journalctl --user -u gx10-runner@1 | grep -c 'Listening for Jobs'` is 3 or more, and
+    `sudo journalctl _UID=$(id -u ghrunner) --user-unit gx10-runner@1.service | grep -c 'Listening for Jobs'`
+    is 3 or more (plain `journalctl --user` reads the operator's own journal), and
     `gh api repos/{owner}/{repo}/actions/runs/<run-id>/jobs --jq '.jobs[].runner_name'` shows
     distinct names (JIT runners deregister after their job, so the runners list cannot show
     them).

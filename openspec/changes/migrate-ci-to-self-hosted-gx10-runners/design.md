@@ -305,9 +305,11 @@ services therefore rests on one of two operator-enforced controls, and O4 must p
    range `100.64.0.0/10`, `169.254.0.0/16`, `fc00::/7`, `fe80::/10`) and out of `tailscale0`,
    so PR code cannot move laterally to LAN or tailnet peers (other machines' coordinators,
    Postgres, NAS); the runner only needs internet egress, and upstream DNS is queried by
-   systemd-resolved, not by `ghrunner`. The rules MUST be **persistent** — written to
-   `/etc/nftables.conf` (or an included file) with `nftables.service` enabled, and kept clear
-   of ufw/firewalld reloads that would flush a hand-added table — because the lingering units
+   systemd-resolved, not by `ghrunner`. The rules MUST be **persistent** — written to their
+   own file and loaded at boot by a dedicated oneshot unit ordered before
+   `systemd-user-sessions.service`, never via `nftables.service`, whose stock
+   `/etc/nftables.conf` begins with `flush ruleset` and would wipe ufw/firewalld/podman
+   tables (IMPL_REVIEW #83/#88) — because the lingering units
    restart at boot and would otherwise run PR code before anyone re-adds a runtime-only rule.
    O10 re-verifies the rules after reboot. Installing and persisting them is operator-only.
 2. **Fallback — loopback-only binding**: every host service the runners must not reach binds to
@@ -554,7 +556,7 @@ implementation task, and nothing in the implementation phases performs them.
 | New jobs added by concurrent changes | Manifest completeness test fails until they are classified |
 | Podman upgrade changes the rootless network default to `pasta` and exposes host loopback | Explicit `--network slirp4netns:allow_host_loopback=false` in the unit, pinned by a test (D6) |
 | A fork PR rewrites `runs-on` in its own workflow YAML and drops the guard | Runner-image job-started hook refuses every event except `push` to `main`, `workflow_dispatch` and same-repo PRs, from the GitHub-written payload (D4); O11 exercises it |
-| Runtime-only nftables rule lost on reboot while the units restart | Rules persisted in `/etc/nftables.conf`; O10 re-verifies isolation after reboot (D6) |
+| Runtime-only nftables rule lost on reboot while the units restart | Rules persisted by a dedicated boot unit (`gx10-runner-isolation.service`) ordered before user sessions; O10 re-verifies isolation after reboot (D6) |
 | PR code reaches a host service bound to `0.0.0.0` or a LAN/Tailscale address through slirp4netns NAT | Operator nftables rule dropping `ghrunner`-owned traffic to local addresses, or loopback-only binding; O4 probes every host address (D6) |
 | Mint script killed mid-backoff by the start timeout, hammering the API | Explicit `TimeoutStartSec` above the bounded `GX10_MINT_MAX_ELAPSED` budget, pinned by a test (D5, D7) |
 | Cache poisoning by a same-repository PR job (human, Dependabot or agent branch) | Cache off by default; enabling it is a recorded operator risk acceptance (A10); disabled again by emptying `GX10_RUNNER_CACHE_ARGS`, mandated on a move to team mode |
