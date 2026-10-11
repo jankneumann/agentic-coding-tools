@@ -219,6 +219,18 @@ Universal SSL certificate covers only `*.rotkohl.ai`.
   `schema_migrations` included, so the first GX-10 start applies only the
   migrations Railway has not run. Writes that land on Railway after the final
   dump are lost, which is why step 6 stops the Railway API first.
+- **Postgres image: match Railway exactly.** Railway runs ParadeDB 0.22.5 on
+  PostgreSQL 18.3. Restoring into the analyzer's `0.25.9-pg17` (the handoff's
+  original suggestion) would be a major-version downgrade, which Postgres
+  does not support. Pin, in `/etc/aca/gx10-images.env`:
+
+  ```
+  GX10_COORD_POSTGRES_IMAGE=docker.io/paradedb/paradedb:0.22.5-pg18@sha256:dc8f0d3d5f8de4131b57f2b19d11ccd9103a26c410a21973cbe31a835881a201
+  ```
+
+  (multi-arch list digest, amd64 + arm64). Its `pg_dump` is 18.3, so the
+  seed script uses the same image for its client tools. A ParadeDB upgrade
+  is a separate, later change; the coordinator uses none of `pg_search`.
 - **Keys.** If the GX-10 `coordination_api_keys` differ from Railway's, every
   client needs a new `COORDINATION_API_KEY` too. If they are the same, the
   Railway instance stays a live, Access-free door for those keys until it is
@@ -250,17 +262,26 @@ Universal SSL certificate covers only `*.rotkohl.ai`.
    is one sitting, and agents see an outage from (b) to step 7.
 
    ```bash
-   # a. Anywhere with pg_dump >= Railway's server version. The DSN file holds
-   #    the Railway Postgres DATABASE_PUBLIC_URL, mode 0600.
-   RAILWAY_COORD_DSN_FILE=~/.railway-coord-dsn deploy/gx10/seed-from-railway.sh dump coord.dump
-   deploy/gx10/seed-from-railway.sh check coord.dump   # any CHANGED/MISSING: stop
+   # a. The DSN file holds the coordinator-db TCP-proxy URL, mode 0600. Client
+   #    tools come from the pinned image, matching Railway's server version.
+   source /etc/aca/gx10-images.env
+   export PG_TOOLS_IMAGE="$GX10_COORD_POSTGRES_IMAGE"
+   # Five migrations were edited in place after Railway applied them; each
+   # was verified on 2026-10-11 to be already in effect there (000: grants
+   # to CURRENT_USER, Railway's user is postgres; 007/010/011/022: the same
+   # change shipped forward as 026, which Railway applied). Any OTHER
+   # CHANGED/MISSING line: stop.
+   export SEED_ACCEPT_CHANGED="000_bootstrap.sql 007_agent_profiles.sql 010_cedar_policy_store.sql 011_update_cedar_write_policy_check_guardrails.sql 022_add_missing_profile_operations.sql"
+   RAILWAY_COORD_DSN_FILE=~/.gx10-seed/railway-coord-dsn deploy/gx10/seed-from-railway.sh dump coord.dump
+   deploy/gx10/seed-from-railway.sh check coord.dump
    # b. Stop the Railway coordinator *service* (not its Postgres), then re-run (a)
    #    so the final dump holds every write.
    # c. On GX-10, with the dump copied over (0600): start only Postgres, restore
    #    into the still-empty database, then hand the container back to the unit.
    sudo systemctl start aca-gx10-coordinator-secrets.service
    sudo podman-compose -p aca-gx10-coord -f /opt/agentic-coding-tools/deploy/gx10/docker-compose.coordinator.yml up -d coordinator-postgres
-   sudo /opt/agentic-coding-tools/deploy/gx10/seed-from-railway.sh restore coord.dump
+   sudo --preserve-env=PG_TOOLS_IMAGE,SEED_ACCEPT_CHANGED \
+     /opt/agentic-coding-tools/deploy/gx10/seed-from-railway.sh restore coord.dump
    sudo /opt/agentic-coding-tools/deploy/gx10/coordinator-runtime.sh down
    sudo make -C /opt/agentic-coding-tools/deploy/gx10 start   # applies the pending migrations
    # d. Once `make status` is healthy and step 8 passes: the dump holds every
@@ -268,10 +289,20 @@ Universal SSL certificate covers only `*.rotkohl.ai`.
    shred -u coord.dump
    ```
 
-   `restore` re-runs `check`, refuses a database that already has a schema
-   (an API that started first has migrated it empty), and creates the
-   `anon`/`authenticated`/`service_role` roles the row-level policies name —
-   roles are cluster-level, so no `pg_dump` carries them.
+   `restore` re-runs `check`; refuses a database holding any table of its
+   own (an API that started first has migrated it); creates the
+   `anon`/`authenticated`/`service_role` roles the row-level policies name
+   (roles are cluster-level, so no `pg_dump` carries them); and skips the
+   dump entries the ParadeDB image already created in the fresh database —
+   its extensions, their schemas and config-table rows — printing each one.
+   Nothing is dropped.
+
+   Rehearsed 2026-10-11 with the real Railway data (49 MB, 49 migrations)
+   into a throwaway `0.22.5-pg18` container: 29 image-provided entries
+   skipped, all 36 tables restored, row counts identical except tables
+   Railway kept writing to after the dump, and the migration runner found
+   nothing to apply. Expect the same five checksum warnings at every start
+   that Railway logs today.
 7. **Switch DNS** — note the current Railway CNAME target (rollback), then
    `cloudflared tunnel route dns --overwrite-dns gx10-coordinator coord.rotkohl.ai`.
    Rollback is restoring that CNAME, grey-clouded, and restarting the Railway
