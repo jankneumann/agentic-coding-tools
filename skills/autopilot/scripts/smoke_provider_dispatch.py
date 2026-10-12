@@ -80,7 +80,19 @@ def _build_payload(
     model_override: str | None,
     *,
     dry_run: bool = False,
-) -> PhaseDispatchPayload:
+) -> tuple[PhaseDispatchPayload, str]:
+    """Build the dispatch payload, paired with the resolved provider (D1).
+
+    Returns ``(payload, resolved_provider)``. Adaptive routing may resolve a
+    provider different from *provider* (the caller's) — the vendor that
+    actually owns the selected model. The Claude-alias and `local`
+    trust-boundary checks below, and the fallback model lookup, all run
+    against the *resolved* provider so a cross-vendor pick is judged under
+    the vendor it will actually dispatch to, not the one the caller asked
+    for. `payload.provider` is the resolved provider too — the pair this
+    smoke actually exercises; the caller's original choice is reported
+    separately (see ``main``'s `resolved_provider` output field).
+    """
     if provider != "claude_code" and model_override in _CLAUDE_ALIASES:
         raise ProviderModelMappingError(provider, model_override or "")
 
@@ -94,8 +106,9 @@ def _build_payload(
         phase, state, provider=provider
     )
     archetype = state.get("_resolved_archetype")
+    resolved_provider = state.get("_resolved_provider") or provider
 
-    if provider == _LOCAL_PROVIDER:
+    if resolved_provider == _LOCAL_PROVIDER:
         if dry_run:
             # Offline fixture; nothing leaves the process.
             archetype = archetype or _LOCAL_DRY_RUN_ARCHETYPE
@@ -115,7 +128,7 @@ def _build_payload(
 
     model = model_override or options.get("model")
     if not model:
-        if provider == _LOCAL_PROVIDER and not dry_run:
+        if resolved_provider == _LOCAL_PROVIDER and not dry_run:
             # Unreachable in practice (a resolved archetype carries a model), but
             # the invariant is explicit: real local mode never ships a hardcoded
             # model to the endpoint.
@@ -123,9 +136,9 @@ def _build_payload(
                 f"the resolver returned no model for phase {phase} under provider "
                 "'local'. No dispatch attempted."
             )
-        model = _FALLBACK_MODELS.get(provider, _DEFAULT_FALLBACK_MODEL)
-    if provider != "claude_code" and model in _CLAUDE_ALIASES:
-        raise ProviderModelMappingError(provider, model)
+        model = _FALLBACK_MODELS.get(resolved_provider, _DEFAULT_FALLBACK_MODEL)
+    if resolved_provider != "claude_code" and model in _CLAUDE_ALIASES:
+        raise ProviderModelMappingError(resolved_provider, model)
 
     incoming = PhaseRecord(
         change_id="vendor-neutral-autopilot-smoke",
@@ -152,11 +165,13 @@ def _build_payload(
     if system_prompt:
         prompt = f"{system_prompt}{phase_agent._PROMPT_SEPARATOR}{prompt}"  # noqa: SLF001
 
-    return PhaseDispatchPayload(
+    payload = PhaseDispatchPayload(
         schema_version=1,
         change_id="vendor-neutral-autopilot-smoke",
         phase=phase,
-        provider=provider,
+        # D1: dispatch to the vendor that actually owns the resolved model,
+        # not the caller's static default — see the docstring above.
+        provider=resolved_provider,
         archetype=archetype,
         model=model,
         prompt=prompt,
@@ -164,6 +179,7 @@ def _build_payload(
         isolation=options.get("isolation"),
         expected_outcomes=["complete", "failed"],
     )
+    return payload, resolved_provider
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -189,7 +205,9 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
-        payload = _build_payload(args.provider, args.model, dry_run=args.dry_run)
+        payload, resolved_provider = _build_payload(
+            args.provider, args.model, dry_run=args.dry_run
+        )
     except ProviderModelMappingError as exc:
         print(f"Provider model mapping error: Claude alias or missing mapping: {exc}", file=sys.stderr)
         return 2
@@ -200,6 +218,7 @@ def main(argv: list[str] | None = None) -> int:
     result = dispatch_phase(payload, dry_run=args.dry_run)
     body = {
         "provider": args.provider,
+        "resolved_provider": resolved_provider,
         "payload": payload.to_dict(),
         "result": result.to_dict(),
     }
@@ -207,7 +226,8 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(body, indent=2, sort_keys=True))
     else:
         print(
-            f"provider={args.provider} phase={payload.phase} model={payload.model} "
+            f"provider={args.provider} resolved_provider={resolved_provider} "
+            f"phase={payload.phase} model={payload.model} "
             f"outcome={result.outcome} handoff_id={result.handoff_id} "
             f"tier={result.dispatch_tier}"
         )
