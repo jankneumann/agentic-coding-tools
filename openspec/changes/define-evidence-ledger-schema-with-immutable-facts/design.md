@@ -153,7 +153,9 @@ The validator rejects:
 - `fact_removed` and `fact_mutated`. Facts are compared by id, using canonical JSON
   equality: sorted keys, after the YAML or JSON load;
 - `reverify_removed` and `reverify_mutated`. Reverify requests are audit records, so they are
-  append-only too.
+  append-only too. The one permitted transition is fulfilment: a request recorded before its
+  replacement was re-gathered (no `replacement_fact`) may gain one, once, with every other
+  field unchanged. Changing or removing an existing `replacement_fact` is a mutation.
 
 Signals and hypotheses are derivative-tier entries. They may change between revisions,
 because hypothesis status is expected to move.

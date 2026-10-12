@@ -117,7 +117,8 @@ Given a previous and a current revision of the same ledger, the validator SHALL 
 current revision in any of these cases:
 - a fact id from the previous revision is absent;
 - a fact's content differs from the previous revision in any field;
-- a reverify request from the previous revision is absent or changed;
+- a reverify request from the previous revision is absent or changed, except that a request
+  recorded without a `replacement_fact` MAY gain one while every other field stays unchanged;
 - the `ledger_id` differs.
 
 The validator SHALL accept a revision that appends new facts and new reverify requests while
@@ -149,6 +150,20 @@ hypotheses MAY change between revisions.
 
 - **WHEN** the current revision changes the `reason` of a reverify request that was recorded
   in the previous revision
+- **THEN** `check_revision` reports `reverify_mutated`
+
+#### Scenario: Fulfilling a pending reverify request is accepted
+
+- **WHEN** a reverify request was recorded in the previous revision without a
+  `replacement_fact`
+- **AND** the current revision adds a new fact and sets it as that request's
+  `replacement_fact`, leaving every other field of the request unchanged
+- **THEN** `check_revision` reports no violations
+
+#### Scenario: Changing or removing a recorded replacement fact is rejected
+
+- **WHEN** a reverify request recorded in the previous revision has a `replacement_fact`
+- **AND** the current revision changes or removes that `replacement_fact`
 - **THEN** `check_revision` reports `reverify_mutated`
 
 #### Scenario: Hypothesis status change is accepted

@@ -48,8 +48,10 @@ Ids share one namespace across all four collections.
 
 Facts and reverify requests are append-only. When a previous revision is supplied, a fact or
 reverify request whose id existed before must still exist and must be identical (compared as
-canonical JSON, so key order does not matter). Signals and hypotheses may change between
-revisions; hypothesis status is expected to move.
+canonical JSON, so key order does not matter). The one exception: a reverify request recorded
+before its replacement was gathered (no `replacement_fact`) may gain a `replacement_fact`
+once, with every other field unchanged; changing or removing it afterwards is rejected.
+Signals and hypotheses may change between revisions; hypothesis status is expected to move.
 
 ## CLI
 
