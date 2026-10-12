@@ -1,0 +1,261 @@
+{
+  "text": "{ \"findings\": [] }{ \"findings\": [] }{ \"findings\": [] }{ \"findings\": [] }{ \"findings\": [] }{ \"findings\": [] }{ \"findings\": [] }{ \"findings\": [] }{\n  \"findings\": [\n    {\n      \"id\": 1,\n      \"type\": \"correctness\",\n      \"criticality\": \"low\",\n      \"description\": \"Re-verified ledger [31]: FIXED. run_states() now marks only unfinished[-1] as in_progress while the nightly lock is held; older unfinished run ids stay interrupted.\",\n      \"disposition\": \"accept\",\n      \"axis\": \"correctness\",\n      \"severity\": \"none\",\n      \"resolution\": \"Fixed in results_store.run_states: only the newest unfinished run is labeled in_progress.\",\n      \"file_path\": \"packages/agent-scenarios/src/agent_scenarios/results_store.py\",\n      \"line_range\": {\"start\": 294, \"end\": 317},\n      \"evidence_class\": \"deterministic\",\n      \"existing_code\": \"if held and unfinished:\\n        states[unfinished[-1]] = \\\"in_progress\\\"\"\n    },\n    {\n      \"id\": 2,\n      \"type\": \"resilience\",\n      \"criticality\": \"low\",\n      \"description\": \"Re-verified ledger [32]: FIXED. merge_pr wraps the tempfile.mkdtemp clone in try/finally with shutil.rmtree(tmp, ignore_errors=True).\",\n      \"disposition\": \"accept\",\n      \"axis\": \"resilience\",\n      \"severity\": \"none\",\n      \"resolution\": \"Fixed in gh_shim SHIM_SOURCE merge_pr cleanup path.\",\n      \"file_path\": \"packages/agent-scenarios/src/agent_scenarios/gh_shim.py\",\n      \"line_range\": {\"start\": 177, \"end\": 189},\n      \"evidence_class\": \"deterministic\",\n      \"existing_code\": \"tmp = tempfile.mkdtemp(prefix=\\\"gh-shim-\\\")\\n    try:\\n        _merge_in(st, pr, argv, mode, origin, base, head, os.path.join(tmp, \\\"r\\\"))\\n    finally:\\n        shutil.rmtree(tmp, ignore_errors=True)\"\n    },\n    {\n      \"id\": 3,\n      \"type\": \"correctness\",\n      \"criticality\": \"medium\",\n      \"description\": \"Re-verified ledger [33]/[54]: STILL OPEN. finish() still writes RunRecord.vendors=list(cfg.vendors) after effective_vendors() filters the allowlist. Config vendors with no planned pairs are recorded as if they ran, so results latest/trend and the runbook's which-vendors-ran question stay misleading.\",\n      \"disposition\": \"fix\",\n      \"axis\": \"correctness\",\n      \"severity\": \"critical\",\n      \"file_path\": \"packages/agent-scenarios/src/agent_scenarios/nightly.py\",\n      \"line_range\": {\"start\": 389, \"end\": 405},\n      \"evidence_class\": \"deterministic\",\n      \"existing_code\": \"RunRecord(\\n                run_id=run_id, started_at=started.isoformat(), finished_at=now().isoformat(),\\n                status=status, planned_pairs=planned, executed_pairs=executed,\\n                vendors=list(cfg.vendors), config_digest=digest, repo_sha=repo_sha,\"\n    },\n    {\n      \"id\": 4,\n      \"type\": \"observability\",\n      \"criticality\": \"low\",\n      \"description\": \"Re-verified ledger [35]: FIXED. SKILL.md Prerequisites now document COORDINATION_API_KEY (Bearer), IMPROVE_HARNESS_AGENT_ID / --agent-id (comma-separated), and HTTP status in failure warnings.\",\n      \"disposition\": \"accept\",\n      \"axis\": \"observability\",\n      \"severity\": \"none\",\n      \"resolution\": \"Prerequisites section updated with key, agent-id override, and secured-coordinator 401 behaviour.\",\n      \"file_path\": \"skills/improve-harness/SKILL.md\",\n      \"line_range\": {\"start\": 87, \"end\": 97},\n      \"evidence_class\": \"deterministic\",\n      \"existing_code\": \"- `COORDINATION_API_KEY` set when the coordinator is secured (sent as `Authorization: Bearer`);\\n  without it a secured coordinator answers HTTP 401 and the analysis is empty\"\n    },\n    {\n      \"id\": 5,\n      \"type\": \"correctness\",\n      \"criticality\": \"low\",\n      \"description\": \"Re-verified ledger [36]: FIXED. test_acceptance_broken_skill.py hard-asserts analyze_failures.py exists (assert analyze.is_file(...)) instead of silently skipping the improve-harness ranking check.\",\n      \"disposition\": \"accept\",\n      \"axis\": \"correctness\",\n      \"severity\": \"none\",\n      \"resolution\": \"Acceptance path now fails loudly if the analyzer script is missing.\",\n      \"file_path\": \"packages/agent-scenarios/tests/test_acceptance_broken_skill.py\",\n      \"line_range\": {\"start\": 119, \"end\": 122},\n      \"evidence_class\": \"deterministic\",\n      \"existing_code\": \"analyze = SKILLS_PY / \\\"analyze_failures.py\\\"\\n    assert analyze.is_file(), f\\\"/improve-harness analyzer missing at {analyze}\\\"\"\n    },\n    {\n      \"id\": 6,\n      \"type\": \"resilience\",\n      \"criticality\": \"low\",\n      \"description\": \"Re-verified ledger [37]/[57]: STILL OPEN. install_gh_shim still writes shebang f\\\"#!{sys.executable}\\\\n\\\". Linux shebangs cannot contain spaces; a venv under a path with spaces makes every gh invocation fail with ENOENT-style errors rather than the unsupported-call path. Lower likelihood on the fixed-path nightly host.\",\n      \"disposition\": \"fix\",\n      \"axis\": \"resilience\",\n      \"severity\": \"optional\",\n      \"file_path\": \"packages/agent-scenarios/src/agent_scenarios/gh_shim.py\",\n      \"line_range\": {\"start\": 374, \"end\": 376},\n      \"evidence_class\": \"deterministic\",\n      \"existing_code\": \"shim = bin_dir / \\\"gh\\\"\\n    shim.write_text(f\\\"#!{sys.executable}\\\\n{SHIM_SOURCE}\\\", encoding=\\\"utf-8\\\")\"\n    },\n    {\n      \"id\": 7,\n      \"type\": \"observability\",\n      \"criticality\": \"low\",\n      \"description\": \"Re-verified ledger [38]: STILL PRESENT, accepted. skills_sha() still uses repo-wide git status --porcelain, so any uncommitted file outside skills/ marks +dirty. Matches current spec wording; scoping porcelain to the skills directory would reduce noise for trend consumers on a dirty checkout.\",\n      \"disposition\": \"accept\",\n      \"axis\": \"observability\",\n      \"severity\": \"fyi\",\n      \"resolution\": \"Behaviour matches current spec wording for skills_sha; treat scoped porcelain as a follow-up if trend noise becomes a problem.\",\n      \"file_path\": \"packages/agent-scenarios/src/agent_scenarios/materialize.py\",\n      \"line_range\": {\"start\": 26, \"end\": 42},\n      \"evidence_class\": \"deterministic\",\n      \"existing_code\": \"status = _git(\\\"status\\\", \\\"--porcelain\\\")\\n    if status.returncode == 0 and status.stdout.strip():\\n        sha += \\\"+dirty\\\"\"\n    },\n    {\n      \"id\": 8,\n      \"type\": \"contract_mismatch\",\n      \"criticality\": \"low\",\n      \"description\": \"Re-verified ledger [42]/[58]: STILL OPEN. NightlyConfig.judge.enabled is schema-valid and accepted by the pydantic model, but _cmd_nightly / run_nightly never read cfg.judge and always pass judge_backend=None. Operators can set judge.enabled: true and still get only trajectory_status: skip with no warning that judging was not activated.\",\n      \"disposition\": \"fix\",\n      \"axis\": \"compatibility\",\n      \"severity\": \"optional\",\n      \"file_path\": \"packages/agent-scenarios/src/agent_scenarios/nightly.py\",\n      \"line_range\": {\"start\": 121, \"end\": 144},\n      \"evidence_class\": \"deterministic\",\n      \"existing_code\": \"class JudgeCfg(BaseModel):\\n    model_config = ConfigDict(extra=\\\"forbid\\\")\\n    enabled: bool = False\\n...\\n    judge: JudgeCfg = Field(default_factory=lambda: JudgeCfg())\"\n    },\n    {\n      \"id\": 9,\n      \"type\": \"correctness\",\n      \"criticality\": \"high\",\n      \"description\": \"Re-verified ledger [43]: STILL OPEN. agent-scenarios gaps flush has no --config option and ignores nightly.yaml: _cmd_flush resolves the spool as args.spool or default_spool_path() (XDG state dir) and env names from --url-env/--key-env defaults, while the nightly runner derives the spool from NightlyConfig.spool_path() and reads gaps.coordinator_url_env/gaps.api_key_env. README and runbook tell operators to run a bare gaps flush; with any non-default results.path, gaps.spool_path, or renamed env vars, manual flush silently reports {\\\"delivered\\\": 0, \\\"remaining\\\": 0} against an empty default spool while the real spool stays undelivered.\",\n      \"disposition\": \"fix\",\n      \"axis\": \"correctness\",\n      \"severity\": \"critical\",\n      \"file_path\": \"packages/agent-scenarios/src/agent_scenarios/gap_emitter.py\",\n      \"line_range\": {\"start\": 325, \"end\": 346},\n      \"evidence_class\": \"deterministic\",\n      \"existing_code\": \"flush.add_argument(\\\"--spool\\\", type=Path, default=None, help=\\\"spool JSONL (default: XDG state)\\\")\\n...\\ndef _cmd_flush(args: argparse.Namespace) -> int:\\n    spool = SpoolMemorySink(args.spool or default_spool_path())\\n    sink = CoordinatorMemorySink.from_env(args.url_env, args.key_env)\"\n    },\n    {\n      \"id\": 10,\n      \"type\": \"correctness\",\n      \"criticality\": \"medium\",\n      \"description\": \"Re-verified ledger [44]: STILL OPEN. skills/tests/improve-harness/fixtures/capability-gap-entry.example.json is a third verbatim copy of the contract example. test_schemas.py validates the package copy against the schema, but nothing asserts the skills-side copy is byte-identical to it, so a future tag or field change to the emitter's example will leave test_scenario_parity_source.py exercising a stale payload shape while still passing.\",\n      \"disposition\": \"fix\",\n      \"axis\": \"correctness\",\n      \"severity\": \"optional\",\n      \"file_path\": \"skills/tests/improve-harness/test_scenario_parity_source.py\",\n      \"line_range\": {\"start\": 24, \"end\": 26},\n      \"evidence_class\": \"deterministic\",\n      \"existing_code\": \"EXAMPLE = Path(__file__).resolve().parent / \\\"fixtures\\\" / \\\"capability-gap-entry.example.json\\\"\"\n    },\n    {\n      \"id\": 11,\n      \"type\": \"style\",\n      \"criticality\": \"low\",\n      \"description\": \"Re-verified ledger [45]: STILL OPEN. Module docstring of test_memory_tag_conventions.py still says source: works \\\"for all four vocabulary values\\\" while SOURCE_VOCABULARY lists five (scenario-parity added). Also gh_shim pr list without --json still defaults to emit(... \\\"number,title,headRefName\\\"), printing JSON rather than real gh's table — a minor fidelity divergence worth noting in the shim docstring.\",\n      \"disposition\": \"fix\",\n      \"axis\": \"readability\",\n      \"severity\": \"nit\",\n      \"file_path\": \"skills/session-log/tests/test_memory_tag_conventions.py\",\n      \"line_range\": {\"start\": 3, \"end\": 7},\n      \"evidence_class\": \"deterministic\",\n      \"existing_code\": \"- source: tag prefix works for all four vocabulary values\"\n    },\n    {\n      \"id\": 12,\n      \"type\": \"resilience\",\n      \"criticality\": \"medium\",\n      \"description\": \"Re-verified ledger [46]: STILL OPEN. _post_memory_query catches URLError, OSError, json.JSONDecodeError but resp.read().decode() can raise UnicodeDecodeError (a ValueError, not caught) on a non-UTF-8 body from a proxy or error page, which would propagate out of query_memory and abort analyze_failures.py, generate_report.py and export_shared_learnings.py instead of degrading to the documented warning-and-empty-result behaviour. Catch ValueError (which also covers JSONDecodeError) in that handler.\",\n      \"disposition\": \"fix\",\n      \"axis\": \"resilience\",\n      \"severity\": \"critical\",\n      \"file_path\": \"skills/improve-harness/scripts/analyze_failures.py\",\n      \"line_range\": {\"start\": 122, \"end\": 145},\n      \"evidence_class\": \"deterministic\",\n      \"existing_code\": \"with urlopen(req, timeout=10) as resp:\\n            data = json.loads(resp.read().decode())\\n    except HTTPError as exc:\\n        ...\\n    except (URLError, OSError, json.JSONDecodeError) as exc:\"\n    },\n    {\n      \"id\": 13,\n      \"type\": \"style\",\n      \"criticality\": \"low\",\n      \"description\": \"Re-verified ledger [47]: STILL OPEN. In docs/guides/memory-conventions.md the new scenario-parity bias bullet is separated from the preceding bullet list by a blank line, so it renders as a separate one-item list rather than continuing the list. Remove the blank line.\",\n      \"disposition\": \"fix\",\n      \"axis\": \"readability\",\n      \"severity\": \"nit\",\n      \"file_path\": \"docs/guides/memory-conventions.md\",\n      \"line_range\": {\"start\": 41, \"end\": 47},\n      \"evidence_class\": \"deterministic\",\n      \"existing_code\": \"- **transcript-mined** catches everything but is the most expensive to run\\n\\n- **scenario-parity** is deterministic (goal gates, not a judge) but samples only the seed scenarios; executor errors and budget skips are never emitted\"\n    },\n    {\n      \"id\": 14,\n      \"type\": \"contract_mismatch\",\n      \"criticality\": \"medium\",\n      \"description\": \"Re-verified ledger [59]: STILL OPEN. resolve_agent_id() returns IMPROVE_HARNESS_AGENT_ID verbatim (including commas), while resolve_agent_ids() splits on commas and query_memory loops those ids. build_memory_query() uses resolve_agent_id, so with the runbook's documented comma-separated IMPROVE_HARNESS_AGENT_ID=improve-harness,agent-scenarios-nightly a direct build_memory_query() payload carries agent_id=\\\"improve-harness,agent-scenarios-nightly\\\", which the coordinator exact-match filter will not return. query_memory itself is fine; the public MemoryQueryRequest helper and any caller that trusts its agent_id field are not.\",\n      \"disposition\": \"fix\",\n      \"axis\": \"compatibility\",\n      \"severity\": \"optional\",\n      \"file_path\": \"skills/improve-harness/scripts/analyze_failures.py\",\n      \"line_range\": {\"start\": 64, \"end\": 97},\n      \"evidence_class\": \"deterministic\",\n      \"existing_code\": \"def resolve_agent_id(agent_id: str | None = None) -> str:\\n    \\\"\\\"\\\"agent_id argument, else IMPROVE_HARNESS_AGENT_ID, else the default.\\\"\\\"\\\"\\n    return agent_id or os.environ.get(\\\"IMPROVE_HARNESS_AGENT_ID\\\") or DEFAULT_AGENT_ID\\n...\\n    return {\\n        \\\"agent_id\\\": resolve_agent_id(agent_id),\\n        \\\"tags\\\": [\\\"capability_gap\\\"],\\n        \\\"limit\\\": limit,\\n    }\"\n    }\n  ]\n}",
+  "stopReason": "end_turn",
+  "sessionId": "01a12d66-f8da-7f11-b5ba-c90014a3e45e",
+  "requestId": "af031631-19c1-44d7-be06-ca55b387cf29",
+  "thought": "I will review the artifacts and return findings as JSON.I confirmed several open ledger items.Finding [31] regarding run_states appears fixed.\n\nFinding [32] is fixed. The try/finally block now removes the merge_pr tempfile.\n\nFindings [33], [37], [42], and [43] remain present.\n\nFindings [44], [45], [46], [47], and [59] remain present.\n\n[44] still needs verification for an equality assertion in fixture copy.\n[45] still contains the docstring \"four vocabulary values\".\n[46] still lacks handling for UnicodeDecodeError.\n[47] still has a blank line in memory-conventions.\n[59] still uses resolve_agent_id instead of resolve_agent_ids.\n\n[31] and [32] are confirmed fixed. They remain in the open ledger items list but are resolved.Several ledger items have been fixed.\n\nFour items are fixed: run_states, merge_pr tempfile cleanup, SKILL.md prerequisites, and broken-skill acceptance. Five remain open: vendor list handling, shebang spacing, skills_sha porcelain output, unused judge.enabled, and gaps flush --config.Searching for additional potential issues.\n\nChecking whether failed workspaces retain error status. The results-record schema incorrectly allows null in the trajectory_status enum. Also investigating ledger item [45] about gh_shim pr list output.`pr list` without `--json` still calls `emit` with a default field list, so it prints JSON.\n\nReal `gh pr list` without `--json` prints a table, confirming the fidelity issue in [45]. Skipped budget pairs never create workspaces, so cleanup is unnecessary. Failed or errored pairs correctly retain their workspaces.Searching for additional potential issues.\n\nFindings emission failure returns exit code 3, which the design runbook maps to error results or budget_exhausted. This appears intentional.\n\nWorkspace cleanup removes only pass workspaces. Skipped_budget workspaces are never created, but partial workspaces from pre-materialization errors are preserved for diagnosis.\n\nChecking `build_memory_query` and `resolve_agent_id` for incorrect usage. The `query_memory` function splits comma-separated agent IDs and passes each single ID to `build_memory_query`.`evidence_join.py` calls `build_memory_query` and then uses a bridge.\n\n`evidence_join.py` uses its own `AGENT_ID` constant rather than the `agent_id` from `build_memory_query`, so that field may be unused there. A potential bug was spotted in workspace cleanup: skipped_budget workspaces are never created, yet the design requires both pass and skipped_budget workspaces to be deleted.\n\nA new issue was spotted: if finding emission fails, the code still emits gaps and finishes with budget_exhausted or completed status, then returns EXIT_NOT_GREEN.\n\nThe run status intentionally stays completed or budget_exhausted when findings emission fails, with the error recorded in the reason field. The trajectory_status enum may include null, which is valid under JSON Schema draft 2020-12 but could serialize differently in Pydantic. Runs that are interrupted and never write a run record correctly have no record by design.\n\nThe `test_agent_id_override` test only verifies single-value agent IDs from environment variables. It does not cover comma-separated values, which the runbook documents. This is issue [59]. I am also checking executor timeout messages and HERMETIC_SCRUB drift.\n\n`pr list` is invoked without the `--json` flag, which the ledger [45] flags as a problem. The `finish()` closure captures `cfg.vendors` before `_locked_run` computes the effective vendors, so those values are never passed to `finish`; this is confirmed as issues [33] and [54]. I am also checking whether package schemas match their contracts.Unsupported call handling is present.I have enough information to emit the findings.\n\nI will re-verify the open ledger items and emit findings only for the remaining issues. Fixed items may be omitted or marked as accepted.\n\nI will re-verify the open ledger items. Items 31, 32, 35, and 36 are fixed and will be marked as accepted. Item 33 remains open.\n\nItems 37, 42, 43, 44, 45, 46, 47, and 59 remain open. Items 38 may be accepted as documented. I will emit one finding per distinct issue and avoid duplicates.\n\nEvidence class is deterministic because it comes from direct code reading. The build_memory_query helper still carries an incorrect IMPROVE_HARNESS_AGENT_ID value even though evidence_join uses its own agent ID for try_recall. Item 38 should be accepted as documented. Items 37 and 57 are low-severity nits with low criticality.\n\nI am scanning for one additional issue to demonstrate thoroughness. The test `test_agent_id_override` pins `IMPROVE_HARNESS_AGENT_ID` via monkeypatch.\n\nThe `build_memory_query` helper still returns the raw comma-separated `IMPROVE_HARNESS_AGENT_ID` string, which is a contract mismatch even though callers ignore that field. I am also checking whether `skills_sha` should be computed per-pair rather than once at run start.\n\n`skills_sha` is computed once at run start. This is acceptable because the design records it on every result, and mid-run changes are unlikely.\n\nA new issue was found in `finish()`. It hardcodes `vendors=list(cfg.vendors)`, which captures the raw unfiltered vendor list before filtering. The successful path after filtering will record the wrong vendors.Checking the `resolve_agent_id` docstring for an incorrect claim. It omits comma-splitting, unlike `resolve_agent_ids`.\n\nThe `test_agent_id_override` test pins single-id behavior. It does not cover comma-separated values, so the public helper is broken for the documented runbook format. I am now preparing the findings JSON with correct vocabularies and evidence classes.I will check the line for skills_sha porcelain and the blank line in memory-conventions. I will also verify run_states for the fixed finding.All necessary evidence has been gathered.\n\nFour items are fixed. Nine remain open.\n\nTwo more items are open: a blank line in memory-conventions and a comma mismatch in resolve_agent_id. The skills_sha finding is accepted as matching the spec. The docstring and pr list issues will be emitted as one finding. Severity mapping is set to critical for blocking correctness, nit for style, and optional for nice-to-have.\n\nCriticality levels are refined: high for operability, medium for should-fix, low for polish. Severity is fyi for info-only, none for no gate impact.\n\nThe vendors list finding is criticality medium with severity critical under correctness. The silent flush miss is criticality high with severity critical under correctness. The UnicodeDecodeError abort is criticality medium/high with severity critical under resilience.",
+  "usage": {
+    "input_tokens": 121938,
+    "cache_read_input_tokens": 1507072,
+    "cache_creation_input_tokens": 0,
+    "output_tokens": 14833,
+    "reasoning_tokens": 5242,
+    "total_tokens": 1643843
+  },
+  "num_turns": 17,
+  "total_cost_usd": 0.266898504,
+  "total_cost_usd_ticks": 2668985040,
+  "modelUsage": {
+    "grok-4.5-build": {
+      "inputTokens": 121938,
+      "outputTokens": 14833,
+      "cacheReadInputTokens": 1507072,
+      "cacheCreationInputTokens": 0,
+      "modelCalls": 17,
+      "costUSD": 0.266898504
+    }
+  },
+  "structuredOutput": {
+    "findings": [
+      {
+        "id": 1,
+        "type": "correctness",
+        "criticality": "low",
+        "description": "Re-verified ledger [31]: FIXED. run_states() now marks only unfinished[-1] as in_progress while the nightly lock is held; older unfinished run ids stay interrupted.",
+        "disposition": "accept",
+        "axis": "correctness",
+        "severity": "none",
+        "resolution": "Fixed in results_store.run_states: only the newest unfinished run is labeled in_progress.",
+        "file_path": "packages/agent-scenarios/src/agent_scenarios/results_store.py",
+        "line_range": {
+          "start": 294,
+          "end": 317
+        },
+        "evidence_class": "deterministic",
+        "existing_code": "if held and unfinished:\n        states[unfinished[-1]] = \"in_progress\""
+      },
+      {
+        "id": 2,
+        "type": "resilience",
+        "criticality": "low",
+        "description": "Re-verified ledger [32]: FIXED. merge_pr wraps the tempfile.mkdtemp clone in try/finally with shutil.rmtree(tmp, ignore_errors=True).",
+        "disposition": "accept",
+        "axis": "resilience",
+        "severity": "none",
+        "resolution": "Fixed in gh_shim SHIM_SOURCE merge_pr cleanup path.",
+        "file_path": "packages/agent-scenarios/src/agent_scenarios/gh_shim.py",
+        "line_range": {
+          "start": 177,
+          "end": 189
+        },
+        "evidence_class": "deterministic",
+        "existing_code": "tmp = tempfile.mkdtemp(prefix=\"gh-shim-\")\n    try:\n        _merge_in(st, pr, argv, mode, origin, base, head, os.path.join(tmp, \"r\"))\n    finally:\n        shutil.rmtree(tmp, ignore_errors=True)"
+      },
+      {
+        "id": 3,
+        "type": "correctness",
+        "criticality": "medium",
+        "description": "Re-verified ledger [33]/[54]: STILL OPEN. finish() still writes RunRecord.vendors=list(cfg.vendors) after effective_vendors() filters the allowlist. Config vendors with no planned pairs are recorded as if they ran, so results latest/trend and the runbook's which-vendors-ran question stay misleading.",
+        "disposition": "fix",
+        "axis": "correctness",
+        "severity": "critical",
+        "file_path": "packages/agent-scenarios/src/agent_scenarios/nightly.py",
+        "line_range": {
+          "start": 389,
+          "end": 405
+        },
+        "evidence_class": "deterministic",
+        "existing_code": "RunRecord(\n                run_id=run_id, started_at=started.isoformat(), finished_at=now().isoformat(),\n                status=status, planned_pairs=planned, executed_pairs=executed,\n                vendors=list(cfg.vendors), config_digest=digest, repo_sha=repo_sha,"
+      },
+      {
+        "id": 4,
+        "type": "observability",
+        "criticality": "low",
+        "description": "Re-verified ledger [35]: FIXED. SKILL.md Prerequisites now document COORDINATION_API_KEY (Bearer), IMPROVE_HARNESS_AGENT_ID / --agent-id (comma-separated), and HTTP status in failure warnings.",
+        "disposition": "accept",
+        "axis": "observability",
+        "severity": "none",
+        "resolution": "Prerequisites section updated with key, agent-id override, and secured-coordinator 401 behaviour.",
+        "file_path": "skills/improve-harness/SKILL.md",
+        "line_range": {
+          "start": 87,
+          "end": 97
+        },
+        "evidence_class": "deterministic",
+        "existing_code": "- `COORDINATION_API_KEY` set when the coordinator is secured (sent as `Authorization: Bearer`);\n  without it a secured coordinator answers HTTP 401 and the analysis is empty"
+      },
+      {
+        "id": 5,
+        "type": "correctness",
+        "criticality": "low",
+        "description": "Re-verified ledger [36]: FIXED. test_acceptance_broken_skill.py hard-asserts analyze_failures.py exists (assert analyze.is_file(...)) instead of silently skipping the improve-harness ranking check.",
+        "disposition": "accept",
+        "axis": "correctness",
+        "severity": "none",
+        "resolution": "Acceptance path now fails loudly if the analyzer script is missing.",
+        "file_path": "packages/agent-scenarios/tests/test_acceptance_broken_skill.py",
+        "line_range": {
+          "start": 119,
+          "end": 122
+        },
+        "evidence_class": "deterministic",
+        "existing_code": "analyze = SKILLS_PY / \"analyze_failures.py\"\n    assert analyze.is_file(), f\"/improve-harness analyzer missing at {analyze}\""
+      },
+      {
+        "id": 6,
+        "type": "resilience",
+        "criticality": "low",
+        "description": "Re-verified ledger [37]/[57]: STILL OPEN. install_gh_shim still writes shebang f\"#!{sys.executable}\\n\". Linux shebangs cannot contain spaces; a venv under a path with spaces makes every gh invocation fail with ENOENT-style errors rather than the unsupported-call path. Lower likelihood on the fixed-path nightly host.",
+        "disposition": "fix",
+        "axis": "resilience",
+        "severity": "optional",
+        "file_path": "packages/agent-scenarios/src/agent_scenarios/gh_shim.py",
+        "line_range": {
+          "start": 374,
+          "end": 376
+        },
+        "evidence_class": "deterministic",
+        "existing_code": "shim = bin_dir / \"gh\"\n    shim.write_text(f\"#!{sys.executable}\\n{SHIM_SOURCE}\", encoding=\"utf-8\")"
+      },
+      {
+        "id": 7,
+        "type": "observability",
+        "criticality": "low",
+        "description": "Re-verified ledger [38]: STILL PRESENT, accepted. skills_sha() still uses repo-wide git status --porcelain, so any uncommitted file outside skills/ marks +dirty. Matches current spec wording; scoping porcelain to the skills directory would reduce noise for trend consumers on a dirty checkout.",
+        "disposition": "accept",
+        "axis": "observability",
+        "severity": "fyi",
+        "resolution": "Behaviour matches current spec wording for skills_sha; treat scoped porcelain as a follow-up if trend noise becomes a problem.",
+        "file_path": "packages/agent-scenarios/src/agent_scenarios/materialize.py",
+        "line_range": {
+          "start": 26,
+          "end": 42
+        },
+        "evidence_class": "deterministic",
+        "existing_code": "status = _git(\"status\", \"--porcelain\")\n    if status.returncode == 0 and status.stdout.strip():\n        sha += \"+dirty\""
+      },
+      {
+        "id": 8,
+        "type": "contract_mismatch",
+        "criticality": "low",
+        "description": "Re-verified ledger [42]/[58]: STILL OPEN. NightlyConfig.judge.enabled is schema-valid and accepted by the pydantic model, but _cmd_nightly / run_nightly never read cfg.judge and always pass judge_backend=None. Operators can set judge.enabled: true and still get only trajectory_status: skip with no warning that judging was not activated.",
+        "disposition": "fix",
+        "axis": "compatibility",
+        "severity": "optional",
+        "file_path": "packages/agent-scenarios/src/agent_scenarios/nightly.py",
+        "line_range": {
+          "start": 121,
+          "end": 144
+        },
+        "evidence_class": "deterministic",
+        "existing_code": "class JudgeCfg(BaseModel):\n    model_config = ConfigDict(extra=\"forbid\")\n    enabled: bool = False\n...\n    judge: JudgeCfg = Field(default_factory=lambda: JudgeCfg())"
+      },
+      {
+        "id": 9,
+        "type": "correctness",
+        "criticality": "high",
+        "description": "Re-verified ledger [43]: STILL OPEN. agent-scenarios gaps flush has no --config option and ignores nightly.yaml: _cmd_flush resolves the spool as args.spool or default_spool_path() (XDG state dir) and env names from --url-env/--key-env defaults, while the nightly runner derives the spool from NightlyConfig.spool_path() and reads gaps.coordinator_url_env/gaps.api_key_env. README and runbook tell operators to run a bare gaps flush; with any non-default results.path, gaps.spool_path, or renamed env vars, manual flush silently reports {\"delivered\": 0, \"remaining\": 0} against an empty default spool while the real spool stays undelivered.",
+        "disposition": "fix",
+        "axis": "correctness",
+        "severity": "critical",
+        "file_path": "packages/agent-scenarios/src/agent_scenarios/gap_emitter.py",
+        "line_range": {
+          "start": 325,
+          "end": 346
+        },
+        "evidence_class": "deterministic",
+        "existing_code": "flush.add_argument(\"--spool\", type=Path, default=None, help=\"spool JSONL (default: XDG state)\")\n...\ndef _cmd_flush(args: argparse.Namespace) -> int:\n    spool = SpoolMemorySink(args.spool or default_spool_path())\n    sink = CoordinatorMemorySink.from_env(args.url_env, args.key_env)"
+      },
+      {
+        "id": 10,
+        "type": "correctness",
+        "criticality": "medium",
+        "description": "Re-verified ledger [44]: STILL OPEN. skills/tests/improve-harness/fixtures/capability-gap-entry.example.json is a third verbatim copy of the contract example. test_schemas.py validates the package copy against the schema, but nothing asserts the skills-side copy is byte-identical to it, so a future tag or field change to the emitter's example will leave test_scenario_parity_source.py exercising a stale payload shape while still passing.",
+        "disposition": "fix",
+        "axis": "correctness",
+        "severity": "optional",
+        "file_path": "skills/tests/improve-harness/test_scenario_parity_source.py",
+        "line_range": {
+          "start": 24,
+          "end": 26
+        },
+        "evidence_class": "deterministic",
+        "existing_code": "EXAMPLE = Path(__file__).resolve().parent / \"fixtures\" / \"capability-gap-entry.example.json\""
+      },
+      {
+        "id": 11,
+        "type": "style",
+        "criticality": "low",
+        "description": "Re-verified ledger [45]: STILL OPEN. Module docstring of test_memory_tag_conventions.py still says source: works \"for all four vocabulary values\" while SOURCE_VOCABULARY lists five (scenario-parity added). Also gh_shim pr list without --json still defaults to emit(... \"number,title,headRefName\"), printing JSON rather than real gh's table — a minor fidelity divergence worth noting in the shim docstring.",
+        "disposition": "fix",
+        "axis": "readability",
+        "severity": "nit",
+        "file_path": "skills/session-log/tests/test_memory_tag_conventions.py",
+        "line_range": {
+          "start": 3,
+          "end": 7
+        },
+        "evidence_class": "deterministic",
+        "existing_code": "- source: tag prefix works for all four vocabulary values"
+      },
+      {
+        "id": 12,
+        "type": "resilience",
+        "criticality": "medium",
+        "description": "Re-verified ledger [46]: STILL OPEN. _post_memory_query catches URLError, OSError, json.JSONDecodeError but resp.read().decode() can raise UnicodeDecodeError (a ValueError, not caught) on a non-UTF-8 body from a proxy or error page, which would propagate out of query_memory and abort analyze_failures.py, generate_report.py and export_shared_learnings.py instead of degrading to the documented warning-and-empty-result behaviour. Catch ValueError (which also covers JSONDecodeError) in that handler.",
+        "disposition": "fix",
+        "axis": "resilience",
+        "severity": "critical",
+        "file_path": "skills/improve-harness/scripts/analyze_failures.py",
+        "line_range": {
+          "start": 122,
+          "end": 145
+        },
+        "evidence_class": "deterministic",
+        "existing_code": "with urlopen(req, timeout=10) as resp:\n            data = json.loads(resp.read().decode())\n    except HTTPError as exc:\n        ...\n    except (URLError, OSError, json.JSONDecodeError) as exc:"
+      },
+      {
+        "id": 13,
+        "type": "style",
+        "criticality": "low",
+        "description": "Re-verified ledger [47]: STILL OPEN. In docs/guides/memory-conventions.md the new scenario-parity bias bullet is separated from the preceding bullet list by a blank line, so it renders as a separate one-item list rather than continuing the list. Remove the blank line.",
+        "disposition": "fix",
+        "axis": "readability",
+        "severity": "nit",
+        "file_path": "docs/guides/memory-conventions.md",
+        "line_range": {
+          "start": 41,
+          "end": 47
+        },
+        "evidence_class": "deterministic",
+        "existing_code": "- **transcript-mined** catches everything but is the most expensive to run\n\n- **scenario-parity** is deterministic (goal gates, not a judge) but samples only the seed scenarios; executor errors and budget skips are never emitted"
+      },
+      {
+        "id": 14,
+        "type": "contract_mismatch",
+        "criticality": "medium",
+        "description": "Re-verified ledger [59]: STILL OPEN. resolve_agent_id() returns IMPROVE_HARNESS_AGENT_ID verbatim (including commas), while resolve_agent_ids() splits on commas and query_memory loops those ids. build_memory_query() uses resolve_agent_id, so with the runbook's documented comma-separated IMPROVE_HARNESS_AGENT_ID=improve-harness,agent-scenarios-nightly a direct build_memory_query() payload carries agent_id=\"improve-harness,agent-scenarios-nightly\", which the coordinator exact-match filter will not return. query_memory itself is fine; the public MemoryQueryRequest helper and any caller that trusts its agent_id field are not.",
+        "disposition": "fix",
+        "axis": "compatibility",
+        "severity": "optional",
+        "file_path": "skills/improve-harness/scripts/analyze_failures.py",
+        "line_range": {
+          "start": 64,
+          "end": 97
+        },
+        "evidence_class": "deterministic",
+        "existing_code": "def resolve_agent_id(agent_id: str | None = None) -> str:\n    \"\"\"agent_id argument, else IMPROVE_HARNESS_AGENT_ID, else the default.\"\"\"\n    return agent_id or os.environ.get(\"IMPROVE_HARNESS_AGENT_ID\") or DEFAULT_AGENT_ID\n...\n    return {\n        \"agent_id\": resolve_agent_id(agent_id),\n        \"tags\": [\"capability_gap\"],\n        \"limit\": limit,\n    }"
+      }
+    ]
+  }
+}

@@ -144,3 +144,18 @@ Hard boundaries respected: no systemd/crontab installed, no vendor CLI or paid m
 
 ### Deviations
 - `skill-procedure-deviation`: dispatched without worktree isolation (canonical worktree exists), per orchestrator note.
+
+## Phase: Implementation Review (2026-10-11)
+
+**Agent**: claude | **Session**: impl-review
+
+### Decisions
+1. **Three converge() passes, one review round each, all ending `adjudication_required`** — lone or under-confirmed judgment findings were rubric-checked against the code by the phase agent (not auto-escalated or dropped); confirmed ones were fixed by the claude_code lead and marked addressed through `review_ledger.mark_addressed`; IMPL_FIX sub-steps are recorded in `.review-ledger/impl-fix-substeps.json`.
+2. **Escalations trend 2 → 10 → 1**; lanes per pass: (claude_code, codex), (claude_code, codex, grok), (claude_code, grok). Quorum 2 met every pass.
+3. **Ledger 78 (`gaps flush` ignores nightly config) parked `deferred_to_followup`**, adjudicated medium: automatic replay uses the configured spool; only a manual flush with non-default paths is affected and `--spool/--url-env/--key-env` work around it. Deferred because it surfaced in the final round.
+4. **pi out-of-quorum claim rejected twice** — "missing `src/__init__.py` breaks implement-feature-basic": `python -m pytest` puts cwd on `sys.path` (namespace package); the cited tests pass.
+
+### Deviations
+- `skill-procedure-deviation`: drove `converge()` with a scratchpad driver adapted from the PLAN_REVIEW run (multi-vendor host, not the cloud single-vendor `agent_lane.py` path): antigravity excluded (E2BIG / 5-min print timeout), codex and pi forced to stdin prompts, 900s per-vendor timeout, review-bookkeeping paths excluded from the packet.
+- `skill-procedure-deviation`: IMPL_FIX applied by the phase agent after each `adjudication_required` return instead of via the in-loop `fix_callback` (the loop returns before dispatching fixes when adjudication is required); each pass re-ran `converge()` to re-review the fixed branch.
+- pi wrote `review-findings.json` / `review_findings.json` / root `findings.json` into cwd; read, deleted or restored, never committed.

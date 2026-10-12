@@ -126,5 +126,27 @@
     "not_addressed": {
       "fact_check_removed": "codex plan-feature-basic gate weakness (gates unchanged by this diff; pre-existing) - follow-up candidate"
     }
+  },
+  {
+    "phase": "IMPL_FIX",
+    "pass": 3,
+    "round": 1,
+    "at": "2026-10-12T00:15:41.391029+00:00",
+    "lead_vendor": "claude_code",
+    "trigger": "converge() returned adjudication_required (1 lone-grok judgment item; lanes claude_code, grok; codex transient 900s timeout; pi vendor_unavailable)",
+    "adjudication": {
+      "78": {
+        "verdict": "valid-degraded-path",
+        "adjusted_criticality": "medium",
+        "evidence": "claude_code reported the same defect as low; nightly start-of-run replay uses NightlyConfig.spool_path() and the configured env names, so automatic replay works; only a manual `gaps flush` with a non-default gaps.spool_path / results.path / env names targets the default spool, and --spool/--url-env/--key-env are an explicit workaround",
+        "disposition": "defer_to_followup (parked deferred_to_followup): final review round, an unreviewed CLI change after it would not be review-converged",
+        "followup": "add `agent-scenarios gaps flush --config <nightly.yaml>` deriving spool path and env names from NightlyConfig; update README/runbook"
+      }
+    },
+    "item_ids": [
+      78
+    ],
+    "outcome": "parked",
+    "allowed_paths": []
   }
 ]

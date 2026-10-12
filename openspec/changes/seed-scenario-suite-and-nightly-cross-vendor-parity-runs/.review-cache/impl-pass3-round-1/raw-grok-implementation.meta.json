@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "vendor": "grok",
+  "review_type": "implementation",
+  "stdout_path": "raw-grok-implementation.txt",
+  "byte_length": 36008,
+  "truncated": false,
+  "sha256": "11c32efcf5b29718e7c997a6eeeccd7c29f9f8ee902b9589cb2aa4696c37a903",
+  "repair_attempted": false,
+  "coercions": []
+}

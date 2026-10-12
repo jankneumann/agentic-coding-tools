@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "vendor": "claude_code",
+  "round": 1,
+  "status": "ran",
+  "skip_reason": null,
+  "model": null,
+  "tokens": 0,
+  "decisions": [
+    {
+      "finding_id": "31",
+      "verdict": "kept"
+    },
+    {
+      "finding_id": "32",
+      "verdict": "kept"
+    },
+    {
+      "finding_id": "36",
+      "verdict": "kept"
+    },
+    {
+      "finding_id": "33",
+      "verdict": "kept"
+    },
+    {
+      "finding_id": "37",
+      "verdict": "kept"
+    },
+    {
+      "finding_id": "42",
+      "verdict": "kept"
+    },
+    {
+      "finding_id": "43",
+      "verdict": "kept"
+    },
+    {
+      "finding_id": "46",
+      "verdict": "kept"
+    },
+    {
+      "finding_id": "59",
+      "verdict": "kept"
+    },
+    {
+      "finding_id": "38",
+      "verdict": "kept"
+    },
+    {
+      "finding_id": "44",
+      "verdict": "kept"
+    },
+    {
+      "finding_id": "47",
+      "verdict": "kept"
+    },
+    {
+      "finding_id": "45",
+      "verdict": "kept"
+    },
+    {
+      "finding_id": "35",
+      "verdict": "kept"
+    },
+    {
+      "finding_id": "60",
+      "verdict": "kept"
+    },
+    {
+      "finding_id": "61",
+      "verdict": "kept"
+    },
+    {
+      "finding_id": "62",
+      "verdict": "kept"
+    },
+    {
+      "finding_id": "63",
+      "verdict": "kept"
+    },
+    {
+      "finding_id": "64",
+      "verdict": "kept"
+    }
+  ]
+}

@@ -673,14 +673,14 @@
       "criticality": "low",
       "evidence_class": "judgment",
       "file_path": "packages/agent-scenarios/src/agent_scenarios/materialize.py",
-      "fingerprint": "8706e40913a4afb4",
+      "fingerprint": "d116bbca2afeaa03",
       "first_seen_round": 1,
       "last_seen_round": 1,
       "vendor_hits": [
         "claude_code",
         "grok"
       ],
-      "description": "Re-verified ledger [38]: skills_sha() still uses repo-wide git status --porcelain, so any uncommitted file outside skills/ marks +dirty. Matches current spec wording but makes skills_sha noisy for trend consumers on a dirty checkout. Scoping porcelain to the skills directory would match reader expectations.",
+      "description": "Re-verified ledger [38]: STILL PRESENT, accepted. skills_sha() still uses repo-wide git status --porcelain, so any uncommitted file outside skills/ marks +dirty. Matches current spec wording; scoping porcelain to the skills directory would reduce noise for trend consumers on a dirty checkout.",
       "consensus_status": "unconfirmed"
     },
     {
@@ -795,14 +795,15 @@
       "criticality": "low",
       "evidence_class": "judgment",
       "file_path": "skills/session-log/tests/test_memory_tag_conventions.py",
-      "fingerprint": "502aa5d8f5da11f5",
+      "fingerprint": "24ca8b1ceac5f66f",
       "first_seen_round": 1,
       "last_seen_round": 1,
       "vendor_hits": [
-        "claude_code"
+        "claude_code",
+        "grok"
       ],
-      "description": "Module docstring of `test_memory_tag_conventions.py` still says `source:` works \"for all four vocabulary values\" while `SOURCE_VOCABULARY` in the same file now lists five (scenario-parity added). Also `gh_shim` `pr list` without `--json` prints JSON rather than real gh's table, a minor fidelity divergence worth noting in the shim docstring.",
-      "consensus_status": "unconfirmed"
+      "description": "Re-verify ledger [45]: STILL PRESENT. The module docstring of test_memory_tag_conventions.py still says the source tag prefix 'works for all four vocabulary values' although SOURCE_VOCABULARY now lists five entries including scenario-parity.",
+      "consensus_status": "confirmed"
     },
     {
       "id": 46,
@@ -830,14 +831,15 @@
       "criticality": "low",
       "evidence_class": "judgment",
       "file_path": "docs/guides/memory-conventions.md",
-      "fingerprint": "ef742c7c951cb9c9",
+      "fingerprint": "b634d5719653261d",
       "first_seen_round": 1,
       "last_seen_round": 1,
       "vendor_hits": [
-        "claude_code"
+        "claude_code",
+        "grok"
       ],
-      "description": "In `docs/guides/memory-conventions.md` the new scenario-parity bias bullet is separated from the preceding bullet list by a blank line, so it renders as a separate one-item list rather than continuing the list. Remove the blank line.",
-      "consensus_status": "unconfirmed"
+      "description": "Re-verify ledger [47]: STILL PRESENT. In the 'how the sources complement each other' bullet list of memory-conventions.md, a blank line separates the scenario-parity bullet from the four preceding bullets, rendering it as a separate list.",
+      "consensus_status": "confirmed"
     },
     {
       "id": 48,
@@ -997,16 +999,16 @@
       "status": "open",
       "axis": "resilience",
       "type": "resilience",
-      "criticality": "medium",
+      "criticality": "low",
       "evidence_class": "judgment",
       "file_path": "packages/agent-scenarios/src/agent_scenarios/gh_shim.py",
-      "fingerprint": "60a2cdad7a6f297b",
+      "fingerprint": "585ae27bb45796f2",
       "first_seen_round": 1,
       "last_seen_round": 1,
       "vendor_hits": [
         "grok"
       ],
-      "description": "Re-verified ledger [37]: install_gh_shim still writes shebang f\"#!{sys.executable}\\n\". Linux shebangs cannot contain spaces; a venv under a path with spaces makes every gh invocation fail with ENOENT-style errors rather than the unsupported-call path. Lower likelihood on the fixed-path nightly host.",
+      "description": "Re-verified ledger [37]/[57]: STILL OPEN. install_gh_shim still writes shebang f\"#!{sys.executable}\\n\". Linux shebangs cannot contain spaces; a venv under a path with spaces makes every gh invocation fail with ENOENT-style errors rather than the unsupported-call path. Lower likelihood on the fixed-path nightly host.",
       "consensus_status": "unconfirmed"
     },
     {
@@ -1014,16 +1016,16 @@
       "status": "open",
       "axis": "compatibility",
       "type": "contract_mismatch",
-      "criticality": "medium",
+      "criticality": "low",
       "evidence_class": "judgment",
       "file_path": "packages/agent-scenarios/src/agent_scenarios/nightly.py",
-      "fingerprint": "5d511eb39334c1a1",
+      "fingerprint": "e87cf04e37319aee",
       "first_seen_round": 1,
       "last_seen_round": 1,
       "vendor_hits": [
         "grok"
       ],
-      "description": "Re-verified ledger [42]: NightlyConfig.judge.enabled is schema-valid and accepted by the pydantic model, but _cmd_nightly / run_nightly never read cfg.judge and always pass judge_backend=None. Operators can set judge.enabled: true and still get only trajectory_status: skip with no warning that judging was not activated.",
+      "description": "Re-verified ledger [42]/[58]: STILL OPEN. NightlyConfig.judge.enabled is schema-valid and accepted by the pydantic model, but _cmd_nightly / run_nightly never read cfg.judge and always pass judge_backend=None. Operators can set judge.enabled: true and still get only trajectory_status: skip with no warning that judging was not activated.",
       "consensus_status": "unconfirmed"
     },
     {
@@ -1034,14 +1036,344 @@
       "criticality": "medium",
       "evidence_class": "judgment",
       "file_path": "skills/improve-harness/scripts/analyze_failures.py",
-      "fingerprint": "cb97bac740387d4c",
+      "fingerprint": "cd6d45acd7d92851",
       "first_seen_round": 1,
       "last_seen_round": 1,
       "vendor_hits": [
         "grok"
       ],
-      "description": "New: resolve_agent_id() returns IMPROVE_HARNESS_AGENT_ID verbatim (including commas), while resolve_agent_ids() splits on commas and query_memory loops those ids. build_memory_query() uses resolve_agent_id, so with the runbook's documented comma-separated IMPROVE_HARNESS_AGENT_ID=improve-harness,agent-scenarios-nightly a direct build_memory_query() payload carries agent_id=\"improve-harness,agent-scenarios-nightly\", which the coordinator exact-match filter will not return. query_memory itself is fine; the public MemoryQueryRequest helper and any caller that trusts its agent_id field are not.",
+      "description": "Re-verified ledger [59]: STILL OPEN. resolve_agent_id() returns IMPROVE_HARNESS_AGENT_ID verbatim (including commas), while resolve_agent_ids() splits on commas and query_memory loops those ids. build_memory_query() uses resolve_agent_id, so with the runbook's documented comma-separated IMPROVE_HARNESS_AGENT_ID=improve-harness,agent-scenarios-nightly a direct build_memory_query() payload carries agent_id=\"improve-harness,agent-scenarios-nightly\", which the coordinator exact-match filter will not return. query_memory itself is fine; the public MemoryQueryRequest helper and any caller that trusts its agent_id field are not.",
       "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 60,
+      "status": "open",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "packages/agent-scenarios/src/agent_scenarios/results_cli.py",
+      "fingerprint": "168130646b7e7ae6",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code",
+        "grok"
+      ],
+      "description": "Re-verify ledger [31]: FIXED. run_states now marks only the newest unfinished run in_progress; older unfinished runs are classified as interrupted.",
+      "consensus_status": "confirmed"
+    },
+    {
+      "id": 61,
+      "status": "open",
+      "axis": "resilience",
+      "type": "resilience",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "packages/agent-scenarios/src/agent_scenarios/gh_shim.py",
+      "fingerprint": "9fb9107ecf07b747",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code",
+        "grok"
+      ],
+      "description": "Re-verify ledger [32]: FIXED. merge_pr wraps the temporary clone in try/finally with shutil.rmtree(tmp, ignore_errors=True), so a failed merge no longer leaks the clone.",
+      "consensus_status": "confirmed"
+    },
+    {
+      "id": 62,
+      "status": "open",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "packages/agent-scenarios/tests/test_acceptance_broken_skill.py",
+      "fingerprint": "9c122c2e42ce2fa1",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code",
+        "grok"
+      ],
+      "description": "Re-verify ledger [36]: FIXED. test_acceptance_broken_skill hard-asserts analyze.is_file() before loading the analyzer, so a relocated script fails loudly instead of skipping.",
+      "consensus_status": "confirmed"
+    },
+    {
+      "id": 63,
+      "status": "open",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "packages/agent-scenarios/src/agent_scenarios/nightly.py",
+      "fingerprint": "94d035418b32cc83",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code",
+        "grok"
+      ],
+      "description": "Re-verify ledger [33]/[54]: STILL PRESENT. finish() writes vendors=list(cfg.vendors) into the RunRecord, not the effective vendor list computed by effective_vendors(). A configured vendor that no scenario declares is recorded as having run.",
+      "consensus_status": "confirmed"
+    },
+    {
+      "id": 64,
+      "status": "open",
+      "axis": "compatibility",
+      "type": "compatibility",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "packages/agent-scenarios/src/agent_scenarios/gh_shim.py",
+      "fingerprint": "7259f8921bdc3504",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verify ledger [37]/[57]: STILL PRESENT. install_gh_shim writes a shebang of f\"#!{sys.executable}\" so the shim is bound to the interpreter of the process that materialized it. If the nightly runs under a venv that is later moved or removed, every gh call in retained workspaces fails with ENOENT.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 65,
+      "status": "open",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "packages/agent-scenarios/src/agent_scenarios/nightly.py",
+      "fingerprint": "6c499cfe3d245844",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verify ledger [42]/[58]: STILL PRESENT. NightlyConfig declares a judge: JudgeCfg field but run_nightly never reads cfg.judge; the judge_backend passed to run_scenario is always the function parameter (None from the CLI). The config knob is accepted by the schema and silently ignored.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 66,
+      "status": "open",
+      "axis": "readability",
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "packages/agent-scenarios/src/agent_scenarios/gap_emitter.py",
+      "fingerprint": "078757b89053ebe4",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verify ledger [43]: STILL PRESENT. `gaps flush` has --spool, --url-env and --key-env but no --config, so an operator cannot point it at the spool_path the nightly config resolves; they must re-derive the XDG path by hand.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 67,
+      "status": "open",
+      "axis": "resilience",
+      "type": "resilience",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "skills/improve-harness/scripts/analyze_failures.py",
+      "fingerprint": "9a0f85c0bdfda8e8",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code",
+        "grok"
+      ],
+      "description": "Re-verify ledger [46]: STILL PRESENT. _post_memory_query catches URLError, OSError and json.JSONDecodeError but not UnicodeDecodeError or a generic ValueError from a non-UTF-8 or non-object body; the SKILL.md claim that the analysis 'falls back gracefully with a warning if a query fails' is not satisfied on that path.",
+      "consensus_status": "confirmed"
+    },
+    {
+      "id": 68,
+      "status": "open",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/improve-harness/scripts/analyze_failures.py",
+      "fingerprint": "f5b31a3e614c67de",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verify ledger [59]: STILL PRESENT. resolve_agent_id returns the IMPROVE_HARNESS_AGENT_ID value verbatim, so build_memory_query(agent_id=None) with a comma-separated env value sends agent_id='a,b' as a single id. query_memory is correct because it uses resolve_agent_ids, but the public build_memory_query helper (tested by test_improve_harness.py) still produces an invalid request for the documented comma-separated form.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 69,
+      "status": "open",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "packages/agent-scenarios/src/agent_scenarios/materialize.py",
+      "fingerprint": "eb9988e731384116",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verify ledger [38]: STILL PRESENT. skills_sha runs `git status --porcelain` over the whole checkout, so any unrelated dirty file (for example a results file under the repo) marks skills_sha as +dirty even when skills/ is clean.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 70,
+      "status": "open",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "skills/tests/improve-harness/test_scenario_parity_source.py",
+      "fingerprint": "240c58103b310c91",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code",
+        "grok"
+      ],
+      "description": "Re-verify ledger [44]: STILL PRESENT. skills/tests/improve-harness/fixtures/capability-gap-entry.example.json is a hand copy of the package's example payload with no test asserting equality against packages/agent-scenarios' copy, so the two can drift silently.",
+      "consensus_status": "confirmed"
+    },
+    {
+      "id": 71,
+      "status": "open",
+      "axis": "readability",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/improve-harness/SKILL.md",
+      "fingerprint": "47abb29a7a9cb7a3",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verify ledger [35]: FIXED. SKILL.md Prerequisites now document COORDINATION_API_KEY as a Bearer token, the per-agent_id query with both default ids, and the --agent-id / IMPROVE_HARNESS_AGENT_ID override; analyze_failures.py accepts --agent-id as described.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 72,
+      "status": "open",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "packages/agent-scenarios/src/agent_scenarios/nightly.py",
+      "fingerprint": "8c8707a90ff852f6",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Retention bound is off by one against the stated acceptance criterion. _prune_run_dirs runs before run_dir.mkdir, so after a run the workspaces directory holds retain_failed_runs + 1 directories (the test keeps 3 old dirs plus the new run). proposal.md's acceptance table says kept workspaces are '\u2264 retain_failed_runs run directories'. The spec scenario ('at the start of the next run ... older than the newest retain_failed_runs SHALL be deleted') matches the code, so this is a proposal/code wording mismatch rather than a behavior bug.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 73,
+      "status": "open",
+      "axis": "architecture",
+      "type": "architecture",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "packages/agent-scenarios/src/agent_scenarios/gap_emitter.py",
+      "fingerprint": "4ec9f8cc0f648d24",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "flush_spool is a module-level function that calls the private SpoolMemorySink._flushing() and _read_lines() members, splitting the spool's locking protocol between the class and a free function. A later change to the class internals breaks the replay path without a type or import error.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 74,
+      "status": "open",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "packages/agent-scenarios/tests/test_acceptance_broken_skill.py",
+      "fingerprint": "e7f8a746bb4ebbf2",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "test_acceptance_broken_skill.py mixes absolute (`from tests.test_nightly_config import write_config`, `from tests.test_seed_outcomes import outcome_module`) and relative (`from .conftest import SCENARIOS_DIR`) imports of sibling test modules. The absolute form only resolves because pytest's rootdir puts packages/agent-scenarios on sys.path; running the file from another cwd or under a different importmode fails on one form but not the other.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 75,
+      "status": "open",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "packages/agent-scenarios/tests/test_nightly_run.py",
+      "fingerprint": "b9cf7faa96fc0c84",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "test_default_executor_factory_wires_hermetic_settings asserts on CLIVendorExecutor private attributes (_timeout, _env_scrub, _env_set, _always_scrub, _skills_root). The test pins the executor's internal field names rather than its behavior, so a harmless rename breaks it while a wiring regression that keeps the names passes.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 76,
+      "status": "open",
+      "axis": "readability",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/improve-harness/SKILL.md",
+      "fingerprint": "e0d92fcdee88f361",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "SKILL.md's Data Sources table says frequency for scenario-parity 'counts (run, vendor) pairs, not nights', and SKILL.md's dedup rule says dedup is keyed on (capability_gap, affected_skill, session_id). Since the gap emitter sets session_id to the run_id and the same run emits one entry per vendor, the two statements are only consistent because dedup happens after per-source normalization with vendor preserved; the SKILL text does not say that, so a reader will expect vendor duplicates within a run to collapse to one. The acceptance test confirms frequency 2 for two vendors in one run, so behavior is correct; the documentation of the dedup key is incomplete.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 77,
+      "status": "open",
+      "axis": "observability",
+      "type": "observability",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/improve-harness/SKILL.md",
+      "fingerprint": "39b9a2fb8ea548cd",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Re-verified ledger [35]: FIXED. SKILL.md Prerequisites now document COORDINATION_API_KEY (Bearer), IMPROVE_HARNESS_AGENT_ID / --agent-id (comma-separated), and HTTP status in failure warnings.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 78,
+      "status": "parked",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "high",
+      "evidence_class": "judgment",
+      "file_path": "packages/agent-scenarios/src/agent_scenarios/gap_emitter.py",
+      "fingerprint": "9256a1888e11d0f7",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Re-verified ledger [43]: STILL OPEN. agent-scenarios gaps flush has no --config option and ignores nightly.yaml: _cmd_flush resolves the spool as args.spool or default_spool_path() (XDG state dir) and env names from --url-env/--key-env defaults, while the nightly runner derives the spool from NightlyConfig.spool_path() and reads gaps.coordinator_url_env/gaps.api_key_env. README and runbook tell operators to run a bare gaps flush; with any non-default results.path, gaps.spool_path, or renamed env vars, manual flush silently reports {\"delivered\": 0, \"remaining\": 0} against an empty default spool while the real spool stays undelivered.",
+      "parked_reason": "deferred_to_followup",
+      "consensus_status": "disagreement"
     }
   ]
 }
