@@ -175,6 +175,11 @@
       "code": "audit_sink_failed",
       "phase": "ESCALATE",
       "detail": "audit sink reported failure for gate escalate_resume decision posture_block"
+    },
+    {
+      "code": "single_vendor_review",
+      "phase": "PLAN_REVIEW",
+      "detail": "gen 4 re-entry: vendor=claude_code; cloud policy cloud-container-single-vendor-2026-10-09 min_quorum 1"
     }
   ]
 }
