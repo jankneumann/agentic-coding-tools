@@ -34,7 +34,7 @@
 
 ## 1. Dispatch honors the resolved provider (wp-dispatch)
 
-- [ ] 1.1 Write failing tests for `_selected_provider()` in `skills/tests/autopilot/test_build_options.py`:
+- [x] 1.1 Write failing tests for `_selected_provider()` in `skills/tests/autopilot/test_build_options.py`:
   with no arg and no `AUTOPILOT_PROVIDER`/`AGENT_TYPE`, or a whitespace-only value, it returns
   `claude_code`; `AGENT_TYPE` and the explicit arg still win; the resolved incumbent is then a
   concrete model (`standard` → `sonnet`), not a tier alias; with the flag off, and with a
@@ -43,13 +43,13 @@
   **Spec scenarios**: agent-archetypes.1, agent-archetypes.2, agent-archetypes.5
   **Design decisions**: D2
   **Dependencies**: None
-- [ ] 1.2 Apply the default provider in `_selected_provider()` before archetype resolution
+- [x] 1.2 Apply the default provider in `_selected_provider()` before archetype resolution
   (same value as `build_phase_dispatch_payload`'s post-resolution default, whitespace-only env
   included); narrow its return type to `str` and audit the callers that branch on `None`
   (`build_phase_dispatch_kwargs`, `build_phase_dispatch_payload`), keeping the post-resolution
   default as a guard. [XS]
   **Dependencies**: 1.1
-- [ ] 1.3 Write failing tests in a new `skills/tests/autopilot/test_dispatch_provider_pairing.py`:
+- [x] 1.3 Write failing tests in a new `skills/tests/autopilot/test_dispatch_provider_pairing.py`:
   - when resolution returns a provider different from the caller's (explicit `provider=` and
     env path both), `run_phase_subagent` (via `make_phase_callback`) passes it as
     `options["provider"]`, and `build_phase_dispatch_kwargs` emits it as `provider`
@@ -66,15 +66,15 @@
   **Spec scenarios**: agent-archetypes.6, agent-archetypes.7
   **Design decisions**: D1
   **Dependencies**: None
-- [ ] Checkpoint: run tests, review diff, verify scope
-- [ ] 1.4 Add `provider: str | None = None` to `run_phase_subagent` and `make_phase_callback`,
+- [x] Checkpoint: run tests, review diff, verify scope
+- [x] 1.4 Add `provider: str | None = None` to `run_phase_subagent` and `make_phase_callback`,
   thread it to `_build_options` via `_selected_provider(provider)`, set
   `options["provider"] = state_dict.get("_resolved_provider") or selected_provider`, define
   `UnservableProviderError(provider, supported)` and the reference adapter
   `claude_agent_runner`, and document the runner contract on `SubagentRunner`. Keep
   `skills/tests/phase-record-compaction/test_phase_agent.py` green. [S]
   **Dependencies**: 1.2, 1.3
-- [ ] 1.5 Make `smoke_provider_dispatch` build the pair from the resolved provider and model,
+- [x] 1.5 Make `smoke_provider_dispatch` build the pair from the resolved provider and model,
   re-run the Claude-alias and `local` trust-boundary checks against the resolved provider, and
   report `provider` (caller) plus `resolved_provider` in the JSON body and the text line. Keep
   `skills/tests/vendor-neutral-autopilot/test_smoke_provider_dispatch.py` green. [S]

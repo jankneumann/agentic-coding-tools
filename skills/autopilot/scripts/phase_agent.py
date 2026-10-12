@@ -32,7 +32,7 @@ import sys
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Iterable
 
 logger = logging.getLogger(__name__)
 
@@ -168,6 +168,67 @@ class PhaseEscalationError(Exception):
         self.last_error = last_error
 
 
+class UnservableProviderError(Exception):
+    """Raised by a `SubagentRunner` that cannot dispatch to `options["provider"]`.
+
+    Design D1: the runner contract is that a `SubagentRunner` MUST dispatch to
+    `options["provider"]` through the provider-neutral adapter. A runner that
+    cannot serve that provider MUST raise this rather than silently running
+    the model under its own vendor — that is exactly how a resolved
+    cross-vendor pair (e.g. provider="openrouter", model="qwen/qwen3-coder")
+    would get dispatched by a Claude-only adapter under the Claude vendor
+    instead, producing a mismatched model/vendor pair.
+
+    `run_phase_subagent` treats this as non-retryable: the failure is
+    deterministic (neither the runner's `supported` set nor
+    `options["provider"]` changes between attempts), so it raises
+    `PhaseEscalationError` on the first occurrence without consuming the
+    retry budget — a retry would only delay escalation.
+    """
+
+    def __init__(self, provider: str, supported: Iterable[str]) -> None:
+        self.supported = frozenset(supported)
+        super().__init__(
+            f"provider {provider!r} is not servable by this runner "
+            f"(supported: {sorted(self.supported)})"
+        )
+        self.provider = provider
+
+
+def claude_agent_runner(
+    agent_fn: Callable[..., tuple[str, str]],
+    supported: Iterable[str] = frozenset({"claude_code"}),
+) -> SubagentRunner:
+    """Reference `SubagentRunner` wrapping the harness `Agent(...)` callable.
+
+    Design D1: this is the runner the autopilot SKILL.md Claude-adapter blocks
+    describe ("Claude Code's adapter translates this to `Agent(...)`
+    internally"), and the one the test suite exercises directly. It enforces
+    the runner contract at the boundary: when `options["provider"]` is set and
+    is not in *supported*, it raises `UnservableProviderError` WITHOUT calling
+    *agent_fn* — it never dispatches another vendor's model through the
+    Claude harness `Agent(...)` tool. A missing `provider` key (an older
+    caller, or a phase outside the per-phase dispatch protocol) is treated as
+    `claude_code` and dispatches normally.
+
+    Args:
+        agent_fn: The harness's `Agent(...)` callable (or a wrapper around it
+            that already returns `(outcome, handoff_id)`), called as
+            ``agent_fn(prompt=prompt, options=options)``.
+        supported: Provider names this runner can actually dispatch to.
+            Defaults to `{"claude_code"}` — the Claude Code harness adapter.
+    """
+    supported_set = frozenset(supported)
+
+    def runner(*, prompt: str, options: dict[str, Any]) -> tuple[str, str]:
+        provider = options.get("provider")
+        if provider is not None and provider not in supported_set:
+            raise UnservableProviderError(provider, supported_set)
+        return agent_fn(prompt=prompt, options=options)
+
+    return runner
+
+
 # ---------------------------------------------------------------------------
 # Public dispatch
 # ---------------------------------------------------------------------------
@@ -183,6 +244,7 @@ def run_phase_subagent(
     subagent_runner: SubagentRunner,
     artifacts_manifest: list[str] | None = None,
     coordinator_writer: Any = None,
+    provider: str | None = None,
     max_attempts: int = _MAX_ATTEMPTS,
 ) -> tuple[str, str]:
     """Dispatch a phase sub-agent with bounded driver-visible delta.
@@ -198,13 +260,22 @@ def run_phase_subagent(
         subagent_runner: Injected callable that actually invokes the
             harness Agent tool. Signature: ``(prompt, options) -> (outcome, handoff_id)``.
             In production the SKILL.md prompt layer provides a runner that
-            calls Claude Code's ``Agent(...)`` and parses the result.
+            calls Claude Code's ``Agent(...)`` and parses the result. Runner
+            contract (D1): a ``SubagentRunner`` MUST dispatch to
+            ``options["provider"]`` through the provider-neutral adapter; a
+            runner that cannot serve that provider MUST raise
+            ``UnservableProviderError`` rather than run the model under its
+            own vendor. See ``claude_agent_runner`` for the reference adapter.
         artifacts_manifest: Optional list of repo-relative paths the
             sub-agent should read for context (proposal.md, design.md,
             tasks.md, etc.).
         coordinator_writer: Optional ``try_handoff_write``-shaped callable
             used by the failure path (D8) to record a phase-failed record
             before raising. Defaults to lazy-import via PhaseRecord.
+        provider: Explicit caller provider (D2). Resolved via
+            ``_selected_provider`` (explicit arg > ``AUTOPILOT_PROVIDER`` >
+            ``AGENT_TYPE`` > default ``"claude_code"``) before archetype
+            resolution runs.
         max_attempts: Override the retry budget. Default 3 per D8.
 
     Returns:
@@ -213,15 +284,42 @@ def run_phase_subagent(
         function and never escapes.
 
     Raises:
-        PhaseEscalationError: After ``max_attempts`` consecutive failures.
+        PhaseEscalationError: After ``max_attempts`` consecutive failures, or
+            immediately (without retry) when the runner raises
+            ``UnservableProviderError`` — that failure is deterministic.
     """
-    options = _build_options(phase, state_dict)
+    selected_provider = _selected_provider(provider)
+    options = _build_options(phase, state_dict, provider=selected_provider)
+    # D1: dispatch to the vendor that actually owns the resolved model —
+    # adaptive routing can rewrite the provider away from the caller's static
+    # default (state_dict["_resolved_provider"], set by _build_options only
+    # when the coordinator supplied one). Same key/precedence
+    # build_phase_dispatch_kwargs already uses for the dispatch payload.
+    options["provider"] = state_dict.get("_resolved_provider") or selected_provider
     prompt = _build_prompt(phase, state_dict, incoming_handoff, artifacts_manifest)
 
     last_error = "no error captured"
     for attempt in range(1, max_attempts + 1):
         try:
             result = subagent_runner(prompt=prompt, options=options)
+        except UnservableProviderError as exc:
+            # Non-retryable (D1): neither the runner's `supported` set nor
+            # `options["provider"]` changes between attempts, so the failure
+            # is deterministic — retrying would only delay escalation.
+            last_error = f"{type(exc).__name__}: {exc}"
+            logger.warning(
+                "phase_agent: %s attempt %d/%d raised non-retryable %s",
+                phase, attempt, max_attempts, last_error,
+            )
+            _write_phase_failed_record(
+                phase=phase,
+                state_dict=state_dict,
+                incoming_handoff=incoming_handoff,
+                attempts=attempt,
+                last_error=last_error,
+                coordinator_writer=coordinator_writer,
+            )
+            raise PhaseEscalationError(phase, attempt, last_error) from exc
         except Exception as exc:  # noqa: BLE001
             last_error = f"{type(exc).__name__}: {exc}"
             logger.warning(
@@ -322,15 +420,30 @@ def _check_phase_model_override(phase: str) -> str | None:
     return overrides.get(phase)
 
 
-def _selected_provider(provider: str | None = None) -> str | None:
-    """Resolve the active provider from explicit arg or runtime env."""
-    raw = provider or os.environ.get("AUTOPILOT_PROVIDER") or os.environ.get("AGENT_TYPE")
-    if not raw:
-        return None
-    normalized = raw.strip()
-    if normalized == "claude":
-        return "claude_code"
-    return normalized or None
+def _selected_provider(provider: str | None = None) -> str:
+    """Resolve the active provider from explicit arg, runtime env, or default.
+
+    Precedence (highest to lowest): explicit *provider* arg > `AUTOPILOT_PROVIDER`
+    > `AGENT_TYPE` > the default, `"claude_code"` (design D2). A whitespace-only
+    value at any layer is treated as not set and falls through to the next
+    layer — this used to make the whole function return `None`, which left the
+    incumbent provider-less until `build_phase_dispatch_payload` patched it back
+    in afterward. `"claude"` normalizes to `"claude_code"` at every layer.
+
+    Narrowed from `str | None` to `str` (D2): this always returns a concrete
+    provider now, so every caller gets a dispatchable value — including the
+    coordinator archetype-resolution call in `_build_options`, which previously
+    passed `provider=None` by default and got back a bare tier alias (e.g.
+    `"standard"`) instead of that provider's concrete model.
+    """
+    for raw in (provider, os.environ.get("AUTOPILOT_PROVIDER"), os.environ.get("AGENT_TYPE")):
+        if raw is None:
+            continue
+        normalized = raw.strip()
+        if not normalized:
+            continue
+        return "claude_code" if normalized == "claude" else normalized
+    return "claude_code"
 
 
 def _build_options(
@@ -713,6 +826,7 @@ def make_phase_callback(
     incoming_handoff_loader: Callable[[str | None], PhaseRecord] | None = None,
     artifacts_manifest: list[str] | None = None,
     coordinator_writer: Any = None,
+    provider: str | None = None,
 ) -> Callable[[Any], str]:
     """Produce an autopilot-compatible phase callback wrapping run_phase_subagent.
 
@@ -740,6 +854,8 @@ def make_phase_callback(
             standard prompt scaffold.
         coordinator_writer: Forwarded to run_phase_subagent for the failure
             path's phase-failed record.
+        provider: Forwarded to ``run_phase_subagent`` (D2) — explicit caller
+            provider, resolved before archetype resolution.
 
     Returns:
         ``(state) -> outcome`` callable suitable for use as
@@ -763,6 +879,7 @@ def make_phase_callback(
             subagent_runner=subagent_runner,
             artifacts_manifest=artifacts_manifest,
             coordinator_writer=coordinator_writer,
+            provider=provider,
         )
         # Bounded driver-side state delta — D6
         state.last_handoff_id = handoff_id
