@@ -1,0 +1,69 @@
+{
+  "schema_version": 6,
+  "change_id": "define-evidence-ledger-schema-with-immutable-facts",
+  "current_phase": "PLAN_ITERATE",
+  "iteration": 0,
+  "total_iterations": 3,
+  "max_phase_iterations": 3,
+  "findings_trend": [],
+  "blocking_findings": [],
+  "vendor_availability": {},
+  "packages_status": {},
+  "package_authors": {},
+  "implementation_strategy": {},
+  "memory_ids": [],
+  "handoff_ids": [
+    "inline:GATEKEEPER:1"
+  ],
+  "phase_history": [
+    {
+      "at": "2026-10-12T02:45:45.172594+00:00",
+      "outcome": "proceed",
+      "phase": "GATEKEEPER"
+    }
+  ],
+  "last_handoff_id": "inline:GATEKEEPER:1",
+  "started_at": "2026-10-12T02:45:10.771937+00:00",
+  "phase_started_at": "2026-10-12T02:52:20.761708+00:00",
+  "previous_phase": null,
+  "escalation_reason": null,
+  "val_review_enabled": false,
+  "cli_review_enabled": true,
+  "error": null,
+  "phase_archetype": "architect",
+  "force": false,
+  "gate_signals": {},
+  "gate_verdict": "proceed",
+  "gate_decisions": [
+    {
+      "approval_id": null,
+      "authorizing_disposition": "auto",
+      "default_action": null,
+      "disposition": "auto",
+      "gate": "proposal_approval",
+      "notified": null,
+      "outcome": "proceed",
+      "phase": "PLAN",
+      "posture_present": true,
+      "provenance": {
+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24",
+        "source": "posture"
+      },
+      "reason": "gate 'proposal_approval' auto-approved by trust posture",
+      "recorded_at": "2026-10-12T02:52:03.971189+00:00",
+      "resolution": "auto",
+      "scope": "roadmap_approval",
+      "timeout_seconds": null
+    }
+  ],
+  "pending_gate": null,
+  "goal_gate": null,
+  "park": null,
+  "degradations": [
+    {
+      "code": "phase_fallback_inline",
+      "detail": "no sub-agent dispatch adapter in this session (dispatched child has no Agent tool); build-dispatch resolved archetype=gatekeeper but phase run inline by orchestrator",
+      "phase": "GATEKEEPER"
+    }
+  ]
+}
