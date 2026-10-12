@@ -135,3 +135,13 @@ def test_a_worktree_with_a_launch_marker_must_use_gate_answer(worker: Path) -> N
 
     assert runner.main([*_ARGS, "--approval-ref", _REF]) == 2
     assert path.read_bytes() == before
+
+
+def test_a_failed_roadmap_fetch_records_nothing(worker: Path) -> None:
+    """No origin remote: the fetch fails, so the stale local ref is not trusted."""
+    path = _seed(worker)
+    before = path.read_bytes()
+    args = [a for a in _ARGS if a != "--no-fetch"]
+
+    assert runner.main([*args, "--approval-ref", _REF]) == 2
+    assert path.read_bytes() == before

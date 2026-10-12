@@ -864,8 +864,9 @@ def read_committed_gate_answer(
       ``change_id``, ``gate`` and ``decision``, with the matching ``resume_at``;
     * it is the latest decision for its dispatch and gate, so a superseded
       answer cannot be replayed;
-    * its dispatch attempt has been relaunched past it: the attempt's
-      ``lease_generation`` is the decision's ``lease_generation`` + 1.
+    * its dispatch attempt is where that decision leaves it: an approval
+      relaunches the attempt, so its ``lease_generation`` is the decision's + 1;
+      a rejection leaves it parked at the decision's own generation.
 
     The tip is read, not the merge-base :func:`read_committed_dispatch_scope`
     uses, because the answer is committed after the worker's branch was cut.
@@ -930,15 +931,16 @@ def read_committed_gate_answer(
             ),
             None,
         )
+        generation = answered + 1 if decision == "approved" else answered
         if (
             attempt is None
             or attempt.get("change_id") != change_id
-            or attempt.get("lease_generation") != answered + 1
+            or attempt.get("lease_generation") != generation
         ):
             return None
         return {
             "dispatch_id": dispatch_id,
-            "generation": answered + 1,
+            "generation": generation,
             "gate": gate,
             "decision": decision,
             "approval_ref": approval_ref,

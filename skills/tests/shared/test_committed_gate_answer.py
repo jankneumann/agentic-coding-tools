@@ -149,8 +149,16 @@ def test_a_decision_committed_only_on_the_workers_branch_grants_nothing(repo: Pa
     assert _read(repo) is None
 
 
-def test_a_rejection_verifies_against_a_console_rejection(repo: Path) -> None:
-    _commit(repo, _checkpoint(_record(outcome="blocked", resolution="console_rejected")))
+def test_a_rejection_verifies_at_the_parked_generation(repo: Path) -> None:
+    """A rejection does not relaunch the attempt, so it stays at the decision's generation."""
+    _commit(repo, _checkpoint(_record(outcome="blocked", resolution="console_rejected"), generation=3))
 
-    assert _read(repo, decision="rejected") is not None
+    answer = _read(repo, decision="rejected")
+    assert answer is not None and answer["generation"] == 3
     assert _read(repo) is None
+
+
+def test_a_rejection_after_a_relaunch_is_refused(repo: Path) -> None:
+    _commit(repo, _checkpoint(_record(outcome="blocked", resolution="console_rejected"), generation=4))
+
+    assert _read(repo, decision="rejected") is None

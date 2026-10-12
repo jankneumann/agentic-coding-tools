@@ -596,12 +596,24 @@ def _cmd_relayed_gate_answer(args: argparse.Namespace) -> int:
         )
         return 2
     if not args.no_fetch:
+        # A stale remote-tracking ref could hide a newer, superseding decision,
+        # so a failed fetch refuses rather than verifying against old state.
         for roadmap_id in dispatch_contract.committed_roadmap_ids(repo_root=Path.cwd()):
             branch = f"openspec/roadmap-{roadmap_id}"
-            subprocess.run(
-                ["git", "fetch", "--quiet", "origin", f"+{branch}:refs/remotes/origin/{branch}"],
-                capture_output=True, check=False, timeout=120,
-            )
+            try:
+                done = subprocess.run(
+                    ["git", "fetch", "--quiet", "origin", f"+{branch}:refs/remotes/origin/{branch}"],
+                    capture_output=True, text=True, check=False, timeout=120,
+                )
+                failure = done.stderr.strip() if done.returncode != 0 else None
+            except (OSError, subprocess.SubprocessError) as exc:
+                failure = str(exc)
+            if failure is not None:
+                sys.stderr.write(
+                    f"runner: could not fetch {branch} ({failure or 'git fetch failed'}); "
+                    "nothing was recorded\n"
+                )
+                return 2
     verified = dispatch_contract.read_committed_gate_answer(
         args.change_id,
         gate=args.gate,
@@ -1212,7 +1224,7 @@ def _build_parser() -> argparse.ArgumentParser:
             "then applies the answer as gate-answer does only when the decision "
             "--approval-ref names is committed there: a console decision for this "
             "change, gate, decision and resume_at, the latest for its dispatch and "
-            "gate, whose attempt has been relaunched at the next generation. "
+            "gate, whose attempt is at the generation that decision leaves it (an approval relaunches it, a rejection does not). A failed fetch refuses. "
             "Exits 2 without recording anything otherwise."
         ),
     )
