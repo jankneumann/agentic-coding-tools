@@ -649,8 +649,8 @@ EOF
 
 ```bash
 # Push to the resolved feature branch (honors OPENSPEC_BRANCH_OVERRIDE),
-# written literally, e.g. openspec/<change-id>
-git push -u origin <feature-branch>
+# written literally and double-quoted, e.g. "openspec/<change-id>"
+git push -u origin "<feature-branch>"
 gh pr create --title "feat(<scope>): <title>" --body "..."
 ```
 
@@ -659,7 +659,9 @@ same call that sets it: `echo "$FEATURE_BRANCH"`), never `"$FEATURE_BRANCH"`. Pe
 text: `.claude/settings.json` pre-approves `git push -u origin openspec/<...>` for cloud workers
 but sends any push containing `$` to a prompt, because its destination is only known after
 expansion. Shell variables also do not survive between separate Bash tool calls, so the
-variable can expand to an empty string.
+variable can expand to an empty string. Keep the double quotes: a branch name from
+`OPENSPEC_BRANCH_OVERRIDE` may contain `;` or `#`, which would otherwise end or comment out the
+command, and the quoted literal still matches the pre-approved `"openspec/*"` rule.
 
 If `CAN_HANDOFF=true`, write a completion handoff.
 

@@ -18,4 +18,4 @@ def test_push_uses_literal_ref(skill):
     text = (SKILLS / skill / "SKILL.md").read_text()
     offenders = PUSH_WITH_VARIABLE.findall(text)
     assert not offenders, f"{skill} pushes a shell-expanded ref: {offenders}"
-    assert "git push -u origin <feature-branch>" in text
+    assert 'git push -u origin "<feature-branch>"' in text, "push the literal ref double-quoted"
