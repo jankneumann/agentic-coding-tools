@@ -4,7 +4,7 @@
   "current_item_id": "ri-01",
   "phase": "planning",
   "created_at": "2026-10-12T02:41:43.045761+00:00",
-  "updated_at": "2026-10-12T02:44:13.215462+00:00",
+  "updated_at": "2026-10-12T11:04:06.703906+00:00",
   "serial_indeterminate_items": [
     "ri-06"
   ],
@@ -58,7 +58,7 @@
       "change_id": "define-evidence-ledger-schema-with-immutable-facts",
       "phase": "autopilot",
       "attempt": 1,
-      "status": "launched",
+      "status": "parked",
       "prepared_at": "2026-10-12T02:43:56.191184+00:00",
       "launch_digest": "sha256:d8a2f97813d9d94113b7a53df626d7ed64d4af7065c33d779dcf897e45e0ceba",
       "launch_marker_path": ".supervised-dispatch/define-evidence-ledger-schema-with-immutable-facts/ri-01-attempt-1.marker",
@@ -148,7 +148,7 @@
       "lease": {
         "generation": 1,
         "owner_nonce": "owner-53e4deedde624d70",
-        "state": "active",
+        "state": "released",
         "acquired_at": "2026-10-12T02:44:13.182261+00:00",
         "heartbeat_at": "2026-10-12T02:44:13.182261+00:00",
         "expires_at": "2026-10-12T02:45:13.182261+00:00"
@@ -165,6 +165,142 @@
         "handle": "host-agent:ri-01:g1",
         "go_released_at": "2026-10-12T02:44:13.195085+00:00",
         "entered_at": "2026-10-12T02:44:13.212950+00:00"
+      },
+      "application_journal": {
+        "schema_version": 1,
+        "state": "effects_applied",
+        "result": {
+          "attempt": 1,
+          "branch": "openspec/define-evidence-ledger-schema-with-immutable-facts",
+          "change_id": "define-evidence-ledger-schema-with-immutable-facts",
+          "degradations": [
+            {
+              "code": "phase_fallback_inline",
+              "detail": "no sub-agent dispatch adapter in this session (dispatched child has no Agent tool); build-dispatch resolved archetype=gatekeeper but phase run inline by orchestrator",
+              "phase": "GATEKEEPER"
+            },
+            {
+              "code": "phase_fallback_inline",
+              "detail": "no sub-agent dispatch adapter in this session (dispatched child has no Agent tool); build-dispatch resolved archetype=architect but phase run inline by orchestrator",
+              "phase": "PLAN_ITERATE"
+            },
+            {
+              "code": "single_vendor_review",
+              "detail": "vendor=claude_code",
+              "phase": "PLAN_REVIEW"
+            },
+            {
+              "code": "phase_fallback_inline",
+              "detail": "no sub-agent dispatch adapter in this session (dispatched child has no Agent tool); build-dispatch resolved archetype=reviewer but review run inline by orchestrator",
+              "phase": "PLAN_REVIEW"
+            },
+            {
+              "code": "phase_fallback_inline",
+              "detail": "no sub-agent dispatch adapter in this session (dispatched child has no Agent tool); build-dispatch resolved archetype=implementer but work packages wp-schema, wp-validator, wp-packaging, wp-integration implemented sequentially inline",
+              "phase": "IMPLEMENT"
+            },
+            {
+              "code": "phase_fallback_inline",
+              "detail": "no sub-agent dispatch adapter in this session (dispatched child has no Agent tool); build-dispatch resolved archetype=implementer but iteration run inline by orchestrator",
+              "phase": "IMPL_ITERATE"
+            },
+            {
+              "code": "single_vendor_review",
+              "detail": "vendor=claude_code",
+              "phase": "IMPL_REVIEW"
+            },
+            {
+              "code": "phase_fallback_inline",
+              "detail": "no sub-agent dispatch adapter in this session (dispatched child has no Agent tool); build-dispatch resolved archetype=reviewer but review run inline by orchestrator",
+              "phase": "IMPL_REVIEW"
+            },
+            {
+              "code": "phase_fallback_inline",
+              "detail": "no sub-agent dispatch adapter in this session (dispatched child has no Agent tool); build-dispatch resolved archetype=validator but validation run inline by orchestrator",
+              "phase": "VALIDATE"
+            }
+          ],
+          "dispatch_id": "batch-f11e7104403a1137d67e1c67:ri-01:attempt-1",
+          "evidence": {
+            "commit": "fdb0cfdf90afb8304b56cf5aa9989ac702cd2130",
+            "loop_state_digest": "978fe58b4a3dd1c99ddf3b14244130225dfc6b0d0f481b9913ef1e2e70113de3",
+            "loop_state_path": "openspec/changes/define-evidence-ledger-schema-with-immutable-facts/loop-state.json"
+          },
+          "host_id": "machine-801452e4fd3b9a26",
+          "lease_generation": 1,
+          "outcome": "parked",
+          "parked": {
+            "deadline": null,
+            "gate": "merge",
+            "kind": "pending_gate",
+            "reason": "Authorize merging this pull request? (autopilot records the authorization only; /cleanup-feature merges)",
+            "resume_hint": "answer gate merge through the resume request's gate_answer"
+          },
+          "schema_version": 2,
+          "worktree_ref": "define-evidence-ledger-schema-with-immutable-facts"
+        },
+        "result_digest": "b0889973350d1827010e11a6a03b01afc3c3c295b9f6dd4400adeb406505373b",
+        "bound_at": "2026-10-12T11:04:06.647279+00:00",
+        "callback_started_at": "2026-10-12T11:04:06.656387+00:00",
+        "callback_acknowledged_at": "2026-10-12T11:04:06.664824+00:00",
+        "terminal_persisted_at": "2026-10-12T11:04:06.673433+00:00",
+        "effects_applied_at": "2026-10-12T11:04:06.699566+00:00"
+      },
+      "outcome": "parked",
+      "resolved_at": "2026-10-12T11:04:06.673384+00:00",
+      "degradations": [
+        {
+          "code": "phase_fallback_inline",
+          "detail": "no sub-agent dispatch adapter in this session (dispatched child has no Agent tool); build-dispatch resolved archetype=gatekeeper but phase run inline by orchestrator",
+          "phase": "GATEKEEPER"
+        },
+        {
+          "code": "phase_fallback_inline",
+          "detail": "no sub-agent dispatch adapter in this session (dispatched child has no Agent tool); build-dispatch resolved archetype=architect but phase run inline by orchestrator",
+          "phase": "PLAN_ITERATE"
+        },
+        {
+          "code": "single_vendor_review",
+          "detail": "vendor=claude_code",
+          "phase": "PLAN_REVIEW"
+        },
+        {
+          "code": "phase_fallback_inline",
+          "detail": "no sub-agent dispatch adapter in this session (dispatched child has no Agent tool); build-dispatch resolved archetype=reviewer but review run inline by orchestrator",
+          "phase": "PLAN_REVIEW"
+        },
+        {
+          "code": "phase_fallback_inline",
+          "detail": "no sub-agent dispatch adapter in this session (dispatched child has no Agent tool); build-dispatch resolved archetype=implementer but work packages wp-schema, wp-validator, wp-packaging, wp-integration implemented sequentially inline",
+          "phase": "IMPLEMENT"
+        },
+        {
+          "code": "phase_fallback_inline",
+          "detail": "no sub-agent dispatch adapter in this session (dispatched child has no Agent tool); build-dispatch resolved archetype=implementer but iteration run inline by orchestrator",
+          "phase": "IMPL_ITERATE"
+        },
+        {
+          "code": "single_vendor_review",
+          "detail": "vendor=claude_code",
+          "phase": "IMPL_REVIEW"
+        },
+        {
+          "code": "phase_fallback_inline",
+          "detail": "no sub-agent dispatch adapter in this session (dispatched child has no Agent tool); build-dispatch resolved archetype=reviewer but review run inline by orchestrator",
+          "phase": "IMPL_REVIEW"
+        },
+        {
+          "code": "phase_fallback_inline",
+          "detail": "no sub-agent dispatch adapter in this session (dispatched child has no Agent tool); build-dispatch resolved archetype=validator but validation run inline by orchestrator",
+          "phase": "VALIDATE"
+        }
+      ],
+      "parked": {
+        "deadline": null,
+        "gate": "merge",
+        "kind": "pending_gate",
+        "reason": "Authorize merging this pull request? (autopilot records the authorization only; /cleanup-feature merges)",
+        "resume_hint": "answer gate merge through the resume request's gate_answer"
       }
     }
   ]
