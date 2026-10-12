@@ -85,3 +85,44 @@ Inline iterate-on-plan pass (no sub-agent adapter). Three findings (2 medium, 1 
 ### Context
 Inline single-vendor (claude_code) plan review under cloud quorum-1 policy. One high finding fixed: YAML loader must not resolve unquoted timestamps to datetime. Verdict converged.
 
+---
+
+## Phase: Implementation (2026-10-12)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Name invalid fixtures <code>__<case> and assert exactly that code** `architectural: evidence-ledger` — Prevents a fixture from passing because of an unrelated violation, and lets a test prove every single-ledger code has coverage
+2. **Report revision mutations at /facts/<id> rather than an array index** `architectural: evidence-ledger` — Facts are compared by id, so position is not meaningful across revisions; reordering is not a mutation
+3. **Name changed fields in fact_mutated messages and hint at reverify_request** `architectural: evidence-ledger` — The violation should tell the author the sanctioned way to dispute a fact
+
+### Alternatives Considered
+- Index-based paths for revision violations: rejected because unstable under reorder; facts are compared by id
+
+### Trade-offs
+- Accepted Skip semantic checks when the schema fails over Reporting every layer at once because semantic checks assume a valid shape and would emit misleading noise
+
+### Completed Work
+- wp-schema
+- wp-validator
+- wp-packaging
+- wp-integration (tasks.md checkboxes)
+
+### Next Steps
+- IMPL_ITERATE
+- IMPL_REVIEW
+- VALIDATE
+
+### Relevant Files
+- `openspec/schemas/evidence-ledger.schema.json`
+- `skills/evidence-ledger/SKILL.md`
+- `skills/evidence-ledger/scripts/evidence_ledger.py`
+- `skills/evidence-ledger/install_assets/openspec/schemas/evidence-ledger.schema.json`
+- `skills/tests/evidence-ledger/`
+- `skills/install-manifest.json`
+- `skills/pyproject.toml`
+- `docs/guides/workflow.md`
+
+### Context
+Implemented all four work packages sequentially inline (no sub-agent adapter), test-first. Schema promoted byte-identically to openspec/schemas and the skill install_assets; evidence_ledger.py provides load_ledger, validate_ledger, check_revision and the validate CLI; SKILL.md, install manifest, testpaths and workflow guide updated. 65 evidence-ledger tests pass; ci_coverage, openspec_paths and install-manifest guards pass; ruff and mypy --strict clean.
+

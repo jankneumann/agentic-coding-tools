@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "ledger_id": "collect-1",
+  "facts": [
+    {
+      "id": "F1",
+      "kind": "source_unavailable",
+      "source": "journalctl -u api",
+      "gathered_by": "claude_code",
+      "host": "api-1",
+      "time_window": {
+        "start": "2026-10-12T02:00:00Z",
+        "end": "2026-10-12T02:05:00Z"
+      },
+      "tool_version": "systemd 255",
+      "role": "variable",
+      "observation": "effects journal absent"
+    }
+  ]
+}
