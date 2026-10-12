@@ -1,0 +1,511 @@
+{
+  "schema_version": 1,
+  "change_id": "amend-skill-workflow-spec-for-policy-authorized-sync-windows",
+  "items": [
+    {
+      "id": 1,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/specs/skill-workflow/spec.md",
+      "spec_file": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/specs/skill-workflow/spec.md",
+      "fingerprint": "4d18f19095dc00ea",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Scenario 'No sync window declared keeps the user-invoked default' is internally inconsistent. Its WHEN is 'posture absent or declares no sync_windows', yet the first two THEN clauses describe the general scheduled path (trigger names a window id, skill calls the check) that is not conditional on that WHEN, and the final clause says user invocation 'MUST remain the only path by which the skill runs' even though the preceding clause allows the skill to be started by a trigger and then refuse. The obligations on the trigger and on the skill to call the authorization check are the core new contract and currently have no scenario of their own; they are only reachable through this no-window scenario. Split into (a) a general 'Scheduled invocation must name a window and call the authorization check' scenario and (b) a no-window scenario whose THEN is simply that the check fails and main is untouched.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 2,
+      "status": "addressed",
+      "axis": "architecture",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/specs/skill-workflow/spec.md",
+      "spec_file": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/specs/skill-workflow/spec.md",
+      "fingerprint": "348aa297a98f2565",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The scenario 'Sync window does not override gate dispositions' names the `merge` gate as applying to a scheduled sync-point action, but the proposal's own Out-of-scope section says the `merge` gate governs autopilot's SUBMIT_PR -> DONE edge, and the base trust-posture spec defines gates only for autopilot phases. No gate today is evaluated by `/merge-pull-requests`, `/update-specs` or `/cleanup-feature`, so 'as it would be for that action without a window' has no defined baseline. The D8 intent (window is necessary, not sufficient) is sound, but the spec should either state which gates a scheduled sync-point skill evaluates, or explicitly delegate that mapping to ri-12 and drop the parenthetical that implies the `merge` gate already applies.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 3,
+      "status": "addressed",
+      "axis": "architecture",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/work-packages.yaml",
+      "fingerprint": "3d37d1cdbb719f09",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The package write scope omits `docs/decisions/skill-workflow.md` and `docs/decisions/trust-posture.md`, yet this very diff writes both via the session-log decision projection, and the implement/validate phases will append further phase records there. A scope check against `write_allow` will flag those writes as out-of-scope during implementation.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 4,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/specs/trust-posture/spec.md",
+      "spec_file": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/specs/trust-posture/spec.md",
+      "fingerprint": "b49ed2fff385a120",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The requirement says any `sync_windows` value that is not a list is a validation error, then two sentences later says `null` declares no windows. `null` is not a list, so the two sentences conflict as written; the 'Malformed sync_windows container is rejected' scenario inherits the ambiguity.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 5,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/specs/trust-posture/spec.md",
+      "spec_file": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/specs/trust-posture/spec.md",
+      "fingerprint": "bb4043a08fed2339",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Design D6 and task 2.1 specify that an unknown skill name raises `ValueError` (closed set), a different failure from `SyncWindowNotAuthorized`, but the spec text says the check 'otherwise fails with an error naming the missing declaration' and no scenario covers the closed-skill-set rejection. Also, scenario 'Absent sync windows declare nothing' covers 'no contract file exists', so the check must accept the `present=False` absent-posture object (or `None`, as `posture_digest` does); neither spec nor design says which.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 6,
+      "status": "open",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/work-packages.yaml",
+      "fingerprint": "e126debb8da7c56e",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The contracts block files a Markdown README under the `openapi` sub-type while the README itself says OpenAPI does not apply. The validator accepts it, but the label is misleading for anyone reading the package for API surface.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 7,
+      "status": "open",
+      "axis": "architecture",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/specs/trust-posture/spec.md",
+      "spec_file": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/specs/trust-posture/spec.md",
+      "fingerprint": "a745b938f8afcf1c",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verification of ledger [7]/[19]: `allowed_sources` and `auto_merge_ceiling` remain required and non-empty for every window, including windows listing only `update-specs` or `cleanup-feature`, which never select PRs. Still ergonomic only; the skill-workflow scenario scopes the fields to PR selection, remediation and merge. Defer to ri-12 once the real caller shape is known.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 8,
+      "status": "open",
+      "axis": "observability",
+      "type": "observability",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/loop-state.json",
+      "fingerprint": "0759a26f7d77df80",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "`gate_signals` still reflect the GATEKEEPER snapshot (no proposal, specs or tasks) although all three now exist, and `degradations` records an `audit_sink_failed` for the auto proposal_approval decision. Neither blocks review, but the gate decision for this change has no durable audit record outside loop-state.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 9,
+      "status": "open",
+      "axis": "readability",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "fingerprint": "b09509f75501a7ee",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "pi"
+      ],
+      "description": "Task 1.1 description in tasks.md only references `openspec/specs/skill-workflow/spec.md` for base requirements verification, but the trust-posture ADDED requirement 'Sync Window Declarations' has no base scenarios to preserve (it's entirely new). The task description should clarify this distinction or reference both base spec files for completeness.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 10,
+      "status": "open",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "fingerprint": "4c4f5e91777b6472",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "pi"
+      ],
+      "description": "Cadence validation in design.md (D4) is shape-only (five whitespace-separated fields matching `[0-9*/,-]+`). Invalid cron values like `99 * * * *` would pass schema validation but fail at scheduler runtime (ri-13). This is a known limitation explicitly accepted and deferred to ri-13.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 11,
+      "status": "open",
+      "axis": "compatibility",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "fingerprint": "b3d63a89cf6ab58a",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "pi"
+      ],
+      "description": "The cadence field rejects `@daily` macros and named months/days per D4. This is an open question deferred to ri-13 (noted in session-log and plan-findings iteration 2 finding #3). The schema validation will reject these forms.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 12,
+      "status": "open",
+      "axis": "architecture",
+      "type": "architecture",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "fingerprint": "247cb0dff7fe94e4",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "pi"
+      ],
+      "description": "Work-packages.yaml defines only a single sequential package (wp-main) with max parallel width 1. The plan-findings iteration 2 finding #1 notes this is accepted because ~350 LOC with shared test file and shared SyncWindow shape make splitting a net loss. Documented at top of tasks.md.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 13,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "TRUST_POSTURE.template.md",
+      "fingerprint": "269290f1d94940a7",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verification of ledger [2]: the spec now correctly delegates gate applicability to ri-12/ri-13 ('this requirement defines no new gate applicability'), but TRUST_POSTURE.template.md still states 'A scheduled /merge-pull-requests run still evaluates the merge gate (and any other gate that applies)', and design D8 repeats it. The proposal's own Out-of-scope section says the merge gate governs autopilot's SUBMIT_PR -> DONE edge, and no sync-point skill evaluates it today. The operator-facing template therefore asserts a gate mapping the spec explicitly declines to define. Reword the template bullet (and D8) to 'every gate that the scheduled caller's change (ri-12/ri-13) declares applicable' and drop the merge-gate example, or make it a hypothetical ('for example, if ri-12 maps the merge gate ...').",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 14,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "skills/tests/merge-pull-requests/test_classify.py",
+      "fingerprint": "bbf20127c0a55b32",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "TestPrOriginsVocabulary never exercises the plain 'jules' origin and cannot detect a new origin added to classify_pr. The fixtures use author='google-labs-jules[bot]', but is_jules_author only accepts 'jules', 'jules[bot]' and 'jules-bot' (JULES_AUTHORS), so _pr('feature/x', author='google-labs-jules[bot]') classifies as 'other', not 'jules'; the sentinel/bolt/palette fixtures only hit via branch tokens. The test also asserts only `seen \u2286 PR_ORIGINS` (plus `assert seen`), so if classify_pr grows a new origin (e.g. 'gemini') with no fixture, the test still passes and the window vocabulary silently drifts, which is exactly the drift D3 claims this test prevents. Fix: use author='jules[bot]' for the Jules fixtures and assert `seen == gc.PR_ORIGINS` so every member is reachable and every reachable origin is declared.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 15,
+      "status": "addressed",
+      "axis": "compatibility",
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/shared/trust_posture.py",
+      "fingerprint": "6d55673708b8dfd4",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Loader and JSON-schema mirror disagree on cadence whitespace. The loader uses str.split(), which accepts tabs, newlines, and leading/trailing whitespace ('0\\t3 * * 1', ' 0 3 * * 1'), while the schema pattern '^[0-9*/,-]+( +[0-9*/,-]+){4}$' accepts only ASCII spaces and is anchored. A posture with a tab-separated cadence validates in the Python loader (the authoritative validator) but fails the declarative mirror, and test_schema_enums_equal_python_frozensets does not cover this because it only compares enums. The spec says 'whitespace-separated', so the schema is the stricter side. Either tighten the loader to `cadence.split(' ')` with no empty fields (and say 'space-separated' in spec/template), or loosen the schema pattern to `\\s+`, and add a tab-cadence case to both the loader and schema malformed-window tables so the two cannot drift again.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 16,
+      "status": "addressed",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/shared/tests/test_trust_posture_sync_windows.py",
+      "fingerprint": "fd53000719ee1764",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "test_live_posture_digest_pinned hard-codes the SHA-256 of the repository's live TRUST_POSTURE.md. This proves the no-window digest is byte-identical today (the stated intent, and tasks.md asked for a literal), but after merge any legitimate gate edit to the live posture will fail a shared unit test unrelated to the edit, and the operator fixing it will have to re-derive the hash. test_digest_without_windows_is_gates_only already proves the structural invariant. Consider keeping the literal but documenting in the test docstring that it is expected to change whenever TRUST_POSTURE.md gates change, so the next failure is understood as a config change rather than a regression.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 17,
+      "status": "addressed",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/schemas/trust-posture.schema.json",
+      "fingerprint": "1817d31f26397ffa",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The schema's top-level description line was rewritten from a literal em-dash to the escape '\u2014', which indicates the file was round-tripped through json.dump(ensure_ascii=True) rather than edited by hand. Harmless, but it adds an unrelated hunk to the diff and will keep re-flipping if the next editor writes UTF-8. Restore the literal character (or standardise the repo on ensure_ascii=False). Mirror check for Group 3: no live mirrored copy of trust-posture.schema.json exists outside openspec/schemas/ (only archived change copies), so nothing else needs the sync_windows extension.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 18,
+      "status": "open",
+      "axis": "readability",
+      "type": "architecture",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/work-packages.yaml",
+      "fingerprint": "d8088c911e8260c2",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verification of ledger [6]: work-packages.yaml still files contracts/README.md under the `openapi` sub-type even though the README states OpenAPI does not apply. The validator accepts it and the README is explicit, so this remains a labelling nit only.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 19,
+      "status": "open",
+      "axis": "architecture",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/specs/trust-posture/spec.md",
+      "spec_file": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/specs/trust-posture/spec.md",
+      "fingerprint": "580ef5052f78c3f5",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verification of ledger [7]: allowed_sources and auto_merge_ceiling remain required and non-empty for every window, including windows that list only update-specs or cleanup-feature, which never select PRs. The skill-workflow scenario scopes the fields to 'whenever it selects, remediates, or merges pull requests', so this is still ergonomic only; a future change could make the two fields conditionally required once ri-12 shows the real shape. Ledger items [1], [3], [4] and [5] are confirmed resolved in this diff (scenario split, docs/decisions in write_allow, null-vs-list wording, ValueError usage-error scenario).",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 20,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "fingerprint": "baf35fa14d46e3ee",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "Critical: The trust-posture requirement states that the scheduler SHALL refuse a cadence whose values it cannot schedule, but no WHEN/THEN scenario exercises an invalid yet shape-valid cadence such as `99 * * * *`. Add a scheduler-facing acceptance scenario so this deferred ri-13 obligation remains testable.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 21,
+      "status": "addressed",
+      "axis": "compatibility",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "fingerprint": "813f50338a9250cf",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "Critical: `openspec/schemas/trust-posture.schema.json` accepts only literal spaces between cadence fields, while the specification and Python loader accept arbitrary whitespace through `str.split()`. A valid tab-separated cadence can therefore pass the authoritative loader but fail the declarative schema. Make both contracts use the same whitespace rule and add a parity test.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 22,
+      "status": "addressed",
+      "axis": "security",
+      "type": "correctness",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "fingerprint": "f11d96218660cf67",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "Nit: `TestPrOriginsVocabulary.test_every_classified_origin_is_declared_and_folds` only asserts that `seen` is non-empty, not that the fixtures cover exactly `PR_ORIGINS`. Adding an unused or accidentally over-broad origin to the authorization vocabulary would leave this test green. Assert `seen == gc.PR_ORIGINS` so the claimed closed-vocabulary coverage is enforced.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 23,
+      "status": "open",
+      "axis": "architecture",
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "fingerprint": "866ceee5a844cdf1",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "Nit: Open ledger item 6 remains unresolved: `work-packages.yaml` registers `contracts/README.md` as the primary OpenAPI contract even though that file explicitly says OpenAPI does not apply. This misclassifies a prose applicability record as a machine-readable API contract and can mislead contract-review tooling.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 24,
+      "status": "open",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/shared/trust_posture.py",
+      "fingerprint": "eba291d7f0477761",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The cadence pattern uses `( +...)`, so runs of internal spaces are accepted: `0  3 * * 1` loads and passes the JSON schema (the agreement test even pins this). The trust-posture spec says tab- or padded forms are rejected and the template says fields are separated by spaces, which an operator will read as single-space-separated. Because `to_canonical` hashes the raw cadence string, `0 3 * * 1` and `0  3 * * 1` are semantically identical cadences with different posture digests, contrary to the stated intent that whitespace never counts as a posture change. Tighten to `( [0-9*/,-]+){4}` in both the loader and the schema (the mirror test keeps them in step), or state explicitly in the spec/template that repeated separators are permitted.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 25,
+      "status": "open",
+      "axis": "architecture",
+      "type": "architecture",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/shared/tests/test_trust_posture_sync_windows.py",
+      "fingerprint": "9b0b9d81b5704d78",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The shared-library test suite now pins the SHA-256 of the repository's live TRUST_POSTURE.md. Any legitimate gate edit to the live posture will break a `skills/shared` test unrelated to the edit, and the failure message will not say why. The comment explains the refresh procedure and the structural invariant is pinned separately, so this is acceptable as a deliberate tripwire, but it is a new cross-file coupling worth knowing about when the next gate edit lands.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 26,
+      "status": "open",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/shared/trust_posture.py",
+      "fingerprint": "1d0342e1ce136858",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "In `_check_list_field`, non-string items always take the `unknown value` branch, so the `repr(item)` fallback added to `seen` is never consulted and never affects the repeat check. The conditional is dead code that suggests a repeat check for non-strings that does not exist.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 27,
+      "status": "open",
+      "axis": "architecture",
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/work-packages.yaml",
+      "fingerprint": "90fcd824eb715ee7",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verification of ledger [6]/[18]/[23]: work-packages.yaml still files contracts/README.md under the `openapi` sub-type while the README states OpenAPI does not apply. Unchanged in this diff; validator accepts it; labelling nit only.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 28,
+      "status": "open",
+      "axis": "compatibility",
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "fingerprint": "3a492b787b94e077",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "`openspec/schemas/trust-posture.schema.json` does not enforce the required uniqueness of window IDs. `uniqueItems: true` compares complete array entries, so two windows with the same `id` but different cadence or policy fields pass schema validation while the Python loader rejects them. This conflicts with the specification and with the README's characterization of the schema as the canonical machine-readable contract.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 29,
+      "status": "open",
+      "axis": "correctness",
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "fingerprint": "1c4da1fd590c8144",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "The schema and loader do not accept exactly the same cadence strings as claimed. The schema pattern ends with `$`, which permits a match immediately before a final newline under the validator's regex semantics, while `_CADENCE_RE.fullmatch` rejects that value. The parity test explicitly excludes this known divergence. Add an absolute-end constraint (and a regression case containing a trailing newline) so schema-only validation cannot accept a posture the authoritative loader rejects.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 30,
+      "status": "addressed",
+      "axis": "observability",
+      "type": "correctness",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "fingerprint": "3cdcb44cacbba1b3",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "codex"
+      ],
+      "description": "`validation-report.md` states that the sync-window tests cover every spec scenario, but `design.md` and `tasks.md` explicitly acknowledge that the scheduled-invocation scenarios cannot be exercised until the ri-12/ri-13 callers exist. The report should describe the tested authorization/contract boundary and identify the end-to-end scenarios as deferred; otherwise it overstates the validation evidence.",
+      "consensus_status": "unconfirmed"
+    }
+  ]
+}

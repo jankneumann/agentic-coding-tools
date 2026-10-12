@@ -1,0 +1,455 @@
+{
+  "schema_version": 2,
+  "change_id": "migrate-ci-to-self-hosted-gx10-runners",
+  "round": 1,
+  "body_path": "review-packet.md",
+  "sha256": "b09443cf478479b652773e811c17fbb6ab1c9c800fac7c6525941b48773ccff5",
+  "char_length": 212804,
+  "budget_chars": 320000,
+  "tools_overflow": false,
+  "includes_ledger": true,
+  "diff_kind": "full",
+  "selection": {
+    "per_file_token_ceiling": 64000,
+    "selected": [
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-ledger/adjudication-pass3-round-1.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 922
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-ledger/adjudication-round-1.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 729
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-ledger/ledger.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 13031
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/contracts/README.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 341
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/contracts/schemas/runner-lanes.schema.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 720
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/design.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 8259
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/loop-state.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 701
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/plan-findings.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1140
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/proposal.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 3824
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/session-log.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 2456
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/specs/ci-runner-infrastructure/spec.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 5533
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/tasks.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 7206
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/work-packages.yaml",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 4607
+      }
+    ],
+    "excluded": [
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass1-round-1/fact-check-claude_code.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 300
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass1-round-1/fact-check-codex.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 158
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass1-round-1/fact-check-pi.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 154
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass1-round-1/findings-claude_code-plan.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 3735
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass1-round-1/findings-codex-plan.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 1320
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass1-round-1/findings-pi-plan.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 1635
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass1-round-1/findings.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 1740
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass1-round-1/raw-antigravity-plan.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 194
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass1-round-1/raw-antigravity-plan.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 70
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass1-round-1/raw-claude_code-plan.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 195
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass1-round-1/raw-claude_code-plan.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 3224
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass1-round-1/raw-codex-plan.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 199
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass1-round-1/raw-codex-plan.stderr.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 34160
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass1-round-1/raw-codex-plan.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 1080
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass1-round-1/raw-grok-plan.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 185
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass1-round-1/raw-grok-plan.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 66
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass1-round-1/raw-pi-plan.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 195
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass1-round-1/raw-pi-plan.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 319867
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass1-round-1/review-manifest.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 770
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass1-round-1/review-packet.md",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 32762
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass1-round-1/review-packet.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 1082
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass2-quorum-lost-round-1/findings-claude_code-plan.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 5469
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass2-quorum-lost-round-1/raw-claude_code-plan.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 204
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass2-quorum-lost-round-1/raw-claude_code-plan.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 4662
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass2-quorum-lost-round-1/raw-codex-plan.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 195
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass2-quorum-lost-round-1/raw-codex-plan.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 73
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass2-quorum-lost-round-1/raw-pi-plan.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 192
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass2-quorum-lost-round-1/raw-pi-plan.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 71
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass2-quorum-lost-round-1/review-manifest.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 422
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass2-quorum-lost-round-1/review-packet.md",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 45493
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass2-quorum-lost-round-1/review-packet.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 2699
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass3-round-1/fact-check-claude_code.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 418
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass3-round-1/fact-check-codex.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 296
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass3-round-1/findings-claude_code-plan.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 4908
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass3-round-1/findings-codex-plan.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 1740
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass3-round-1/raw-claude_code-plan.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 195
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass3-round-1/raw-claude_code-plan.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 3988
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass3-round-1/raw-codex-plan.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 199
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass3-round-1/raw-codex-plan.stderr.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 47313
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass3-round-1/raw-codex-plan.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 1617
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass3-round-1/raw-pi-plan.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 184
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass3-round-1/raw-pi-plan.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 351782
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass3-round-1/review-manifest.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 653
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass3-round-1/review-packet.md",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 45484
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass3-round-1/review-packet.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 2690
+      }
+    ],
+    "truncated": []
+  },
+  "rule_groups": [
+    {
+      "group_id": 1,
+      "source": "default",
+      "pattern": "(default)",
+      "files": [
+        "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-ledger/adjudication-pass3-round-1.json",
+        "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-ledger/adjudication-round-1.json",
+        "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-ledger/ledger.json",
+        "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/contracts/README.md",
+        "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/contracts/schemas/runner-lanes.schema.json",
+        "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/design.md",
+        "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/loop-state.json",
+        "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/plan-findings.md",
+        "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/proposal.md",
+        "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/session-log.md",
+        "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/tasks.md",
+        "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/work-packages.yaml"
+      ]
+    },
+    {
+      "group_id": 2,
+      "source": "default",
+      "pattern": "openspec/changes/*/specs/**/spec.md",
+      "files": [
+        "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/specs/ci-runner-infrastructure/spec.md"
+      ]
+    }
+  ]
+}

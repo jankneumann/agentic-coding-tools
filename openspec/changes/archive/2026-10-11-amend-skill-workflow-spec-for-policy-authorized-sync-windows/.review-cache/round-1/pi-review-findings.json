@@ -1,0 +1,61 @@
+{
+  "findings": [
+    {
+      "id": "FIND-001",
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "work-packages.yaml registers contracts/README.md as the primary OpenAPI contract (sub-type 'openapi') even though that file explicitly states 'OpenAPI | No | No HTTP endpoint is added or changed.' This misclassifies a prose applicability record as a machine-readable API contract and can mislead contract-review tooling.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "nit"
+    },
+    {
+      "id": "FIND-002",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "The trust-posture schema requires `allowed_sources` and `auto_merge_ceiling` as mandatory non-empty fields for every SyncWindow, including windows that list only `update-specs` or `cleanup-feature` (which never select PRs). Operators must declare meaningless source lists for those windows. The skill-workflow scenario correctly scopes these fields to 'whenever it selects, remediates, or merges pull requests', so the inconsistency is ergonomic only.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "optional"
+    },
+    {
+      "id": "FIND-003",
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "Task 1.1 description in tasks.md states that base requirements verification references only `openspec/specs/skill-workflow/spec.md`, but the trust-posture ADDED requirement 'Sync Window Declarations' has no base scenarios in that file (it's entirely new). The base trust-posture spec is at `openspec/specs/trust-posture/spec.md`. The task description should clarify this distinction or reference both base spec files for completeness.",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "nit"
+    },
+    {
+      "id": "FIND-004",
+      "type": "correctness",
+      "criticality": "low",
+      "description": "The test `test_cadence_loader_and_schema_agree` documents a known discrepancy: Python's jsonschema uses `re.search` for pattern `$` matching (matches before final newline), while the loader uses `fullmatch` (requires exact match). A trailing newline in a cadence string would be accepted by the schema but rejected by the loader. The test does not include a trailing-newline case, so this discrepancy is not exercised. Noted in test comment as a known limitation.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "fyi"
+    }
+  ],
+  "coverage": {
+    "reviewed": [
+      "TRUST_POSTURE.template.md",
+      "docs/decisions/skill-workflow.md",
+      "docs/decisions/trust-posture.md",
+      "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/contracts/README.md",
+      "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/design.md",
+      "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/proposal.md",
+      "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/tasks.md",
+      "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/validation-report.md",
+      "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/work-packages.yaml",
+      "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/specs/skill-workflow/spec.md",
+      "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/specs/trust-posture/spec.md",
+      "openspec/schemas/trust-posture.schema.json",
+      "skills/shared/github_classifier.py",
+      "skills/shared/tests/test_trust_posture_sync_windows.py",
+      "skills/shared/trust_posture.py",
+      "skills/tests/merge-pull-requests/test_classify.py"
+    ],
+    "skipped": []
+  }
+}

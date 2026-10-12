@@ -1,0 +1,115 @@
+{
+  "schema_version": 2,
+  "change_id": "migrate-ci-to-self-hosted-gx10-runners",
+  "round": 1,
+  "body_path": "review-packet.md",
+  "sha256": "b2a6a3fb87ec8ce8643c8ce4f52f9d8b6f4bd1a4efe056bdb771cd215876f093",
+  "char_length": 128355,
+  "budget_chars": 320000,
+  "tools_overflow": false,
+  "includes_ledger": true,
+  "diff_kind": "full",
+  "selection": {
+    "per_file_token_ceiling": 64000,
+    "selected": [
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/contracts/README.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 341
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/contracts/schemas/runner-lanes.schema.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 720
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/design.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 5535
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/loop-state.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 701
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/plan-findings.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1140
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/proposal.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 3563
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/session-log.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 2456
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/specs/ci-runner-infrastructure/spec.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 3868
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/tasks.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 5646
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/work-packages.yaml",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 4459
+      }
+    ],
+    "excluded": [],
+    "truncated": []
+  },
+  "rule_groups": [
+    {
+      "group_id": 1,
+      "source": "default",
+      "pattern": "(default)",
+      "files": [
+        "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/contracts/README.md",
+        "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/contracts/schemas/runner-lanes.schema.json",
+        "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/design.md",
+        "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/loop-state.json",
+        "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/plan-findings.md",
+        "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/proposal.md",
+        "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/session-log.md",
+        "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/tasks.md",
+        "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/work-packages.yaml"
+      ]
+    },
+    {
+      "group_id": 2,
+      "source": "default",
+      "pattern": "openspec/changes/*/specs/**/spec.md",
+      "files": [
+        "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/specs/ci-runner-infrastructure/spec.md"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,117 @@
+schema_version: 1
+
+feature:
+  id: amend-skill-workflow-spec-for-policy-authorized-sync-windows
+  title: "Amend skill-workflow spec for policy-authorized sync windows"
+  plan_revision: 2
+  created_by: claude-code
+  # No deployable surface: the change touches a shared skills library
+  # (skills/shared), its JSON schema, OpenSpec specs, and docs (the template is
+  # documentation). No service, endpoint, or container is built or deployed.
+  deployable: false
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/contracts/README.md"
+    files:
+      - "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/contracts/README.md"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+# Small, single-boundary change: one sequential package with an explicit
+# (non-repo-wide) write scope.
+packages:
+  - package_id: wp-main
+    title: "Sync-window spec amendment + trust posture contract extension"
+    task_type: backend
+    description: |
+      Amends the skill-workflow sync-point requirement, adds the trust-posture
+      sync-window requirement, extends skills/shared/trust_posture.py and the
+      trust posture schema with a fail-closed sync_windows declaration and
+      authorization check, documents it in the template, and tests it.
+      Also exports PR_ORIGINS from skills/shared/github_classifier.py for the
+      vocabulary parity test. Implements tasks 1.1-3.1 (including 2.0).
+    role: implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "skills/shared/trust_posture.py"
+        - "skills/shared/github_classifier.py"
+        - "openspec/schemas/trust-posture.schema.json"
+        - "TRUST_POSTURE.template.md"
+      keys:
+        - "contract:trust-posture-schema"
+      ttl_minutes: 120
+      reason: "Extends the trust posture contract with sync_windows"
+    scope:
+      write_allow:
+        - "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/**"
+        - "skills/shared/trust_posture.py"
+        - "skills/shared/tests/test_trust_posture_sync_windows.py"
+        - "skills/shared/github_classifier.py"
+        - "skills/tests/merge-pull-requests/test_classify.py"
+        - "openspec/schemas/trust-posture.schema.json"
+        - "TRUST_POSTURE.template.md"
+        - "docs/decisions/skill-workflow.md"
+        - "docs/decisions/trust-posture.md"
+      read_allow:
+        - "**"
+      deny:
+        - "TRUST_POSTURE.md"
+    worktree:
+      name: amend-skill-workflow-spec-for-policy-authorized-sync-windows
+      mode: shared
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "trust posture tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/shared/tests skills/tests/merge-pull-requests -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["trust_posture_tests_pass"]
+        - name: "posture digest consumers"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/supervise skills/tests/autopilot skills/autopilot/tests -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["digest_consumers_pass"]
+        - name: "openspec strict validation"
+          kind: command
+          command: "openspec validate amend-skill-workflow-spec-for-policy-authorized-sync-windows --strict"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["openspec_valid"]
+        - name: "live posture validates"
+          kind: command
+          command: ".venv/bin/python -m shared.trust_posture validate ../TRUST_POSTURE.md"
+          cwd: "skills"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["live_posture_valid"]
+    metadata:
+      loc_estimate: 350
+      complexity: low
+      package_kind: config
+    inputs: {}
+    outputs:
+      result_keys: ["trust_posture_tests_pass", "digest_consumers_pass", "openspec_valid", "live_posture_valid"]
+      artifacts: []

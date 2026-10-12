@@ -48,6 +48,17 @@
           "$ref": "#/$defs/GateConfig"
         }
       }
+    },
+    "sync_windows": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "description": "Optional policy-authorized sync windows. Absent, null and [] all declare no window (fail-closed): no non-user trigger may start a sync-point skill. A window is necessary, never sufficient: it does not change any gate disposition. The Python loader performs the authoritative validation (including unique ids across entries).",
+      "items": {
+        "$ref": "#/$defs/SyncWindow"
+      },
+      "uniqueItems": true
     }
   },
   "$defs": {
@@ -245,6 +256,73 @@
         }
       ],
       "description": "Fallback for a scoped gate evaluated without a roadmap approval. Same rules as a gate config, except auto is not allowed."
+    },
+    "SyncWindow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "cadence",
+        "skills",
+        "allowed_sources",
+        "auto_merge_ceiling"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "description": "Kebab-case window id, unique within sync_windows."
+        },
+        "cadence": {
+          "type": "string",
+          "pattern": "^[0-9*/,-]+( +[0-9*/,-]+){4}$",
+          "description": "Cron-shaped, exactly five fields separated by ASCII spaces with no leading or trailing whitespace, interpreted in UTC. Must stay identical to trust_posture._CADENCE_PATTERN. Shape only; value ranges are validated by the scheduler."
+        },
+        "skills": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "merge-pull-requests",
+              "update-specs",
+              "cleanup-feature"
+            ]
+          },
+          "description": "Sync-point skills the window authorizes to start without a user."
+        },
+        "allowed_sources": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "openspec",
+              "sentinel",
+              "bolt",
+              "palette",
+              "jules",
+              "codex",
+              "dependabot",
+              "renovate",
+              "other"
+            ]
+          },
+          "description": "PR origins (github_classifier.classify_pr) the window admits."
+        },
+        "auto_merge_ceiling": {
+          "type": "string",
+          "enum": [
+            "none",
+            "automation",
+            "plan",
+            "implementation"
+          ],
+          "description": "Least to most permissive PR kind the window may auto-merge."
+        }
+      }
     }
   }
 }

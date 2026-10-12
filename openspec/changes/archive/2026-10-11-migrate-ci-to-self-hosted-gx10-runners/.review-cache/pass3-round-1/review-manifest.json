@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "change_id": "migrate-ci-to-self-hosted-gx10-runners",
+  "review_type": "plan",
+  "created_at": "2026-10-11T02:34:11Z",
+  "target": "migrate-ci-to-self-hosted-gx10-runners",
+  "dispatches": [
+    {
+      "vendor": "claude_code",
+      "success": true,
+      "model_used": "fable",
+      "models_attempted": [
+        "fable"
+      ],
+      "elapsed_seconds": 345.2787433164194,
+      "error": null,
+      "error_class": null
+    },
+    {
+      "vendor": "codex",
+      "success": true,
+      "model_used": "gpt-5.6-sol",
+      "models_attempted": [
+        "gpt-5.6-sol"
+      ],
+      "elapsed_seconds": 149.65731981676072,
+      "error": null,
+      "error_class": null
+    },
+    {
+      "vendor": "pi",
+      "success": false,
+      "model_used": "nvidia/nemotron-3-ultra-550b-a55b",
+      "models_attempted": [
+        "nvidia/nemotron-3-ultra-550b-a55b"
+      ],
+      "elapsed_seconds": 42.57689320575446,
+      "error": "{\"type\":\"session\",\"version\":3,\"id\":\"01a128ca-1297-7232-a9f3-36387016d404\",\"timestamp\":\"2026-10-11T02:28:14.104Z\",\"cwd\":\"/home/jankneumann/Coding/agentic-coding-tools/.git-worktrees/migrate-ci-to-self-hosted-gx10-runners\"}\n{\"type\":\"agent_start\"}\n{\"type\":\"turn_start\"}\n{\"type\":\"message_start\",\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"## Review Round 1\\n\\nThe packet is complete; do not explore the repo for missing artifacts.\\n\\nReview the attached artifacts for correctness, complete",
+      "error_class": "auth_required"
+    }
+  ],
+  "quorum_requested": 3,
+  "quorum_received": 2,
+  "vendors": [
+    {
+      "name": "claude_code",
+      "findings_path": "findings-claude_code-plan.json",
+      "finding_count": 16,
+      "unanchored_findings": 0,
+      "fact_check": "ran",
+      "fact_check_removed": 0,
+      "fact_check_tokens": 0
+    },
+    {
+      "name": "codex",
+      "findings_path": "findings-codex-plan.json",
+      "finding_count": 9,
+      "unanchored_findings": 0,
+      "fact_check": "ran",
+      "fact_check_removed": 0,
+      "fact_check_tokens": 0
+    }
+  ]
+}

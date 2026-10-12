@@ -1,0 +1,131 @@
+{
+  "schema_version": 2,
+  "change_id": "amend-skill-workflow-spec-for-policy-authorized-sync-windows",
+  "round": 1,
+  "body_path": "review-packet.md",
+  "sha256": "e0ef6bf632d8d70f19bf3d4cc3b15311e4fa7d1459f5bfc3ccdb432359232423",
+  "char_length": 73382,
+  "budget_chars": 320000,
+  "tools_overflow": false,
+  "includes_ledger": true,
+  "diff_kind": "full",
+  "selection": {
+    "per_file_token_ceiling": 64000,
+    "selected": [
+      {
+        "path": "docs/decisions/skill-workflow.md",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 487
+      },
+      {
+        "path": "docs/decisions/trust-posture.md",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 782
+      },
+      {
+        "path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/contracts/README.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 249
+      },
+      {
+        "path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/design.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1947
+      },
+      {
+        "path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/loop-state.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 771
+      },
+      {
+        "path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/plan-findings.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1231
+      },
+      {
+        "path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/proposal.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 2244
+      },
+      {
+        "path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1908
+      },
+      {
+        "path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/specs/skill-workflow/spec.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1652
+      },
+      {
+        "path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/specs/trust-posture/spec.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1175
+      },
+      {
+        "path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/tasks.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1479
+      },
+      {
+        "path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/work-packages.yaml",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1128
+      }
+    ],
+    "excluded": [],
+    "truncated": []
+  },
+  "rule_groups": [
+    {
+      "group_id": 1,
+      "source": "default",
+      "pattern": "(default)",
+      "files": [
+        "docs/decisions/skill-workflow.md",
+        "docs/decisions/trust-posture.md",
+        "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/contracts/README.md",
+        "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/design.md",
+        "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/loop-state.json",
+        "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/plan-findings.md",
+        "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/proposal.md",
+        "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md",
+        "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/tasks.md",
+        "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/work-packages.yaml"
+      ]
+    },
+    {
+      "group_id": 2,
+      "source": "default",
+      "pattern": "openspec/changes/*/specs/**/spec.md",
+      "files": [
+        "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/specs/skill-workflow/spec.md",
+        "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/specs/trust-posture/spec.md"
+      ]
+    }
+  ]
+}
