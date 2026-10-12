@@ -21,7 +21,7 @@ A drift test fails if any of the three copies diverge. That test locates this di
 
 The validator enforces these rules beyond the schema (design D6):
 - ids are unique across all collections;
-- `signal_role_mismatch`, `signal_same_fact` and `unknown_fact_ref`;
+- `signal_role_mismatch` and `unknown_fact_ref`;
 - `unknown_hypothesis_ref`, `self_component` and `nested_component`;
 - `replacement_is_target`;
 - `invalid_timestamp` and `time_window_inverted`.

@@ -39,3 +39,49 @@
 ### Context
 Refined the plan-roadmap scaffold for ri-01 into a full plan: new infrastructure skill `evidence-ledger` owning a Draft 2020-12 evidence-ledger schema (facts/signals/hypotheses/reverify_requests) and a deterministic validator with stable violation codes and a cross-revision immutability check. Executed inline: dispatched child has no sub-agent adapter.
 
+---
+
+## Phase: Plan Iteration 1 (2026-10-12)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Drop signal_same_fact violation code** `architectural: evidence-ledger` — A fact has exactly one role, so a self-paired signal always triggers signal_role_mismatch; a second code would be dead
+
+### Completed Work
+- plan-findings.md iteration 1
+- spec scenarios +2
+- work-packages plan_revision 2
+
+### Next Steps
+- PLAN_REVIEW
+
+### Relevant Files
+- `openspec/changes/define-evidence-ledger-schema-with-immutable-facts/plan-findings.md`
+
+### Context
+Inline iterate-on-plan pass (no sub-agent adapter). Three findings (2 medium, 1 low) fixed: removed unreachable signal_same_fact code, added spec scenarios for replacement_is_target and reverify_mutated, narrowed install_sh verification to the manifest test.
+
+---
+
+## Phase: Plan Review (2026-10-12)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Load YAML ledgers with a SafeLoader lacking the timestamp resolver** `architectural: evidence-ledger` — Keeps YAML and JSON ledgers validating identically and keeps time_window values as schema strings
+
+### Completed Work
+- plan-findings.md PLAN_REVIEW section
+- design D8 amended
+- spec scenario added
+
+### Next Steps
+- IMPLEMENT wp-schema, wp-validator, wp-packaging
+
+### Relevant Files
+- `openspec/changes/define-evidence-ledger-schema-with-immutable-facts/plan-findings.md`
+
+### Context
+Inline single-vendor (claude_code) plan review under cloud quorum-1 policy. One high finding fixed: YAML loader must not resolve unquoted timestamps to datetime. Verdict converged.
+

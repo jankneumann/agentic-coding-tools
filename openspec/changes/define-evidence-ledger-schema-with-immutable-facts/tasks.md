@@ -49,7 +49,7 @@ Tests:
       signal, a cited hypothesis, a composite hypothesis and a reverify request;
     - `fixtures/valid/full_ledger.yaml`.
   - Test file: `test_validate.py`.
-  - Spec: `evidence-ledger / "Fixture ledger with variable and control facts, a signal and a cited hypothesis validates"`, `"YAML ledger validates identically to JSON"`.
+  - Spec: `evidence-ledger / "Fixture ledger with variable and control facts, a signal and a cited hypothesis validates"`, `"YAML ledger validates identically to JSON"`, `"Unquoted YAML timestamps stay strings"`.
   - Design: D3, D8.
 - [ ] 2.2 Write the invalid-fixture tests (M)
   - Fixtures go in `fixtures/invalid/<code>__<case>.json`. There is one fixture per
@@ -65,7 +65,7 @@ Tests:
     - `"Hypothesis citing an unknown fact is rejected"`;
     - `"Duplicate id across collections is rejected"`;
     - `"Self-referencing component is rejected"`.
-  - Spec, time scenario: `"Inverted time window is rejected"`.
+  - Spec, time and reverify scenarios: `"Inverted time window is rejected"`, `"Reverify request naming the disputed fact as its own replacement is rejected"`.
   - Design: D4, D5, D6.
 - [ ] 2.3 Implement the module loader (S)
   - Function: `load_ledger` in `skills/evidence-ledger/scripts/evidence_ledger.py`. It loads
@@ -81,7 +81,7 @@ Tests:
   - Checks:
     - duplicate ids;
     - fact references;
-    - signal roles and same-fact pairs;
+    - signal roles (a self-paired signal necessarily fails one role check);
     - hypothesis components;
     - reverify targets and replacements;
     - timestamp parse and order.
@@ -97,6 +97,7 @@ Tests:
     - `evidence-ledger / "In-place edit of a recorded fact is rejected"`;
     - `"Same dispute expressed as reverify request plus new fact is accepted"`;
     - `"Removing a recorded fact is rejected"`;
+    - `"Editing a recorded reverify request is rejected"`;
     - `"Hypothesis status change is accepted"`.
   - Design: D6, D7.
   - The test also covers reverify removal or mutation, and `ledger_id` changes.

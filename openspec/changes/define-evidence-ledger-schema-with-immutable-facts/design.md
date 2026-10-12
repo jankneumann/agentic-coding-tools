@@ -141,7 +141,6 @@ The validator rejects:
      resolve to a fact;
    - `signal_role_mismatch`: `variable_fact` does not have role `variable`, or `control_fact`
      does not have role `control`;
-   - `signal_same_fact`: the variable and control are the same fact;
    - `unknown_hypothesis_ref`, `self_component` and `nested_component` (D5);
    - `replacement_is_target`: a reverify request whose replacement is the disputed fact
      itself;
@@ -175,7 +174,10 @@ that the record exists and is immutable.
 ### D8 — Load YAML or JSON by suffix
 
 `load_ledger(path)` loads by file suffix:
-- `.yaml` and `.yml` use `yaml.safe_load`;
+- `.yaml` and `.yml` use a `yaml.SafeLoader` subclass with the implicit timestamp resolver
+  removed. Plain `yaml.safe_load` turns an unquoted `2026-10-12T02:00:00Z` into a
+  `datetime`, which would fail the schema's `type: string`, and would make the same ledger
+  validate differently from YAML and from JSON;
 - `.json` uses `json.loads`;
 - anything else is tried as JSON first, then YAML.
 
