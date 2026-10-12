@@ -15,7 +15,8 @@ Python API:
 - ``load_ledger(path)`` loads YAML or JSON. Unquoted YAML timestamps stay strings.
 - ``validate_ledger(doc)`` checks schema conformance, then referential integrity.
 - ``check_revision(previous, current)`` checks that recorded facts and reverify requests
-  were neither edited nor removed.
+  were neither edited nor removed; a pending reverify request may gain its
+  ``replacement_fact`` once.
 
 CLI::
 
@@ -321,8 +322,29 @@ def _changed_fields(before: dict[str, Any], after: dict[str, Any]) -> list[str]:
     return sorted(k for k in keys if _canonical(before.get(k)) != _canonical(after.get(k)))
 
 
+def _fulfils_pending_request(old: Any, new: Any) -> bool:
+    """True when ``new`` only adds a ``replacement_fact`` to a request that had none.
+
+    A reverify request may be recorded before its replacement fact is re-gathered. Linking
+    the replacement later is the one permitted transition, and it happens at most once:
+    changing or removing an existing ``replacement_fact`` is still a mutation. Whether the
+    replacement names a recorded fact other than the disputed one is checked by
+    ``validate_ledger``.
+    """
+    if not (isinstance(old, dict) and isinstance(new, dict)):
+        return False
+    if "replacement_fact" in old or "replacement_fact" not in new:
+        return False
+    rest = {k: v for k, v in new.items() if k != "replacement_fact"}
+    return _canonical(old) == _canonical(rest)
+
+
 def check_revision(previous: Any, current: Any) -> list[Violation]:
-    """Reject a revision that edits or removes a recorded fact or reverify request."""
+    """Reject a revision that edits or removes a recorded fact or reverify request.
+
+    The one exception: a pending reverify request (no ``replacement_fact``) may be fulfilled
+    by adding one, with every other field unchanged.
+    """
     out: list[Violation] = []
     prev_id = previous.get("ledger_id") if isinstance(previous, dict) else None
     curr_id = current.get("ledger_id") if isinstance(current, dict) else None
@@ -347,6 +369,8 @@ def check_revision(previous: Any, current: Any) -> list[Violation]:
                 out.append(Violation(where, removed, f"recorded {noun} {entry_id!r} was removed"))
                 continue
             new = after[entry_id]
+            if collection == "reverify_requests" and _fulfils_pending_request(old, new):
+                continue
             if _canonical(old) != _canonical(new):
                 fields = ", ".join(_changed_fields(old, new))
                 hint = (
