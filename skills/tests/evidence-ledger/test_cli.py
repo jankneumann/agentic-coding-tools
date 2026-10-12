@@ -85,3 +85,12 @@ def test_output_is_deterministic_across_runs() -> None:
     second = _run("validate", path, "--json")
     assert first.returncode == second.returncode == 1
     assert first.stdout == second.stdout
+
+
+def test_non_utf8_file_exits_two(tmp_path: Path) -> None:
+    """A decode failure is a load error (2), never a crash that looks like violations (1)."""
+    binary = tmp_path / "binary.yaml"
+    binary.write_bytes(b"\xff\xfe\x00not utf-8")
+    result = _run("validate", binary)
+    assert result.returncode == 2
+    assert "binary.yaml" in result.stderr

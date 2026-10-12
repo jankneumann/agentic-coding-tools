@@ -126,3 +126,29 @@ Inline single-vendor (claude_code) plan review under cloud quorum-1 policy. One 
 ### Context
 Implemented all four work packages sequentially inline (no sub-agent adapter), test-first. Schema promoted byte-identically to openspec/schemas and the skill install_assets; evidence_ledger.py provides load_ledger, validate_ledger, check_revision and the validate CLI; SKILL.md, install manifest, testpaths and workflow guide updated. 65 evidence-ledger tests pass; ci_coverage, openspec_paths and install-manifest guards pass; ruff and mypy --strict clean.
 
+---
+
+## Phase: Implementation Iteration 1 (2026-10-12)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Treat UnicodeDecodeError as a load error** `architectural: evidence-ledger` — Exit 1 means violations were found; a decode failure must not be indistinguishable from that
+
+### Alternatives Considered
+- Strict YAML loader that rejects duplicate keys: rejected because JSON has the same last-wins semantics and ledgers are machine-written; parity matters more
+
+### Completed Work
+- impl-findings.md iteration 1
+- test_non_utf8_file_exits_two
+
+### Next Steps
+- IMPL_REVIEW
+
+### Relevant Files
+- `openspec/changes/define-evidence-ledger-schema-with-immutable-facts/impl-findings.md`
+- `skills/evidence-ledger/scripts/evidence_ledger.py`
+
+### Context
+Inline iterate-on-implementation pass (no sub-agent adapter). One medium finding fixed test-first: a non-UTF-8 ledger crashed the CLI with exit 1 instead of a load error (exit 2). One low finding (YAML duplicate keys) accepted; one info noted.
+
