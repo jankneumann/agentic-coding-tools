@@ -180,13 +180,16 @@ to single-vendor review on its own.
 `usage.cost`. The adapter adds `prompt_tokens`, `completion_tokens`, `cost_usd` and
 `cost_source` (`reported`, or `estimated` when the response has no cost) to `ReviewResult`.
 
-A new `skills/parallel-infrastructure/scripts/spend_recorder.py` writes one row per review:
+A new `skills/parallel-infrastructure/scripts/spend_recorder.py` writes one row per review. The
+caller is `ReviewOrchestrator.dispatch_and_wait`, after each metered result, so every dispatch
+path records (a host `converge()` that selected the lane by D5, `/parallel-review-*`, and
+`agent_lane`'s `CompositeOrchestrator`). It sets `ReviewResult.spend_recorded`:
 
 - It posts to a new authenticated `POST /routing/spend` that calls the existing
   `LedgerService.record`.
 - The row holds `vendor` = lane id, `model` = `model_used`, `endpoint_kind = openrouter`,
   `generation_id`, the token counts, `actual_usd`, `tokens_estimated` (true when `cost_source`
-  is `estimated`), and `work_unit_ref = <change_id>:<phase|review_type>:round-<n>`.
+  is `estimated`), and `work_unit_ref = <change_id>:<phase>:round-<n>`.
 
 The same fields always go into the round checkpoint's vendor index, which is durable on the
 branch.
@@ -234,8 +237,9 @@ no HTTP call. The existing Empty Or Blinded Review Is Not Success floor still ap
 lanes.
 
 The packet metadata is the sidecar `build_review_packet` writes next to `packet_path`.
-`dispatch_and_wait` already receives `packet_path`, and passes the `tools_overflow` flag to
-the adapter.
+`dispatch_and_wait` already receives `packet_path`. It reads the flag from the sidecar of the
+packet an OpenAI-compatible lane will receive and passes it to
+`OpenAICompatAdapter.dispatch(..., tools_overflow: bool = False)`.
 
 **Refusal must stay rare.** Refusal alone would make the lane useless in practice. Plan-review
 packets on long-lived branches routinely overflow: the round-1 PLAN_REVIEW packet for this change
@@ -253,6 +257,11 @@ whenever the primary packet overflows:
 - The tool-less packet gets its own sidecar (`review-packet.toolless.meta.json`). An HTTP lane
   refuses with `packet_requires_tools` only when this packet *also* has `tools_overflow: true`.
   The CLI and handshake lanes keep the primary packet.
+- `converge()` passes the tool-less packet as a new optional keyword,
+  `dispatch_and_wait(..., toolless_packet_path: Path | None = None)`, only when the orchestrator
+  accepts it (the existing `_accepts_kwarg` check). Both `ReviewOrchestrator` and
+  `CompositeOrchestrator` accept it, and `CompositeOrchestrator` forwards it to
+  `ReviewOrchestrator`. When it is `None`, OpenAI-compatible lanes get the primary packet as today.
 
 A scenario covers a plan review whose full branch diff overflows: the HTTP lane receives a
 tool-less packet that fits, and it is dispatched. The D9 evidence run must use a change whose
@@ -334,10 +343,12 @@ re-evaluation is expected and is recorded in the session log.
 
 | Contract | Change | Compatibility |
 |---|---|---|
-| `ReviewResult` | adds `prompt_tokens`, `completion_tokens`, `cost_usd`, `cost_source` (all optional, default `None`) | additive, existing callers unaffected |
+| `ReviewResult` | adds `prompt_tokens`, `completion_tokens`, `cost_usd`, `cost_source`, `spend_recorded` (all optional, default `None`) | additive, existing callers unaffected |
 | `--check-vendors --json` | adds `modes.<mode>.lane_kinds`; API lanes may now be `verified` or carry the new reasons | additive; consumers ignore unknown keys |
 | `review_quorum_policy.json` | adds `vendor_families` and `metered_lanes.{fill_target, review_reservation_usd}` | additive; `resolve_quorum_policy` ignores them |
-| `dispatch_and_wait` | adds optional `include_lanes` | default keeps behaviour |
+| `dispatch_and_wait` (`ReviewOrchestrator`, `CompositeOrchestrator`) | adds optional `include_lanes` and `toolless_packet_path: Path \| None = None` (D6) | defaults keep behaviour; `converge()` passes `toolless_packet_path` only when `_accepts_kwarg` reports it |
+| `OpenAICompatAdapter.dispatch` | adds keyword `tools_overflow: bool = False` (D6) | default keeps behaviour |
+| `dispatch_and_wait` / `converge()` spend context | `dispatch_and_wait` adds optional `work_unit_ref: str \| None = None`; `converge()` adds optional `phase: str \| None = None` and passes `work_unit_ref = <change_id>:<phase>:round-<n>` when `phase` is set (D4) | defaults keep behaviour; without a `work_unit_ref` the spend row omits it (the route field is optional) |
 | `dispatch-result.schema.json` `Degradation.code` | adds enum value `metered_spend_unrecorded` | additive enum; writers older than this change never emit it |
 | Coordinator HTTP | adds `POST /routing/spend` (X-API-Key auth, Pydantic `extra="forbid"`, `actual_usd >= 0`, `generation_id` idempotency) | new route |
 

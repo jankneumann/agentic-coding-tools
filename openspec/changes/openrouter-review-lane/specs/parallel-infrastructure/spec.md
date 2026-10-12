@@ -158,10 +158,16 @@ Every review that an `openrouter` lane dispatches SHALL request inline usage acc
 
 `converge()` SHALL write these fields into the round checkpoint's vendor index.
 
-After each review, `spend_recorder.record()` SHALL send one row to `POST /routing/spend` with:
+After each review that sent a request, `ReviewOrchestrator.dispatch_and_wait` SHALL call
+`spend_recorder.record()`, which SHALL send one row to `POST /routing/spend` with:
 `vendor` (the lane id), `model`, `endpoint_kind: openrouter`, `generation_id`, token counts,
 `actual_usd`, `tokens_estimated` (true when `cost_source` is `estimated`), and
-`work_unit_ref` (`<change_id>:<review_type>:round-<n>`).
+`work_unit_ref` (`<change_id>:<phase>:round-<n>`, for example
+`openrouter-review-lane:VAL_REVIEW:round-2`; the phase, not the review type, so IMPL_REVIEW and
+VAL_REVIEW rows stay distinct; `converge()` supplies it to `dispatch_and_wait` when its caller
+gives the phase, and a call without one omits the field). The call SHALL happen on every dispatch path, including a host
+`converge()` or `/parallel-review-*` run that selected the metered lane, not only inside
+`agent_lane.py`. The result SHALL carry `spend_recorded` (the recorder's `recorded` value).
 
 If the write fails, the record SHALL be appended to
 `openspec/changes/<change-id>/reviews/spend-spool.jsonl`, and the caller SHALL record the
@@ -186,6 +192,12 @@ and reason `spend_ceiling_exceeded`.
 - **THEN** the ledger SHALL contain one row with `generation_id: gen-abc`, `actual_usd: 0.0042`,
   and `tokens_estimated: false`, and the round checkpoint index entry for the lane SHALL carry
   the same generation id, model and cost
+
+#### Scenario: A host-path metered review is recorded
+- **WHEN** a host with one non-metered lane runs `converge()` with `ReviewOrchestrator`, the fill
+  rule selects the `openrouter` lane, and its review returns `id: gen-host`
+- **THEN** `spend_recorder.record()` SHALL have been called once for `gen-host`, and the result's
+  `spend_recorded` SHALL be true when the coordinator accepts the write
 
 #### Scenario: Missing cost is labelled estimated
 - **WHEN** the response has token usage but no `usage.cost`

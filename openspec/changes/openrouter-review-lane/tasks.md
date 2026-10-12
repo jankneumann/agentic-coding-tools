@@ -8,14 +8,14 @@
 ## Dependency graph
 
 ```
-1 (adapter) ──┐
-              ├─> 3 (dispatcher discovery/probe) ──┬─> 5 (convergence) ──┐
-2 (roster) ───┘                                    ├─> 6 (supervisor)  ──┼─> 7 (cloud E2E + retirement)
-4 (spend route + recorder) ────────────────────────┴───────────────────────┘
+1 (adapter) ────────────────┐
+2 (roster) ─────────────────┼─> 3 (dispatcher discovery/probe/spend call) ──┬─> 5 (convergence) ──┬─> 7 (cloud E2E + retirement)
+4 (spend route + recorder) ─┘                                               └─> 6 (supervisor)  ──┘
 ```
 
-Groups 1, 2 and 4 are independent, so up to 3 can run in parallel. Groups 5 and 6 run in
-parallel after group 3. Group 7 runs last. Sequential chain length is 4.
+Groups 1, 2 and 4 are independent, so up to 3 can run in parallel. Group 3 needs all three
+(4 for the `spend_recorder.record()` call in task 3.10). Groups 5 and 6 run in parallel after
+group 3. Group 7 runs last. Sequential chain length is 4.
 
 ## 1. OpenAI-compatible adapter: probe, cost capture, packet refusal
 
@@ -45,8 +45,8 @@ dataclass fields and the shared ingest helper extracted in 1.7),
     to the new `ReviewResult` fields.
   - Without a cost, `cost_source == "estimated"`.
 - [ ] 1.4 Add the optional `ReviewResult` fields `prompt_tokens`, `completion_tokens`,
-  `cost_usd` and `cost_source`, all defaulting to `None`, and implement the capture in
-  `dispatch()`.
+  `cost_usd`, `cost_source` and `spend_recorded` (set by task 3.10), all defaulting to `None`,
+  and implement the capture in `dispatch()`.
 - [ ] 1.5 Write a failing test: `dispatch(..., tools_overflow=True)` returns
   `packet_requires_tools` / `vendor_unavailable` with zero transport calls. Then implement the
   `tools_overflow` keyword (default False).
@@ -100,7 +100,7 @@ dataclass fields and the shared ingest helper extracted in 1.7),
 `skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py`,
 `skills/parallel-infrastructure/scripts/tests/test_review_packet.py`,
 `skills/parallel-infrastructure/tests/test_check_vendors_api_lane.py` (new)
-**Depends:** 1, 2 (the roster is needed only for the integration test in 3.9; tests 3.1–3.8 use inline config dicts)
+**Depends:** 1, 2 (the roster is needed only for the integration test in 3.9; tests 3.1–3.8 use inline config dicts), 4 (the `spend_recorder.record()` interface, task 3.10)
 **Specs:** parallel-infrastructure "OpenAI-Compatible Dispatcher Discovery" (MODIFIED),
 "Dispatchable Vendor Verification" (MODIFIED), "Tool-less Lane Packet Refusal"
 
@@ -150,6 +150,16 @@ dataclass fields and the shared ingest helper extracted in 1.7),
 - [ ] 3.9 Integration test: with the repository's `agents.yaml`, an injected transport and no
   `pi`/`codex` binaries on `PATH`, `--check-vendors --json` lists `openrouter` as verified and
   maps it to `openrouter` in `lane_kinds`.
+- [ ] 3.10 Write failing tests, then implement: `ReviewOrchestrator.dispatch_and_wait` calls
+  `spend_recorder.record()` once after every OpenAI-compatible result with `endpoint_kind:
+  openrouter` that made an HTTP request, and sets `ReviewResult.spend_recorded` to its
+  `recorded` value. The row's `work_unit_ref` comes from a new optional `dispatch_and_wait`
+  keyword `work_unit_ref` (omitted from the row when `None`). This covers every dispatch path: `converge()` with `ReviewOrchestrator` on a
+  host where the fill rule (D5) selected the metered lane, the `/parallel-review-*` one-shot
+  dispatch, and `CompositeOrchestrator` (which calls `dispatch_and_wait`). Tests: a host-path
+  dispatch with an injected transport and an injected recorder records one row; a refused
+  (`packet_requires_tools`) or budget-skipped lane records nothing; a recorder returning
+  `recorded=False` yields `spend_recorded=False`.
 
 ## 4. Spend recording route and client
 
@@ -205,13 +215,16 @@ parallel-infrastructure "Metered Review Lane Spend Accounting" (checkpoint part)
   - `--verified-lanes claude_code` alone → `capability_unavailable` with no handshake files.
 - [ ] 5.5 Implement `--verified-lanes`, `CompositeOrchestrator` (the handshake lane plus
   `ReviewOrchestrator.dispatch_and_wait(include_lanes=...)` run concurrently, with the result
-  callback forwarded), and quorum-policy resolution from the verified count. After each
-  metered result, call `spend_recorder.record()`. On `recorded=False`, record the
-  `metered_spend_unrecorded` degradation through the result payload. Update
-  `_review_body` to list the lanes.
+  callback forwarded), and quorum-policy resolution from the verified count. For each
+  metered result whose `spend_recorded` is `False` (recorded by the dispatcher, task 3.10),
+  record the `metered_spend_unrecorded` degradation through the result payload. `agent_lane`
+  does not call `spend_recorder.record()` itself. Update `_review_body` to list the lanes.
 - [ ] 5.6 Write failing tests, then implement:
+  - `converge()` accepts an optional `phase` and, when it is set, passes
+    `work_unit_ref=<change_id>:<phase>:round-<n>` to `dispatch_and_wait` (via `_accepts_kwarg`);
+    `agent_lane.py` passes its `--phase`.
   - `converge()` builds the tool-less packet (task 3.8a) when the primary packet overflows, and
-    passes both paths to `dispatch_and_wait`.
+    passes the tool-less packet as `dispatch_and_wait(..., toolless_packet_path=...)` (design D6).
   - `agent_lane.py` `result.json` carries `missing_lanes` (from `ConvergenceResult.missing_lanes`),
     `lanes` (the lane ids that returned a successful result), `quorum_received`, a per-lane
     `{model_used, generation_id, cost_usd, cost_source}` map, and `degradations` (including
@@ -285,7 +298,7 @@ parallel-infrastructure "Metered Review Lane Spend Accounting" (checkpoint part)
 |---|---|
 | parallel-infrastructure: OpenAI-Compatible Dispatcher Discovery | 2.1–2.3, 3.1–3.4, 3.9 |
 | parallel-infrastructure: Dispatchable Vendor Verification | 1.1–1.2, 3.5–3.7, 3.9 |
-| parallel-infrastructure: Metered Review Lane Spend Accounting | 1.3–1.4, 4.3–4.4, 5.2, 5.5, 5.7 |
+| parallel-infrastructure: Metered Review Lane Spend Accounting | 1.3–1.4, 3.10, 4.3–4.4, 5.2, 5.5, 5.7 |
 | parallel-infrastructure: Tool-less Lane Packet Refusal | 1.5–1.7, 3.8, 3.8a, 5.6 |
 | skill-workflow: Honest Review Quorum | 5.1–5.3 |
 | skill-workflow: Composite Agent-Lane Review | 5.4–5.6, 6.4 |
