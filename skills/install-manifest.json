@@ -269,6 +269,9 @@
     "documentation-and-adrs": {
       "distribution": "portable"
     },
+    "evidence-ledger": {
+      "distribution": "portable"
+    },
     "expedite": {
       "distribution": "portable"
     },
