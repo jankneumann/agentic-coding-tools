@@ -614,11 +614,21 @@ Use `ttl_minutes=0` for planning claims -- they signal intent without expiring.
 ```bash
 git add openspec/changes/<change-id>/
 git commit -m "plan: <change-id> -- proposal, design, specs, tasks, contracts, work-packages"
-# Push to the branch resolved by worktree.py setup (honors OPENSPEC_BRANCH_OVERRIDE)
-git push -u origin "$FEATURE_BRANCH"
+# Push to the branch resolved by worktree.py setup (honors OPENSPEC_BRANCH_OVERRIDE),
+# written literally and double-quoted, e.g. "openspec/<change-id>"
+git push -u origin "<feature-branch>"
 
 python3 "<skill-base-dir>/../worktree/scripts/worktree.py" pin "<change-id>"
 ```
+
+**Push a literal ref.** Write the branch name resolved in step 1 into the command (print it in the
+same call that sets it: `echo "$FEATURE_BRANCH"`), never `"$FEATURE_BRANCH"`. Permission rules match the command
+text: `.claude/settings.json` pre-approves `git push -u origin openspec/<...>` for cloud workers
+but sends any push containing `$` to a prompt, because its destination is only known after
+expansion. Shell variables also do not survive between separate Bash tool calls, so the
+variable can expand to an empty string. Keep the double quotes: a branch name from
+`OPENSPEC_BRANCH_OVERRIDE` may contain `;` or `#`, which would otherwise end or comment out the
+command, and the quoted literal still matches the pre-approved `"openspec/*"` rule.
 
 ### 11.5. Append Session Log [all tiers]
 
