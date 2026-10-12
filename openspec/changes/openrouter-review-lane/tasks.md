@@ -133,7 +133,7 @@ dataclass fields and the shared ingest helper extracted in 1.7),
 - [ ] 3.6 Implement the API-lane probe in `_probe_mode`. Resolve the key via `ApiKeyResolver`,
   fetch coordinator usage through an injectable `GET /routing/usage` client (which fails soft
   to "source unavailable"), apply the budget rule (design D4) through a reusable function that
-  `converge()` also calls per round (task 5.7), and emit `lane_kinds`. Keep
+  `dispatch_and_wait` also calls per round (task 3.11), and emit `lane_kinds`. Keep
   `probe_unsupported` for SDK lanes.
 - [ ] 3.7 Extend the existing credential-sentinel test to cover `OPENROUTER_API_KEY` and an
   OpenRouter lane with an echoing transport.
@@ -153,13 +153,22 @@ dataclass fields and the shared ingest helper extracted in 1.7),
 - [ ] 3.10 Write failing tests, then implement: `ReviewOrchestrator.dispatch_and_wait` calls
   `spend_recorder.record()` once after every OpenAI-compatible result with `endpoint_kind:
   openrouter` that made an HTTP request, and sets `ReviewResult.spend_recorded` to its
-  `recorded` value. The row's `work_unit_ref` comes from a new optional `dispatch_and_wait`
-  keyword `work_unit_ref` (omitted from the row when `None`). This covers every dispatch path: `converge()` with `ReviewOrchestrator` on a
+  `recorded` value. The row's `change_id` (for the spool path) and `work_unit_ref` come from a
+  new optional `dispatch_and_wait` keyword `spend_context: SpendContext | None` (design D4); a
+  metered lane with no `spend_context` is not dispatched and returns `vendor_unavailable`
+  (`spend_context_missing`). This covers every dispatch path: `converge()` with `ReviewOrchestrator` on a
   host where the fill rule (D5) selected the metered lane, the `/parallel-review-*` one-shot
   dispatch, and `CompositeOrchestrator` (which calls `dispatch_and_wait`). Tests: a host-path
   dispatch with an injected transport and an injected recorder records one row; a refused
   (`packet_requires_tools`) or budget-skipped lane records nothing; a recorder returning
-  `recorded=False` yields `spend_recorded=False`.
+  `recorded=False` yields `spend_recorded=False`; a metered lane with no `spend_context` makes no
+  HTTP request and returns `spend_context_missing`; `/parallel-review-*` passes a one-shot
+  `SpendContext`.
+- [ ] 3.11 Write failing tests, then implement the per-round budget re-check (design D4) in
+  `ReviewOrchestrator.dispatch_and_wait`: before dispatching a metered lane it re-runs the
+  probe's budget function (task 3.6); a lane below `review_reservation_usd` is not dispatched
+  and is returned `vendor_unavailable` (`spend_ceiling_exceeded`). Test: budget available at
+  probe, exhausted before the second dispatch → that dispatch skips the lane, records no spend.
 
 ## 4. Spend recording route and client
 
@@ -235,11 +244,10 @@ parallel-infrastructure "Metered Review Lane Spend Accounting" (checkpoint part)
     (IMPL_REVIEW), `consensus-val-review.json` (VAL_REVIEW). This matches the skill-workflow
     "Composite Agent-Lane Review" requirement. The D9 evidence and task 7.2 cite
     `consensus-plan.json`. `converge()` itself never writes these files.
-- [ ] 5.7 Write failing tests, then implement the per-round budget re-check (design D4): before
-  each round, `converge()` re-runs the probe's budget check (task 3.6) for every metered lane; a lane below
-  `review_reservation_usd` is not dispatched and is recorded `vendor_unavailable`
-  (`spend_ceiling_exceeded`). Test: budget available at probe, exhausted before round 2 →
-  round 2 skips the lane and the run ends `capability_unavailable`.
+- [ ] 5.7 Write a failing test, then make it pass: with the dispatcher's budget re-check (task
+  3.11) injected to fail before round 2, `converge()` through `CompositeOrchestrator` ends
+  `capability_unavailable` with `missing_lanes == ["openrouter"]` (design D7). `converge()`
+  itself gains no budget logic.
 
 ## 6. Supervisor ranking, apply-time replay, and worker protocol
 
@@ -298,7 +306,7 @@ parallel-infrastructure "Metered Review Lane Spend Accounting" (checkpoint part)
 |---|---|
 | parallel-infrastructure: OpenAI-Compatible Dispatcher Discovery | 2.1–2.3, 3.1–3.4, 3.9 |
 | parallel-infrastructure: Dispatchable Vendor Verification | 1.1–1.2, 3.5–3.7, 3.9 |
-| parallel-infrastructure: Metered Review Lane Spend Accounting | 1.3–1.4, 3.10, 4.3–4.4, 5.2, 5.5, 5.7 |
+| parallel-infrastructure: Metered Review Lane Spend Accounting | 1.3–1.4, 3.10–3.11, 4.3–4.4, 5.2, 5.5, 5.7 |
 | parallel-infrastructure: Tool-less Lane Packet Refusal | 1.5–1.7, 3.8, 3.8a, 5.6 |
 | skill-workflow: Honest Review Quorum | 5.1–5.3 |
 | skill-workflow: Composite Agent-Lane Review | 5.4–5.6, 6.4 |

@@ -162,10 +162,18 @@ How the probe decides:
 `metered_lanes.review_reservation_usd`. The default is `1.00`. That is roughly one
 full-packet review round on a premium model, and it can be tuned as data.
 
+**Spend context.** Spooling needs a change id (the spool lives under
+`openspec/changes/<id>/reviews/`). So `dispatch_and_wait` takes a `SpendContext(change_id,
+work_unit_ref)` and refuses to dispatch a metered lane without one (`spend_context_missing`,
+`error_class = UNAVAILABLE`). Every metered dispatch therefore has a ledger row or a spool row.
+
 **Re-checked per round.** A probe-time check alone lets later rounds, and concurrently running
-children, spend past the coordinator ceiling. So before each round dispatches a metered lane,
-`converge()` re-runs the same budget check the probe uses (task 3.6) against
-the current `metered_usd_used`. A lane whose remaining budget is now below
+children, spend past the coordinator ceiling. So every time `ReviewOrchestrator.dispatch_and_wait`
+is about to dispatch a metered lane (once per round, on every path, including
+`CompositeOrchestrator`, which calls it), it re-runs the same budget check the probe uses
+(task 3.6) against the current `metered_usd_used`. The check lives in the dispatch layer, next to
+the probe code and the spend recording (task 3.10), not in `converge()`, which stays
+vendor-agnostic and knows nothing about which lanes are metered. A lane whose remaining budget is now below
 `review_reservation_usd` is not dispatched for that round; it is reported as a failed result with
 `error_class = UNAVAILABLE` (`spend_ceiling_exceeded`), which D7 turns into
 `capability_unavailable`. Concurrent children can still overlap by at most one reservation each
@@ -348,7 +356,7 @@ re-evaluation is expected and is recorded in the session log.
 | `review_quorum_policy.json` | adds `vendor_families` and `metered_lanes.{fill_target, review_reservation_usd}` | additive; `resolve_quorum_policy` ignores them |
 | `dispatch_and_wait` (`ReviewOrchestrator`, `CompositeOrchestrator`) | adds optional `include_lanes` and `toolless_packet_path: Path \| None = None` (D6) | defaults keep behaviour; `converge()` passes `toolless_packet_path` only when `_accepts_kwarg` reports it |
 | `OpenAICompatAdapter.dispatch` | adds keyword `tools_overflow: bool = False` (D6) | default keeps behaviour |
-| `dispatch_and_wait` / `converge()` spend context | `dispatch_and_wait` adds optional `work_unit_ref: str \| None = None`; `converge()` adds optional `phase: str \| None = None` and passes `work_unit_ref = <change_id>:<phase>:round-<n>` when `phase` is set (D4) | defaults keep behaviour; without a `work_unit_ref` the spend row omits it (the route field is optional) |
+| `dispatch_and_wait` / `converge()` spend context | `dispatch_and_wait` adds optional `spend_context: SpendContext \| None = None`, a frozen dataclass `{change_id: str, work_unit_ref: str}`; `converge()` adds optional `phase: str \| None = None` and passes `SpendContext(change_id, "<change_id>:<phase>:round-<n>")` when `phase` is set; `/parallel-review-*` passes `SpendContext(change_id, "<change_id>:<review_type>:oneshot")` (D4) | non-metered lanes ignore it, so defaults keep behaviour; a metered lane with no `spend_context` is not dispatched and returns a failed result with `error_class = UNAVAILABLE`, reason `spend_context_missing`, so its spend can never go unrecorded and unspooled |
 | `dispatch-result.schema.json` `Degradation.code` | adds enum value `metered_spend_unrecorded` | additive enum; writers older than this change never emit it |
 | Coordinator HTTP | adds `POST /routing/spend` (X-API-Key auth, Pydantic `extra="forbid"`, `actual_usd >= 0`, `generation_id` idempotency) | new route |
 

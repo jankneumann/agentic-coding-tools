@@ -164,20 +164,30 @@ After each review that sent a request, `ReviewOrchestrator.dispatch_and_wait` SH
 `actual_usd`, `tokens_estimated` (true when `cost_source` is `estimated`), and
 `work_unit_ref` (`<change_id>:<phase>:round-<n>`, for example
 `openrouter-review-lane:VAL_REVIEW:round-2`; the phase, not the review type, so IMPL_REVIEW and
-VAL_REVIEW rows stay distinct; `converge()` supplies it to `dispatch_and_wait` when its caller
-gives the phase, and a call without one omits the field). The call SHALL happen on every dispatch path, including a host
+VAL_REVIEW rows stay distinct; `converge()` supplies it in the `spend_context` it passes to
+`dispatch_and_wait` when its caller gives the phase). The call SHALL happen on every dispatch path, including a host
 `converge()` or `/parallel-review-*` run that selected the metered lane, not only inside
 `agent_lane.py`. The result SHALL carry `spend_recorded` (the recorder's `recorded` value).
 
 If the write fails, the record SHALL be appended to
 `openspec/changes/<change-id>/reviews/spend-spool.jsonl`, and the caller SHALL record the
-degradation `metered_spend_unrecorded` with phase and lane.
+degradation `metered_spend_unrecorded` with phase and lane. The change id SHALL come from the
+`spend_context` (`change_id`, `work_unit_ref`) passed to `dispatch_and_wait`. A metered lane
+dispatched without a `spend_context` SHALL NOT make an HTTP request; it SHALL return a failed
+result with `error_class` `vendor_unavailable` and reason `spend_context_missing`.
+
+#### Scenario: A metered lane without spend context is not dispatched
+- **WHEN** `dispatch_and_wait` is called with no `spend_context` and the selection includes the
+  `openrouter` lane
+- **THEN** no HTTP request SHALL be made for that lane, and its result SHALL have `error_class`
+  `vendor_unavailable` and reason `spend_context_missing`
 
 `spend_recorder.py replay --change-id <id>` SHALL post the spooled rows. Replay SHALL skip a
 `generation_id` the ledger already holds, and SHALL remove each row it delivers.
 
-Before each review round dispatches a metered lane, the remaining budget SHALL be re-checked
-with the same rule the probe uses. A lane below `review_reservation_usd` SHALL NOT be dispatched
+Each time `dispatch_and_wait` is about to dispatch a metered lane (once per review round, on
+every dispatch path), the remaining budget SHALL be re-checked with the same rule the probe
+uses. A lane below `review_reservation_usd` SHALL NOT be dispatched
 for that round and SHALL be reported as a failed result with `error_class` `vendor_unavailable`
 and reason `spend_ceiling_exceeded`.
 
