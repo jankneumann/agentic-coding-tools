@@ -8,7 +8,7 @@ policy:
 items:
 - item_id: ri-01
   title: Define evidence ledger schema with immutable facts
-  status: approved
+  status: in_progress
   priority: 1
   effort: M
   depends_on: []
@@ -50,7 +50,8 @@ items:
   change_id: add-hypothesis-fact-matrix-and-root-cause-gate-to-validator
   acceptance_outcomes:
   - The validator rejects fixtures with an uncited root cause, a root cause contradicted
-    by a recorded fact, and a root cause with any unknown cell against a recorded fact.
+    by a recorded fact, and a root cause with any unknown cell against a recorded
+    fact.
   - The validator emits the matrix with per-signal hypothesis counts and flags the
     all-consistent rows.
   - The necessity check fails a combined hypothesis when removing one component leaves
@@ -145,8 +146,8 @@ items:
     and its tolerance. The section is always present; planning-only and documentation-only
     changes state not applicable together with the reason instead of omitting it.
     Add a blocking proposal check for that structure (changes already in flight are
-    grandfathered) and an advisory iterate-on-plan finding for declared signals
-    that lack an emitting layer or baseline.
+    grandfathered) and an advisory iterate-on-plan finding for declared signals that
+    lack an emitting layer or baseline.
   rationale: Signal-parity verification needs correctness observation decided at design
     time; this contract is the input the snapshot capture and baseline-diff gate read,
     so default data collection becomes a planning obligation.
@@ -349,4 +350,4 @@ items:
     a citation to the policy ID, and the auto-resolution is audited.
   - An unmatched escalation presents at least two options with tradeoffs, not a single
     recommendation.
-updated_at: '2026-10-11T13:31:58.996128+00:00'
+updated_at: '2026-10-12T02:43:56.331382+00:00'
