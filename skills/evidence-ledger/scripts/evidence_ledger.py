@@ -114,7 +114,7 @@ def load_ledger(path: str | Path) -> Any:
     path = Path(path)
     try:
         text = path.read_text(encoding="utf-8")
-    except OSError as exc:
+    except (OSError, UnicodeDecodeError) as exc:
         raise LedgerLoadError(f"cannot read {path}: {exc}") from exc
     suffix = path.suffix.lower()
     try:
