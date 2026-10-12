@@ -648,10 +648,18 @@ EOF
 ### 9. Push and Create PR [all tiers]
 
 ```bash
-# Push to the resolved feature branch (honors OPENSPEC_BRANCH_OVERRIDE)
-git push -u origin "$FEATURE_BRANCH"
+# Push to the resolved feature branch (honors OPENSPEC_BRANCH_OVERRIDE),
+# written literally, e.g. openspec/<change-id>
+git push -u origin <feature-branch>
 gh pr create --title "feat(<scope>): <title>" --body "..."
 ```
+
+**Push a literal ref.** Write the branch name resolved in step 2 into the command (print it in the
+same call that sets it: `echo "$FEATURE_BRANCH"`), never `"$FEATURE_BRANCH"`. Permission rules match the command
+text: `.claude/settings.json` pre-approves `git push -u origin openspec/<...>` for cloud workers
+but sends any push containing `$` to a prompt, because its destination is only known after
+expansion. Shell variables also do not survive between separate Bash tool calls, so the
+variable can expand to an empty string.
 
 If `CAN_HANDOFF=true`, write a completion handoff.
 
