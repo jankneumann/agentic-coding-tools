@@ -79,7 +79,7 @@
   report `provider` (caller) plus `resolved_provider` in the JSON body and the text line. Keep
   `skills/tests/vendor-neutral-autopilot/test_smoke_provider_dispatch.py` green. [S]
   **Dependencies**: 1.3
-- [ ] 1.6 Update the autopilot SKILL.md adapter contract: the 8-phase protocol block and every
+- [x] 1.6 Update the autopilot SKILL.md adapter contract: the 8-phase protocol block and every
   per-phase dispatch block that follows a `runner.py build-dispatch` call — the GATEKEEPER
   block ("call the dispatch adapter with `prompt`/`model`") and the seven "Capture `prompt`,
   `model`, `isolation`" blocks, eight in all — capture and pass `provider`, with the rule that
@@ -92,7 +92,7 @@
   **Spec scenarios**: agent-archetypes.11
   **Design decisions**: D1
   **Dependencies**: 1.4
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 
 ## P. Promotion gate (operator/orchestrator step; belongs to no package)
 

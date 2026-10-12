@@ -266,9 +266,10 @@ Dispatch protocol (3 steps — same provider-neutral path as other phases; read
    python3 "<skill-base-dir>/scripts/runner.py" build-dispatch \
      --phase GATEKEEPER --change-id <change-id>
    ```
-2. Call the dispatch adapter with `prompt` / `model` (treat `prompt` as opaque).
-   Parse the agent's last message for `(outcome, handoff_id)`. Outcome is one of
-   `proceed`, `proceed_with_review`, or `escalate`.
+2. Call the dispatch adapter with `prompt` / `model` / `provider` (treat
+   `prompt` as opaque). Parse the agent's last message for `(outcome,
+   handoff_id)`. Outcome is one of `proceed`, `proceed_with_review`, or
+   `escalate`.
 3. Apply the outcome:
    ```bash
    python3 "<skill-base-dir>/scripts/runner.py" apply-outcome \
@@ -376,9 +377,14 @@ provider adapter. Each block follows the same 3-step protocol:
    with the literal separator `\n\n---\n\n`, and writes a per-run
    resolution cache. JSON output: `{prompt, model, system_prompt,
    isolation, archetype, provider, phase, expected_outcomes}`.
-2. **Invoke the provider-neutral dispatch adapter** with the JSON values.
-   Claude Code's adapter translates this to `Agent(...)` internally — this
-   dispatch is pre-authorized by the user (see Authorization above).
+2. **Invoke the provider-neutral dispatch adapter** with the JSON values,
+   including `provider`. Claude Code's adapter translates this to
+   `Agent(...)` internally when `provider` is `claude_code` — this
+   dispatch is pre-authorized by the user (see Authorization above). A
+   harness whose only adapter is `Agent(...)` MUST route a non-`claude_code`
+   `provider` through the provider-neutral adapter (Codex, Antigravity,
+   Grok, or Pi's configured adapter) or escalate; it never calls
+   `Agent(...)` with another vendor's model.
    **Treat `prompt` as opaque — do not concatenate, do not prepend, do
    not split on the separator.** SKILL.md never folds; folding lives
    inside `build_phase_dispatch_kwargs` (single source of truth).
@@ -438,13 +444,14 @@ Dispatch protocol (3 steps):
    python3 "<skill-base-dir>/scripts/runner.py" build-dispatch \
      --phase PLAN_ITERATE --change-id <change-id>
    ```
-   Parse the JSON output. Capture `prompt`, `model`, `isolation`.
+   Parse the JSON output. Capture `prompt`, `model`, `isolation`, `provider`.
 
-2. Call the provider-neutral dispatch adapter with those values, treating
-   `prompt` as opaque (no concatenation). Claude adapter internal example:
+2. Call the provider-neutral dispatch adapter with those values (including
+   `provider`), treating `prompt` as opaque (no concatenation). Claude
+   adapter internal example:
    ```
    result = Agent(prompt=<dispatch.prompt>, model=<dispatch.model>,
-                  isolation=<dispatch.isolation>)
+                  isolation=<dispatch.isolation>, provider=<dispatch.provider>)
    ```
    Parse the agent's last message for `(outcome, handoff_id)` per the
    protocol in `phase_agent._validate_result`. Outcome is `"complete"`
@@ -491,10 +498,11 @@ this phase exists to remove.
    ```
 
 2. Call `Agent(prompt=<dispatch.prompt>, model=<dispatch.model>,
-   isolation=<dispatch.isolation>)`. The prompt already tells the agent
-   to run `converge()` with a real PLAN_FIX `fix_callback`. Treat
-   `prompt` as opaque. Parse the agent's last message for
-   `(outcome, handoff_id)` — outcome is `"converged"` or `"max_iter"`.
+   isolation=<dispatch.isolation>, provider=<dispatch.provider>)`. The
+   prompt already tells the agent to run `converge()` with a real
+   PLAN_FIX `fix_callback`. Treat `prompt` as opaque. Parse the agent's
+   last message for `(outcome, handoff_id)` — outcome is `"converged"`
+   or `"max_iter"`.
 
 3. Apply the outcome:
    ```bash
@@ -654,10 +662,10 @@ Dispatch protocol (3 steps):
    ```
 
 2. Call `Agent(prompt=<dispatch.prompt>, model=<dispatch.model>,
-   isolation=<dispatch.isolation>)`. The `isolation` value will be
-   `"worktree"` for IMPLEMENT. Treat `prompt` as opaque. Parse the
-   agent's last message for `(outcome, handoff_id)`. Outcome is
-   `"complete"` on success, `"failed"` (or `"escalate"`) on
+   isolation=<dispatch.isolation>, provider=<dispatch.provider>)`. The
+   `isolation` value will be `"worktree"` for IMPLEMENT. Treat `prompt`
+   as opaque. Parse the agent's last message for `(outcome, handoff_id)`.
+   Outcome is `"complete"` on success, `"failed"` (or `"escalate"`) on
    unrecoverable error.
 
 3. Apply the outcome:
@@ -690,8 +698,9 @@ Dispatch protocol (3 steps):
    ```
 
 2. Call `Agent(prompt=<dispatch.prompt>, model=<dispatch.model>,
-   isolation=<dispatch.isolation>)`. Treat `prompt` as opaque. Parse
-   the agent's last message for `(outcome, handoff_id)`.
+   isolation=<dispatch.isolation>, provider=<dispatch.provider>)`. Treat
+   `prompt` as opaque. Parse the agent's last message for
+   `(outcome, handoff_id)`.
 
 3. Apply the outcome:
    ```bash
@@ -727,10 +736,11 @@ the dispatched agent executes `converge()` as the whole review phase.
    ```
 
 2. Call `Agent(prompt=<dispatch.prompt>, model=<dispatch.model>,
-   isolation=<dispatch.isolation>)`. The prompt already tells the agent
-   to run `converge()` with a real IMPL_FIX `fix_callback`. Treat
-   `prompt` as opaque. Parse the agent's last message for
-   `(outcome, handoff_id)` — outcome is `"converged"` or `"max_iter"`.
+   isolation=<dispatch.isolation>, provider=<dispatch.provider>)`. The
+   prompt already tells the agent to run `converge()` with a real
+   IMPL_FIX `fix_callback`. Treat `prompt` as opaque. Parse the agent's
+   last message for `(outcome, handoff_id)` — outcome is `"converged"`
+   or `"max_iter"`.
 
 3. Apply the outcome:
    ```bash
@@ -767,8 +777,9 @@ Dispatch protocol (3 steps):
    ```
 
 2. Call `Agent(prompt=<dispatch.prompt>, model=<dispatch.model>,
-   isolation=<dispatch.isolation>)`. Treat `prompt` as opaque. Parse
-   the agent's last message for `(outcome, handoff_id)`.
+   isolation=<dispatch.isolation>, provider=<dispatch.provider>)`. Treat
+   `prompt` as opaque. Parse the agent's last message for
+   `(outcome, handoff_id)`.
 
 3. Apply the outcome:
    ```bash
@@ -801,10 +812,10 @@ as the whole VAL_REVIEW phase.
    ```
 
 2. Call `Agent(prompt=<dispatch.prompt>, model=<dispatch.model>,
-   isolation=<dispatch.isolation>)`. The prompt already tells the agent
-   to run `converge()` with a real VAL_FIX `fix_callback`. Treat
-   `prompt` as opaque. Parse the agent's last message for
-   `(outcome, handoff_id)`.
+   isolation=<dispatch.isolation>, provider=<dispatch.provider>)`. The
+   prompt already tells the agent to run `converge()` with a real
+   VAL_FIX `fix_callback`. Treat `prompt` as opaque. Parse the agent's
+   last message for `(outcome, handoff_id)`.
 
 3. Apply the outcome:
    ```bash
