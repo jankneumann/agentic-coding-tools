@@ -9,3 +9,14 @@
 | 3 | determinism | info | Violations sort by path string, so `/facts/10` precedes `/facts/2`. | No change. The order is deterministic, which is what D6 and the CLI test require. Numeric order is not part of the contract. |
 
 No critical or high findings remain. Converged for review.
+
+## IMPL_REVIEW (inline, single vendor `claude_code`; quorum 1 per cloud policy `cloud-container-single-vendor-2026-10-09`)
+
+| # | Type | Criticality | Finding | Resolution |
+|---|------|-------------|---------|------------|
+| R1 | spec-coverage | info | All 22 scenarios across the 6 requirements map to a test: 19 fixtures named `<code>__<case>`, 8 revision fixtures, the CLI exit-code tests and the `change_dir`-based drift test. | None needed. |
+| R2 | contracts | info | The canonical, install_assets and contracts copies of the schema are byte-identical (`cmp`), and `test_schema_copies.py` enforces it. | None needed. |
+| R3 | scope | info | Every write is inside the `write_allow` of its work package. No matrix, gate or collection logic leaked in from ri-02 or ri-05. | None needed. |
+| R4 | quality | info | `ruff check`, `ruff format --check` and `mypy --strict` are clean on the new module. The skill is registered in the install manifest, testpaths (`ci_coverage` passes) and the workflow guide. | None needed. |
+
+Verdict: **converged**. There are no critical, high or medium findings.

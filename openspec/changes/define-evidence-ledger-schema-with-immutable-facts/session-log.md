@@ -152,3 +152,39 @@ Implemented all four work packages sequentially inline (no sub-agent adapter), t
 ### Context
 Inline iterate-on-implementation pass (no sub-agent adapter). One medium finding fixed test-first: a non-UTF-8 ledger crashed the CLI with exit 1 instead of a load error (exit 2). One low finding (YAML duplicate keys) accepted; one info noted.
 
+---
+
+## Phase: Implementation Review (2026-10-12)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Completed Work
+- impl-findings.md IMPL_REVIEW section
+
+### Next Steps
+- VALIDATE
+
+### Relevant Files
+- `openspec/changes/define-evidence-ledger-schema-with-immutable-facts/impl-findings.md`
+
+### Context
+Inline single-vendor (claude_code) implementation review under cloud quorum-1 policy. All spec scenarios covered by tests, schema copies identical, writes within package scopes, lint/type clean. Converged with no actionable findings.
+
+---
+
+## Phase: Validation (2026-10-12)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Completed Work
+- validation-report.md
+
+### Next Steps
+- SUBMIT_PR
+
+### Relevant Files
+- `openspec/changes/define-evidence-ledger-schema-with-immutable-facts/validation-report.md`
+
+### Context
+Inline validation (no sub-agent adapter). openspec strict validation, the evidence-ledger suite (66), the CI-coverage/path/manifest guards, ruff and mypy all pass. The full skills suite has 51 environmental failures (cloud worktree short-circuit, missing datamodel_code_generator), none touching this change.
+
