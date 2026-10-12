@@ -8,7 +8,7 @@ policy:
 items:
 - item_id: ri-01
   title: Define evidence ledger schema with immutable facts
-  status: candidate
+  status: approved
   priority: 1
   effort: M
   depends_on: []
@@ -34,7 +34,7 @@ items:
   - Validator tests live under skills/tests/ and resolve any OpenSpec paths via change_dir().
 - item_id: ri-02
   title: Add hypothesis-fact matrix and root-cause gate to validator
-  status: candidate
+  status: approved
   priority: 1
   effort: M
   depends_on:
@@ -57,7 +57,7 @@ items:
     no fact unexplained.
 - item_id: ri-03
   title: Rewrite debugging-and-error-recovery around the two-tier method
-  status: candidate
+  status: approved
   priority: 2
   effort: L
   depends_on:
@@ -84,7 +84,7 @@ items:
     and descends a layer only when every current signal is weak.
 - item_id: ri-04
   title: Add eliminative adversarial review mode
-  status: candidate
+  status: approved
   priority: 3
   effort: L
   depends_on:
@@ -109,7 +109,7 @@ items:
   - The reviewer prompt contains the ledger and excludes the author's reasoning transcript.
 - item_id: ri-05
   title: Build collect-facts core with provenance, redaction, and audit
-  status: candidate
+  status: approved
   priority: 2
   effort: L
   depends_on:
@@ -136,7 +136,7 @@ items:
   - multiplayer-collaboration:ri-03
 - item_id: ri-06
   title: Add verification-signals contract to plan-feature
-  status: candidate
+  status: approved
   priority: 3
   effort: M
   depends_on: []
@@ -160,7 +160,7 @@ items:
     or no baseline.
 - item_id: ri-07
   title: Capture per-commit signal snapshots in validate-feature and gen-eval
-  status: candidate
+  status: approved
   priority: 4
   effort: M
   depends_on:
@@ -183,7 +183,7 @@ items:
     no signals of its own.
 - item_id: ri-08
   title: Add advisory baseline-diff gate with per-signal promotion
-  status: candidate
+  status: approved
   priority: 4
   effort: M
   depends_on:
@@ -205,7 +205,7 @@ items:
     rate, and setting a signal to blocking without a recorded rate is rejected.
 - item_id: ri-09
   title: Extend collect-facts with config, model, memory, and snapshot sources
-  status: candidate
+  status: approved
   priority: 5
   effort: M
   depends_on:
@@ -228,7 +228,7 @@ items:
     sources still populate.
 - item_id: ri-10
   title: Add gap taxonomy and ledger links to intervention records
-  status: candidate
+  status: approved
   priority: 3
   effort: S
   depends_on:
@@ -249,7 +249,7 @@ items:
   - multiplayer-collaboration:ri-18
 - item_id: ri-11
   title: Report interventions per bug and rank gaps in improve-harness
-  status: candidate
+  status: approved
   priority: 4
   effort: M
   depends_on:
@@ -269,7 +269,7 @@ items:
     a configured frequency threshold.
 - item_id: ri-12
   title: Add signal_assertions to gen-eval regression scenarios
-  status: candidate
+  status: approved
   priority: 5
   effort: M
   depends_on:
@@ -291,7 +291,7 @@ items:
   - skill-rightsizing:ri-01
 - item_id: ri-13
   title: Draft signal-asserting scenarios when a debugging ledger closes
-  status: candidate
+  status: approved
   priority: 6
   effort: S
   depends_on:
@@ -311,7 +311,7 @@ items:
   - Closing a ledger without a validated root cause emits no draft scenario.
 - item_id: ri-14
   title: Add decision-point policy playbook schema and capture
-  status: candidate
+  status: approved
   priority: 6
   effort: M
   depends_on: []
@@ -331,7 +331,7 @@ items:
   - multiplayer-collaboration:ri-09
 - item_id: ri-15
   title: Auto-apply matching playbook policies at escalation time
-  status: candidate
+  status: approved
   priority: 7
   effort: M
   depends_on:
