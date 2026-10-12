@@ -188,3 +188,24 @@ Inline single-vendor (claude_code) implementation review under cloud quorum-1 po
 ### Context
 Inline validation (no sub-agent adapter). openspec strict validation, the evidence-ledger suite (66), the CI-coverage/path/manifest guards, ruff and mypy all pass. The full skills suite has 51 environmental failures (cloud worktree short-circuit, missing datamodel_code_generator), none touching this change.
 
+---
+
+## Phase: Submit PR and Escalation (2026-10-12)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Completed Work
+- PR #690 opened
+- validation-report.md Spec Compliance section
+
+### Next Steps
+- Operator: approve escalate_resume (revalidate) so VALIDATE re-binds the report, then SUBMIT_PR created -> DONE
+- Operator: merge gate (posture block)
+
+### Relevant Files
+- `openspec/changes/define-evidence-ledger-schema-with-immutable-facts/validation-report.md`
+- `openspec/changes/define-evidence-ledger-schema-with-immutable-facts/loop-state.json`
+
+### Context
+pr_creation auto-approved by posture; branch pushed and PR #690 opened. The SUBMIT_PR created->DONE transition was refused by the goal gate because validation-report.md lacked the required '## Spec Compliance' section with a Status line, so the loop entered ESCALATE (previous_phase SUBMIT_PR). escalate_resume posture is block, so the run is parked for an operator. The report now carries a passing Spec Compliance section mapping all 22 scenarios to tests; an operator resume should use revalidate so a fresh VALIDATE record binds the updated report. A merge gate-check issued after the escalation recorded a pending merge gate (posture block) in ESCALATE.
+

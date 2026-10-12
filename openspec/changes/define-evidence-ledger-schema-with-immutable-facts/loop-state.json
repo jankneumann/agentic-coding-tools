@@ -1,9 +1,9 @@
 {
   "schema_version": 6,
   "change_id": "define-evidence-ledger-schema-with-immutable-facts",
-  "current_phase": "SUBMIT_PR",
+  "current_phase": "ESCALATE",
   "iteration": 0,
-  "total_iterations": 9,
+  "total_iterations": 10,
   "max_phase_iterations": 3,
   "findings_trend": [],
   "blocking_findings": [],
@@ -60,9 +60,9 @@
   ],
   "last_handoff_id": "inline:VALIDATE:1",
   "started_at": "2026-10-12T02:45:10.771937+00:00",
-  "phase_started_at": "2026-10-12T11:02:07.363958+00:00",
-  "previous_phase": null,
-  "escalation_reason": null,
+  "phase_started_at": "2026-10-12T11:02:42.326484+00:00",
+  "previous_phase": "SUBMIT_PR",
+  "escalation_reason": "goal gate refused: required section not passed: Spec Compliance (missing)",
   "val_review_enabled": false,
   "cli_review_enabled": true,
   "error": null,
@@ -109,10 +109,62 @@
       "disposition": "auto",
       "phase": "SUBMIT_PR",
       "recorded_at": "2026-10-12T11:02:15.572760+00:00"
+    },
+    {
+      "gate": "merge",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'merge' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "posture",
+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
+      },
+      "disposition": "block",
+      "phase": "ESCALATE",
+      "recorded_at": "2026-10-12T11:02:46.475238+00:00"
     }
   ],
-  "pending_gate": null,
-  "goal_gate": null,
+  "pending_gate": {
+    "schema_version": 1,
+    "change_id": "define-evidence-ledger-schema-with-immutable-facts",
+    "gate": "merge",
+    "phase": "ESCALATE",
+    "requested_at": "2026-10-12T11:02:46.476095+00:00",
+    "prompt": "Authorize merging this pull request? (autopilot records the authorization only; /cleanup-feature merges)",
+    "context": {
+      "pr_url": "https://github.com/jankneumann/agentic-coding-tools/pull/690"
+    },
+    "posture": {
+      "disposition": "block",
+      "posture_present": true,
+      "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
+    }
+  },
+  "goal_gate": {
+    "verdict": "refused",
+    "reason": "required section not passed: Spec Compliance (missing)",
+    "evidence": {
+      "report_path": "openspec/changes/define-evidence-ledger-schema-with-immutable-facts/validation-report.md",
+      "checked_at": "2026-10-12T11:02:41.991502+00:00",
+      "validate_outcome": "passed",
+      "validate_at": "2026-10-12T11:02:07.136432+00:00",
+      "report_time": "2026-10-12T11:02:07+00:00",
+      "report_time_source": "commit",
+      "bound_by": "VALIDATE",
+      "required_sections": [
+        "Spec Compliance"
+      ],
+      "phase_statuses": {
+        "Spec Compliance": "missing"
+      }
+    }
+  },
   "park": null,
   "degradations": [
     {
