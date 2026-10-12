@@ -12,11 +12,20 @@ A standalone run (no launch marker) SHALL keep disabling CLI review below quorum
 record a `review_skipped` degradation, or a `single_vendor_review` degradation when exactly one
 lane reviewed.
 
-During `converge()`, a round can end with fewer successful results than `min_quorum`. When
-every failed lane's `error_class` is `vendor_unavailable` or `auth_required`, `converge()`
-SHALL return `reason="capability_unavailable"` with `missing_lanes` naming those lanes. This
+During `converge()`, a round can end with fewer successful results than `min_quorum`.
+`missing_lanes` SHALL be the round's verified lanes minus the lanes that returned a successful
+result. When `missing_lanes` is non-empty and every lane in it has a recorded failure whose
+`error_class` is `vendor_unavailable` or `auth_required`, `converge()` SHALL return
+`reason="capability_unavailable"` with `missing_lanes` naming those lanes. A verified lane with
+no result at all SHALL NOT satisfy this condition. This
 covers an exhausted budget, HTTP 402, a revoked key, or `packet_requires_tools`. Any other
 quorum loss SHALL remain `reason="quorum_lost"`.
+
+
+#### Scenario: A lane that returns nothing is not a capability loss
+- **WHEN** a PLAN_REVIEW round has verified lanes `claude_code` and `openrouter`, `claude_code`
+  succeeds, and `openrouter` returns neither a result nor a recorded failure
+- **THEN** `converge()` SHALL return `reason="quorum_lost"`, not `capability_unavailable`
 
 #### Scenario: Dispatched child below quorum parks
 - **WHEN** `review_requirements.min_quorum.PLAN_REVIEW` is 2 and only `claude_code` is verified

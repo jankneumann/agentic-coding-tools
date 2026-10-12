@@ -162,6 +162,16 @@ How the probe decides:
 `metered_lanes.review_reservation_usd`. The default is `1.00`. That is roughly one
 full-packet review round on a premium model, and it can be tuned as data.
 
+**Re-checked per round.** A probe-time check alone lets later rounds, and concurrently running
+children, spend past the coordinator ceiling. So before each round dispatches a metered lane,
+`converge()` re-runs the same budget check the probe uses (task 3.6) against
+the current `metered_usd_used`. A lane whose remaining budget is now below
+`review_reservation_usd` is not dispatched for that round; it is reported as a failed result with
+`error_class = UNAVAILABLE` (`spend_ceiling_exceeded`), which D7 turns into
+`capability_unavailable`. Concurrent children can still overlap by at most one reservation each
+between a check and the ledger row landing; the key's credit limit remains the hard bound, and
+this residual is listed under Risks.
+
 An unverified lane is left out of `execution_profile.lanes.review`. A dispatched child then
 parks `capability_unavailable` through the existing Honest Review Quorum path. It never drops
 to single-vendor review on its own.
@@ -271,10 +281,14 @@ literal `1`.
 serves it. That is the premise of the module today. A `--verified-lanes claude_code` value
 is deduplicated.
 
-In `converge()`, when a round has fewer successful results than `min_quorum` and every failed
-lane's `error_class` is `UNAVAILABLE` or `AUTH` (budget exhausted, HTTP 402, key revoked, or
-`packet_requires_tools`), it returns `reason="capability_unavailable"` with `missing_lanes` set
-to the failed lanes. Any other quorum loss stays `quorum_lost`.
+In `converge()`, `missing_lanes` is defined as the round's verified lanes minus the lanes that
+returned a successful result. When a round has fewer successful results than `min_quorum`,
+`missing_lanes` is non-empty, and every lane in `missing_lanes` has a recorded failure whose
+`error_class` is `UNAVAILABLE` or `AUTH` (budget exhausted, HTTP 402, key revoked, or
+`packet_requires_tools`), it returns `reason="capability_unavailable"` with those lanes. A
+verified lane that produced no result at all (no success and no recorded failure) is not a
+capability loss, so the condition is never vacuously true: that round stays `quorum_lost`, as
+does any other quorum loss.
 
 The autopilot SKILL already maps `capability_unavailable` to `runner.py park --kind
 capability_unavailable`.
@@ -298,7 +312,8 @@ shows all of the following:
 - `PLAN_REVIEW` with `min_quorum=2`
 - two attributed lanes in `reviews/consensus-plan.json`. `converge()` itself never writes this
   file (only `/parallel-review-plan` does), so `agent_lane.py` persists `ConvergenceResult.consensus`
-  to `reviews/consensus-<review_type>.json` after each run (task 5.5), alongside `quorum_received`
+  to a per-phase file after each run (task 5.6): `consensus-plan.json`, `consensus-impl-review.json`
+  or `consensus-val-review.json`, so the two implementation phases do not collide. It sits alongside `quorum_received`
   and the per-lane index already in `.review-cache/round-N/`
 - a `routing_spend_ledger` row, or a spool row, carrying the `generation_id`
 
@@ -353,6 +368,10 @@ re-evaluation is expected and is recorded in the session log.
 | `claude --version` fails inside the container, so the profile omits `claude_code` and the fill rule tries to select a second metered lane | The roster has one metered lane, so at most one is selected. `agent_lane` still counts `claude_code` (D7) |
 | The supervisor runs `--check-vendors` in a different environment class than the worker, for example a host supervisor with a cloud worker | This is inherited from ri-21 (the profile is resolved by the supervisor). The worker parks honestly if the profile lists lanes it cannot dispatch, through the mid-run mapping in D7. Correcting the supervisor's environment is out of scope |
 | Spool rows are never replayed | `metered_spend_unrecorded` is a visible degradation on the dispatch result, and `apply` runs replay |
+
+- **Concurrent overspend under the coordinator ceiling alone.** The per-round re-check (D4)
+  narrows it to at most one `review_reservation_usd` per concurrently running child; a key
+  credit limit removes it.
 
 ## Open questions (for the operator, recorded as decisions with defaults)
 

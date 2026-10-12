@@ -1,9 +1,9 @@
 {
   "schema_version": 6,
   "change_id": "openrouter-review-lane",
-  "current_phase": "ESCALATE",
+  "current_phase": "PLAN_REVIEW",
   "iteration": 0,
-  "total_iterations": 5,
+  "total_iterations": 6,
   "max_phase_iterations": 3,
   "findings_trend": [],
   "blocking_findings": [],
@@ -36,7 +36,7 @@
   ],
   "last_handoff_id": "local:plan-review-openrouter-review-lane-20261011T1419Z",
   "started_at": "2026-10-10T10:48:36.099038+00:00",
-  "phase_started_at": "2026-10-11T14:20:21.171330+00:00",
+  "phase_started_at": "2026-10-12T02:39:42.726357+00:00",
   "previous_phase": "PLAN_REVIEW",
   "escalation_reason": "PLAN_REVIEW transitioned to ESCALATE via outcome 'max_iter'",
   "val_review_enabled": true,
@@ -125,29 +125,29 @@
       "disposition": "block",
       "phase": "ESCALATE",
       "recorded_at": "2026-10-11T14:20:29.178053+00:00"
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' approved by the operator",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "human",
+        "approval_ref": "gate-decision:4eec73f8-9f8f-46a5-935c-7358a8dcd984"
+      },
+      "disposition": "block",
+      "phase": "ESCALATE",
+      "recorded_at": "2026-10-12T02:39:42.726118+00:00",
+      "note": null
     }
   ],
-  "pending_gate": {
-    "schema_version": 1,
-    "change_id": "openrouter-review-lane",
-    "gate": "escalate_resume",
-    "phase": "ESCALATE",
-    "requested_at": "2026-10-11T14:20:29.179110+00:00",
-    "prompt": "Has this escalation been resolved? Resume the loop?",
-    "context": {
-      "escalation_reason": "PLAN_REVIEW transitioned to ESCALATE via outcome 'max_iter'",
-      "previous_phase": "PLAN_REVIEW"
-    },
-    "posture": {
-      "disposition": "block",
-      "posture_present": true,
-      "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
-    },
-    "edge": {
-      "outcome": "resolved",
-      "target": "PLAN_REVIEW"
-    }
-  },
+  "pending_gate": null,
   "goal_gate": null,
   "park": null,
   "degradations": [

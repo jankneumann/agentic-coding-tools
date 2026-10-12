@@ -132,7 +132,8 @@ dataclass fields and the shared ingest helper extracted in 1.7),
   - no chat-completions call is made.
 - [ ] 3.6 Implement the API-lane probe in `_probe_mode`. Resolve the key via `ApiKeyResolver`,
   fetch coordinator usage through an injectable `GET /routing/usage` client (which fails soft
-  to "source unavailable"), apply the budget rule (design D4), and emit `lane_kinds`. Keep
+  to "source unavailable"), apply the budget rule (design D4) through a reusable function that
+  `converge()` also calls per round (task 5.7), and emit `lane_kinds`. Keep
   `probe_unsupported` for SDK lanes.
 - [ ] 3.7 Extend the existing credential-sentinel test to cover `OPENROUTER_API_KEY` and an
   OpenRouter lane with an echoing transport.
@@ -188,7 +189,8 @@ parallel-infrastructure "Metered Review Lane Spend Accounting" (checkpoint part)
 
 - [ ] 5.1 Write failing tests: in round 2 the OpenRouter lane fails `vendor_unavailable` →
   `capability_unavailable` with `missing_lanes == ["openrouter"]`; an `unknown` failure →
-  `quorum_lost`.
+  `quorum_lost`; a verified lane with no result and no recorded failure → `quorum_lost`
+  (`missing_lanes` = verified − succeeded, never vacuous).
 - [ ] 5.2 Implement the mid-run capability mapping in `converge()` (design D7). Write
   `generation_id`, `prompt_tokens`, `completion_tokens`, `cost_usd` and `cost_source` into the
   round checkpoint's vendor index.
@@ -220,6 +222,11 @@ parallel-infrastructure "Metered Review Lane Spend Accounting" (checkpoint part)
     (IMPL_REVIEW), `consensus-val-review.json` (VAL_REVIEW). This matches the skill-workflow
     "Composite Agent-Lane Review" requirement. The D9 evidence and task 7.2 cite
     `consensus-plan.json`. `converge()` itself never writes these files.
+- [ ] 5.7 Write failing tests, then implement the per-round budget re-check (design D4): before
+  each round, `converge()` re-runs the probe's budget check (task 3.6) for every metered lane; a lane below
+  `review_reservation_usd` is not dispatched and is recorded `vendor_unavailable`
+  (`spend_ceiling_exceeded`). Test: budget available at probe, exhausted before round 2 →
+  round 2 skips the lane and the run ends `capability_unavailable`.
 
 ## 6. Supervisor ranking, apply-time replay, and worker protocol
 
@@ -278,7 +285,7 @@ parallel-infrastructure "Metered Review Lane Spend Accounting" (checkpoint part)
 |---|---|
 | parallel-infrastructure: OpenAI-Compatible Dispatcher Discovery | 2.1–2.3, 3.1–3.4, 3.9 |
 | parallel-infrastructure: Dispatchable Vendor Verification | 1.1–1.2, 3.5–3.7, 3.9 |
-| parallel-infrastructure: Metered Review Lane Spend Accounting | 1.3–1.4, 4.3–4.4, 5.2, 5.5 |
+| parallel-infrastructure: Metered Review Lane Spend Accounting | 1.3–1.4, 4.3–4.4, 5.2, 5.5, 5.7 |
 | parallel-infrastructure: Tool-less Lane Packet Refusal | 1.5–1.7, 3.8, 3.8a, 5.6 |
 | skill-workflow: Honest Review Quorum | 5.1–5.3 |
 | skill-workflow: Composite Agent-Lane Review | 5.4–5.6, 6.4 |

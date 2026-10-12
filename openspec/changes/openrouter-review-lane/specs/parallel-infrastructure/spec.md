@@ -170,6 +170,17 @@ degradation `metered_spend_unrecorded` with phase and lane.
 `spend_recorder.py replay --change-id <id>` SHALL post the spooled rows. Replay SHALL skip a
 `generation_id` the ledger already holds, and SHALL remove each row it delivers.
 
+Before each review round dispatches a metered lane, the remaining budget SHALL be re-checked
+with the same rule the probe uses. A lane below `review_reservation_usd` SHALL NOT be dispatched
+for that round and SHALL be reported as a failed result with `error_class` `vendor_unavailable`
+and reason `spend_ceiling_exceeded`.
+
+#### Scenario: A later round finds the ceiling exhausted
+- **WHEN** the coordinator ceiling had budget at probe time, and before round 2 its remaining
+  budget is below `review_reservation_usd`
+- **THEN** round 2 SHALL NOT dispatch the `openrouter` lane, and SHALL record it as
+  `vendor_unavailable` with reason `spend_ceiling_exceeded`
+
 #### Scenario: A review is recorded against the ledger
 - **WHEN** an `openrouter` review returns `id: gen-abc`, `usage: {prompt_tokens: 1200, completion_tokens: 300, cost: 0.0042}`, and the coordinator accepts the write
 - **THEN** the ledger SHALL contain one row with `generation_id: gen-abc`, `actual_usd: 0.0042`,
