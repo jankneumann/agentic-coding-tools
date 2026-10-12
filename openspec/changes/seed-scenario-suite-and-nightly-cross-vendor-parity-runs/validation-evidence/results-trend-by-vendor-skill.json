@@ -1,0 +1,126 @@
+nightly nightly-20261012T021232Z-e2aac7: completed {"pass": 22, "fail": 0, "error": 0, "skipped_budget": 0}
+== run rc 0
+== results ['trend', '--group-by', 'vendor,skill']
+[
+  {
+    "bucket": "2026-10-12",
+    "vendor": "claude",
+    "skill": "cleanup-feature",
+    "pass": 1,
+    "fail": 0,
+    "error": 0,
+    "skipped_budget": 0,
+    "pass_rate": 1.0
+  },
+  {
+    "bucket": "2026-10-12",
+    "vendor": "claude",
+    "skill": "implement-feature",
+    "pass": 3,
+    "fail": 0,
+    "error": 0,
+    "skipped_budget": 0,
+    "pass_rate": 1.0
+  },
+  {
+    "bucket": "2026-10-12",
+    "vendor": "claude",
+    "skill": "iterate-on-plan",
+    "pass": 1,
+    "fail": 0,
+    "error": 0,
+    "skipped_budget": 0,
+    "pass_rate": 1.0
+  },
+  {
+    "bucket": "2026-10-12",
+    "vendor": "claude",
+    "skill": "merge-pull-requests",
+    "pass": 1,
+    "fail": 0,
+    "error": 0,
+    "skipped_budget": 0,
+    "pass_rate": 1.0
+  },
+  {
+    "bucket": "2026-10-12",
+    "vendor": "claude",
+    "skill": "plan-feature",
+    "pass": 2,
+    "fail": 0,
+    "error": 0,
+    "skipped_budget": 0,
+    "pass_rate": 1.0
+  },
+  {
+    "bucket": "2026-10-12",
+    "vendor": "claude",
+    "skill": "validate-feature",
+    "pass": 3,
+    "fail": 0,
+    "error": 0,
+    "skipped_budget": 0,
+    "pass_rate": 1.0
+  },
+  {
+    "bucket": "2026-10-12",
+    "vendor": "codex",
+    "skill": "cleanup-feature",
+    "pass": 1,
+    "fail": 0,
+    "error": 0,
+    "skipped_budget": 0,
+    "pass_rate": 1.0
+  },
+  {
+    "bucket": "2026-10-12",
+    "vendor": "codex",
+    "skill": "implement-feature",
+    "pass": 3,
+    "fail": 0,
+    "error": 0,
+    "skipped_budget": 0,
+    "pass_rate": 1.0
+  },
+  {
+    "bucket": "2026-10-12",
+    "vendor": "codex",
+    "skill": "iterate-on-plan",
+    "pass": 1,
+    "fail": 0,
+    "error": 0,
+    "skipped_budget": 0,
+    "pass_rate": 1.0
+  },
+  {
+    "bucket": "2026-10-12",
+    "vendor": "codex",
+    "skill": "merge-pull-requests",
+    "pass": 1,
+    "fail": 0,
+    "error": 0,
+    "skipped_budget": 0,
+    "pass_rate": 1.0
+  },
+  {
+    "bucket": "2026-10-12",
+    "vendor": "codex",
+    "skill": "plan-feature",
+    "pass": 2,
+    "fail": 0,
+    "error": 0,
+    "skipped_budget": 0,
+    "pass_rate": 1.0
+  },
+  {
+    "bucket": "2026-10-12",
+    "vendor": "codex",
+    "skill": "validate-feature",
+    "pass": 3,
+    "fail": 0,
+    "error": 0,
+    "skipped_budget": 0,
+    "pass_rate": 1.0
+  }
+]
+rc 0
