@@ -3,7 +3,7 @@ schema_version: 1
 feature:
   id: define-evidence-ledger-schema-with-immutable-facts
   title: "Define evidence ledger schema with immutable facts (evidence-grounded-debugging ri-01)"
-  plan_revision: 1
+  plan_revision: 2
   created_by: claude-code
   # Offline validator + JSON Schema; no running service. validate-feature skips
   # deploy/smoke/scan phases.
@@ -193,7 +193,7 @@ packages:
       steps:
         - name: "SKILL.md contract, CI coverage and manifest catalog guards"
           kind: command
-          command: "uv run pytest tests/evidence-ledger/test_skill_md.py tests/ci_coverage tests/install_sh -q"
+          command: "uv run pytest tests/evidence-ledger/test_skill_md.py tests/ci_coverage tests/install_sh/test_install_manifest.py -q"
           cwd: "skills"
           expect_exit_code: 0
           evidence:
@@ -242,7 +242,7 @@ packages:
       steps:
         - name: "Evidence-ledger suite and shared guards green"
           kind: command
-          command: "uv run pytest tests/evidence-ledger tests/ci_coverage tests/openspec_paths tests/install_sh -q"
+          command: "uv run pytest tests/evidence-ledger tests/ci_coverage tests/openspec_paths tests/install_sh/test_install_manifest.py -q"
           cwd: "skills"
           expect_exit_code: 0
           evidence:

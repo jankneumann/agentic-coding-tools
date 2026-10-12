@@ -106,6 +106,11 @@ The validator SHALL enforce all of the following:
 - **WHEN** a fact's `time_window.start` is later than its `time_window.end`
 - **THEN** the validator reports `time_window_inverted`
 
+#### Scenario: Reverify request naming the disputed fact as its own replacement is rejected
+
+- **WHEN** a reverify request's `replacement_fact` equals its `fact_id`
+- **THEN** the validator reports `replacement_is_target`
+
 ### Requirement: Recorded facts are immutable across ledger revisions
 
 Given a previous and a current revision of the same ledger, the validator SHALL reject the
@@ -140,6 +145,12 @@ hypotheses MAY change between revisions.
 - **WHEN** the current revision omits a fact id that was present in the previous revision
 - **THEN** `check_revision` reports `fact_removed`
 
+#### Scenario: Editing a recorded reverify request is rejected
+
+- **WHEN** the current revision changes the `reason` of a reverify request that was recorded
+  in the previous revision
+- **THEN** `check_revision` reports `reverify_mutated`
+
 #### Scenario: Hypothesis status change is accepted
 
 - **WHEN** the only difference between the revisions is a hypothesis status that moves from
@@ -164,6 +175,12 @@ Given the same inputs, the CLI MUST produce the same violation list in the same 
 - **WHEN** the same ledger content is validated once from a `.yaml` file and once from a
   `.json` file
 - **THEN** both runs report identical violation lists
+
+#### Scenario: Unquoted YAML timestamps stay strings
+
+- **WHEN** a YAML ledger writes `time_window.start` as an unquoted ISO-8601 timestamp
+- **THEN** the loader returns it as a string
+- **AND** the ledger validates without a `schema_violation`
 
 #### Scenario: Unreadable ledger exits with code 2
 
