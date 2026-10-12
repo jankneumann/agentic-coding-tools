@@ -832,6 +832,124 @@ def read_committed_dispatch_scope(
     return best
 
 
+#: The console resolution each relayed decision must carry.
+_RELAYED_RESOLUTION = {"approved": ("console_approved", "proceed"), "rejected": ("console_rejected", None)}
+
+
+def committed_roadmap_ids(*, repo_root: Optional[PathLike] = None) -> list[str]:
+    """The ids of the active roadmaps whose checkpoint is committed at HEAD."""
+    root = Path(repo_root) if repo_root is not None else Path.cwd()
+    listing = _git_head(root, "ls-tree", "-r", "--name-only", "HEAD", "--", "openspec/roadmaps") or ""
+    return sorted({p.split("/")[2] for p in listing.splitlines() if _CHECKPOINT_GLOB.match(p)})
+
+
+def read_committed_gate_answer(
+    change_id: str,
+    *,
+    gate: str,
+    decision: str,
+    approval_ref: str,
+    resume_at: Optional[str] = None,
+    repo_root: Optional[PathLike] = None,
+) -> Optional[dict[str, Any]]:
+    """The supervisor's committed answer to a cloud worker's parked gate, or ``None``.
+
+    A cloud worker has no launch marker to carry its ``gate_answer``, so a
+    supervisor relays the operator's answer as a message the worker cannot
+    authenticate. This makes the relay checkable: the answer counts only if the
+    decision ``approval_ref`` names is in the checkpoint at the tip of the
+    fetched roadmap branch (``origin/openspec/roadmap-<id>``), and
+
+    * it is a console decision (``provenance.source == "human"``) for this
+      ``change_id``, ``gate`` and ``decision``, with the matching ``resume_at``;
+    * it is the latest decision for its dispatch and gate, so a superseded
+      answer cannot be replayed;
+    * its dispatch attempt has been relaunched past it: the attempt's
+      ``lease_generation`` is the decision's ``lease_generation`` + 1.
+
+    The tip is read, not the merge-base :func:`read_committed_dispatch_scope`
+    uses, because the answer is committed after the worker's branch was cut.
+    Like that reader, nothing the worker commits on its own branch counts.
+
+    Residual trust: this proves the supervisor recorded the decision, not that
+    the operator made it, and a worker that rewrites its own remote-tracking
+    refs, or pushes to the roadmap branch, could still forge one. Pushes to
+    ``openspec/roadmap-*`` are kept out of the pre-approved commands for that
+    reason.
+    """
+    if not isinstance(change_id, str) or not change_id or "/" in change_id:
+        return None
+    expected = _RELAYED_RESOLUTION.get(decision)
+    if expected is None or not isinstance(approval_ref, str):
+        return None
+    decision_id = approval_ref.removeprefix("gate-decision:")
+    if decision_id == approval_ref or not decision_id:
+        return None
+    root = Path(repo_root) if repo_root is not None else Path.cwd()
+    for roadmap_id in committed_roadmap_ids(repo_root=root):
+        ref = f"refs/remotes/origin/openspec/roadmap-{roadmap_id}"
+        tip = (_git_head(root, "rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}") or "").strip()
+        if not tip:
+            continue
+        path = f"openspec/roadmaps/{roadmap_id}/checkpoint.json"
+        try:
+            checkpoint = json.loads(_git_head(root, "show", f"{tip}:{path}") or "null")
+        except ValueError:
+            continue
+        if not isinstance(checkpoint, dict):
+            continue
+        records = [r for r in checkpoint.get("gate_decisions") or [] if isinstance(r, dict)]
+        record = next((r for r in records if r.get("decision_id") == decision_id), None)
+        if record is None:
+            continue
+        resolution, outcome = expected
+        provenance = record.get("provenance") or {}
+        if (
+            record.get("change_id") != change_id
+            or record.get("gate") != gate
+            or record.get("resolution") != resolution
+            or (outcome is not None and record.get("outcome") != outcome)
+            or provenance.get("source") != "human"
+            or record.get("resume_at") != resume_at
+        ):
+            return None
+        dispatch_id = record.get("dispatch_id")
+        answered = record.get("lease_generation")
+        if not isinstance(answered, int) or isinstance(answered, bool):
+            return None
+        later = [
+            r for r in records[records.index(record) + 1:]
+            if r.get("dispatch_id") == dispatch_id and r.get("gate") == gate
+        ]
+        if later:
+            return None
+        attempt = next(
+            (
+                a for a in checkpoint.get("dispatch_attempts") or []
+                if isinstance(a, dict) and a.get("dispatch_id") == dispatch_id
+            ),
+            None,
+        )
+        if (
+            attempt is None
+            or attempt.get("change_id") != change_id
+            or attempt.get("lease_generation") != answered + 1
+        ):
+            return None
+        return {
+            "dispatch_id": dispatch_id,
+            "generation": answered + 1,
+            "gate": gate,
+            "decision": decision,
+            "approval_ref": approval_ref,
+            "resume_at": resume_at,
+            "source": "committed_checkpoint",
+            "checkpoint_path": path,
+            "checkpoint_commit": tip,
+        }
+    return None
+
+
 # --------------------------------------------------------------------------- #
 # Closure support (Dispatch Result Closure)
 # --------------------------------------------------------------------------- #
