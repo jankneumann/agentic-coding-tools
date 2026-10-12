@@ -230,3 +230,45 @@ Vendor-review remediation cycle. Only codex returned (antigravity timed out, gro
 ### Context
 PLAN_REVIEW ran as convergence_loop.converge() (plan, quorum 2, panel claude_code + codex) over four passes; final engine result: converged. Every finding was single-vendor judgment-class, so the engine returned adjudication_required twice and the orchestrator adjudicated the eight high/critical items (seven valid, one rejected); the fixes landed as three scoped commits on the cited files. The wp-router promotion moved out of the held package into an operator step P0, the change is declared active across the two runs, the record schema requires retention whenever an incumbent was supplied, and scenario model-routing.8 states its infeasibility precondition.
 
+---
+
+## Phase: Implementation (2026-10-12)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **_selected_provider() always returns a concrete provider** `architectural: skill-workflow` — Narrowed return type str | None -> str (D2): a falsy provider previously reached archetype resolution as None, which got back a bare tier alias (e.g. 'standard') instead of that provider's concrete model. Default is 'claude_code', applied after whitespace-only env/arg values are treated as unset.
+2. **UnservableProviderError is non-retryable in run_phase_subagent** `architectural: skill-workflow` — The failure is deterministic -- neither the runner's supported set nor options['provider'] changes between attempts -- so a retry would only delay escalation. Raises PhaseEscalationError on the first occurrence instead of consuming the retry budget.
+3. **smoke_provider_dispatch dispatches to the resolved provider** `architectural: skill-workflow` — payload.provider is now the resolved provider (the vendor that actually owns the selected model), matching build_phase_dispatch_kwargs's existing dispatch_provider convention. The caller's original choice is preserved separately as 'provider' in the JSON body/text line, alongside the new 'resolved_provider' field.
+
+### Alternatives Considered
+- Add a resolved_provider field to PhaseDispatchPayload's schema: rejected because Rejected for scope discipline: the task only needs the smoke CLI's body/text output to carry resolved_provider, and PhaseDispatchPayload is consumed by provider_dispatch.dispatch_phase and its own tests -- widening its schema was unnecessary surface for this package's goal.
+
+### Trade-offs
+- Accepted Bundled tasks 1.1-1.5 into one commit instead of a commit per task number over Strict one-commit-per-task-number sequencing because Tasks 1.1-1.5 are TDD RED/GREEN pairs over the same function (1.3's tests cannot pass until 1.4 and 1.5 both land) -- Rule 2 (every commit on the branch must build and pass tests, no broken middle) takes priority over task-number granularity when the two conflict. Task 1.6 (independent SKILL.md prose) landed in its own commit.
+
+### Open Questions
+- [ ] Pre-existing environment gap (not introduced by this phase): skills/tests/autopilot/test_phase_archetype_e2e.py (2 tests) and test_phase_dispatch_e2e.py (1 test) fail with ModuleNotFoundError: No module named 'asyncpg' -- they spin up an in-process coordinator backed by DB_BACKEND=postgres, which needs agent-coordinator/.venv, not skills/.venv. Outside wp-dispatch's write_allow and this package's own verification command (which scopes to skills/tests/autopilot, phase-record-compaction, vendor-neutral-autopilot via skills/.venv only).
+
+### Completed Work
+- 1.1/1.2: _selected_provider() defaults to 'claude_code', narrowed to always-str.
+- 1.3/1.4: run_phase_subagent/make_phase_callback thread provider through to options['provider'] via _resolved_provider precedence; UnservableProviderError + claude_agent_runner reference adapter; non-retryable escalation path.
+- 1.5: smoke_provider_dispatch pairs resolved provider with resolved model; reports provider + resolved_provider.
+- 1.6: SKILL.md 8-phase protocol + all 8 per-phase blocks name provider; test_skill_dispatch_provider_prose.py guards it.
+- wp-dispatch verification: skills/tests/autopilot, phase-record-compaction, vendor-neutral-autopilot (757 passed, 6 skipped, 3 pre-existing env-gap failures unrelated to this diff); ruff clean; openspec validate --strict clean.
+
+### Next Steps
+- PR review/CI for this wp-dispatch-only branch.
+- After merge to origin/main: operator/orchestrator runs tasks.md step P0 (promotion gate) to promote wp-router from work-packages.held.yaml before the second autopilot run on this change.
+
+### Relevant Files
+- `skills/autopilot/scripts/phase_agent.py` — _selected_provider, UnservableProviderError, claude_agent_runner, run_phase_subagent/make_phase_callback provider threading
+- `skills/autopilot/scripts/smoke_provider_dispatch.py` — builds (provider, model) pair from the resolved provider; reports resolved_provider
+- `skills/autopilot/SKILL.md` — 8-phase dispatch protocol now names provider at every build-dispatch call site
+- `skills/tests/autopilot/test_build_options.py` — _selected_provider + build_phase_dispatch_payload default-provider tests
+- `skills/tests/autopilot/test_dispatch_provider_pairing.py` — provider-pairing, UnservableProviderError non-retry, smoke resolved_provider tests
+- `skills/tests/autopilot/test_skill_dispatch_provider_prose.py` — SKILL.md provider-prose guard
+
+### Context
+Implemented wp-dispatch (tasks 1.1-1.6, design D1/D2): dispatch now always carries a concrete `provider`, follows the coordinator-resolved vendor when adaptive routing crosses vendors, and a SubagentRunner that cannot serve the requested provider raises UnservableProviderError (non-retryable). smoke_provider_dispatch and SKILL.md's 8-phase protocol were updated to match. wp-router (tasks 2.x-4.x) remains held in work-packages.held.yaml per design D8 for the second autopilot run.
+

@@ -5,6 +5,39 @@
 
 ---
 
+## 2026-10-12 — add-infeasible-incumbent-fallback
+
+### Phase: Implementation
+
+**_selected_provider() always returns a concrete provider** — Narrowed return type str | None -> str (D2): a falsy provider previously reached archetype resolution as None, which got back a bare tier alias (e.g. 'standard') instead of that provider's concrete model. Default is 'claude_code', applied after whitespace-only env/arg values are treated as unset.
+
+- Status: `active`
+- Source: [openspec/changes/add-infeasible-incumbent-fallback/session-log.md](/openspec/changes/add-infeasible-incumbent-fallback/session-log.md) (D1)
+
+---
+
+## 2026-10-12 — add-infeasible-incumbent-fallback
+
+### Phase: Implementation
+
+**UnservableProviderError is non-retryable in run_phase_subagent** — The failure is deterministic -- neither the runner's supported set nor options['provider'] changes between attempts -- so a retry would only delay escalation. Raises PhaseEscalationError on the first occurrence instead of consuming the retry budget.
+
+- Status: `active`
+- Source: [openspec/changes/add-infeasible-incumbent-fallback/session-log.md](/openspec/changes/add-infeasible-incumbent-fallback/session-log.md) (D2)
+
+---
+
+## 2026-10-12 — add-infeasible-incumbent-fallback
+
+### Phase: Implementation
+
+**smoke_provider_dispatch dispatches to the resolved provider** — payload.provider is now the resolved provider (the vendor that actually owns the selected model), matching build_phase_dispatch_kwargs's existing dispatch_provider convention. The caller's original choice is preserved separately as 'provider' in the JSON body/text line, alongside the new 'resolved_provider' field.
+
+- Status: `active`
+- Source: [openspec/changes/add-infeasible-incumbent-fallback/session-log.md](/openspec/changes/add-infeasible-incumbent-fallback/session-log.md) (D3)
+
+---
+
 ## 2026-09-25 — 2026-09-25-restructure-openbao-per-agent-secrets
 
 ### Phase: Implementation
