@@ -3,7 +3,7 @@
   "change_id": "openrouter-review-lane",
   "round": 1,
   "body_path": "review-packet.md",
-  "sha256": "7826927b84d9ffcd4d9e2014e631a212cc22e28e40e607c04da3790f7b4b20c2",
+  "sha256": "40248c2011a9810b29527a8a5f4e3545c563d20e1daf13c4573510cfce437c67",
   "char_length": 320000,
   "budget_chars": 320000,
   "tools_overflow": true,
@@ -727,11 +727,18 @@
         "est_tokens": 6383
       },
       {
+        "path": "openspec/changes/openrouter-review-lane/.review-ledger/ledger.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 2881
+      },
+      {
         "path": "openspec/changes/openrouter-review-lane/design.md",
         "status": "modified",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 5399
+        "est_tokens": 6615
       },
       {
         "path": "openspec/changes/openrouter-review-lane/dispatch-results/batch-d8913c4d8e973cd7940e2d09-ri-22-attempt-1-g1.json",
@@ -748,11 +755,18 @@
         "est_tokens": 502
       },
       {
+        "path": "openspec/changes/openrouter-review-lane/dispatch-results/batch-d8913c4d8e973cd7940e2d09-ri-22-attempt-1-g3.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 546
+      },
+      {
         "path": "openspec/changes/openrouter-review-lane/loop-state.json",
         "status": "added",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 1099
+        "est_tokens": 1592
       },
       {
         "path": "openspec/changes/openrouter-review-lane/plan-findings.md",
@@ -787,14 +801,14 @@
         "status": "added",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 2887
+        "est_tokens": 3419
       },
       {
         "path": "openspec/changes/openrouter-review-lane/specs/skill-workflow/spec.md",
         "status": "added",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 1849
+        "est_tokens": 2141
       },
       {
         "path": "openspec/changes/openrouter-review-lane/specs/supervise/spec.md",
@@ -808,7 +822,7 @@
         "status": "modified",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 3902
+        "est_tokens": 5074
       },
       {
         "path": "openspec/contracts/README.md",
@@ -2109,10 +2123,10 @@
       },
       {
         "path": "openspec/changes/archive/2026-10-10-dispatch-contract/.review-cache/round-1/review-manifest.json",
-        "status": "renamed",
+        "status": "added",
         "reason": "generated_path",
         "gate": "generated_path",
-        "est_tokens": 373
+        "est_tokens": 307
       },
       {
         "path": "openspec/changes/archive/2026-10-10-dispatch-contract/.review-cache/round-1/review-packet.md",
@@ -2200,10 +2214,10 @@
       },
       {
         "path": "openspec/changes/archive/2026-10-10-dispatch-contract/.review-cache/round-3/fact-check-claude_code.json",
-        "status": "renamed",
+        "status": "added",
         "reason": "generated_path",
         "gate": "generated_path",
-        "est_tokens": 220
+        "est_tokens": 148
       },
       {
         "path": "openspec/changes/archive/2026-10-10-dispatch-contract/.review-cache/round-3/findings-claude_code-implementation.json",
@@ -2885,6 +2899,153 @@
         "est_tokens": 156
       },
       {
+        "path": "openspec/changes/openrouter-review-lane/.review-cache/round-1/fact-check-claude_code.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 140
+      },
+      {
+        "path": "openspec/changes/openrouter-review-lane/.review-cache/round-1/findings-claude_code-plan.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 2476
+      },
+      {
+        "path": "openspec/changes/openrouter-review-lane/.review-cache/round-1/raw-claude_code-plan.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 177
+      },
+      {
+        "path": "openspec/changes/openrouter-review-lane/.review-cache/round-1/raw-claude_code-plan.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 59
+      },
+      {
+        "path": "openspec/changes/openrouter-review-lane/.review-cache/round-1/review-manifest.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 294
+      },
+      {
+        "path": "openspec/changes/openrouter-review-lane/.review-cache/round-1/review-packet.md",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 81491
+      },
+      {
+        "path": "openspec/changes/openrouter-review-lane/.review-cache/round-1/review-packet.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 35126
+      },
+      {
+        "path": "openspec/changes/openrouter-review-lane/.review-cache/round-2/fact-check-claude_code.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 140
+      },
+      {
+        "path": "openspec/changes/openrouter-review-lane/.review-cache/round-2/findings-claude_code-plan.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 1272
+      },
+      {
+        "path": "openspec/changes/openrouter-review-lane/.review-cache/round-2/raw-claude_code-plan.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 177
+      },
+      {
+        "path": "openspec/changes/openrouter-review-lane/.review-cache/round-2/raw-claude_code-plan.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 59
+      },
+      {
+        "path": "openspec/changes/openrouter-review-lane/.review-cache/round-2/review-manifest.json",
+        "status": "renamed",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 359
+      },
+      {
+        "path": "openspec/changes/openrouter-review-lane/.review-cache/round-2/review-packet.md",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 11308
+      },
+      {
+        "path": "openspec/changes/openrouter-review-lane/.review-cache/round-2/review-packet.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 375
+      },
+      {
+        "path": "openspec/changes/openrouter-review-lane/.review-cache/round-3/fact-check-claude_code.json",
+        "status": "renamed",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 102
+      },
+      {
+        "path": "openspec/changes/openrouter-review-lane/.review-cache/round-3/findings-claude_code-plan.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 926
+      },
+      {
+        "path": "openspec/changes/openrouter-review-lane/.review-cache/round-3/raw-claude_code-plan.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 177
+      },
+      {
+        "path": "openspec/changes/openrouter-review-lane/.review-cache/round-3/raw-claude_code-plan.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 59
+      },
+      {
+        "path": "openspec/changes/openrouter-review-lane/.review-cache/round-3/review-manifest.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 294
+      },
+      {
+        "path": "openspec/changes/openrouter-review-lane/.review-cache/round-3/review-packet.md",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 8702
+      },
+      {
+        "path": "openspec/changes/openrouter-review-lane/.review-cache/round-3/review-packet.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 405
+      },
+      {
         "path": "openspec/changes/openrouter-review-lane/specs/multiplayer-collaboration/spec.md",
         "status": "deleted",
         "reason": "deleted",
@@ -2989,9 +3150,11 @@
       "openspec/changes/archive/2026-10-10-toolkit-consistency/specs/toolkit-distribution/spec.md",
       "openspec/changes/archive/2026-10-10-toolkit-consistency/tasks.md",
       "openspec/changes/archive/2026-10-10-toolkit-consistency/validation-report.md",
+      "openspec/changes/openrouter-review-lane/.review-ledger/ledger.json",
       "openspec/changes/openrouter-review-lane/design.md",
       "openspec/changes/openrouter-review-lane/dispatch-results/batch-d8913c4d8e973cd7940e2d09-ri-22-attempt-1-g1.json",
       "openspec/changes/openrouter-review-lane/dispatch-results/batch-d8913c4d8e973cd7940e2d09-ri-22-attempt-1-g2.json",
+      "openspec/changes/openrouter-review-lane/dispatch-results/batch-d8913c4d8e973cd7940e2d09-ri-22-attempt-1-g3.json",
       "openspec/changes/openrouter-review-lane/loop-state.json",
       "openspec/changes/openrouter-review-lane/plan-findings.md",
       "openspec/changes/openrouter-review-lane/proposal.md",
@@ -3275,9 +3438,11 @@
         "openspec/changes/archive/2026-10-10-toolkit-consistency/session-log.md",
         "openspec/changes/archive/2026-10-10-toolkit-consistency/tasks.md",
         "openspec/changes/archive/2026-10-10-toolkit-consistency/validation-report.md",
+        "openspec/changes/openrouter-review-lane/.review-ledger/ledger.json",
         "openspec/changes/openrouter-review-lane/design.md",
         "openspec/changes/openrouter-review-lane/dispatch-results/batch-d8913c4d8e973cd7940e2d09-ri-22-attempt-1-g1.json",
         "openspec/changes/openrouter-review-lane/dispatch-results/batch-d8913c4d8e973cd7940e2d09-ri-22-attempt-1-g2.json",
+        "openspec/changes/openrouter-review-lane/dispatch-results/batch-d8913c4d8e973cd7940e2d09-ri-22-attempt-1-g3.json",
         "openspec/changes/openrouter-review-lane/loop-state.json",
         "openspec/changes/openrouter-review-lane/plan-findings.md",
         "openspec/changes/openrouter-review-lane/proposal.md",

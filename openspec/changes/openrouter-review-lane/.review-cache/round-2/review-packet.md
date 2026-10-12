@@ -18,240 +18,277 @@ Output ONLY a JSON object with a top-level `findings` array.
 
 ### Diff
 ```diff
+diff --git a/openspec/changes/openrouter-review-lane/.review-ledger/ledger.json b/openspec/changes/openrouter-review-lane/.review-ledger/ledger.json
+index b88ff9b6..a1173d15 100644
+--- a/openspec/changes/openrouter-review-lane/.review-ledger/ledger.json
++++ b/openspec/changes/openrouter-review-lane/.review-ledger/ledger.json
+@@ -207,6 +207,75 @@
+       ],
+       "description": "The round-2 spec fix names the consensus file per phase (consensus-plan.json, consensus-impl-review.json, consensus-val-review.json). Task 5.6 and design D9 still say reviews/consensus-<review_type>.json, which gives consensus-implementation.json for both implementation phases, so they collide. The PLAN_REVIEW case, which the retirement evidence depends on, agrees in all three artifacts. Design D9 also cites 'task 5.5' for this write, but the work is in task 5.6.",
+       "consensus_status": "unconfirmed"
++    },
++    {
++      "id": 13,
++      "status": "open",
++      "axis": "architecture",
++      "type": "contract_mismatch",
++      "criticality": "medium",
++      "evidence_class": "deterministic",
++      "file_path": "openspec/changes/openrouter-review-lane/design.md",
++      "fingerprint": "9560d906c79108e4",
++      "first_seen_round": 1,
++      "last_seen_round": 1,
++      "vendor_hits": [
++        "claude_code"
++      ],
++      "description": "D6 and tasks 3.8a/5.6 have converge() build a second, tool-less packet and 'pass both paths to dispatch_and_wait', and have dispatch_and_wait hand the tool-less body and its tools_overflow flag to OpenAI-compatible adapters. That needs a new optional dispatch_and_wait parameter (for both ReviewOrchestrator and the CompositeOrchestrator that converge() calls through _accepts_kwarg) and a new tools_overflow keyword on OpenAICompatAdapter.dispatch. Neither is named anywhere, and the cross-cutting interface contract table lists only include_lanes for dispatch_and_wait. Groups 3 and 5 implement the two sides of this interface in separate packages.",
++      "consensus_status": "unconfirmed"
++    },
++    {
++      "id": 14,
++      "status": "open",
++      "axis": "correctness",
++      "type": "spec_gap",
++      "criticality": "medium",
++      "evidence_class": "deterministic",
++      "file_path": "openspec/changes/openrouter-review-lane/tasks.md",
++      "spec_file": "/home/user/agentic-coding-tools/openspec/changes/openrouter-review-lane/specs/parallel-infrastructure/spec.md",
++      "fingerprint": "760c0f61babee0d4",
++      "first_seen_round": 1,
++      "last_seen_round": 1,
++      "vendor_hits": [
++        "claude_code"
++      ],
++      "description": "The Metered Review Lane Spend Accounting requirement says every review an openrouter lane dispatches is recorded with spend_recorder.record(), and acceptance outcome 3 says every OpenRouter review is recorded against the ceiling. The only task that calls record() is 5.5, inside agent_lane's CompositeOrchestrator. D5 also selects the metered lane on a host with fewer than fill_target non-metered lanes (for example one CLI vendor and OPENROUTER_API_KEY in non-OpenBao mode). That review runs through ReviewOrchestrator.dispatch_and_wait from converge() or /parallel-review-*, never through agent_lane, so its spend is neither recorded nor spooled and no metered_spend_unrecorded degradation is raised.",
++      "consensus_status": "unconfirmed"
++    },
++    {
++      "id": 15,
++      "status": "open",
++      "axis": "observability",
++      "type": "contract_mismatch",
++      "criticality": "low",
++      "evidence_class": "deterministic",
++      "file_path": "openspec/changes/openrouter-review-lane/specs/parallel-infrastructure/spec.md",
++      "fingerprint": "23f6b8e0d50773bb",
++      "first_seen_round": 1,
++      "last_seen_round": 1,
++      "vendor_hits": [
++        "claude_code"
++      ],
++      "description": "The spec fixes work_unit_ref as '<change_id>:<review_type>:round-<n>'. IMPL_REVIEW and VAL_REVIEW both run with review_type 'implementation', so their rows get the same work_unit_ref and spend cannot be split by phase. This is the collision the round-2 fix already removed for the consensus files. Design D4 allows '<phase|review_type>'.",
++      "consensus_status": "unconfirmed"
++    },
++    {
++      "id": 16,
++      "status": "open",
++      "axis": "architecture",
++      "type": "architecture",
++      "criticality": "medium",
++      "evidence_class": "judgment",
++      "file_path": "openspec/changes/openrouter-review-lane/design.md",
++      "fingerprint": "50d0804bc4341887",
++      "first_seen_round": 1,
++      "last_seen_round": 1,
++      "vendor_hits": [
++        "claude_code"
++      ],
++      "description": "D4 and task 5.7 put the per-round budget re-check in converge(). converge() is vendor-agnostic: it receives only verified_lanes and an orchestrator, does not know which lanes are metered, has no coordinator-usage client, and has no way to keep one lane out of a dispatch except through orchestrator-specific kwargs. CompositeOrchestrator already knows the metered lanes and builds include_lanes, so the check fits there, or in ReviewOrchestrator.dispatch_and_wait next to the probe code. Keeping it in converge() widens the converge() signature with routing concerns.",
++      "consensus_status": "unconfirmed"
+     }
+   ],
+   "compacted_at": "2026-10-11T14:18:09Z"
 diff --git a/openspec/changes/openrouter-review-lane/design.md b/openspec/changes/openrouter-review-lane/design.md
-index 893a781a..a5769d43 100644
+index 126d3661..d749c6cd 100644
 --- a/openspec/changes/openrouter-review-lane/design.md
 +++ b/openspec/changes/openrouter-review-lane/design.md
-@@ -56,7 +56,8 @@ The first lane is a new agent `openrouter-review`:
- - `type: openrouter`, `endpoint_kind: openrouter`, `base_url: https://openrouter.ai/api/v1`
- - `location: cloud`, `transport: http`, `trust_level: 1`, `capabilities: [discover]`
- - `archetypes: [reviewer]`, `vendor_credentials: [openrouter]`
--- no `cli` and no `sdk` block, the same shape as `ocr-local`
-+- no `cli` and no `sdk` block: the dispatcher builds only the tier-2.5 `OpenAICompatAdapter` for it
-+  (`from_config_dict` already accepts an agent whose only dispatch surface is `endpoint_kind` + `base_url`)
- - no `api_key`. The lane never calls the coordinator under its own identity. Without a principal, key resolution falls back to the dispatcher's existing `OPENROUTER_API_KEY` default for `endpoint_kind: openrouter`, which works in non-OpenBao mode (cloud). On an OpenBao host the lane reports `auth_failed`. That is acceptable: hosts have CLI lanes, and D5 would not select it there. The agent schema has `additionalProperties: false`, so no agent-level `api_key_env` field is added.
+@@ -180,13 +180,16 @@ to single-vendor review on its own.
+ `usage.cost`. The adapter adds `prompt_tokens`, `completion_tokens`, `cost_usd` and
+ `cost_source` (`reported`, or `estimated` when the response has no cost) to `ReviewResult`.
  
- Its model comes from a new provider `openrouter` in `agent-coordinator/archetypes.yaml`. The
-@@ -68,6 +69,14 @@ and in ConsensusSynthesizer attribution.
- More lanes are added the same way, each with its own `type` and provider key. Lane ids must be
- unique because `converge()` keys checkpointed results by `vendor`.
+-A new `skills/parallel-infrastructure/scripts/spend_recorder.py` writes one row per review:
++A new `skills/parallel-infrastructure/scripts/spend_recorder.py` writes one row per review. The
++caller is `ReviewOrchestrator.dispatch_and_wait`, after each metered result, so every dispatch
++path records (a host `converge()` that selected the lane by D5, `/parallel-review-*`, and
++`agent_lane`'s `CompositeOrchestrator`). It sets `ReviewResult.spend_recorded`:
  
-+`location: cloud` needs a matching cost tier. Today the only `routing.yaml` tier carrying
-+`endpoint_kind: openrouter` is `metered-api` with `location: local`, so
-+`RoutingPolicy.cost_tier("cloud", "openrouter")` returns `None` and `select_model` would exclude
-+the agent. Group 2 therefore appends a tier `metered-api-cloud` (`location: cloud`,
-+`endpoint_kinds: [openrouter]`) after `metered-api`. It is the last rung, so it never outranks a
-+subscription tier, and the supervisor's `_tier_order()` (which reads only `endpoint_kinds`, first
-+index wins) is unchanged. A group-2 test asserts `cost_tier("cloud", "openrouter")` is not `None`.
+ - It posts to a new authenticated `POST /routing/spend` that calls the existing
+   `LedgerService.record`.
+ - The row holds `vendor` = lane id, `model` = `model_used`, `endpoint_kind = openrouter`,
+   `generation_id`, the token counts, `actual_usd`, `tokens_estimated` (true when `cost_source`
+-  is `estimated`), and `work_unit_ref = <change_id>:<phase|review_type>:round-<n>`.
++  is `estimated`), and `work_unit_ref = <change_id>:<phase>:round-<n>`.
+ 
+ The same fields always go into the round checkpoint's vendor index, which is durable on the
+ branch.
+@@ -234,8 +237,9 @@ no HTTP call. The existing Empty Or Blinded Review Is Not Success floor still ap
+ lanes.
+ 
+ The packet metadata is the sidecar `build_review_packet` writes next to `packet_path`.
+-`dispatch_and_wait` already receives `packet_path`, and passes the `tools_overflow` flag to
+-the adapter.
++`dispatch_and_wait` already receives `packet_path`. It reads the flag from the sidecar of the
++packet an OpenAI-compatible lane will receive and passes it to
++`OpenAICompatAdapter.dispatch(..., tools_overflow: bool = False)`.
+ 
+ **Refusal must stay rare.** Refusal alone would make the lane useless in practice. Plan-review
+ packets on long-lived branches routinely overflow: the round-1 PLAN_REVIEW packet for this change
+@@ -253,6 +257,11 @@ whenever the primary packet overflows:
+ - The tool-less packet gets its own sidecar (`review-packet.toolless.meta.json`). An HTTP lane
+   refuses with `packet_requires_tools` only when this packet *also* has `tools_overflow: true`.
+   The CLI and handshake lanes keep the primary packet.
++- `converge()` passes the tool-less packet as a new optional keyword,
++  `dispatch_and_wait(..., toolless_packet_path: Path | None = None)`, only when the orchestrator
++  accepts it (the existing `_accepts_kwarg` check). Both `ReviewOrchestrator` and
++  `CompositeOrchestrator` accept it, and `CompositeOrchestrator` forwards it to
++  `ReviewOrchestrator`. When it is `None`, OpenAI-compatible lanes get the primary packet as today.
+ 
+ A scenario covers a plan review whose full branch diff overflows: the HTTP lane receives a
+ tool-less packet that fits, and it is dispatched. The D9 evidence run must use a change whose
+@@ -334,10 +343,12 @@ re-evaluation is expected and is recorded in the session log.
+ 
+ | Contract | Change | Compatibility |
+ |---|---|---|
+-| `ReviewResult` | adds `prompt_tokens`, `completion_tokens`, `cost_usd`, `cost_source` (all optional, default `None`) | additive, existing callers unaffected |
++| `ReviewResult` | adds `prompt_tokens`, `completion_tokens`, `cost_usd`, `cost_source`, `spend_recorded` (all optional, default `None`) | additive, existing callers unaffected |
+ | `--check-vendors --json` | adds `modes.<mode>.lane_kinds`; API lanes may now be `verified` or carry the new reasons | additive; consumers ignore unknown keys |
+ | `review_quorum_policy.json` | adds `vendor_families` and `metered_lanes.{fill_target, review_reservation_usd}` | additive; `resolve_quorum_policy` ignores them |
+-| `dispatch_and_wait` | adds optional `include_lanes` | default keeps behaviour |
++| `dispatch_and_wait` (`ReviewOrchestrator`, `CompositeOrchestrator`) | adds optional `include_lanes` and `toolless_packet_path: Path \| None = None` (D6) | defaults keep behaviour; `converge()` passes `toolless_packet_path` only when `_accepts_kwarg` reports it |
++| `OpenAICompatAdapter.dispatch` | adds keyword `tools_overflow: bool = False` (D6) | default keeps behaviour |
++| `dispatch_and_wait` / `converge()` spend context | `dispatch_and_wait` adds optional `work_unit_ref: str \| None = None`; `converge()` adds optional `phase: str \| None = None` and passes `work_unit_ref = <change_id>:<phase>:round-<n>` when `phase` is set (D4) | defaults keep behaviour; without a `work_unit_ref` the spend row omits it (the route field is optional) |
+ | `dispatch-result.schema.json` `Degradation.code` | adds enum value `metered_spend_unrecorded` | additive enum; writers older than this change never emit it |
+ | Coordinator HTTP | adds `POST /routing/spend` (X-API-Key auth, Pydantic `extra="forbid"`, `actual_usd >= 0`, `generation_id` idempotency) | new route |
+ 
+diff --git a/openspec/changes/openrouter-review-lane/specs/parallel-infrastructure/spec.md b/openspec/changes/openrouter-review-lane/specs/parallel-infrastructure/spec.md
+index f3d8d034..ca844e7d 100644
+--- a/openspec/changes/openrouter-review-lane/specs/parallel-infrastructure/spec.md
++++ b/openspec/changes/openrouter-review-lane/specs/parallel-infrastructure/spec.md
+@@ -158,10 +158,16 @@ Every review that an `openrouter` lane dispatches SHALL request inline usage acc
+ 
+ `converge()` SHALL write these fields into the round checkpoint's vendor index.
+ 
+-After each review, `spend_recorder.record()` SHALL send one row to `POST /routing/spend` with:
++After each review that sent a request, `ReviewOrchestrator.dispatch_and_wait` SHALL call
++`spend_recorder.record()`, which SHALL send one row to `POST /routing/spend` with:
+ `vendor` (the lane id), `model`, `endpoint_kind: openrouter`, `generation_id`, token counts,
+ `actual_usd`, `tokens_estimated` (true when `cost_source` is `estimated`), and
+-`work_unit_ref` (`<change_id>:<review_type>:round-<n>`).
++`work_unit_ref` (`<change_id>:<phase>:round-<n>`, for example
++`openrouter-review-lane:VAL_REVIEW:round-2`; the phase, not the review type, so IMPL_REVIEW and
++VAL_REVIEW rows stay distinct; `converge()` supplies it to `dispatch_and_wait` when its caller
++gives the phase, and a call without one omits the field). The call SHALL happen on every dispatch path, including a host
++`converge()` or `/parallel-review-*` run that selected the metered lane, not only inside
++`agent_lane.py`. The result SHALL carry `spend_recorded` (the recorder's `recorded` value).
+ 
+ If the write fails, the record SHALL be appended to
+ `openspec/changes/<change-id>/reviews/spend-spool.jsonl`, and the caller SHALL record the
+@@ -187,6 +193,12 @@ and reason `spend_ceiling_exceeded`.
+   and `tokens_estimated: false`, and the round checkpoint index entry for the lane SHALL carry
+   the same generation id, model and cost
+ 
++#### Scenario: A host-path metered review is recorded
++- **WHEN** a host with one non-metered lane runs `converge()` with `ReviewOrchestrator`, the fill
++  rule selects the `openrouter` lane, and its review returns `id: gen-host`
++- **THEN** `spend_recorder.record()` SHALL have been called once for `gen-host`, and the result's
++  `spend_recorded` SHALL be true when the coordinator accepts the write
 +
- *Alternatives considered*
- - Add `base_url` to `pi-local` and reuse the `pi` provider. Rejected: it couples the pi
-   harness's identity, credential principal and CLI-precedence rules to an HTTP reviewer, and a
-@@ -94,6 +103,18 @@ reason `duplicate_model_family`. An Anthropic-family lane is reported with the r
- 
- A vendor missing from `vendor_families` has unknown family and is never treated as a duplicate.
- 
-+**Selection is two-pass.** Today `discover_reviewers` makes one pass over `sorted(all_vendors)`,
-+so a tier-2.5 lane such as `openrouter` would be decided before tier-1/2 vendors that sort after
-+it (for example `pi`). The family rule (D2) and the fill rule (D5) both read the complete
-+non-metered selection, so discovery becomes:
-+
-+1. Pass 1 selects every tier-1 (CLI) and tier-2 (SDK) lane exactly as today.
-+2. Pass 2 walks the remaining tier-2.5 candidates in `agents.yaml` roster order (the insertion
-+   order of `openai_adapters`, not the sorted vendor order). It applies the Anthropic rule, the
-+   duplicate-family rule against the pass-1 set, and then the fill rule (D5).
-+
-+Tests cover a non-metered vendor that sorts after the metered lane.
-+
- *Trade-off accepted:* fallback models may belong to a different family from the primary
- model. The family check uses the primary model only, and `model_used` is recorded so audits
- can see what actually ran. This is preferred over forbidding cross-family fallbacks, which
-@@ -180,8 +201,8 @@ The key's credit limit bounds spend while rows sit in the spool.
- An agent with `endpoint_kind: openrouter` that is selected at tier 2.5 is a metered lane.
- `discover_reviewers` includes metered lanes only while the non-metered lanes it has selected
- number fewer than `metered_lanes.fill_target`. `fill_target` defaults to the policy file's
--`default_min_quorum`, which is 2. Metered lanes are added in roster order until the target is
--reached.
-+`default_min_quorum`, which is 2. Metered lanes are added in `agents.yaml` roster order, during
-+pass 2 of the two-pass selection (D2), until the target is reached.
- 
- A host with two CLI lanes therefore pays nothing. A cloud container with only `claude_code`
- gets exactly one metered lane.
-@@ -206,6 +227,27 @@ The packet metadata is the sidecar `build_review_packet` writes next to `packet_
- `dispatch_and_wait` already receives `packet_path`, and passes the `tools_overflow` flag to
- the adapter.
- 
-+**Refusal must stay rare.** Refusal alone would make the lane useless in practice. Plan-review
-+packets on long-lived branches routinely overflow: the round-1 PLAN_REVIEW packet for this change
-+was 320000/320000 chars with `tools_overflow: true`, because the diff against `origin/main` spans
-+about 420 files. To avoid this, `converge()` builds a second, tool-less packet for HTTP lanes
-+whenever the primary packet overflows:
-+
-+- For `review_type == "plan"`, the tool-less packet's diff is limited to
-+  `openspec/changes/<change-id>/**`. It includes the full text of `proposal.md`, `design.md`,
-+  `tasks.md` and the spec deltas, all within the same `BUDGET_CHARS`. A plan review judges the plan
-+  artifacts, and the unrelated branch diff is not needed for that.
-+- For `review_type == "implementation"`, the tool-less packet keeps the existing rule-group
-+  selection but drops the excluded and truncated files. Its sidecar lists them as `coverage.skipped`
-+  (the blinded-review floor still applies).
-+- The tool-less packet gets its own sidecar (`review-packet.toolless.meta.json`). An HTTP lane
-+  refuses with `packet_requires_tools` only when this packet *also* has `tools_overflow: true`.
-+  The CLI and handshake lanes keep the primary packet.
-+
-+A scenario covers a plan review whose full branch diff overflows: the HTTP lane receives a
-+tool-less packet that fits, and it is dispatched. The D9 evidence run must use a change whose
-+primary packet overflows, so that a small fixture cannot hide the problem.
-+
- ### D7 — Composite orchestrator in `agent_lane.py`, and honest mid-run loss
- 
- `agent_lane.run_converge` gains `--verified-lanes` (repeatable). A dispatched child copies
-@@ -254,7 +296,10 @@ only if the evidence file `openspec/changes/openrouter-review-lane/evidence/clou
- shows all of the following:
- 
- - `PLAN_REVIEW` with `min_quorum=2`
--- two attributed lanes in `consensus-plan.json`
-+- two attributed lanes in `reviews/consensus-plan.json`. `converge()` itself never writes this
-+  file (only `/parallel-review-plan` does), so `agent_lane.py` persists `ConvergenceResult.consensus`
-+  to `reviews/consensus-<review_type>.json` after each run (task 5.5), alongside `quorum_received`
-+  and the per-lane index already in `.review-cache/round-N/`
- - a `routing_spend_ledger` row, or a spool row, carrying the `generation_id`
- 
- Only then does the final task:
+ #### Scenario: Missing cost is labelled estimated
+ - **WHEN** the response has token usage but no `usage.cost`
+ - **THEN** `cost_source` SHALL be `estimated` and the ledger row SHALL have
 diff --git a/openspec/changes/openrouter-review-lane/tasks.md b/openspec/changes/openrouter-review-lane/tasks.md
-index 26bcffb2..1f7ee9d7 100644
+index ed7ccf44..ae4ec51e 100644
 --- a/openspec/changes/openrouter-review-lane/tasks.md
 +++ b/openspec/changes/openrouter-review-lane/tasks.md
-@@ -21,10 +21,12 @@ parallel after group 3. Group 7 runs last. Sequential chain length is 4.
+@@ -8,14 +8,14 @@
+ ## Dependency graph
  
- **Files:** `skills/parallel-infrastructure/scripts/openai_compat_adapter.py`,
- `skills/parallel-infrastructure/scripts/review_dispatcher.py` (only the `ReviewResult`
--dataclass fields), `skills/tests/parallel-infrastructure/test_openai_compat_adapter.py`
-+dataclass fields and the shared ingest helper extracted in 1.7),
-+`skills/tests/parallel-infrastructure/test_openai_compat_adapter.py`
- **Depends:** none
- **Specs:** parallel-infrastructure "Dispatchable Vendor Verification" (probe part),
- "Metered Review Lane Spend Accounting" (capture part), "Tool-less Lane Packet Refusal"
-+(including "Fast empty HTTP review does not count"); acceptance outcome 4
+ ```
+-1 (adapter) ──┐
+-              ├─> 3 (dispatcher discovery/probe) ──┬─> 5 (convergence) ──┐
+-2 (roster) ───┘                                    ├─> 6 (supervisor)  ──┼─> 7 (cloud E2E + retirement)
+-4 (spend route + recorder) ────────────────────────┴───────────────────────┘
++1 (adapter) ────────────────┐
++2 (roster) ─────────────────┼─> 3 (dispatcher discovery/probe/spend call) ──┬─> 5 (convergence) ──┬─> 7 (cloud E2E + retirement)
++4 (spend route + recorder) ─┘                                               └─> 6 (supervisor)  ──┘
+ ```
  
- - [ ] 1.1 Write the failing tests, all using an injected transport:
-   - `probe()` for `openrouter` sends `GET {base_url}/key`, and for `local` sends `GET /models`.
-@@ -48,10 +50,25 @@ dataclass fields), `skills/tests/parallel-infrastructure/test_openai_compat_adap
+-Groups 1, 2 and 4 are independent, so up to 3 can run in parallel. Groups 5 and 6 run in
+-parallel after group 3. Group 7 runs last. Sequential chain length is 4.
++Groups 1, 2 and 4 are independent, so up to 3 can run in parallel. Group 3 needs all three
++(4 for the `spend_recorder.record()` call in task 3.10). Groups 5 and 6 run in parallel after
++group 3. Group 7 runs last. Sequential chain length is 4.
+ 
+ ## 1. OpenAI-compatible adapter: probe, cost capture, packet refusal
+ 
+@@ -45,8 +45,8 @@ dataclass fields and the shared ingest helper extracted in 1.7),
+     to the new `ReviewResult` fields.
+   - Without a cost, `cost_source == "estimated"`.
+ - [ ] 1.4 Add the optional `ReviewResult` fields `prompt_tokens`, `completion_tokens`,
+-  `cost_usd` and `cost_source`, all defaulting to `None`, and implement the capture in
+-  `dispatch()`.
++  `cost_usd`, `cost_source` and `spend_recorded` (set by task 3.10), all defaulting to `None`,
++  and implement the capture in `dispatch()`.
  - [ ] 1.5 Write a failing test: `dispatch(..., tools_overflow=True)` returns
    `packet_requires_tools` / `vendor_unavailable` with zero transport calls. Then implement the
    `tools_overflow` keyword (default False).
-+- [ ] 1.6 Write failing tests: HTTP findings go through the same ingest pipeline as CLI findings.
-+  Today `OpenAICompatAdapter.dispatch` only calls `CliVendorAdapter._parse_findings`. The tests,
-+  each using an injected transport, cover:
-+  - a fast `{"findings": []}` (under `empty_findings_min_seconds()`) → `success=False`,
-+    `error="empty_findings_too_fast"`;
-+  - a schema-invalid payload → `success=False`, `error_class=unknown`;
-+  - a placeholder-only payload → `success=False`, `error="non_substantive_placeholder"`;
-+  - a valid payload → findings coerced (`coerce_findings_payload`), stamped
-+    `evidence_class: judgment` (`stamp_judgment_ingest`), and line-resolved against the packet diff,
-+    exactly as on the CLI path.
-+- [ ] 1.7 Factor the CLI ingest steps (coerce → validate → judgment stamp → line resolve →
-+  placeholder check → empty-findings floor) out of `CliVendorAdapter` into a shared helper in
-+  `review_dispatcher.py`. Call it from both adapters. CLI behaviour must not change: the existing
-+  `test_fast_empty_findings_are_unsuccessful` and the related ingest tests stay green.
- 
- ## 2. Lane roster
- 
- **Files:** `agent-coordinator/agents.yaml`, `agent-coordinator/archetypes.yaml`,
-+`agent-coordinator/routing.yaml` (append the `metered-api-cloud` tier only),
- `agent-coordinator/tests/test_agents_config.py`, `agent-coordinator/tests/test_archetypes_yaml.py`
- (add tests only)
- **Depends:** none
-@@ -63,7 +80,11 @@ dataclass fields), `skills/tests/parallel-infrastructure/test_openai_compat_adap
-   - `get_dispatch_configs()` emits it.
-   - The `openrouter` provider resolves `premium`, `standard` and `economy` slugs, none with
-     publisher `anthropic`.
--- [ ] 2.2 Add the agent entry (design D1) and the `openrouter` provider tier map. Choose the
-+  - `RoutingPolicy.cost_tier("cloud", "openrouter")` is not `None` (design D1), and
-+    `cost_tier("local", "openrouter")` still returns `metered-api`.
-+- [ ] 2.2 Add the agent entry (design D1), the `openrouter` provider tier map, and the
-+  `metered-api-cloud` tier (`location: cloud`, `endpoint_kinds: [openrouter]`), appended last to
-+  `routing.yaml` `cost_policy.tiers`. Choose the
-   premium slug from the live OpenRouter model catalog: it must be non-Anthropic and preferably
-   a family not served by a host CLI. Record the catalog URL and the date in a YAML comment.
- - [ ] 2.3 Run the registry projection tests (`test_registry_projection.py`,
-@@ -75,7 +96,9 @@ dataclass fields), `skills/tests/parallel-infrastructure/test_openai_compat_adap
- **Files:** `skills/parallel-infrastructure/scripts/review_dispatcher.py` (excluding the
- `ReviewResult` dataclass, which group 1 owns), `skills/parallel-infrastructure/review_quorum_policy.json`
- (add `vendor_families` and `metered_lanes` only; do not touch `policies`),
-+`skills/parallel-infrastructure/scripts/review_packet.py` (the tool-less packet builder only),
+@@ -100,7 +100,7 @@ dataclass fields and the shared ingest helper extracted in 1.7),
  `skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py`,
-+`skills/parallel-infrastructure/scripts/tests/test_review_packet.py`,
+ `skills/parallel-infrastructure/scripts/tests/test_review_packet.py`,
  `skills/parallel-infrastructure/tests/test_check_vendors_api_lane.py` (new)
- **Depends:** 1, 2 (the roster is needed only for the integration test in 3.9; tests 3.1–3.8 use inline config dicts)
+-**Depends:** 1, 2 (the roster is needed only for the integration test in 3.9; tests 3.1–3.8 use inline config dicts)
++**Depends:** 1, 2 (the roster is needed only for the integration test in 3.9; tests 3.1–3.8 use inline config dicts), 4 (the `spend_recorder.record()` interface, task 3.10)
  **Specs:** parallel-infrastructure "OpenAI-Compatible Dispatcher Discovery" (MODIFIED),
-@@ -85,6 +108,8 @@ dataclass fields), `skills/tests/parallel-infrastructure/test_openai_compat_adap
-   - An `anthropic/` primary or fallback → `unverified` with reason `anthropic_family`.
-   - `codex` at tier 1 plus an `openai/` OpenRouter lane → `duplicate_model_family`.
-   - A vendor missing from `vendor_families` is never a duplicate.
-+  - Two-pass order (design D2): a non-metered vendor that sorts after `openrouter` (for example
-+    `pi`, mapped to `openai`) still makes an `openai/` OpenRouter lane a `duplicate_model_family`.
- - [ ] 3.2 Add `vendor_families` and `metered_lanes {fill_target, review_reservation_usd}` to
-   `review_quorum_policy.json`, plus a loader. Implement the family rule in
-   `from_config_dict` / `discover_reviewers` (design D2).
-@@ -93,7 +118,10 @@ dataclass fields), `skills/tests/parallel-infrastructure/test_openai_compat_adap
-   - one non-metered lane → exactly one metered lane is selected.
-   
-   Also test that `dispatch_and_wait(include_lanes=...)` restricts dispatch.
--- [ ] 3.4 Implement the metered fill selection (design D5) and the `include_lanes` filter.
-+- [ ] 3.4 Implement the two-pass selection (design D2): pass 1 for tier 1/2, pass 2 for tier-2.5
-+  candidates in `agents.yaml` roster order. Then implement the metered fill selection (design D5)
-+  and the `include_lanes` filter. Add a fill-rule test where the non-metered lane sorts after the
-+  metered one.
- - [ ] 3.5 Write failing tests for `_probe_mode` on API lanes, using an injected probe and an
-   injected coordinator-usage function:
-   - verified when the key limit leaves enough budget;
-@@ -110,6 +138,14 @@ dataclass fields), `skills/tests/parallel-infrastructure/test_openai_compat_adap
-   OpenRouter lane with an echoing transport.
- - [ ] 3.8 Write a failing test, then implement: `dispatch_and_wait` reads `tools_overflow` from
-   the packet sidecar next to `packet_path` and passes it to OpenAI-compatible adapters.
-+- [ ] 3.8a Write failing tests, then implement in `review_packet.py`: a `build_toolless_packet`
-+  (design D6) and its `review-packet.toolless.meta.json` sidecar. Tests:
-+  - For `review_type="plan"`, a branch whose full diff overflows `BUDGET_CHARS` yields a tool-less
-+    packet with `tools_overflow: false` that contains the full `proposal.md`, `design.md`,
-+    `tasks.md` and spec deltas.
-+  - For `implementation`, the dropped files appear in `coverage.skipped`.
-+  - `dispatch_and_wait` passes the tool-less body and flag to OpenAI-compatible adapters, and the
-+    primary body to CLI lanes.
+ "Dispatchable Vendor Verification" (MODIFIED), "Tool-less Lane Packet Refusal"
+ 
+@@ -150,6 +150,16 @@ dataclass fields and the shared ingest helper extracted in 1.7),
  - [ ] 3.9 Integration test: with the repository's `agents.yaml`, an injected transport and no
    `pi`/`codex` binaries on `PATH`, `--check-vendors --json` lists `openrouter` as verified and
    maps it to `openrouter` in `lane_kinds`.
-@@ -171,6 +207,17 @@ parallel-infrastructure "Metered Review Lane Spend Accounting" (checkpoint part)
-   metered result, call `spend_recorder.record()`. On `recorded=False`, record the
-   `metered_spend_unrecorded` degradation through the result payload. Update
-   `_review_body` to list the lanes.
-+- [ ] 5.6 Write failing tests, then implement:
-+  - `converge()` builds the tool-less packet (task 3.8a) when the primary packet overflows, and
-+    passes both paths to `dispatch_and_wait`.
-+  - `agent_lane.py` `result.json` carries `missing_lanes` (from `ConvergenceResult.missing_lanes`),
-+    `lanes` (the lane ids that returned a successful result), `quorum_received`, a per-lane
-+    `{model_used, generation_id, cost_usd, cost_source}` map, and `degradations` (including
-+    `metered_spend_unrecorded`). Task 6.4's park and degradation rules read these fields.
-+  - After each run, `agent_lane.py` writes `ConvergenceResult.consensus` to
-+    `openspec/changes/<id>/reviews/consensus-<review_type>.json` (for PLAN_REVIEW:
-+    `consensus-plan.json`), which the D9 evidence and task 7.2 cite. `converge()` itself never
-+    writes this file.
++- [ ] 3.10 Write failing tests, then implement: `ReviewOrchestrator.dispatch_and_wait` calls
++  `spend_recorder.record()` once after every OpenAI-compatible result with `endpoint_kind:
++  openrouter` that made an HTTP request, and sets `ReviewResult.spend_recorded` to its
++  `recorded` value. The row's `work_unit_ref` comes from a new optional `dispatch_and_wait`
++  keyword `work_unit_ref` (omitted from the row when `None`). This covers every dispatch path: `converge()` with `ReviewOrchestrator` on a
++  host where the fill rule (D5) selected the metered lane, the `/parallel-review-*` one-shot
++  dispatch, and `CompositeOrchestrator` (which calls `dispatch_and_wait`). Tests: a host-path
++  dispatch with an injected transport and an injected recorder records one row; a refused
++  (`packet_requires_tools`) or budget-skipped lane records nothing; a recorder returning
++  `recorded=False` yields `spend_recorded=False`.
  
- ## 6. Supervisor ranking, apply-time replay, and worker protocol
+ ## 4. Spend recording route and client
  
-@@ -230,9 +277,10 @@ parallel-infrastructure "Metered Review Lane Spend Accounting" (checkpoint part)
+@@ -205,13 +215,16 @@ parallel-infrastructure "Metered Review Lane Spend Accounting" (checkpoint part)
+   - `--verified-lanes claude_code` alone → `capability_unavailable` with no handshake files.
+ - [ ] 5.5 Implement `--verified-lanes`, `CompositeOrchestrator` (the handshake lane plus
+   `ReviewOrchestrator.dispatch_and_wait(include_lanes=...)` run concurrently, with the result
+-  callback forwarded), and quorum-policy resolution from the verified count. After each
+-  metered result, call `spend_recorder.record()`. On `recorded=False`, record the
+-  `metered_spend_unrecorded` degradation through the result payload. Update
+-  `_review_body` to list the lanes.
++  callback forwarded), and quorum-policy resolution from the verified count. For each
++  metered result whose `spend_recorded` is `False` (recorded by the dispatcher, task 3.10),
++  record the `metered_spend_unrecorded` degradation through the result payload. `agent_lane`
++  does not call `spend_recorder.record()` itself. Update `_review_body` to list the lanes.
+ - [ ] 5.6 Write failing tests, then implement:
++  - `converge()` accepts an optional `phase` and, when it is set, passes
++    `work_unit_ref=<change_id>:<phase>:round-<n>` to `dispatch_and_wait` (via `_accepts_kwarg`);
++    `agent_lane.py` passes its `--phase`.
+   - `converge()` builds the tool-less packet (task 3.8a) when the primary packet overflows, and
+-    passes both paths to `dispatch_and_wait`.
++    passes the tool-less packet as `dispatch_and_wait(..., toolless_packet_path=...)` (design D6).
+   - `agent_lane.py` `result.json` carries `missing_lanes` (from `ConvergenceResult.missing_lanes`),
+     `lanes` (the lane ids that returned a successful result), `quorum_received`, a per-lane
+     `{model_used, generation_id, cost_usd, cost_source}` map, and `degradations` (including
+@@ -285,7 +298,7 @@ parallel-infrastructure "Metered Review Lane Spend Accounting" (checkpoint part)
+ |---|---|
  | parallel-infrastructure: OpenAI-Compatible Dispatcher Discovery | 2.1–2.3, 3.1–3.4, 3.9 |
  | parallel-infrastructure: Dispatchable Vendor Verification | 1.1–1.2, 3.5–3.7, 3.9 |
- | parallel-infrastructure: Metered Review Lane Spend Accounting | 1.3–1.4, 4.3–4.4, 5.2, 5.5 |
--| parallel-infrastructure: Tool-less Lane Packet Refusal | 1.5, 3.8 |
-+| parallel-infrastructure: Tool-less Lane Packet Refusal | 1.5–1.7, 3.8, 3.8a, 5.6 |
+-| parallel-infrastructure: Metered Review Lane Spend Accounting | 1.3–1.4, 4.3–4.4, 5.2, 5.5, 5.7 |
++| parallel-infrastructure: Metered Review Lane Spend Accounting | 1.3–1.4, 3.10, 4.3–4.4, 5.2, 5.5, 5.7 |
+ | parallel-infrastructure: Tool-less Lane Packet Refusal | 1.5–1.7, 3.8, 3.8a, 5.6 |
  | skill-workflow: Honest Review Quorum | 5.1–5.3 |
--| skill-workflow: Composite Agent-Lane Review | 5.4–5.5, 6.4 |
--| skill-workflow: Cloud Single-Vendor Policy Retirement | 7.1–7.4 |
-+| skill-workflow: Composite Agent-Lane Review | 5.4–5.6, 6.4 |
-+| skill-workflow: Cloud Single-Vendor Policy Retirement | 5.6, 7.1–7.4 |
- | supervise: Execution Profile and Review Requirements | 6.1–6.3 |
- | model-routing: Review Spend Recording Route | 4.1–4.2 |
-+| Acceptance outcome 4 (schema-conformant HTTP findings, synthesized like CLI lanes) | 1.6–1.7 |
+ | skill-workflow: Composite Agent-Lane Review | 5.4–5.6, 6.4 |
 
 ```
 
@@ -259,10 +296,17 @@ index 26bcffb2..1f7ee9d7 100644
 
 #### Group 1 (default: `(default)`)
 Applies to:
+- openspec/changes/openrouter-review-lane/.review-ledger/ledger.json
 - openspec/changes/openrouter-review-lane/design.md
 - openspec/changes/openrouter-review-lane/tasks.md
 
 Review for correctness, security, and adherence to this repository's conventions.
+
+#### Group 2 (default: `openspec/changes/*/specs/**/spec.md`)
+Applies to:
+- openspec/changes/openrouter-review-lane/specs/parallel-infrastructure/spec.md
+
+Verify every SHALL/MUST has at least one Scenario with WHEN/THEN. Check that a MODIFIED requirement's unchanged scenarios were preserved, not silently dropped.
 
 ### Spec excerpts
 #### specs/model-routing/spec.md
@@ -461,10 +505,16 @@ Every review that an `openrouter` lane dispatches SHALL request inline usage acc
 
 `converge()` SHALL write these fields into the round checkpoint's vendor index.
 
-After each review, `spend_recorder.record()` SHALL send one row to `POST /routing/spend` with:
+After each review that sent a request, `ReviewOrchestrator.dispatch_and_wait` SHALL call
+`spend_recorder.record()`, which SHALL send one row to `POST /routing/spend` with:
 `vendor` (the lane id), `model`, `endpoint_kind: openrouter`, `generation_id`, token counts,
 `actual_usd`, `tokens_estimated` (true when `cost_source` is `estimated`), and
-`work_unit_ref` (`<change_id>:<review_type>:round-<n>`).
+`work_unit_ref` (`<change_id>:<phase>:round-<n>`, for example
+`openrouter-review-lane:VAL_REVIEW:round-2`; the phase, not the review type, so IMPL_REVIEW and
+VAL_REVIEW rows stay distinct; `converge()` supplies it to `dispatch_and_wait` when its caller
+gives the phase, and a call without one omits the field). The call SHALL happen on every dispatch path, including a host
+`converge()` or `/parallel-review-*` run that selected the metered lane, not only inside
+`agent_lane.py`. The result SHALL carry `spend_recorded` (the recorder's `recorded` value).
 
 If the write fails, the record SHALL be appended to
 `openspec/changes/<change-id>/reviews/spend-spool.jsonl`, and the caller SHALL record the
@@ -473,11 +523,28 @@ degradation `metered_spend_unrecorded` with phase and lane.
 `spend_recorder.py replay --change-id <id>` SHALL post the spooled rows. Replay SHALL skip a
 `generation_id` the ledger already holds, and SHALL remove each row it delivers.
 
+Before each review round dispatches a metered lane, the remaining budget SHALL be re-checked
+with the same rule the probe uses. A lane below `review_reservation_usd` SHALL NOT be dispatched
+for that round and SHALL be reported as a failed result with `error_class` `vendor_unavailable`
+and reason `spend_ceiling_exceeded`.
+
+#### Scenario: A later round finds the ceiling exhausted
+- **WHEN** the coordinator ceiling had budget at probe time, and before round 2 its remaining
+  budget is below `review_reservation_usd`
+- **THEN** round 2 SHALL NOT dispatch the `openrouter` lane, and SHALL record it as
+  `vendor_unavailable` with reason `spend_ceiling_exceeded`
+
 #### Scenario: A review is recorded against the ledger
 - **WHEN** an `openrouter` review returns `id: gen-abc`, `usage: {prompt_tokens: 1200, completion_tokens: 300, cost: 0.0042}`, and the coordinator accepts the write
 - **THEN** the ledger SHALL contain one row with `generation_id: gen-abc`, `actual_usd: 0.0042`,
   and `tokens_estimated: false`, and the round checkpoint index entry for the lane SHALL carry
   the same generation id, model and cost
+
+#### Scenario: A host-path metered review is recorded
+- **WHEN** a host with one non-metered lane runs `converge()` with `ReviewOrchestrator`, the fill
+  rule selects the `openrouter` lane, and its review returns `id: gen-host`
+- **THEN** `spend_recorder.record()` SHALL have been called once for `gen-host`, and the result's
+  `spend_recorded` SHALL be true when the coordinator accepts the write
 
 #### Scenario: Missing cost is labelled estimated
 - **WHEN** the response has token usage but no `usage.cost`
@@ -495,20 +562,11 @@ degradation `metered_spend_unrecorded` with phase and lane.
 
 ### Requirement: Tool-less Lane Packet Refusal
 
-An OpenAI-compatible lane SHALL NOT review a packet whose sidecar metadata has
-`tools_overflow: true`. Its dispatch SHALL return `success=False`,
-`error_class=vendor_unavailable` and `error="packet_requires_tools"` without sending a request.
-The Empty Or Blinded Review Is Not Success rule SHALL apply to OpenAI-compatible lanes as it
-does to CLI lanes.
+When a round's primary review packet has `tools_overflow: true`, `converge()` SHALL also build a
+tool-less packet for OpenAI-compatible lanes, within the same `BUDGET_CHARS`, with its own sidecar
+`review-packet.toolless.meta.js
 
-#### Scenario: Overflowing packet is refused
-- **WHEN** a round's packet metadata has `tools_overflow: true` and an `openrouter` lane is selected
-- **THEN** the lane's result SHALL be `success=False` with `error="packet_requires_tools"`, and the
-  injected transport SHALL record zero requests
-
-#### Scenario: Fast empty HTTP review does not count
-- **WHEN** an `openrouter` lane returns `{"findings": []}` in under the configured floor
-- **THEN** `success` SHALL be false, and the lane SHALL NOT count toward quorum
+[spec excerpt truncated]
 
 
 #### specs/skill-workflow/spec.md
@@ -526,11 +584,20 @@ A standalone run (no launch marker) SHALL keep disabling CLI review below quorum
 record a `review_skipped` degradation, or a `single_vendor_review` degradation when exactly one
 lane reviewed.
 
-During `converge()`, a round can end with fewer successful results than `min_quorum`. When
-every failed lane's `error_class` is `vendor_unavailable` or `auth_required`, `converge()`
-SHALL return `reason="capability_unavailable"` with `missing_lanes` naming those lanes. This
+During `converge()`, a round can end with fewer successful results than `min_quorum`.
+`missing_lanes` SHALL be the round's verified lanes minus the lanes that returned a successful
+result. When `missing_lanes` is non-empty and every lane in it has a recorded failure whose
+`error_class` is `vendor_unavailable` or `auth_required`, `converge()` SHALL return
+`reason="capability_unavailable"` with `missing_lanes` naming those lanes. A verified lane with
+no result at all SHALL NOT satisfy this condition. This
 covers an exhausted budget, HTTP 402, a revoked key, or `packet_requires_tools`. Any other
 quorum loss SHALL remain `reason="quorum_lost"`.
+
+
+#### Scenario: A lane that returns nothing is not a capability loss
+- **WHEN** a PLAN_REVIEW round has verified lanes `claude_code` and `openrouter`, `claude_code`
+  succeeds, and `openrouter` returns neither a result nor a recorded failure
+- **THEN** `converge()` SHALL return `reason="quorum_lost"`, not `capability_unavailable`
 
 #### Scenario: Dispatched child below quorum parks
 - **WHEN** `review_requirements.min_quorum.PLAN_REVIEW` is 2 and only `claude_code` is verified
@@ -586,6 +653,16 @@ Each round SHALL:
 Every lane's findings SHALL be written to the round checkpoint under its own lane id, and
 ConsensusSynthesizer SHALL attribute consensus findings to those lane ids.
 
+After each run, `agent_lane.py` SHALL write `ConvergenceResult.consensus` (including
+`quorum_received`) under `openspec/changes/<change-id>/reviews/`, with one file per phase:
+- `consensus-plan.json` for `PLAN_REVIEW`;
+- `consensus-impl-review.json` for `IMPL_REVIEW`;
+- `consensus-val-review.json` for `VAL_REVIEW`.
+
+The two implementation phases share `review_type: implementation`, so the file is named by phase
+and neither run overwrites the other. `converge()` itself SHALL NOT be required to write these
+files.
+
 The review body written for `VAL_REVIEW` SHALL list every lane that reviewed. It SHALL name a
 `single_vendor_review` degradation only when exactly one lane reviewed.
 
@@ -594,8 +671,8 @@ The review body written for `VAL_REVIEW` SHALL list every lane that reviewed. It
   runs against a fixture change, with an injected OpenRouter transport that returns
   schema-valid findings and an agent handshake that writes schema-valid findings
 - **THEN** `converge()` SHALL be called with `min_quorum=2`, the round checkpoint SHALL contain
-  findings files for both `claude_code` and `openrouter`, and `consensus` SHALL report
-  `quorum_received: 2`
+  findings files for both `claude_code` and `openrouter`, `consensus` SHALL report
+  `quorum_received: 2`, and `reviews/consensus-plan.json` SHALL contain the same consensus
 
 #### Scenario: Findings carry vendor attribution
 - **WHEN** both lanes report a finding at the same file and line range
@@ -722,8 +799,19 @@ summary without failing the apply.
 
 
 ### Open ledger items
+- [1] D6 makes HTTP lanes refuse any packet with tools_overflow:true, but PLAN_REVIEW packets for real changes in this repo routinely overflow: the round-1 packet for this very change is 320000/320000 chars with tools_overflow:true (branch diff vs origin/main spans ~420 files). In cloud, the OpenRouter lane would therefore return packet_requires_tools on round 1 of most reviews and the run parks capability_unavailable, so Acceptance Outcome 1 (quorum 2 in cloud) holds only for the small fixture used as evidence.
+- [2] OpenAICompatAdapter.dispatch only calls CliVendorAdapter._parse_findings. The CLI ingest path also runs coerce_findings_payload, schema validation, stamp_judgment_ingest, line resolution, placeholder rejection and the empty_findings_too_fast floor. No task brings the HTTP lane onto that pipeline, yet the spec scenario 'Fast empty HTTP review does not count' and Acceptance Outcome 4 (findings conform to the schema and are synthesized like CLI lanes) depend on it. The traceability table maps Tool-less Lane Packet Refusal only to 1.5 and 3.8. Without judgment stamping, OpenRouter findings default to evidence_class=deterministic and count as blocking while CLI-lane findings do not, which skews consensus.
 - [3] The mid-run mapping fires when 'every failed lane's error_class is UNAVAILABLE or AUTH'. A verified lane can also produce no ReviewResult at all: it is filtered at dispatch by the family or fill rule, not discovered in the worker environment, or dispatch_and_wait returns [] when job_count == 0. In that case the failed set is empty, the condition is vacuously true, and converge() returns capability_unavailable with missing_lanes == [].
+- [4] The D9 evidence gate and the 'Cloud Single-Vendor Policy Retirement' requirement both require two lanes attributed in consensus-plan.json. The converge()/agent_lane path that autopilot PLAN_REVIEW must use never writes consensus-plan.json; only /parallel-review-plan does. converge() writes .review-cache/round-N/findings-<vendor>-plan.json plus the index, and agent_lane writes result.json without the consensus. As written, the evidence cannot be produced from the mandated path.
+- [5] D1 gives openrouter-review location: cloud. In routing.yaml the only tier carrying endpoint_kind openrouter is metered-api with location: local, so RoutingPolicy.cost_tier('cloud', 'openrouter') returns None, and select_model excludes the candidate (model_routing/api.py around lines 577-600). The new agent becomes an inconsistent roster entry for the coordinator router.
+- [6] discover_reviewers makes a single pass over sorted(all_vendors), so the 'roster order' that D5 relies on is not available. The D2 family rule and the D5 fill rule both depend on tier-1/2 selections, which can include vendors that sort after 'openrouter' (e.g. 'pi'). Implemented inside the existing loop, both rules would read an incomplete selection.
 - [7] D4 checks the budget only in the probe, which the supervisor runs once per batch against a $1.00 reservation. A dispatched child can then run up to 3 rounds in each of 3 review phases with packets of roughly 80k tokens, and every concurrently dispatched child sees the same remaining budget. When the coordinator ceiling is the only source (key limit null), nothing stops an overrun, so 'bounded before dispatch' does not hold.
+- [8] D1 says the agent has 'no cli and no sdk block, the same shape as ocr-local', but ocr-local declares a cli block (agents.yaml around lines 452-468).
+- [9] agent_lane.run_converge does not copy ConvergenceResult.missing_lanes into result.json. Task 6.4 expects the worker to park capability_unavailable with missing_lanes, but no task adds that field (or per-lane cost) to result.json.
+- [10] The round-1 fix adds normative behaviour to design D6 and tasks 3.8a/5.6: when the primary packet overflows, HTTP lanes get a separate tool-less packet (for plan reviews, scoped to openspec/changes/<id>/**) with its own sidecar, and they refuse only if that packet also overflows. The 'Tool-less Lane Packet Refusal' requirement still describes refusal of the round's packet only. No requirement or scenario defines the tool-less packet, so the spec no longer matches the design and tasks.
+- [11] Task 5.6 now has agent_lane persist ConvergenceResult.consensus to reviews/consensus-<review_type>.json, which the retirement evidence depends on. The 'Composite Agent-Lane Review' requirement does not state this. Also, IMPL_REVIEW and VAL_REVIEW share review_type 'implementation', so a VAL_REVIEW run would overwrite the IMPL_REVIEW consensus file.
+- [12] The round-2 spec fix names the consensus file per phase (consensus-plan.json, consensus-impl-review.json, consensus-val-review.json). Task 5.6 and design D9 still say reviews/consensus-<review_type>.json, which gives consensus-implementation.json for both implementation phases, so they collide. The PLAN_REVIEW case, which the retirement evidence depends on, agrees in all three artifacts. Design D9 also cites 'task 5.5' for this write, but the work is in task 5.6.
+- [16] D4 and task 5.7 put the per-round budget re-check in converge(). converge() is vendor-agnostic: it receives only verified_lanes and an orchestrator, does not know which lanes are metered, has no coordinator-usage client, and has no way to keep one lane out of a dispatch except through orchestrator-specific kwargs. CompositeOrchestrator already knows the metered lanes and builds include_lanes, so the check fits there, or in ReviewOrchestrator.dispatch_and_wait next to the probe code. Keeping it in converge() widens the converge() signature with routing concerns.
 
 Do not emit findings for issues already in the ledger except to re-verify the open items listed above.
 

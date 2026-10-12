@@ -4,7 +4,7 @@
   "items": [
     {
       "id": 1,
-      "status": "addressed",
+      "status": "open",
       "axis": "resilience",
       "type": "architecture",
       "criticality": "high",
@@ -17,11 +17,12 @@
         "claude_code"
       ],
       "description": "D6 makes HTTP lanes refuse any packet with tools_overflow:true, but PLAN_REVIEW packets for real changes in this repo routinely overflow: the round-1 packet for this very change is 320000/320000 chars with tools_overflow:true (branch diff vs origin/main spans ~420 files). In cloud, the OpenRouter lane would therefore return packet_requires_tools on round 1 of most reviews and the run parks capability_unavailable, so Acceptance Outcome 1 (quorum 2 in cloud) holds only for the small fixture used as evidence.",
+      "resolution": "compact: claimed fix did not take",
       "consensus_status": "unconfirmed"
     },
     {
       "id": 2,
-      "status": "addressed",
+      "status": "open",
       "axis": "correctness",
       "type": "spec_gap",
       "criticality": "high",
@@ -34,6 +35,7 @@
         "claude_code"
       ],
       "description": "OpenAICompatAdapter.dispatch only calls CliVendorAdapter._parse_findings. The CLI ingest path also runs coerce_findings_payload, schema validation, stamp_judgment_ingest, line resolution, placeholder rejection and the empty_findings_too_fast floor. No task brings the HTTP lane onto that pipeline, yet the spec scenario 'Fast empty HTTP review does not count' and Acceptance Outcome 4 (findings conform to the schema and are synthesized like CLI lanes) depend on it. The traceability table maps Tool-less Lane Packet Refusal only to 1.5 and 3.8. Without judgment stamping, OpenRouter findings default to evidence_class=deterministic and count as blocking while CLI-lane findings do not, which skews consensus.",
+      "resolution": "compact: claimed fix did not take",
       "consensus_status": "unconfirmed"
     },
     {
@@ -55,7 +57,7 @@
     },
     {
       "id": 4,
-      "status": "addressed",
+      "status": "open",
       "axis": "correctness",
       "type": "contract_mismatch",
       "criticality": "medium",
@@ -68,11 +70,12 @@
         "claude_code"
       ],
       "description": "The D9 evidence gate and the 'Cloud Single-Vendor Policy Retirement' requirement both require two lanes attributed in consensus-plan.json. The converge()/agent_lane path that autopilot PLAN_REVIEW must use never writes consensus-plan.json; only /parallel-review-plan does. converge() writes .review-cache/round-N/findings-<vendor>-plan.json plus the index, and agent_lane writes result.json without the consensus. As written, the evidence cannot be produced from the mandated path.",
+      "resolution": "compact: claimed fix did not take",
       "consensus_status": "unconfirmed"
     },
     {
       "id": 5,
-      "status": "addressed",
+      "status": "open",
       "axis": "compatibility",
       "type": "compatibility",
       "criticality": "medium",
@@ -85,11 +88,12 @@
         "claude_code"
       ],
       "description": "D1 gives openrouter-review location: cloud. In routing.yaml the only tier carrying endpoint_kind openrouter is metered-api with location: local, so RoutingPolicy.cost_tier('cloud', 'openrouter') returns None, and select_model excludes the candidate (model_routing/api.py around lines 577-600). The new agent becomes an inconsistent roster entry for the coordinator router.",
+      "resolution": "compact: claimed fix did not take",
       "consensus_status": "unconfirmed"
     },
     {
       "id": 6,
-      "status": "addressed",
+      "status": "open",
       "axis": "correctness",
       "type": "correctness",
       "criticality": "medium",
@@ -102,6 +106,7 @@
         "claude_code"
       ],
       "description": "discover_reviewers makes a single pass over sorted(all_vendors), so the 'roster order' that D5 relies on is not available. The D2 family rule and the D5 fill rule both depend on tier-1/2 selections, which can include vendors that sort after 'openrouter' (e.g. 'pi'). Implemented inside the existing loop, both rules would read an incomplete selection.",
+      "resolution": "compact: claimed fix did not take",
       "consensus_status": "unconfirmed"
     },
     {
@@ -123,7 +128,7 @@
     },
     {
       "id": 8,
-      "status": "addressed",
+      "status": "open",
       "axis": "readability",
       "type": "style",
       "criticality": "low",
@@ -136,11 +141,12 @@
         "claude_code"
       ],
       "description": "D1 says the agent has 'no cli and no sdk block, the same shape as ocr-local', but ocr-local declares a cli block (agents.yaml around lines 452-468).",
+      "resolution": "compact: claimed fix did not take",
       "consensus_status": "unconfirmed"
     },
     {
       "id": 9,
-      "status": "addressed",
+      "status": "open",
       "axis": "observability",
       "type": "spec_gap",
       "criticality": "low",
@@ -153,11 +159,12 @@
         "claude_code"
       ],
       "description": "agent_lane.run_converge does not copy ConvergenceResult.missing_lanes into result.json. Task 6.4 expects the worker to park capability_unavailable with missing_lanes, but no task adds that field (or per-lane cost) to result.json.",
+      "resolution": "compact: claimed fix did not take",
       "consensus_status": "unconfirmed"
     },
     {
       "id": 10,
-      "status": "addressed",
+      "status": "open",
       "axis": "correctness",
       "type": "spec_gap",
       "criticality": "medium",
@@ -171,11 +178,12 @@
         "claude_code"
       ],
       "description": "The round-1 fix adds normative behaviour to design D6 and tasks 3.8a/5.6: when the primary packet overflows, HTTP lanes get a separate tool-less packet (for plan reviews, scoped to openspec/changes/<id>/**) with its own sidecar, and they refuse only if that packet also overflows. The 'Tool-less Lane Packet Refusal' requirement still describes refusal of the round's packet only. No requirement or scenario defines the tool-less packet, so the spec no longer matches the design and tasks.",
+      "resolution": "compact: claimed fix did not take",
       "consensus_status": "unconfirmed"
     },
     {
       "id": 11,
-      "status": "addressed",
+      "status": "open",
       "axis": "observability",
       "type": "spec_gap",
       "criticality": "low",
@@ -189,11 +197,12 @@
         "claude_code"
       ],
       "description": "Task 5.6 now has agent_lane persist ConvergenceResult.consensus to reviews/consensus-<review_type>.json, which the retirement evidence depends on. The 'Composite Agent-Lane Review' requirement does not state this. Also, IMPL_REVIEW and VAL_REVIEW share review_type 'implementation', so a VAL_REVIEW run would overwrite the IMPL_REVIEW consensus file.",
+      "resolution": "compact: claimed fix did not take",
       "consensus_status": "unconfirmed"
     },
     {
       "id": 12,
-      "status": "addressed",
+      "status": "open",
       "axis": "readability",
       "type": "contract_mismatch",
       "criticality": "low",
@@ -206,8 +215,113 @@
         "claude_code"
       ],
       "description": "The round-2 spec fix names the consensus file per phase (consensus-plan.json, consensus-impl-review.json, consensus-val-review.json). Task 5.6 and design D9 still say reviews/consensus-<review_type>.json, which gives consensus-implementation.json for both implementation phases, so they collide. The PLAN_REVIEW case, which the retirement evidence depends on, agrees in all three artifacts. Design D9 also cites 'task 5.5' for this write, but the work is in task 5.6.",
+      "resolution": "compact: claimed fix did not take",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 13,
+      "status": "addressed",
+      "axis": "architecture",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/openrouter-review-lane/design.md",
+      "fingerprint": "9560d906c79108e4",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "D6 and tasks 3.8a/5.6 have converge() build a second, tool-less packet and 'pass both paths to dispatch_and_wait', and have dispatch_and_wait hand the tool-less body and its tools_overflow flag to OpenAI-compatible adapters. That needs a new optional dispatch_and_wait parameter (for both ReviewOrchestrator and the CompositeOrchestrator that converge() calls through _accepts_kwarg) and a new tools_overflow keyword on OpenAICompatAdapter.dispatch. Neither is named anywhere, and the cross-cutting interface contract table lists only include_lanes for dispatch_and_wait. Groups 3 and 5 implement the two sides of this interface in separate packages.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 14,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/openrouter-review-lane/tasks.md",
+      "spec_file": "/home/user/agentic-coding-tools/openspec/changes/openrouter-review-lane/specs/parallel-infrastructure/spec.md",
+      "fingerprint": "760c0f61babee0d4",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The Metered Review Lane Spend Accounting requirement says every review an openrouter lane dispatches is recorded with spend_recorder.record(), and acceptance outcome 3 says every OpenRouter review is recorded against the ceiling. The only task that calls record() is 5.5, inside agent_lane's CompositeOrchestrator. D5 also selects the metered lane on a host with fewer than fill_target non-metered lanes (for example one CLI vendor and OPENROUTER_API_KEY in non-OpenBao mode). That review runs through ReviewOrchestrator.dispatch_and_wait from converge() or /parallel-review-*, never through agent_lane, so its spend is neither recorded nor spooled and no metered_spend_unrecorded degradation is raised.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 15,
+      "status": "addressed",
+      "axis": "observability",
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/openrouter-review-lane/specs/parallel-infrastructure/spec.md",
+      "fingerprint": "23f6b8e0d50773bb",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The spec fixes work_unit_ref as '<change_id>:<review_type>:round-<n>'. IMPL_REVIEW and VAL_REVIEW both run with review_type 'implementation', so their rows get the same work_unit_ref and spend cannot be split by phase. This is the collision the round-2 fix already removed for the consensus files. Design D4 allows '<phase|review_type>'.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 16,
+      "status": "open",
+      "axis": "architecture",
+      "type": "architecture",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/openrouter-review-lane/design.md",
+      "fingerprint": "50d0804bc4341887",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "D4 and task 5.7 put the per-round budget re-check in converge(). converge() is vendor-agnostic: it receives only verified_lanes and an orchestrator, does not know which lanes are metered, has no coordinator-usage client, and has no way to keep one lane out of a dispatch except through orchestrator-specific kwargs. CompositeOrchestrator already knows the metered lanes and builds include_lanes, so the check fits there, or in ReviewOrchestrator.dispatch_and_wait next to the probe code. Keeping it in converge() widens the converge() signature with routing concerns.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 17,
+      "status": "open",
+      "axis": "resilience",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/openrouter-review-lane/tasks.md",
+      "spec_file": "/home/user/agentic-coding-tools/openspec/changes/openrouter-review-lane/specs/parallel-infrastructure/spec.md",
+      "fingerprint": "1a9f013eec745723",
+      "first_seen_round": 2,
+      "last_seen_round": 2,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The round-1 fix moved spend_recorder.record() into ReviewOrchestrator.dispatch_and_wait, which gets only an optional work_unit_ref and no change id. When the write fails, the spec spools to 'openspec/changes/<change-id>/reviews/spend-spool.jsonl' (spec line 173) and replay runs per change id. A dispatch_and_wait call with work_unit_ref None, such as a one-shot /parallel-review-* run or any caller not yet updated, has no change id, so the failed row has nowhere to go. That metered spend is then neither recorded nor spooled, which is the gap the fix was meant to close.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 18,
+      "status": "open",
+      "axis": "architecture",
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/openrouter-review-lane/design.md",
+      "fingerprint": "2ee1c045a3ada4ee",
+      "first_seen_round": 2,
+      "last_seen_round": 2,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The new 'spend context' row in the interface contract table says dispatch_and_wait adds 'work_unit_ref: str | None' and that a missing value only drops the field from the row. It does not carry the change id that the D4 spool path (openspec/changes/<id>/reviews/spend-spool.jsonl) needs, and it does not say what happens to a metered lane when no context is given.",
       "consensus_status": "unconfirmed"
     }
   ],
-  "compacted_at": "2026-10-11T14:18:09Z"
+  "compacted_at": "2026-10-12T02:46:45Z"
 }

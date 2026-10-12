@@ -5227,19 +5227,7 @@ index 00000000..85da1870
 +1. **Readiness reads roadmap.yaml from origin/main via a status applier** `architectural: multiplayer-simulation` — Operator decision A1: mirrors the real supervisor/worker split; principals report transitions, sim-supervisor commits them to main.
 +2. **Error reports relax principals/timeline via if/then** `architectural: multiplayer-simulation` — Ledger item 3: a git failure before the world exists must still yield a schema-valid exit-1 report.
 +3. **New scenario IDs take the next free number** `architectural: skill-procedure-deviation` — Avoid renumbering existing task cross-references.
-+4. **Degradation: single_vendor_review (PLAN_REVIEW, vendor claude_code)** `architectural: skill-procedure-deviation` — Codex CLI absent in cloud container; accepted by TRUST_POSTURE.md 'Review quorum in cloud containers (temporary)' (479dcd9 on openspec/roadmap-multiplayer-collaboration). converge() runs with min_quorum=1.
-+
-+### Context
-+Applied operator decision A1 (gate-decision:14d02b8a-cff3-4010-a9fe-29c849777950) and ledger items 1-4, 7, 8. roadmap.yaml is authoritative only on the shared remote's main (integration ref); a simulated status applier (sim-supervisor) writes all status transitions there; principals never edit roadmap.yaml. Added spec scenarios S.5, B.5, B.6, O.4; schema now admits exit-1 error reports. Items 5, 6, 9 left open (low).
-+
-+---
-+
-+## Phase: Plan Review (2026-10-09)
-+
-+**Agent**: claude_code | **Session**: N/A
-+
-+### Decisions
-+1. **Record PLAN_FIX fe0b333 in the review ledger before re-running converge()** `architectural: skill-procedure-deviation` — The earlier PLAN_FIX edited the plan but left ledger items 1-4, 7 and 8 open. Item 1 was a high-impact, unconfirmed judgment finding that the operator had already adjudicated as A1. Left open, it would make round 1 exit adjudication_required again without reviewing anythi
++4. **Degradation: single_vendor_review (PLAN_REVIEW, vendor claude_code)** `arch
 
 [diff truncated to fit packet budget; use Read/Grep for the remainder]
 
@@ -5337,9 +5325,11 @@ Applies to:
 - openspec/changes/archive/2026-10-10-toolkit-consistency/session-log.md
 - openspec/changes/archive/2026-10-10-toolkit-consistency/tasks.md
 - openspec/changes/archive/2026-10-10-toolkit-consistency/validation-report.md
+- openspec/changes/openrouter-review-lane/.review-ledger/ledger.json
 - openspec/changes/openrouter-review-lane/design.md
 - openspec/changes/openrouter-review-lane/dispatch-results/batch-d8913c4d8e973cd7940e2d09-ri-22-attempt-1-g1.json
 - openspec/changes/openrouter-review-lane/dispatch-results/batch-d8913c4d8e973cd7940e2d09-ri-22-attempt-1-g2.json
+- openspec/changes/openrouter-review-lane/dispatch-results/batch-d8913c4d8e973cd7940e2d09-ri-22-attempt-1-g3.json
 - openspec/changes/openrouter-review-lane/loop-state.json
 - openspec/changes/openrouter-review-lane/plan-findings.md
 - openspec/changes/openrouter-review-lane/proposal.md
@@ -5591,6 +5581,12 @@ Same standard as scripts/tests/: verify the test would fail if the behavior it t
 
 #### specs/supervise/spec.md
 (excerpt dropped — over packet budget; Read this path if needed)
+
+### Open ledger items
+- [3] The mid-run mapping fires when 'every failed lane's error_class is UNAVAILABLE or AUTH'. A verified lane can also produce no ReviewResult at all: it is filtered at dispatch by the family or fill rule, not discovered in the worker environment, or dispatch_and_wait returns [] when job_count == 0. In that case the failed set is empty, the condition is vacuously true, and converge() returns capability_unavailable with missing_lanes == [].
+- [7] D4 checks the budget only in the probe, which the supervisor runs once per batch against a $1.00 reservation. A dispatched child can then run up to 3 rounds in each of 3 review phases with packets of roughly 80k tokens, and every concurrently dispatched child sees the same remaining budget. When the coordinator ceiling is the only source (key limit null), nothing stops an overrun, so 'bounded before dispatch' does not hold.
+
+Do not emit findings for issues already in the ledger except to re-verify the open items listed above.
 
 ### Instructions
 Return findings as JSON with a top-level `findings` array.
