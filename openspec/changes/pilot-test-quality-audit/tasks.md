@@ -289,7 +289,7 @@
 
 ## 9. Pilot run (wp-pilot-run)
 
-- [ ] 9.1 Run `git fetch --unshallow` (operator environment). Record the resulting depth. [XS]
+- [x] 9.1 Run `git fetch --unshallow` (operator environment). Record the resulting depth. [XS]
   **Design decisions**: D6, D15
   **Dependencies**: 8.2
 - [ ] 9.2 Run the deterministic stages (inventory, static, mutation, rename, history) over both

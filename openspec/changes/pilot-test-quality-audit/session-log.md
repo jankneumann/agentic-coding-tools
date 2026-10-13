@@ -126,3 +126,43 @@ Addressed 4 high and 11 medium findings across consistency, clarity, paralleliza
 ### Context
 Fixed two high feasibility findings introduced or exposed by iteration 1: audited suites run through `uv run --project <suite> --with pytest-cov --with mutmut` because neither suite declares the audit's tools, and the lens package's freshness verification step (which exits 1 for the whole corpus) is replaced by a lens-ledger check. Four medium/low consistency fixes: tercile_cutpoints slot in analysis schema, low_confidence required and excluded from Brier/coupled_spec_test, AST-only meaning of mirrored_test_file, conftest list corrected. Remaining findings are low; loop converges.
 
+---
+
+## Phase: Implementation (2026-10-13)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Stall root cause: phase sub-agents invoking interactive skills** `architectural: skill-procedure-deviation` — Both stalled sub-agents were told to run /iterate-on-plan or /implement-feature, whose AskUserQuestion gates block forever without a user; self-contained no-skill prompts never stalled.
+2. **AstMutantRunner is the working mutation backend** `architectural: test-oracle-audit` — Spike 3.1: mutmut 3.8 relocates code into mutants/ and its baseline fails on repo-relative tests; recorded in design D4.
+3. **Multi-vendor review disabled** `architectural: skill-procedure-deviation` — codex CLI not installed and no OPENAI_API_KEY; only claude_code dispatchable, so PLAN_REVIEW/IMPL_REVIEW skipped (recorded DEGRADED in loop-state).
+4. **Guard exemptions: fixtures/ skipped by dependabot guard; skill-audit/scripts exempt from CI-reach guard** `architectural: test-oracle-audit` — Fixture mini-projects are audit inputs, not deps; test_policy_lens.py is a lens module, not tests.
+
+### Trade-offs
+- Accepted max-mutants 150 per pilot suite over default 400 because ~4s per mutant over uv; keeps the 60-minute mutation NFR
+
+### Open Questions
+- [ ] Coverage ratchet and in-file marker questions stay open for the linter follow-up (D13).
+- [ ] Live Jev run (9.4) not run: no TYPESAFE_API_KEY; validation Gate 2 stays open per D15.
+
+### Completed Work
+- Tasks 1.x-8.x complete (contracts, inventory/static, execution, history, judged/explain, labels/analysis, skill-audit lens, CLI/CI/README/roadmap notes)
+- 9.1 done: clone unshallowed (288 -> 2943 commits)
+
+### In Progress
+- 9.2: deterministic stages over test_evaluation and parallel_infrastructure (background, out: docs/reports/test-oracle-audit/2026-10-13/<suite>/, seed 13, max-mutants 150)
+
+### Next Steps
+- When 9.2 finishes: verify audited dirs unchanged (git status --porcelain --untracked-files=all over the four audited paths), record timings, commit the run outputs
+- 9.3: operator chose to label IN THIS SESSION - render cards with `test-oracle-audit --repo-root ../.. --suite <s> --out <dir> --seed 13 label`, present one card at a time via AskUserQuestion, record with `label record <node_id> <label> --labeller jan`
+- 9.4: record judged stage as not run (no key); 9.5: explain with --explain-command 'claude -p' (verified working)
+- 9.6 analyze + report per suite and commit; 9.7 follow-up linter proposal stub; then tick tasks, apply-outcome IMPLEMENT (handoff = this record), continue autopilot at IMPL_ITERATE
+
+### Relevant Files
+- `packages/test-oracle-audit/README.md` — stages, commands, prerequisites
+- `openspec/changes/pilot-test-quality-audit/tasks.md` — 1.x-8.x and 9.1 complete
+- `openspec/changes/pilot-test-quality-audit/loop-state.json` — autopilot at IMPLEMENT, cli_review_enabled=false
+
+### Context
+Autopilot IMPLEMENT ran inline (operator-approved fallback after two stalled background phase sub-agents). Work packages 1-8 are implemented and pushed: spec-only test writers per package (D14), then separate implementers; full package suite 462 passed, ruff clean, skill-audit lens 134 passed, CI guards green after merging main (runner-lane routing). Pilot run (group 9) in progress.
+
