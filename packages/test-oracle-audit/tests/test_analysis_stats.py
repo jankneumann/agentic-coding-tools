@@ -18,6 +18,7 @@ Expected values below are computed by hand in comments.
 from __future__ import annotations
 
 import pytest
+
 from test_oracle_audit.analysis import auc, bootstrap_ci, brier, cliffs_delta, cohen_kappa
 
 

@@ -45,3 +45,6 @@ norecursedirs = ["fixtures"]
 [tool.ruff]
 line-length = 110
 target-version = "py312"
+# Fixture projects are deliberately imperfect audit inputs (unused imports,
+# re-exports, private imports are what their tests exercise); never lint them.
+extend-exclude = ["tests/fixtures"]

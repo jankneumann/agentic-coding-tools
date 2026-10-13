@@ -43,8 +43,8 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent / "fixtures" / "analysis"))
 
 import analysis_builders as b
-from test_oracle_audit.labelling import label_next, record_label, render_card, stratified_sample
 
+from test_oracle_audit.labelling import label_next, record_label, render_card, stratified_sample
 from test_oracle_audit.ledger import LabelLedger
 from test_oracle_audit.records import StageRecord, TestEntry, TestId, content_hash
 from test_oracle_audit.thresholds import tercile_cutpoints, tercile_of
