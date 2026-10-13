@@ -279,13 +279,13 @@
 - [x] 8.3 Add the `test-oracle-audit-tests` CI job, modeled on `system-one-decisions-tests`.
   Confirm `skills/tests/ci_coverage` still passes. [S]
   **Dependencies**: 8.2
-- [ ] 8.4 Write the package `README.md`: stages, run commands, environment prerequisites (D15), and
+- [x] 8.4 Write the package `README.md`: stages, run commands, environment prerequisites (D15), and
   the reuse notes for ri-07 and ri-08. [XS]
   **Dependencies**: 8.2
-- [ ] 8.5 Use `/refine-roadmap` to add notes to `skill-rightsizing` ri-07 and ri-08 that point to
+- [x] 8.5 Use `/refine-roadmap` to add notes to `skill-rightsizing` ri-07 and ri-08 that point to
   `MutationRunner` and `LabelLedger`. [XS]
   **Dependencies**: 8.2
-- [ ] Checkpoint: run the package tests plus the CI-equivalent command, review the diff, verify scope.
+- [x] Checkpoint: run the package tests plus the CI-equivalent command, review the diff, verify scope.
 
 ## 9. Pilot run (wp-pilot-run)
 
