@@ -1,0 +1,239 @@
+{
+  "convention": "rightsizing",
+  "dispatch_profile": [],
+  "evidence": {
+    "reason": "not_applicable_test_policy_lens",
+    "status": "unavailable",
+    "tier_rows": []
+  },
+  "findings": [
+    {
+      "evidence": {},
+      "id": "F001",
+      "kind": "test_same_context_authorship",
+      "layer": "unclassified",
+      "rationale": "one agent writes both the tests and the implementation in the same context (1 instruction(s)): \"Write a failing test before writing the code that makes it pass.\"",
+      "remediation": "add_reason",
+      "section_id": "SKILL.md#01-overview"
+    }
+  ],
+  "freshness": {
+    "archetypes_sha256": "5cfdd2f5e34d7ae83201695604a0382adcd9e2a2fe003b854959112e4800ed7a",
+    "evidence_window_days": 30,
+    "reviewed_dates": [
+      "2026-08-16"
+    ]
+  },
+  "generated_at": "2026-10-13T00:00:00+00:00",
+  "layers": [
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "frontmatter",
+      "layer": "contract",
+      "rule": "frontmatter",
+      "section_id": "SKILL.md#00-frontmatter"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Overview",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#01-overview"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "When to Use",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#02-when-to-use"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "The TDD Cycle",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#03-the-tdd-cycle"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Step 1: RED — Write a Failing Test",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#04-step-1-red-write-a-failing-test"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Step 2: GREEN — Make It Pass",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#05-step-2-green-make-it-pass"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Step 3: REFACTOR — Clean Up",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#06-step-3-refactor-clean-up"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "The Prove-It Pattern (Bug Fixes)",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#07-the-prove-it-pattern-bug-fixes"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "The Test Pyramid",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#08-the-test-pyramid"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Test Sizes (Resource Model)",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#09-test-sizes-resource-model"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Decision Guide",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#10-decision-guide"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Writing Good Tests",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#11-writing-good-tests"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Test State, Not Interactions",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#12-test-state-not-interactions"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "DAMP Over DRY in Tests",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#13-damp-over-dry-in-tests"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Prefer Real Implementations Over Mocks",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#14-prefer-real-implementations-over-mocks"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Use the Arrange-Act-Assert Pattern",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#15-use-the-arrange-act-assert-pattern"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "One Assertion Per Concept",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#16-one-assertion-per-concept"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Name Tests Descriptively",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#17-name-tests-descriptively"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Test Anti-Patterns to Avoid",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#18-test-anti-patterns-to-avoid"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Coverage and Targeted Runs",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#19-coverage-and-targeted-runs"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Browser Testing with DevTools",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#20-browser-testing-with-devtools"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Security Boundaries",
+      "layer": "constraint",
+      "rule": "prohibition_without_reason",
+      "section_id": "SKILL.md#21-security-boundaries"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "When to Use Subagents for Testing",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#22-when-to-use-subagents-for-testing"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "See Also",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#23-see-also"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Common Rationalizations",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#24-common-rationalizations"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Red Flags",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#25-red-flags"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Verification",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#26-verification"
+    }
+  ],
+  "schema_version": 1,
+  "skill": "test-driven-development"
+}

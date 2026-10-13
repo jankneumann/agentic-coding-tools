@@ -4,6 +4,7 @@
     skill_audit.py <skill-name> | --all
         [--evidence-window <days>] [--convention rightsizing|current]
         [--propose] [--check-freshness] [--output-dir <path>]
+        [--lens test-policy [--dry-run]]
 
 Read-only over the audited skill: the only writes are the report, the
 findings ledger, and candidate-work stubs under ``--output-dir``. Exit codes:
@@ -272,11 +273,43 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--convention", choices=CONVENTIONS, default="rightsizing")
     parser.add_argument("--propose", action="store_true", help="also write candidate-work stubs")
     parser.add_argument("--check-freshness", action="store_true", help="exit 1 when the newest report is stale")
+    parser.add_argument("--lens", choices=("test-policy",), default=None, help="run an alternate lens instead of the rightsizing audit")
+    parser.add_argument("--dry-run", action="store_true", help="with --lens: never call a judge or model backend")
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR, metavar="PATH")
     parser.add_argument("--skills-root", type=Path, default=SKILLS_ROOT, help=argparse.SUPPRESS)
     parser.add_argument("--archetypes", type=Path, default=None, help="path to archetypes.yaml (default: agent-coordinator/archetypes.yaml)")
     parser.add_argument("--repo-root", type=Path, default=None, help="repository root for the loop-state scan (default: auto)")
     return parser
+
+
+def _run_lens(args: argparse.Namespace, names: list[str], backend: ModelBackend | None) -> int:
+    """``--lens test-policy``: write only ``<skill>-test-policy-*`` outputs (design D12)."""
+    if args.propose or args.check_freshness:
+        print("error: --propose and --check-freshness do not apply with --lens", file=sys.stderr)
+        return 1
+    from test_policy_lens import audit_skill_test_policy  # noqa: E402
+
+    failures = 0
+    for name in names:
+        try:
+            ledger = audit_skill_test_policy(
+                name,
+                skills_root=args.skills_root,
+                output_dir=args.output_dir,
+                backend=backend or default_backend(),
+                dry_run=args.dry_run,
+                archetypes_path=args.archetypes,
+            )
+        except Exception as exc:
+            failures += 1
+            print(f"{name}: error — {type(exc).__name__}: {exc}", file=sys.stderr)
+            continue
+        counts: dict[str, int] = {}
+        for f in ledger["findings"]:
+            counts[f["kind"]] = counts.get(f["kind"], 0) + 1
+        detail = ", ".join(f"{k}={v}" for k, v in sorted(counts.items())) or "none"
+        print(f"{name}: test-policy {len(ledger['findings'])} finding(s) ({detail}), output {args.output_dir}")
+    return 1 if failures else 0
 
 
 def main(argv: list[str] | None = None, *, backend: ModelBackend | None = None, bridge: Any | None = None) -> int:
@@ -296,6 +329,11 @@ def main(argv: list[str] | None = None, *, backend: ModelBackend | None = None, 
     missing = [n for n in names if not (skills_root / n / "SKILL.md").is_file()]
     if missing:
         print(f"error: unknown skill(s) {missing} under {skills_root}", file=sys.stderr)
+        return 1
+    if args.lens:
+        return _run_lens(args, names, backend)
+    if args.dry_run:
+        print("error: --dry-run only applies with --lens", file=sys.stderr)
         return 1
     archetypes_path = args.archetypes or (Path(os.environ["ARCHETYPES_YAML"]) if os.environ.get("ARCHETYPES_YAML") else default_archetypes_path())
     if archetypes_path is None or not Path(archetypes_path).is_file():
