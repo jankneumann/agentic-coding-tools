@@ -49,3 +49,15 @@
 ### Context
 Plan a read-only pilot that audits two test suites with four independent approaches (static AST checks, shadow-mode Jev judgments, execution evidence via mutation/rename/history, flagged-only LLM explanations) against ~40 blind human oracle-source labels, to learn which test-linter rules predict weak tests before formalizing any. Selected a standalone package reusable by skill-rightsizing ri-07/ri-08.
 
+---
+
+## Phase: Autopilot PLAN_ITERATE (re-dispatch) (2026-10-13)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Dispatch write-capable phases without Agent(isolation='worktree') in the cloud harness** `architectural: skill-procedure-deviation` — worktree.py reports isolation_provided=true and returns the shared checkout, so it cannot re-root a main-based harness launchpad onto the feature branch; the first PLAN_ITERATE agent stalled there with no change directory. The container already provides isolation, and the checkout is on openspec/pilot-test-quality-audit.
+
+### Context
+First PLAN_ITERATE dispatch stalled ~1h50m in a main-rooted harness worktree; escalated, operator approved resume; re-dispatched without harness worktree isolation.
+
