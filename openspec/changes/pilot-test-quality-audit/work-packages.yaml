@@ -72,6 +72,7 @@ packages:
     surfaces:
     - apis
     - semantic_code
+    - documentation
   worktree:
     name: wp-contracts
     mode: isolated
@@ -206,6 +207,7 @@ packages:
   context_impact:
     surfaces:
     - semantic_code
+    - documentation
   worktree:
     name: wp-execution
     mode: isolated
@@ -634,8 +636,8 @@ packages:
     steps:
     - name: Read-only over audited suites
       kind: command
-      command: git diff --exit-code -- agent-coordinator/tests/test_evaluation agent-coordinator/evaluation skills/tests/parallel-infrastructure
-        skills/parallel-infrastructure
+      command: test -z "$(git status --porcelain --untracked-files=all -- agent-coordinator/tests/test_evaluation
+        agent-coordinator/evaluation skills/tests/parallel-infrastructure skills/parallel-infrastructure)"
       evidence:
         artifacts:
         - docs/reports/test-oracle-audit

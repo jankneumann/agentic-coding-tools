@@ -126,7 +126,7 @@
 - [ ] 4.1 Write failing history tests against a synthetic git repository built in a temp dir. [S]
   - A shallow clone degrades, and no network command is run.
   - A denominator below 3 gives `insufficient`.
-  - `fix(` commits that introduce a test give `added_with_fix`.
+  - `fix:` and `fix(<scope>):` commits (with or without `!`) that introduce a test give `added_with_fix`; `fixup!` and `feat:` commits do not.
   - The co-change ratio is correct for a known commit sequence.
 
   **Spec scenarios**: test-oracle-audit.27, test-oracle-audit.28, test-oracle-audit.29
