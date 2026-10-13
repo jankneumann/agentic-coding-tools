@@ -1289,9 +1289,10 @@ def _build_parser() -> argparse.ArgumentParser:
 def _warn_if_stale_mirror() -> None:
     # A runtime mirror that predates merged toolkit fixes runs the old logic
     # silently; say so on every invocation until the mirror is resynced.
+    # The check is advisory: no failure in it may abort the subcommand.
     try:
         drift = stale_mirror(__file__)
-    except OSError:
+    except Exception:  # noqa: BLE001
         return
     if drift is not None:
         print(f"autopilot: WARNING: {drift.message()}", file=sys.stderr)

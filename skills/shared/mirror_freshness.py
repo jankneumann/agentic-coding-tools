@@ -52,7 +52,7 @@ def stale_mirror(script_path: Path | str) -> MirrorDrift | None:
 
     Returns ``None`` when the script runs from the canonical tree, when the
     repository has no canonical ``skills/`` source (a consumer install), when
-    the manifest is unreadable, or when the payloads match.
+    the manifest is unreadable or malformed, or when the payloads match.
     """
     mirror = _mirror_root(Path(script_path))
     if mirror is None:
@@ -63,7 +63,7 @@ def stale_mirror(script_path: Path | str) -> MirrorDrift | None:
         return None
     try:
         skills, libraries = payload_names(manifest)
-    except (OSError, ValueError, KeyError):
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
         return None
     canonical_hash = hash_payload(canonical, skills, libraries)
     mirror_hash = hash_payload(mirror, skills, libraries)

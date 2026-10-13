@@ -73,6 +73,25 @@ def test_unreadable_manifest_is_not_reported(tmp_path: Path) -> None:
     assert stale_mirror(_script(repo)) is None
 
 
+def test_malformed_manifest_shape_is_not_reported(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    for bad in ({"skills": [], "shared_libraries": []}, {"skills": {"alpha": None}}):
+        (repo / "skills" / "install-manifest.json").write_text(json.dumps(bad))
+        assert stale_mirror(_script(repo)) is None
+
+
+def test_runner_warning_never_aborts(capsys, monkeypatch) -> None:
+    sys.path.insert(0, str(SKILLS_ROOT / "autopilot" / "scripts"))
+    import runner  # type: ignore[import-not-found]
+
+    def boom(_path):
+        raise RuntimeError("unexpected")
+
+    monkeypatch.setattr(runner, "stale_mirror", boom)
+    runner._warn_if_stale_mirror()
+    assert capsys.readouterr().err == ""
+
+
 def test_runner_warns_from_a_stale_mirror(tmp_path: Path, capsys, monkeypatch) -> None:
     sys.path.insert(0, str(SKILLS_ROOT / "autopilot" / "scripts"))
     import runner  # type: ignore[import-not-found]
