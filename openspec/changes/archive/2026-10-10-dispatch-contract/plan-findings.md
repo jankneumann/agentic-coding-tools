@@ -1,0 +1,65 @@
+# Plan Findings: dispatch-contract
+
+Produced by `/iterate-on-plan` (PLAN_ITERATE phase of autopilot). Threshold: medium.
+
+## Iteration 1
+
+Baseline `openspec validate --strict`: passed (scaffold). The scaffold from
+`plan-roadmap` was a placeholder: generic tasks, a placeholder capability, tautological
+scenarios.
+
+| # | Type | Criticality | Description | Fix |
+|---|------|-------------|-------------|-----|
+| 1 | completeness | critical | proposal.md lacked Why / What Changes / Impact sections | Rewrote proposal with all required sections, non-goals, and an Impact table |
+| 2 | consistency | critical | Spec delta targeted placeholder capability `multiplayer-collaboration`; real owners are roadmap-orchestration, supervise, skill-workflow, trust-posture, parallel-infrastructure | Removed placeholder; wrote five deltas against existing capabilities |
+| 3 | completeness | critical | Outcomes 6-8 (token digest, host-portable isolation, scoped auto) had no requirement at all | Added RO Launch Token Digest, RO Host-Portable Attempt Isolation, TP Roadmap-Approval-Scoped Auto Dispositions |
+| 4 | testability | high | Every scenario was "WHEN implemented THEN <outcome>" | Replaced with concrete WHEN/THEN including failure paths, exit codes, error strings |
+| 5 | feasibility | high | tasks.md was five generic placeholders (giant tasks, no traceability) | 30 tasks in 9 groups with deps and a requirement traceability table |
+| 6 | consistency | high | Existing RO "Durable Delegated Attempt Ledger" requires a stable token re-emitted on resume; digest-only storage makes that impossible | D6 per-generation tokens with `reissue`; MODIFIED the requirement |
+| 7 | correctness | high | `ESCALATE --abandoned--> DONE` would be emitted as `success` by a naive DONE->success mapping | D4 maps on `goal_gate.verdict`; scenario "Abandoned work is not reported as success" |
+| 8 | completeness | high | No loop-state representation for `permission_blocked`, `capability_unavailable`, or degradations, so `emit-result` had nothing to map | D11 LoopState v6 with `park` / `degradations`, `runner.py park` / `record-degradation` |
+| 9 | assumptions | high | "non-auto fallback" is undefined in the posture schema | D8 optional `unscoped` sub-config, default `block` (see session-log decision; no interactive channel in this phase) |
+| 10 | assumptions | high | How a child proves it carries a "valid" roadmap_approval_ref was unstated; the child cannot read the roadmap checkpoint | D8/D10a: ref travels in the generation-verified launch marker |
+| 11 | consistency | high | Result shape defined three times (two validators plus inline copy in checkpoint.schema.json) | D2: checkpoint schema `$ref`s the result schema; guard test deletes hand validators |
+| 12 | testability | medium | Closure over `gate` is impossible while `gate` is a free 128-char string | D3: `gate` becomes the `Gate` enum with per-kind `oneOf` |
+| 13 | security | medium | A `launch_*token*` field holding 64-hex would still trip gitleaks generic-api-key (keyword + entropy) | D6: `launch_digest` with `sha256:` prefix; keyword unit test and CI scan of a committed fixture |
+| 14 | security | medium | Blocked command in `permission_blocked` could carry a secret | Sanitized with `sanitize_session_log.sanitize()` in child and router; scenario added |
+| 15 | feasibility | medium | `dispatch_id` contains `:`; unsafe as a file name for the committed result path | D4 `dispatch-slug` rule |
+| 16 | feasibility | medium | Cross-host rebind could hand a post-go attempt to a second owner | D7: rebind only with evidence match; reinitialize only pre-go/prepared/parked; else quarantine |
+| 17 | completeness | medium | Version strategy for in-flight v1 workers unstated | D1 v2 writers, v1-tolerant readers; existing fixtures unchanged |
+| 18 | completeness | medium | design.md was a scaffold with open questions only | Rewrote with D1-D11, alternatives, risks, package boundaries |
+| 19 | parallelizability | medium | No work-packages.yaml | Nine packages, three parallel roots, max width 3; validated |
+| 20 | completeness | medium | Narrow fix branch not merged and no task for it | Task 1.1 / wp-merge-narrow-fix |
+| 23 | consistency | high | Draft re-evaluation rule ran on both sides, but the child's worktree posture can differ from the supervisor's (the original Issue 1 path), so "which holder is authoritative" stayed open | Gate authority rule: dispatched child applies only `gate_answer`; marker carries supervisor `posture_digest`; drift disables `auto`; only standalone runs self-re-evaluate |
+| 21 | scope | low | Raw tokens already in the roadmap branch history still fail full-history gitleaks | Recorded as open question; outside this change's edit scope |
+| 22 | scope | low | Degradation rendering in the digest and automatic lane re-routing | Declared non-goals |
+
+Parallelizability: Independent roots: 3 (wp-merge-narrow-fix, wp-dispatch-schemas,
+wp-posture) | Sequential chains: schemas -> contract-lib -> {runtime-ledger,
+autopilot-child} -> {supervisor, review-honesty} -> integration | Max parallel width: 3.
+File overlap between non-ordered packages: none (merge-narrow-fix and supervisor share
+files and are ordered).
+
+## Iteration 2
+
+| # | Type | Criticality | Description | Fix |
+|---|------|-------------|-------------|-----|
+| 1 | security | high | Scoped `auto` trusted a context-supplied `roadmap_approval_ref` plus a `marker_verified` flag, which any caller could set | `ApprovalGate` reads the marker itself via a `marker_reader` seam; context refs ignored; TP scenarios rewritten; trust boundary of the marker stated in D8 |
+| 2 | consistency | medium | SV said prepare blocks on "exit non-zero", but `--check-vendors` exits 2 both below quorum and on roster failure, so a below-quorum batch would never launch | Failure is defined by unparseable JSON or an `error` field; below-quorum launches with an honest profile (new scenario); PI specifies the `error` JSON shape |
+| 3 | testability | medium | PI "no env key read" scenario was unimplementable for SDK/API lanes, whose no-op needs credentials | Credentials only through the adapter's own path; test asserts sentinel secrets never appear in output and no `env`/`printenv` subprocess |
+| 4 | assumptions | medium | "quorum from the routing cost policy" — `routing.yaml` has tiers but no quorum | D10: `min_quorum` default 2 per review phase, router-context override, `counting_lanes` ordered by the tier ladder; `routing.yaml` not edited |
+| 5 | parallelizability | medium | wp-posture (a root) would have needed `read_launch_marker` from wp-contract-lib | `marker_reader` seam with lazy default import keeps wp-posture a root |
+
+Remaining below threshold: none new.
+
+## Iteration 3
+
+| # | Type | Criticality | Description | Fix |
+|---|------|-------------|-------------|-----|
+| 1 | completeness | medium | The marker must carry `roadmap_approval_ref` on every generation, and the supervisor-side scope check needs it too, but no attempt field stored it (prepare verified and discarded it) | Attempt persists the verified ref (D8, RO ledger scenario, tasks 2.3 / 5.3); supervisor `marker_reader` returns the attempt's ref |
+
+Remaining findings (below threshold, for optional review):
+- low: the shared lock key `feature:dispatch-contract:supervisor` on wp-merge-narrow-fix and wp-supervisor is intentional (ordered packages over the same files).
+- low: D10a marker discovery picks the highest valid generation; a stale marker left by a crashed takeover is ignored by the identity check but not cleaned up. Cleanup stays with the existing `_remove_owned_marker` path.
+
+Termination: threshold met (no findings at or above medium after iteration 3 fixes).

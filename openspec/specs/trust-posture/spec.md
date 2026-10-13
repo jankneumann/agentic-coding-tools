@@ -126,3 +126,131 @@ eight enumerated gates.
 - **THEN** its `timeout_seconds` and `default_action` SHALL be non-null
 - **AND** for `auto` and `block` dispositions both SHALL be null
 
+### Requirement: Roadmap-Approval-Scoped Auto Dispositions
+
+The trust posture SHALL let the `proposal_approval` and `replan_required` gate configs declare an optional `unscoped` sub-config (`disposition` of `notify_with_timeout` or `block`, with the same `timeout_seconds` / `default_action` rules as a gate config), defaulting to `{disposition: block}` when absent. When either gate's disposition is `auto`, the approval gate SHALL apply `auto` only if the current launch marker, obtained by the gate through its `marker_reader` seam, carries a `roadmap_approval_ref`, and SHALL ignore any `roadmap_approval_ref` supplied in the evaluation context; otherwise it SHALL apply the `unscoped` config and record `scope: unscoped` and a reason naming the fallback in the decision. `unscoped` with disposition `auto`, or on any other gate, SHALL be a validation error. The loader SHALL also expose `posture_digest(posture)`: the SHA-256 of the canonical JSON of the parsed `gates` map, with a fixed value for the absent-posture default.
+
+#### Scenario: Dispatched run with a valid approval reference proceeds
+- **WHEN** `proposal_approval` is `auto` and `marker_reader` returns a marker carrying `roadmap_approval_ref`
+- **THEN** the decision SHALL be `proceed` with `resolution: auto` and `scope: roadmap_approval`
+
+#### Scenario: Standalone run falls back to the unscoped disposition
+- **WHEN** `proposal_approval` is `auto`, no `unscoped` is declared, and `marker_reader` returns None
+- **THEN** the decision SHALL be `blocked` with `resolution: posture_block`, `scope: unscoped`, and a reason containing `unscoped fallback`
+
+#### Scenario: Declared notify fallback is used
+- **WHEN** `replan_required` is `auto` with `unscoped: {disposition: notify_with_timeout, timeout_seconds: 600, default_action: block}` and no reference is present
+- **THEN** the approval gate SHALL file an approval and apply `block` on timeout
+
+#### Scenario: A reference not from the launch marker is ignored
+- **WHEN** the evaluation context carries `roadmap_approval_ref: gate-decision:Z` but `marker_reader` returns None
+- **THEN** the unscoped fallback SHALL apply and the record's `scope` SHALL be `unscoped`
+
+#### Scenario: Invalid unscoped config is rejected
+- **WHEN** `TRUST_POSTURE.md` declares `unscoped: {disposition: auto}` or declares `unscoped` on `merge`
+- **THEN** `validate_posture_file` SHALL return an error naming the gate and field
+
+#### Scenario: Digest ignores prose and key order
+- **WHEN** two posture files differ only in Markdown body text and front-matter key order
+- **THEN** `posture_digest` SHALL return the same value for both
+
+### Requirement: Sync Window Declarations
+
+The trust posture contract front matter SHALL accept an optional top-level
+`sync_windows` list. Each entry SHALL declare exactly these fields:
+
+- `id`: a kebab-case string matching `^[a-z0-9]+(-[a-z0-9]+)*$`, unique within
+  the list
+- `cadence`: a cron-shaped string of exactly five fields separated by ASCII
+  spaces with no leading or trailing whitespace, each field matching
+  `[0-9*/,-]+`, interpreted in UTC. The loader validates only this shape; named
+  months and days, `@` macros, six-field forms, and tab- or padded forms are
+  rejected. Value ranges (for example `99 * * * *`) are outside this
+  requirement: they are left to the scheduler that computes fire times
+  (`ri-13`), whose own specification owns refusing a cadence it cannot
+  schedule
+- `skills`: a non-empty list drawn from `merge-pull-requests`, `update-specs`,
+  and `cleanup-feature`
+- `allowed_sources`: a non-empty list of PR origins drawn from `openspec`,
+  `sentinel`, `bolt`, `palette`, `jules`, `codex`, `dependabot`, `renovate`, and
+  `other` (the origins that `skills/shared/github_classifier.classify_pr`
+  emits)
+- `auto_merge_ceiling`: one of `none`, `automation`, `plan`, or
+  `implementation`, ordered from least to most permissive
+
+The loader SHALL reject, as a validation error, a `sync_windows` value that is
+neither `null` nor a list, an entry that is not a mapping, an unknown field, a missing field,
+an empty list field, a repeated value inside a list field, an unknown skill,
+source, or ceiling, an `id` that is not kebab-case, a malformed cadence, or a
+duplicate `id`. When
+`sync_windows` is absent, `null`, or an empty list, the posture SHALL declare no
+sync windows (fail-closed). The posture digest SHALL cover the declared sync
+windows independent of their declaration order, and a posture that declares
+none SHALL produce the same digest as it did before this field existed.
+
+A ceiling SHALL permit a PR kind only when the kind is one of `automation`,
+`plan`, or `implementation` and ranks at or below the ceiling; any other kind,
+including an unclassified one, SHALL NOT be permitted.
+
+The loader SHALL expose an authorization check that, given a window id and a
+sync-point skill, returns the declared window only when the window exists and
+lists that skill, and otherwise fails with a not-authorized error naming the
+missing declaration. The check SHALL accept the absent-posture value (no
+contract file) and fail for it. A skill name outside the closed sync-point
+skill set SHALL be rejected as a usage error, distinct from the not-authorized
+error.
+
+#### Scenario: Absent sync windows declare nothing
+
+- **WHEN** a trust posture is loaded whose front matter omits `sync_windows`,
+  sets it to `null` or `[]`, or no contract file exists
+- **THEN** the posture SHALL report no sync windows
+- **AND** the authorization check SHALL fail for every window id and skill
+
+#### Scenario: Declared window loads and authorizes its skills
+
+- **WHEN** a trust posture declares a valid sync window listing
+  `merge-pull-requests`
+- **THEN** the loader SHALL resolve the window with its cadence, skills,
+  allowed sources, and auto-merge ceiling
+- **AND** the authorization check SHALL return that window for
+  `merge-pull-requests`
+- **AND** the authorization check SHALL fail for a skill the window does not list
+- **AND** the authorization check SHALL reject a skill name outside the
+  sync-point skill set with a usage error, not a not-authorized error
+
+#### Scenario: Malformed window is rejected
+
+- **WHEN** a sync window has an unknown field, omits a required field, has an
+  empty or repeated-value list field, names an unknown skill, source, or
+  ceiling, has an `id` that is not kebab-case, has a cadence that is not five
+  space-separated fields of the permitted shape, or repeats another window's `id`
+- **THEN** validation SHALL fail with an error naming the window and the problem
+- **AND** the loader SHALL NOT return a posture that omits the malformed window
+
+#### Scenario: Malformed sync_windows container is rejected
+
+- **WHEN** `sync_windows` is present, not `null`, and not a list, or one of its entries is
+  not a mapping
+- **THEN** validation SHALL fail with an error naming `sync_windows` and the
+  offending entry index
+
+#### Scenario: Auto-merge ceiling orders PR kinds
+
+- **WHEN** a window's `auto_merge_ceiling` is compared with a PR kind
+- **THEN** `none` SHALL permit no kind
+- **AND** `automation` SHALL permit only `automation`
+- **AND** `plan` SHALL permit `automation` and `plan`
+- **AND** `implementation` SHALL permit `automation`, `plan`, and
+  `implementation`
+- **AND** no ceiling SHALL permit an unknown or unclassified kind
+
+#### Scenario: Digest is unchanged without windows and changes with them
+
+- **WHEN** the posture digest is computed for a posture that declares no sync
+  windows
+- **THEN** it SHALL equal the digest computed over the `gates` map alone
+- **AND** adding or editing a declared sync window SHALL change the digest
+- **AND** reordering declared windows, or reordering values inside a window's
+  list fields, SHALL NOT change the digest
+

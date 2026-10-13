@@ -1,0 +1,37 @@
+{
+  "review_type": "implementation",
+  "target": "migrate-ci-to-self-hosted-gx10-runners",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "resilience",
+      "criticality": "high",
+      "description": "The claimed start-time bound is incorrect. `mint-jitconfig.sh` starts its 600-second retry clock only after the stale-runner sweep, which may make 10 sequential API calls at up to 30 seconds each. A final mint request may also run for 30 seconds after the budget is effectively exhausted. The resulting worst case exceeds 930 seconds, while `gx10-runner@.service` sets `TimeoutStartSec=900`. systemd can therefore terminate `ExecStartPre` mid-operation. The test only compares 600 against 900 and misses the sweep and request overhead. Include all API work in one budget or increase the timeout with margin and test the composite bound.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "The host-side scripts require `curl` and `jq`, but the runbook never installs or verifies those host prerequisites. Adding them to the runner container's `toolchain.txt` does not help `ExecStartPre` or `ExecStopPost`, which execute on the host. A valid Ubuntu/Podman installation may therefore enter a restart loop immediately because `jq` or `curl` is absent. Add an operator prerequisite/install step and verification before enabling the units.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "`ci_wallclock.py` does not handle structurally invalid but syntactically valid YAML inputs. For example, a `--workflow-file` containing a YAML list reaches `_workflow_jobs()` and raises an uncaught `AttributeError`; malformed manifest shapes similarly raise uncaught `TypeError` or `AttributeError`. `main()` does not catch these exceptions, so the operator gets a traceback instead of the documented controlled error exit. Validate loaded document types or catch and translate these failures, and add a test using valid YAML with the wrong structure.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "evidence_class": "judgment"
+    }
+  ]
+}

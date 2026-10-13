@@ -1,0 +1,7 @@
+{
+  "change_id": "generate-coordinator-clients-from-contracts",
+  "validator_vendors": [],
+  "worker_vendors": [
+    "claude"
+  ]
+}

@@ -1,0 +1,61 @@
+{
+ "phase": "IMPL_REVIEW",
+ "pass": 4,
+ "round": 1,
+ "adjudicator": "orchestrator (claude_code IMPL_REVIEW sub-agent)",
+ "at": "2026-10-11T03:48:42.803489+00:00",
+ "decisions": [
+  {
+   "id": 88,
+   "vendor": "codex",
+   "criticality": "high",
+   "verdict": "valid (corroborated by claude_code #83)",
+   "action": "fixed",
+   "rationale": "Starting or enabling nftables.service replays the stock /etc/nftables.conf `flush ruleset`, at enable --now and at every boot, wiping ufw/firewalld/podman tables. Persistence moved to a dedicated oneshot gx10-runner-isolation.service that loads only the idempotent table file, ordered Before=network-pre.target systemd-user-sessions.service; nftables.service and the include line are no longer used (runbook test forbids them); O4/O10, design D6, spec and tasks updated; table-count check before/after."
+  },
+  {
+   "id": 89,
+   "vendor": "codex",
+   "criticality": "high",
+   "verdict": "valid",
+   "action": "fixed",
+   "rationale": "verify_run skipped placement checks when a non-skipped job had no labels, so a run could pass without placement evidence. Such a job is now a placement violation ('placement is unproven') for both lanes and hosted-pinned jobs; parametrized test added."
+  }
+ ],
+ "also_fixed": [
+  81,
+  82,
+  83,
+  84,
+  85,
+  86,
+  87,
+  90
+ ],
+ "notes": {
+  "81": "non-retryable mint failures hold off GX10_MINT_FAIL_HOLDOFF (300s < TimeoutStartSec) before exiting",
+  "84": "O1 delegates cpu/cpuset/io/memory/pids to user@.service and verifies cgroup.controllers",
+  "90": "mint-jitconfig refuses any GX10_RUNNER_CACHE_ARGS other than empty or the documented volume pair"
+ },
+ "trend": {
+  "high_or_critical_judgment": {
+   "pass3": 1,
+   "pass4": 2
+  },
+  "findings_total": {
+   "pass3": 17,
+   "pass4": 10
+  }
+ },
+ "lanes": {
+  "succeeded": [
+   "claude_code",
+   "codex"
+  ],
+  "dropped": [
+   "pi",
+   "antigravity",
+   "grok"
+  ]
+ }
+}

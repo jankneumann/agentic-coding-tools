@@ -1,0 +1,55 @@
+{
+  "review_type": "implementation",
+  "target": "toolkit-consistency",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "severity": "optional",
+      "axis": "resilience",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "skills/install.sh",
+      "existing_code": "mirror_hash=\"$(python3 \"$SCRIPT_DIR/shared/payload_hash.py\" --root \"$TARGET_ROOT/$rel_dir\" --manifest \"$TARGET_ROOT/$rel_dir/install-manifest.json\")\" || {",
+      "description": "The runtime-drift loop now depends on `$TARGET_ROOT/$rel_dir/install-manifest.json` existing in every mirror. When it does not (a mirror synced by a pre-manifest install.sh, a mirror whose manifest was deleted, or, per open ledger 40, an agent in the CLI `agent_list` that was never installed), payload_hash.py exits 2 and the only output is the generic 'Cannot compute mirror payload hash for <agent>'. That is a legitimate drift condition (mirror no longer matches the pinned payload) but it is neither the spec's runtime-drift message naming the pinned `toolkit_version`/`source_commit` nor a hint about the missing manifest. Before invoking the helper, test for the mirror manifest: if absent, print the runtime-drift message with a 'mirror manifest missing' qualifier (and skip the agent entirely when it is not listed in the stamp's `agents`, which also closes ledger 40).",
+      "resolution": "Guard with `[[ -f \"$TARGET_ROOT/$rel_dir/install-manifest.json\" ]]` and emit the runtime-drift message (pinned version/commit) instead of the generic hash error; drive the agent loop from the stamp's `agents` field.",
+      "line_range": {
+        "start": 405,
+        "end": 405
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "low",
+      "severity": "nit",
+      "axis": "correctness",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "skills/tests/install_sh/test_install_check_drift.py",
+      "existing_code": "result = _check(src / \"install.sh\", target)\n    assert result.returncode == 1\n    assert \"Checkout drift\" in result.stderr\n    assert \"Runtime drift\" not in result.stderr",
+      "description": "The new test correctly fails against the pre-fix code (checkout B's manifest drops json-canvas, so the mirror hash no longer equals the stamp and 'Runtime drift' is printed). But its negative assertions are loose: if install.sh stopped syncing `install-manifest.json` into the mirrors, payload_hash.py would exit 2, stderr would read 'Cannot compute mirror payload hash', the exit code would still be 1 and 'Checkout drift' would still be present, so the test would pass while the feature it pins is broken. Add `assert \"Cannot compute\" not in result.stderr` (or assert the exact expected stderr lines) so the test only passes on the intended path. Also note the hard-coded dependency on `json-canvas` being portable in the real manifest; the explicit `assert manifest[\"skills\"][\"json-canvas\"] == ...` makes that coupling fail loudly, which is acceptable, but picking the first portable skill from the manifest would make the test independent of that skill's future scoping.",
+      "line_range": {
+        "start": 110,
+        "end": 113
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 3,
+      "type": "style",
+      "criticality": "low",
+      "severity": "nit",
+      "axis": "readability",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/.review-ledger/ledger.json",
+      "existing_code": "-      \"consensus_status\": \"disagreement\",\n+      \"resolution\": \"IMPL_REVIEW 2026-10-10: file outside toolkit-consistency; tabled to owner in plan-findings.md Iteration 2 (PLAN_REVIEW decision 4)\",\n       \"parked_reason\": \"reject_out_of_scope\",\n-      \"resolution\": \"IMPL_REVIEW 2026-10-10: file outside toolkit-consistency; tabled to owner in plan-findings.md Iteration 2 (PLAN_REVIEW decision 4)\"\n+      \"consensus_status\": \"disagreement\"",
+      "description": "Fourteen pre-existing ledger entries change only in the relative order of `resolution`, `parked_reason` and `consensus_status`, with identical values. The ledger writer serialises keys in insertion order rather than a stable order, so every round that touches an entry re-emits unrelated entries and inflates the diff reviewers must read. The substantive additions (35 and 48 addressed with the 000c2bc reference, 36 retired as an echo of 10, 37-47 and 49 opened) are correct and consistent with the spec; the open items listed for re-verification are untouched by this diff and remain open. Consider `json.dump(..., sort_keys=True)` or a fixed key order in the ledger writer so future rounds diff only what changed.",
+      "line_resolution": "unresolved"
+    }
+  ]
+}

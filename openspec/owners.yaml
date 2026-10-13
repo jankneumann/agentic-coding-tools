@@ -1,0 +1,33 @@
+# openspec/owners.yaml — the git-native ownership map (capability: ownership-map).
+#
+# Humans edit this file by reviewed PR; no skill writes it. Owners are human
+# principal ids declared in the `humans:` block of agent-coordinator/agents.yaml
+# (never agents). `.github/CODEOWNERS` is a derived projection of this file:
+# regenerate it with
+#   python3 skills/ownership-runtime/scripts/codeowners.py emit --write
+# and verify with
+#   python3 skills/ownership-runtime/scripts/check_owners.py --codeowners --strict
+#
+# This repository has one maintainer, so it runs in solo mode: the check does not
+# demand an explicit assignment for every capability or roadmap item (design D14).
+# The entries below are a representative set that exercises every resolver branch
+# (capability, roadmap item, path rule); they are deliberately not exhaustive and
+# need no edit when a capability or roadmap item is added.
+schema_version: 1
+
+default_owner: jan
+
+assignments:
+  capabilities:
+    agent-identity:
+      owners: [jan]
+    agent-coordinator:
+      owners: [jan]
+  roadmap_items:
+    multiplayer-collaboration/ri-02:
+      owners: [jan]
+  paths:
+    "openspec/contracts/**":
+      owners: [jan]
+    "openspec/schemas/**":
+      owners: [jan]

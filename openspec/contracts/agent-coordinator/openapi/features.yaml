@@ -1,43 +1,67 @@
 # agent-coordinator features contract (task 5.1, trace-requirements-to-contracts;
-# extended and opted in by the issue #377 attribution change).
+# extended and opted in by the issue #377 attribution change; typed by
+# generate-coordinator-clients-from-contracts task 2.1).
 #
-# AUTHORED FROM openspec/specs/agent-coordinator/spec.md — NOT generated from
-# the running application (D1; app.openapi() describing itself would verify a
-# copy against itself). Operation descriptions cite spec line provenance as of
-# the issue #377 attribution change. FORWARD-ENFORCED (D6): every operation
-# carries an x-traceability block.
+# AUTHORED FROM openspec/specs/agent-coordinator/spec.md ("Feature Registry HTTP
+# Endpoints", "Complete HTTP API Coverage") and the AXI list envelope requirement
+# of axi-align-coordinator-output — NOT generated from the running application
+# (D1 of derive-descriptors-from-contracts; app.openapi() describing itself would
+# verify a copy against itself). FORWARD-ENFORCED (D6): every operation carries
+# an x-traceability block.
+#
+# Generation input: skills/coordination-bridge/scripts/generate_bindings.py reads
+# this file. Regenerate the bridge bindings after any edit here.
+#
+# Error bodies use FastAPI's {"detail": ...} shape the app emits today; RFC 7807
+# is out of scope (see generate-coordinator-clients-from-contracts contracts/README.md).
 openapi: 3.1.0
 info:
-  title: "agent-coordinator: Feature registry"
-  version: 1.0.0
+  title: agent-coordinator features
+  version: 1.1.0
   description: >-
     Feature registration, conflict analysis, and active-feature listing.
-    Spec lines 1424-1434, 1964-1970 (HTTP-9).
+    Spec "Feature Registry HTTP Endpoints" and "Complete HTTP API Coverage" (HTTP-9).
 paths:
   /features/active:
     get:
       operationId: listActiveFeatures
       summary: List active features by merge priority
       description: >-
-        Spec 1429-1430: with a valid API key returns a JSON array of active
-        features ordered by merge priority. Spec 1433-1434: without an API key
-        returns 401.
+        With a valid API key returns the AXI list envelope whose `features` key
+        holds active features ordered by merge priority. Without an API key
+        returns 401. Fixed path; takes precedence over /features/{feature_id}.
       security:
         - coordinatorApiKey: []
       x-traceability:
         requirements:
           - agent-coordinator.feature-registry-http-endpoints
       responses:
-        "200": {description: Active features ordered by merge priority (spec 1430)}
-        "401": {description: Missing API key (spec 1433-1434)}
+        "200":
+          description: Active features ordered by merge priority
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ActiveFeaturesEnvelope"}
+              example:
+                features:
+                  - feature_id: add-port-leases
+                    title: Port leases
+                    status: active
+                    registered_by: claude-code-1
+                    resource_claims: ["api:POST /ports/allocate", "db:schema:port_leases"]
+                    branch_name: openspec/standardize-port-leases
+                    merge_priority: 3
+                    registered_at: "2026-10-08T09:00:00+00:00"
+                count: 1
+                truncated: false
+                next_steps: ["GET /features/{feature_id}", "POST /features/conflicts"]
+        "401": {$ref: "#/components/responses/Unauthorized"}
   /features/register:
     post:
       operationId: registerFeature
       summary: Register a feature with its resource claims
       description: >-
-        Spec 1967 (HTTP-9): registers a feature with its resource claims.
-        Spec 1414-1420: mirrors the register_feature MCP tool delegating to
-        FeatureRegistryService.register().
+        Registers a feature with its resource claims, mirroring the
+        register_feature MCP tool delegating to FeatureRegistryService.register().
       security:
         - coordinatorApiKey: []
       x-traceability:
@@ -48,23 +72,28 @@ paths:
         required: true
         content:
           application/json:
-            schema:
-              type: object
-              required: [feature_id, resource_claims]
-              properties:
-                feature_id: {type: string}
-                resource_claims: {type: array, items: {type: string}}
-                title: {type: string}
+            schema: {$ref: "#/components/schemas/FeatureRegisterRequest"}
+            example:
+              feature_id: add-port-leases
+              resource_claims: ["api:POST /ports/allocate"]
+              title: Port leases
+              merge_priority: 3
       responses:
-        "200": {description: Registration result with success, feature_id, and action (spec 1417)}
-        "401": {description: Missing or invalid X-API-Key}
+        "200":
+          description: Registration result
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/FeatureRegisterResult"}
+              example: {success: true, feature_id: add-port-leases, action: registered, reason: null}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "422": {$ref: "#/components/responses/ValidationFailed"}
   /features/deregister:
     post:
       operationId: deregisterFeature
       summary: Deregister a completed or cancelled feature
       description: >-
-        Spec 1968 (HTTP-9): deregisters a completed or cancelled feature,
-        mirroring the deregister_feature MCP tool (spec 1414).
+        Deregisters a completed or cancelled feature, mirroring the
+        deregister_feature MCP tool.
       security:
         - coordinatorApiKey: []
       x-traceability:
@@ -75,21 +104,25 @@ paths:
         required: true
         content:
           application/json:
-            schema:
-              type: object
-              required: [feature_id]
-              properties:
-                feature_id: {type: string}
+            schema: {$ref: "#/components/schemas/FeatureDeregisterRequest"}
+            example: {feature_id: add-port-leases, status: completed}
       responses:
-        "200": {description: Deregistration result (spec 1968)}
-        "401": {description: Missing or invalid X-API-Key}
+        "200":
+          description: Deregistration result
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/FeatureDeregisterResult"}
+              example: {success: true, feature_id: add-port-leases, status: completed, reason: null}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "422": {$ref: "#/components/responses/ValidationFailed"}
   /features/{feature_id}:
     get:
       operationId: getFeature
       summary: Get a single feature's details
       description: >-
-        Spec 1969 (HTTP-9): returns a single feature's details, mirroring the
-        get_feature MCP tool (spec 1414).
+        Returns a single feature's details, mirroring the get_feature MCP tool.
+      security:
+        - coordinatorApiKey: []
       x-traceability:
         requirements:
           - agent-coordinator.complete-http-api-coverage
@@ -99,17 +132,33 @@ paths:
           in: path
           required: true
           schema: {type: string}
+          example: add-port-leases
       responses:
-        "200": {description: Feature details (spec 1969)}
-        "404": {description: Unknown feature_id}
+        "200":
+          description: Feature details
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/FeatureDetail"}
+              example:
+                feature_id: add-port-leases
+                title: Port leases
+                status: active
+                registered_by: claude-code-1
+                resource_claims: ["api:POST /ports/allocate"]
+                branch_name: openspec/standardize-port-leases
+                merge_priority: 3
+                metadata: {}
+                registered_at: "2026-10-08T09:00:00+00:00"
+                updated_at: "2026-10-08T09:00:00+00:00"
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "404": {$ref: "#/components/responses/NotFound"}
   /features/conflicts:
     post:
       operationId: analyzeFeatureConflicts
       summary: Analyze resource conflicts against active features
       description: >-
-        Spec 1970 (HTTP-9): analyzes resource conflicts between a candidate
-        feature and active features, mirroring the analyze_feature_conflicts
-        MCP tool (spec 1414).
+        Analyzes resource conflicts between a candidate feature and active
+        features, mirroring the analyze_feature_conflicts MCP tool.
       security:
         - coordinatorApiKey: []
       x-traceability:
@@ -120,14 +169,156 @@ paths:
         required: true
         content:
           application/json:
-            schema:
-              type: object
+            schema: {$ref: "#/components/schemas/FeatureConflictsRequest"}
+            example:
+              candidate_feature_id: add-usage-ledger
+              candidate_claims: ["db:schema:port_leases", "api:GET /usage"]
       responses:
-        "200": {description: Conflict analysis result (spec 1970)}
-        "401": {description: Missing or invalid X-API-Key}
+        "200":
+          description: Conflict analysis result
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ConflictReport"}
+              example:
+                candidate_feature_id: add-usage-ledger
+                feasibility: PARTIAL
+                total_candidate_claims: 2
+                total_conflicting_claims: 1
+                conflicts:
+                  - feature_id: add-port-leases
+                    overlapping_keys: ["db:schema:port_leases"]
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "422": {$ref: "#/components/responses/ValidationFailed"}
 components:
   securitySchemes:
     coordinatorApiKey:
       type: apiKey
       in: header
       name: X-API-Key
+  responses:
+    Unauthorized:
+      description: Missing or invalid API key
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/ErrorDetail"}
+          example: {detail: Missing API key}
+    NotFound:
+      description: Unknown feature_id
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/ErrorDetail"}
+          example: {detail: Feature not found}
+    ValidationFailed:
+      description: Request body failed validation
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [detail]
+            properties:
+              detail: {type: array, items: {type: object}}
+  schemas:
+    ErrorDetail:
+      type: object
+      required: [detail]
+      properties:
+        detail: {type: string}
+    FeatureStatus:
+      type: string
+      enum: [active, completed, cancelled]
+    FeatureSummary:
+      type: object
+      required: [feature_id, title, status, registered_by, resource_claims, branch_name, merge_priority, registered_at]
+      properties:
+        feature_id: {type: string}
+        title: {type: [string, "null"]}
+        status: {$ref: "#/components/schemas/FeatureStatus"}
+        registered_by: {type: string}
+        resource_claims: {type: array, items: {type: string}}
+        branch_name: {type: [string, "null"]}
+        merge_priority: {type: integer, minimum: 1, maximum: 10}
+        registered_at: {type: [string, "null"], format: date-time}
+    FeatureDetail:
+      type: object
+      required: [feature_id, title, status, registered_by, resource_claims, branch_name, merge_priority, metadata, registered_at, updated_at]
+      properties:
+        feature_id: {type: string}
+        title: {type: [string, "null"]}
+        status: {$ref: "#/components/schemas/FeatureStatus"}
+        registered_by: {type: string}
+        resource_claims: {type: array, items: {type: string}}
+        branch_name: {type: [string, "null"]}
+        merge_priority: {type: integer, minimum: 1, maximum: 10}
+        metadata: {type: object, additionalProperties: true}
+        registered_at: {type: [string, "null"], format: date-time}
+        updated_at: {type: [string, "null"], format: date-time}
+    ActiveFeaturesEnvelope:
+      type: object
+      description: AXI list envelope (axi-align-coordinator-output, "AXI-Aligned HTTP List Output").
+      required: [features, count, truncated]
+      properties:
+        features: {type: array, items: {$ref: "#/components/schemas/FeatureSummary"}}
+        count: {type: integer, minimum: 0}
+        truncated: {type: boolean}
+        hint: {type: string}
+        next_steps: {type: array, items: {type: string}}
+    FeatureRegisterRequest:
+      type: object
+      required: [feature_id, resource_claims]
+      properties:
+        feature_id: {type: string}
+        resource_claims: {type: array, items: {type: string}}
+        title: {type: [string, "null"]}
+        agent_id: {type: [string, "null"]}
+        branch_name: {type: [string, "null"]}
+        merge_priority: {type: integer, default: 5}
+        metadata: {type: [object, "null"], additionalProperties: true}
+    FeatureRegisterResult:
+      type: object
+      description: >-
+        On failure (e.g. re-registering a completed feature) the service returns
+        only success=false and reason, so feature_id and action are null.
+      required: [success, feature_id, action, reason]
+      properties:
+        success: {type: boolean}
+        feature_id: {type: [string, "null"]}
+        action: {type: [string, "null"], enum: [registered, updated, null]}
+        reason: {type: [string, "null"]}
+    FeatureDeregisterRequest:
+      type: object
+      required: [feature_id]
+      properties:
+        feature_id: {type: string}
+        status: {type: string, enum: [completed, cancelled], default: completed}
+    FeatureDeregisterResult:
+      type: object
+      description: >-
+        On failure (invalid status, or feature missing or not active) the service
+        returns only success=false and reason, so feature_id and status are null.
+      required: [success, feature_id, status, reason]
+      properties:
+        success: {type: boolean}
+        feature_id: {type: [string, "null"]}
+        status: {type: [string, "null"]}
+        reason: {type: [string, "null"]}
+    FeatureConflictsRequest:
+      type: object
+      required: [candidate_feature_id, candidate_claims]
+      properties:
+        candidate_feature_id: {type: string}
+        candidate_claims: {type: array, items: {type: string}}
+    FeatureConflict:
+      type: object
+      required: [feature_id, overlapping_keys]
+      properties:
+        feature_id: {type: string}
+        overlapping_keys: {type: array, items: {type: string}}
+    ConflictReport:
+      type: object
+      required: [candidate_feature_id, feasibility, total_candidate_claims, total_conflicting_claims, conflicts]
+      properties:
+        candidate_feature_id: {type: string}
+        feasibility: {type: string, enum: [FULL, PARTIAL, SEQUENTIAL]}
+        total_candidate_claims: {type: integer, minimum: 0}
+        total_conflicting_claims: {type: integer, minimum: 0}
+        conflicts: {type: array, items: {$ref: "#/components/schemas/FeatureConflict"}}

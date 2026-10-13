@@ -1,0 +1,58 @@
+{
+ "phase": "IMPL_REVIEW",
+ "pass": 5,
+ "round": 1,
+ "adjudicator": "orchestrator (claude_code IMPL_REVIEW sub-agent)",
+ "at": "2026-10-11T04:00:36.364959+00:00",
+ "decisions": [
+  {
+   "id": 99,
+   "vendor": "codex",
+   "criticality": "high",
+   "verdict": "valid (corroborated by claude_code #94)",
+   "action": "fixed",
+   "rationale": "The mint budget clock started after the stale-runner sweep and did not count the final in-flight request, so ExecStartPre could exceed TimeoutStartSec=900. One clock now starts before any API call; the sweep is capped at half the budget; a request is started only if it can finish (GX10_MINT_REQ_MAX, curl --max-time) inside GX10_MINT_MAX_ELAPSED; the non-retryable hold-off is clipped to the remaining budget. Composite bound test (max_elapsed + req_max < TimeoutStartSec, hold-off <= budget, clock before sweep) and a clipping test added."
+  }
+ ],
+ "also_fixed": [
+  91,
+  92,
+  93,
+  95,
+  97,
+  98,
+  100,
+  101
+ ],
+ "supersedes_parked": {
+  "68": "fixed as #91 (literal census counts removed)",
+  "70": "fixed as #92 (wrapper/keyword pass-through added)"
+ },
+ "parked": {
+  "96": "advisory: Type=simple vs Type=notify/--sdnotify=conmon recorded for a future unit change; --rm --replace mitigates; low, single-vendor"
+ },
+ "rounds_note": "third quorum IMPL_REVIEW round; round budget (3) exhausted. These fixes are orchestrator-adjudicated and not re-reviewed by vendors in IMPL_REVIEW; VAL_REVIEW should confirm #99 (mint time budget), #88 (isolation boot unit), #89 (unlabelled-job placement).",
+ "trend": {
+  "findings_total": [
+   17,
+   10,
+   11
+  ],
+  "high_or_critical_judgment": [
+   1,
+   2,
+   1
+  ]
+ },
+ "lanes": {
+  "succeeded": [
+   "claude_code",
+   "codex"
+  ],
+  "dropped": [
+   "pi",
+   "antigravity",
+   "grok"
+  ]
+ }
+}

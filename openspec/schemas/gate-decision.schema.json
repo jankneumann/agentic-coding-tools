@@ -154,6 +154,42 @@
       "pattern": "^[0-9a-f]{64}$",
       "description": "sha256 of the roadmap's authorized DAG shape; stamped on every roadmap_approval record. Absent (not null) on every other gate."
     },
+    "provenance": {
+      "description": "Who decided (dispatch-contract D5). A posture-provenance block is re-evaluated when the posture digest changes; a human-provenance decision is final for its subject.",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["source", "posture_digest"],
+          "properties": {
+            "source": {"const": "posture"},
+            "posture_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["source", "approval_ref"],
+          "properties": {
+            "source": {"const": "human"},
+            "approval_ref": {
+              "type": ["string", "null"],
+              "pattern": "^gate-decision:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+            }
+          }
+        }
+      ]
+    },
+    "scope": {
+      "type": "string",
+      "enum": ["roadmap_approval", "unscoped"],
+      "description": "For an auto proposal_approval / replan_required gate: whether a launch-marker roadmap_approval_ref scoped the auto, or the unscoped fallback applied (D8)."
+    },
+    "dedupe_fingerprint": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "Shared escalation subject of a permission_blocked / capability_unavailable fan-out answer (D9)."
+    },
     "timeout_seconds": {
       "type": [
         "integer",

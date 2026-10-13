@@ -1,0 +1,165 @@
+{
+  "review_type": "implementation",
+  "target": "toolkit-consistency",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "validation-report.md declares `Overall: PASS` and the Validation Review section says \"a verification round was run over the fix diff (below)\" in the past tense, but the slot that should carry that evidence reads literally `Verification round: VERIFY_ROUND_PLACEHOLDER`. As submitted, the report asserts a control that has no recorded outcome; the PASS verdict for the VAL_FIX diff (b7f8168: sharing_enabled() change, four new tests, spec/doc edits) rests on nothing in the report. Replace the placeholder with the verification-round result (packet, dispatch, findings count, blocking count) before the report is treated as complete, or reword the sentence to say the round is pending.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/validation-report.md",
+      "existing_code": "Verification round: VERIFY_ROUND_PLACEHOLDER",
+      "line_range": {
+        "start": 204,
+        "end": 204
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "The 'Shared learnings opt-in' requirement now adds a SHALL clause (exit 2 when `schema_version` is other than `1`), but its only refusal scenario, 'Export refused without opt-in', still has WHEN `config.json is absent or enabled is false`. The new clause has no WHEN/THEN covering it, whereas the parallel stamp change did extend 'Invalid stamp fails loud'. The implementation already has the `[wrong-schema]` case; add `or has schema_version other than 1` to the scenario WHEN (or a separate scenario) so the spec and the test agree.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "existing_code": "unreadable, has `schema_version` other than `1`, or has `shared_learnings.enabled` other than\n`true`.",
+      "line_range": {
+        "start": 127,
+        "end": 128
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 3,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "`sharing_enabled()` now refuses any config without `schema_version == 1`, and the check runs before the `shared_learnings` check. Two consequences for existing callers: (a) a consumer whose hand-written config was `{\"shared_learnings\": {\"enabled\": true}}` (valid before this commit) silently loses sharing; `analyze_failures.py` imports this function and, per open ledger 49, prints nothing when it returns False, so the regression is invisible; (b) a config with `{\"shared_learnings\": {\"enabled\": false}}` and no `schema_version` now reports `unsupported schema_version None` rather than the more accurate `enabled is not true`. Also `version != 1` accepts the float `1.0`, which the comment claims matches the stamp reader; confirm the stamp reader has the same tolerance or use `type(version) is int`. Document the breaking tightening in SKILL.md and consider reordering so the `enabled` check runs first.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "optional",
+      "evidence_class": "judgment",
+      "file_path": "skills/improve-harness/scripts/export_shared_learnings.py",
+      "existing_code": "version = data.get(\"schema_version\")\n    if isinstance(version, bool) or version != 1:",
+      "line_range": {
+        "start": 66,
+        "end": 67
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 4,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "The report cites `test_learnings_projection_is_read_only_by_improve_harness` as new proof of 'Projection never feeds canonical state'. The test only proves that no `.py`/`.sh` under `skills/` other than the two improve-harness scripts contains the literal string `learnings.jsonl`. A loop-state, checkpoint or trust-posture module could import `load_shared_learnings`/`merge_shared_learnings` from `analyze_failures`, or receive the path via `--shared-learnings`, without naming the file, and the test would stay green. It is a useful tripwire but the report's wording ('only ... name learnings.jsonl under skills/') should be the claim, not 'cannot feed canonical state'. Consider additionally asserting that no module outside improve-harness imports `load_shared_learnings`/`merge_shared_learnings`.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "optional",
+      "evidence_class": "judgment",
+      "file_path": "skills/tests/install_sh/test_state_artifacts_registration.py",
+      "existing_code": "if \"learnings.jsonl\" in path.read_text(encoding=\"utf-8\", errors=\"replace\"):",
+      "line_range": {
+        "start": 65,
+        "end": 65
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "The new assertions check `VERSION in result.stderr` and `source_commit in result.stderr` over the whole stderr, not the runtime-drift line. If `install.sh --check` prints any other line naming the pin (e.g. an informational 'stamp found: 0.2.0 @ <sha>'), the test passes even when the runtime-drift message itself omits the version and commit, which is exactly the AND clause the spec now requires. Anchor the assertion to the line containing 'Runtime drift' (split stderr on newlines and filter) so the test fails when the specific message regresses.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "evidence_class": "judgment",
+      "file_path": "skills/tests/install_sh/test_install_check_drift.py",
+      "existing_code": "assert VERSION in result.stderr\n    assert (stamp[\"source_commit\"] or \"unknown\") in result.stderr",
+      "line_range": {
+        "start": 131,
+        "end": 132
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 6,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "Test-count arithmetic in the report is internally inconsistent: baseline 183 passed + the stated 'five new tests and the new [wrong-schema] case' (six items) should give 189, but the recorded result is 188. The diff adds four new test functions (producer tag, real query_memory signature, installer never touches config, projection read-only) plus one parametrize case = five items = 188. Correct the prose to 'four new tests and the new [wrong-schema] case' so a reader reconciling the numbers does not suspect a missing or failing test.",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "nit",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/validation-report.md",
+      "existing_code": "five new tests and the new `[wrong-schema]` case all pass.",
+      "line_resolution": "unresolved"
+    },
+    {
+      "id": 7,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "The secret-scan substitute and the Smoke/Security/E2E live runs are recorded against bdfeefe, and the header justifies this with `skills/` and `docs/` being byte-identical between cce5f36 and bdfeefe. The VAL_FIX commit b7f8168 then changes `skills/` and `docs/` (exporter, SKILL.md, state-artifacts.md, four test files), yet the only post-fix evidence is the pytest run and one live `--check`. The regex secret scan was not re-run over the b7f8168 diff, and the exporter privacy live run was not repeated after `sharing_enabled()` changed. State explicitly that the Security `pass` covers bdfeefe only, or re-run the regex scan over `git diff bdfeefe b7f8168 -- skills/ docs/` and record it.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "optional",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/validation-report.md",
+      "existing_code": "literals) re-ran over the `skills/` + `docs/` diff at bdfeefe: one hit, the synthetic AWS",
+      "line_range": {
+        "start": 148,
+        "end": 148
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 8,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "`test_disabled_sharing_ignores_the_file` (cited for 'Disabled sharing ignores the file' and for outcome 3) covers absent config and `enabled: false` only. The state-artifacts.md row now promises that `schema_version` other than `1` also makes 'the analysis ignore learnings.jsonl', and `analyze_failures.py` reaches that behaviour through the shared `sharing_enabled()`; the exporter side has `[wrong-schema]` but the analysis side has no case for it. Add a wrong-schema parameter to the analysis test so the doc claim is pinned on both consumers.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "evidence_class": "judgment",
+      "file_path": "docs/guides/state-artifacts.md",
+      "existing_code": "Absent, unreadable, `schema_version` other than `1` or `enabled` other than `true` means sharing is disabled",
+      "line_resolution": "unresolved"
+    },
+    {
+      "id": 9,
+      "type": "style",
+      "criticality": "low",
+      "description": "The new SKILL.md sentence cites 'review ledger 41'. SKILL.md is part of the installed payload and is read in consumer repositories where `.review-ledger/` does not exist, so the pointer is unresolvable for the audience that reads it there. Replace with a plain statement (or an issue/roadmap reference that survives install).",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "nit",
+      "evidence_class": "judgment",
+      "file_path": "skills/improve-harness/SKILL.md",
+      "existing_code": "`analyze_failures.py` analysis only, not the generated report (follow-up, review ledger 41).",
+      "line_range": {
+        "start": 81,
+        "end": 81
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 10,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "Outcome 1 requires the stamp to be recorded in a *tracked* file. The evidence (test_install_stamp, live installs) proves the file is written and registered in state-artifacts.md; nothing proves or checks that it is tracked. A consumer whose `.gitignore` covers `.agentic-toolkit/` would have an unpinned team with a locally present stamp and `--check` would still say 'Pinned toolkit matches'. Either note in the report that trackedness is a human step the toolkit does not verify, or have `install.sh` warn when `git check-ignore` matches the stamp path.",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "fyi",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/validation-report.md",
+      "existing_code": "| 1 | A consumer repository records the installed toolkit version and payload hash in a tracked file registered in `docs/guides/state-artifacts.md` |",
+      "line_resolution": "unresolved"
+    }
+  ]
+}

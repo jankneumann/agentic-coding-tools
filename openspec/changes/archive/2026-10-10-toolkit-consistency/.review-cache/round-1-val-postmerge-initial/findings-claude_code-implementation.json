@@ -1,0 +1,103 @@
+{
+  "review_type": "implementation",
+  "target": "toolkit-consistency",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "high",
+      "severity": "critical",
+      "axis": "correctness",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/validation-report.md",
+      "existing_code": "Placeholder: VAL_REVIEW fills this section. The prior VAL_REVIEW round evidence (13 + 10\nfindings, VAL_FIX 1-7, ledger 53-75) is recorded in the earlier revisions of this file in git\nhistory and in `.review-ledger/ledger.json`; it has not been re-run by this re-validation.",
+      "description": "The rewritten report no longer maps the four ri-20 acceptance outcomes to evidence. The previous outcome table (the VAL_FIX 2 remedy for ledger 54) lived in the Validation Review section, which is now a `pending` placeholder, and the header states that nothing except the scenario-to-test mapping was carried over. The outcome table cannot simply be relied on from git history: its evidence was produced on bdfeefe/b7f8168/80747aa (rsync-mode scratch install hash c3d2feb6..., live checkout-drift at bdfeefe, the 59-file loose grep over an installed mirror), i.e. pre-merge commits, and the report claims every piece of evidence was re-run on e4d0b25. As written, the report proves 29 scenarios but does not answer question (a) of this round. Most of the needed evidence already exists in the new Smoke/Security/E2E sections (outcome 1: live stamp with toolkit_version and payload_hash plus test_state_artifacts_registration; outcome 2: the live runtime-drift message naming 0.2.0 @ e4d0b25 plus the drift tests; outcome 3: the opt-in and privacy tests plus the live stubbed export; outcome 4: the authoritative portability gate on both live installs and test_manifest_entry_points_run_without_source_checkout). VAL_FIX should restate the four-row outcome table citing this run's evidence, carry over the trackedness caveat (ledger 75) for outcome 1 and the D8 known limit for outcome 3, and either re-run or explicitly drop the loose-grep statement for outcome 4.",
+      "resolution": "Add an 'Acceptance outcomes (ri-20)' table to the rewritten report with evidence drawn from the e4d0b25 run, including the ledger-75 and D8 caveats.",
+      "line_range": {
+        "start": 142,
+        "end": 144
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "severity": "critical",
+      "axis": "compatibility",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/validation-report.md",
+      "existing_code": "## Deploy\n\n**Status**: not applicable",
+      "description": "The whole motivation for this re-validation was that `gate_logic.check_phase_status()` did not parse the previous report's `Result:` lines, and dispatch result g8 shows the gate still refusing with 'required section not passed: Spec Compliance (missing)' one lease generation later. The rewrite converts every section to `**Status**:` but introduces the value `not applicable` for Deploy, where the earlier report used `skip`. Nothing in the packet shows that `not applicable` is a recognised status token; if the parser recognises only pass/fail/skip (or similar), Deploy will read as missing or failed and the goal gate will refuse a third time for a purely textual reason. The report should use the documented vocabulary (or state, with the parser's accepted set quoted, that `not applicable` is accepted) and the Phase Summary row should use the same token as the section. The Phase Summary also carries a 'Test suites' row that has no corresponding section, which is harmless only if the parser ignores unknown rows.",
+      "resolution": "Use the parser's documented status vocabulary for the Deploy section and its Phase Summary row (e.g. `**Status**: skip` with the reason beneath), or quote the accepted token set in the report to show `not applicable` parses.",
+      "line_resolution": "unresolved"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "low",
+      "severity": "nit",
+      "axis": "readability",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/validation-report.md",
+      "existing_code": "## Result\n\nPASS: spec, smoke, security and e2e all pass on the merged code at e4d0b25; no defect found.",
+      "description": "The header `**Overall**: PASS` and the trailing Result section declare PASS and 'no defect found' while the Validation Review phase is `pending` in both its section and the Phase Summary. This is the same shape as ledger 53 (closed by VAL_FIX 2): an overall verdict stated beside an incomplete section. A reader or gate that trusts `Overall` will not notice that one required phase has not run. The Result section should either be written after VAL_REVIEW fills its section or be scoped explicitly ('PASS on the VALIDATE phases; Validation Review pending').",
+      "resolution": "Scope the Overall and Result lines to the completed phases until VAL_REVIEW fills its section, then update both together.",
+      "line_resolution": "unresolved"
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "low",
+      "severity": "optional",
+      "axis": "observability",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/validation-report.md",
+      "existing_code": "**255 passed, 1 skipped, 0 failed** (344.5s). The one skip is\n`skills/tests/shared/test_validate_install_manifest_excludes.py:101` \"node_modules not present\nin this checkout\"; with rsync installed, the 15 rsync-gated tests that skipped in the first\nrun all executed.",
+      "description": "The same four test directories (install_sh, improve-harness, _shared, shared) produced 189 passed on 80747aa with rsync present in the previous report and 255 passed here, a jump of 66 tests on code the conductor verified byte-identical for skills/ and docs/ between e4d0b25 and the merged roadmap tip. The likely explanation is that the roadmap branch had absorbed other changes' tests between the pre-merge base and the rebase merge, but the report does not say so; a reader comparing the two reports cannot tell whether the suite ran against a different code state or whether tests were added. The sentence 'the 15 rsync-gated tests that skipped in the first run' also refers to the earlier report's run, which contradicts the header's statement that nothing from it was reused. State the baseline (e.g. test count on the roadmap tip without this change, or the merge-base commit) so the count is interpretable, and drop or reword the 'first run' reference.",
+      "resolution": "Add one sentence explaining the test-count delta against the merged branch (merge-base count or list of other changes' test modules) and reword the 'first run' reference.",
+      "line_resolution": "unresolved"
+    },
+    {
+      "id": 5,
+      "type": "spec_gap",
+      "criticality": "low",
+      "severity": "nit",
+      "axis": "correctness",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/validation-report.md",
+      "existing_code": "| Helper passes the portability gate | I test_consumer_portability (not skipped: rsync present); live gate pass |",
+      "description": "Both portability scenarios have a two-part THEN: the gate passes AND the script is listed in `smoke_entrypoints`. The Helper row cites only the module name and the live gate pass, and neither row cites evidence for the `smoke_entrypoints` listing itself. `test_manifest_entry_points_run_without_source_checkout` implies the listing (it runs each manifest entry point from the installed closure), but the table should say so for `payload_hash.py` as it does for the exporter, or cite the manifest entry directly, so the second half of the THEN is visibly covered.",
+      "resolution": "Cite `test_manifest_entry_points_run_without_source_checkout[.claude|.agents]` (which executes `shared/payload_hash.py --help` from the manifest) in the Helper row, and note the `smoke_entrypoints` entries for both scripts.",
+      "line_range": {
+        "start": 50,
+        "end": 50
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 6,
+      "type": "resilience",
+      "criticality": "low",
+      "severity": "fyi",
+      "axis": "resilience",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "skills/autopilot/scripts/goal_gate.py",
+      "line_range": {
+        "start": 124,
+        "end": 128
+      },
+      "existing_code": "# Author date, not committer date: a rebase merge or cherry-pick\n# rewrites the committer date to the moment it ran, which made every\n# rebase-merged change read as edited after its review. (Caveat: an\n# amend keeps the author date; amending a validated report is out of\n# protocol, since phases commit the report and never rewrite it.)",
+      "description": "out_of_change: switching `_report_time` to the author date (%aI) correctly fixes the rebase-merge false positive that parked g7 ('validate record predates report'), and the new test would fail under the old %cI code because it asserts `report_time == REPORT_MTIME` while the committer date is two hours later. The comment lists only `--amend` as a caveat; the author date is also reset by `git rebase --ignore-date`/`--reset-author-date` and by a GitHub squash merge, which this repo's conventions use for deps/automation PRs. Those paths would re-trigger the stale-report refusal. No code change needed for the rebase-for-agent-PRs policy, but the caveat is worth recording next to the amend note. The try/except around the git calls is unchanged, so no new unhandled exception path is introduced.",
+      "resolution": "Extend the comment to name squash merges and rebase date-reset flags as the remaining cases that move the author date.",
+      "line_resolution": "hunk_new"
+    }
+  ]
+}

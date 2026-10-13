@@ -1,0 +1,19 @@
+{
+  "review_type": "plan",
+  "target": "dispatch-contract",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 14,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "severity": "none",
+      "axis": "architecture",
+      "evidence_class": "judgment",
+      "disposition": "accept",
+      "file_path": "openspec/changes/dispatch-contract/design.md",
+      "description": "Round-1 fix introduced an ordering contradiction: D2's last bullet says all four existing contract tests (including skills/tests/supervise/test_execution_contract.py) validate through dispatch_contract, but task 2.3a assigns test_execution_contract.py to wp-dispatch-schemas, a root package that lands before wp-contract-lib creates skills/shared/dispatch_contract.py. Followed literally, wp-dispatch-schemas cannot pass its own edit.",
+      "resolution": "Re-verified resolved in round 3: D2 now keeps test_execution_contract.py on its own registry inside wp-dispatch-schemas and moves only test_execution.py (wp-supervisor), test_dispatch_scheduler.py and test_supervised_dispatch_e2e.py (wp-runtime-ledger) to dispatch_contract; matches work-packages.yaml write scopes."
+    }
+  ]
+}

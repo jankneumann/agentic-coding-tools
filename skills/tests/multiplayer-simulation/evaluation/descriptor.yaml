@@ -1,0 +1,83 @@
+# GENERATED FILE — do not edit by hand.
+#
+# Derived from ../../../../openspec/contracts/multiplayer-simulation/cli/mpsim.yaml by scripts/generate_tool_descriptor.py.
+# Edit the contract and regenerate:
+#
+#     python scripts/generate_tool_descriptor.py
+#
+# CI runs the same script with --check; an edit made here and not made in the
+# contract fails that gate rather than silently becoming the source of truth.
+
+project: mpsim
+version: '1'
+executable: mpsim
+contract: ../../../../openspec/contracts/multiplayer-simulation/cli/mpsim.yaml
+services:
+- name: mpsim-cli
+  type: cli
+  command: mpsim
+scenario_dirs:
+- scenarios
+commands:
+- name: list
+  description: Print the built-in scenario ids as a JSON array, sorted.
+  traceability:
+    requirements:
+    - multiplayer-simulation.scenario-pack-runs-through-gen-eval
+- name: run
+  description: Run one scenario and print its report on stdout. Exit 0 whenever the scenario ran to completion,
+    regardless of what was detected or how long a principal was blocked; the scenario file, not the driver,
+    decides what is expected.
+  flags:
+  - name: --scenario
+    type: string
+    required: true
+    description: Built-in scenario id (see `mpsim list`). An unknown id exits 64.
+    traceability:
+      requirements:
+      - multiplayer-simulation.same-requirement-collision-scenario-records-plan-time-detection
+      - multiplayer-simulation.memory-store-scenario-reports-time-blocked-on-dependency
+  - name: --probe
+    type: string
+    repeatable: true
+    description: Restrict the run to the named registered collision probes. Omitted, every registered
+      probe runs. An unregistered id exits 64.
+    traceability:
+      requirements:
+      - multiplayer-simulation.plan-time-detectors-attach-through-a-probe-seam
+  - name: --tick-budget
+    type: integer
+    default: 50
+    description: Maximum logical ticks before the scheduler stops. A principal still blocked at the budget
+      is reported with unblocked=false and blocked_ticks equal to the budget minus its earliest start
+      tick. A value below 1 exits 64.
+    traceability:
+      requirements:
+      - multiplayer-simulation.memory-store-scenario-reports-time-blocked-on-dependency
+  - name: --fixture-dir
+    type: path
+    description: Replace the scenario's built-in fixture directory. Used by tests to supply altered fixtures
+      without editing the shipped ones. A missing directory, or a fixture declaring fewer than two principals,
+      exits 64.
+    traceability:
+      requirements:
+      - multiplayer-simulation.simulated-principals-have-separate-identities-worktrees-and-agents
+      - multiplayer-simulation.same-requirement-collision-scenario-records-plan-time-detection
+  traceability:
+    requirements:
+    - multiplayer-simulation.simulated-principals-have-separate-identities-worktrees-and-agents
+    - multiplayer-simulation.scenarios-run-offline-without-a-shared-coordinator
+    - multiplayer-simulation.scenario-reports-are-deterministic
+exit_codes:
+- code: 0
+  meaning: The scenario ran to completion and a report was printed.
+- code: 1
+  meaning: The scenario could not be established (for example the oracle found the fixture's required
+    collision absent, or a git operation failed). A report carrying a non-null `error` is printed when
+    possible.
+- code: 2
+  meaning: Argparse usage error, e.g. missing subcommand or --scenario.
+- code: 64
+  meaning: 'Semantic usage error: unknown scenario, unknown probe, a --fixture-dir that does not exist,
+    --tick-budget below 1, or a fixture with fewer than two principals.'
+  sysexits_name: EX_USAGE

@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "default_owner": "jan",
+  "assignments": {
+    "capabilities": {
+      "x": {
+        "owners": [
+          "jan"
+        ],
+        "reviewers": [
+          "kim"
+        ]
+      }
+    }
+  }
+}

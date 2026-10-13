@@ -1,0 +1,19 @@
+schema_version: 1
+roadmap_id: sim-memory-store
+source_proposal: seed/proposal.md
+status: approved
+items:
+- item_id: ri-storage
+  title: Simulated memory store core
+  status: approved
+  priority: 1
+  effort: M
+  depends_on: []
+  change_id: sim-memory-store-core
+- item_id: ri-retrieval
+  title: Simulated retrieval API
+  status: approved
+  priority: 2
+  effort: M
+  depends_on: [ri-storage]
+  change_id: sim-retrieval-api

@@ -121,6 +121,10 @@ class ConvergenceResult:
     escalate_findings: list[dict[str, Any]] | None = None
     validation_errors: list[str] | None = None
     checkpoint_dir: Path | None = None
+    # dispatch-contract D10: with reason="capability_unavailable", the counting
+    # lanes that were not verified. The caller records the park through
+    # `runner.py park`; this loop never writes loop state.
+    missing_lanes: list[str] | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -534,6 +538,23 @@ def _untracked_paths(worktree_path: Path) -> set[str]:
     }
 
 
+def _repo_relative(path: str, worktree_path: Path) -> str:
+    """Express a write-allow path the way ``_changed_paths`` reports edits.
+
+    ``derive_spec_file`` joins onto ``artifacts_dir``, which is absolute when
+    the caller passes an absolute change dir, while git names changed files
+    relative to the worktree. Left absolute, a cited spec never matches its
+    own edit and every spec fix is rejected as out of scope.
+    """
+    candidate = Path(path)
+    if not candidate.is_absolute():
+        return candidate.as_posix()
+    try:
+        return candidate.resolve().relative_to(Path(worktree_path).resolve()).as_posix()
+    except ValueError:
+        return path
+
+
 def _changed_paths(
     worktree_path: Path,
     pre_fix_rev: str | None = None,
@@ -564,6 +585,25 @@ def _changed_paths(
         untracked -= pre_untracked
     names |= untracked
     return sorted(names)
+
+
+#: converge()'s own bookkeeping under ``artifacts_dir``: the review ledger and
+#: the per-round packet/checkpoint cache. converge writes them itself
+#: (``save_ledger`` runs before the pre-fix snapshot), never a fix callback.
+_BOOKKEEPING_DIRS = (".review-ledger", ".review-cache")
+
+
+def _without_bookkeeping(
+    changed: list[str], *, worktree_path: Path, artifacts_dir: Path,
+) -> list[str]:
+    """``changed`` minus converge's own ``artifacts_dir`` bookkeeping paths, so
+    the post-fix scope check sees only the fix callback's edits."""
+    try:
+        base = Path(artifacts_dir).resolve().relative_to(Path(worktree_path).resolve())
+    except ValueError:
+        return changed  # artifacts outside the worktree never appear in git output
+    prefixes = tuple(f"{(base / name).as_posix()}/" for name in _BOOKKEEPING_DIRS)
+    return [path for path in changed if not path.startswith(prefixes)]
 
 
 def _compute_vendor_agreement_rate(
@@ -683,8 +723,17 @@ def converge(
     blocking_criticalities: set[str] | None = None,
     stall_window: int = _DEFAULT_STALL_WINDOW,
     fact_check: bool = True,
+    verified_lanes: list[str] | None = None,
+    counting_lanes: list[str] | None = None,
+    base_ref: str | None = None,
 ) -> ConvergenceResult:
     """Run the review-fix convergence loop.
+
+    Honest quorum (dispatch-contract D10): when ``verified_lanes`` is given and
+    holds fewer lanes than ``min_quorum``, the loop returns
+    ``reason="capability_unavailable"`` with ``missing_lanes`` (the
+    ``counting_lanes`` not verified) before dispatching anything. It never
+    lowers the quorum and writes no loop state.
 
     Args:
         change_id: OpenSpec change identifier.
@@ -718,11 +767,31 @@ def converge(
             CLI adapter being resolvable, the normal case for a mocked or
             minimal orchestrator) skips the pass for that vendor and keeps
             every finding. Set False to disable entirely.
+        base_ref: Ref the review packet diffs against. ``None`` (default)
+            keeps the packet builder's ``DEFAULT_BASE_REF``; a stacked branch
+            passes its PR base (e.g. ``origin/openspec/<parent>``).
 
     Returns:
         ConvergenceResult with convergence status and details.
     """
     start_time = time.monotonic()
+
+    # 0. Pre-dispatch quorum guard (D10).
+    if verified_lanes is not None:
+        verified = sorted(set(verified_lanes))
+        if len(verified) < min_quorum:
+            missing = sorted(set(counting_lanes or []) - set(verified))
+            logger.warning(
+                "Convergence for %s not dispatched: %d verified review lane(s) %s, "
+                "quorum %d; missing %s",
+                change_id, len(verified), verified, min_quorum, missing,
+            )
+            return ConvergenceResult(
+                converged=False,
+                rounds=0,
+                reason="capability_unavailable",
+                missing_lanes=missing,
+            )
 
     # 1. Create orchestrator
     if orchestrator is None:
@@ -760,6 +829,7 @@ def converge(
             output_dir=checkpoint_dir,
             last_fix_diff=last_fix_diff if round_num > 1 else None,
             ledger=ledger,
+            **({"base_ref": base_ref} if base_ref is not None else {}),
         )
         prompt = packet_path.read_text(encoding="utf-8")
         dispatch_kwargs: dict[str, Any] = {
@@ -1194,18 +1264,25 @@ def converge(
             pre_rev = _snapshot_rev(worktree_path)
             pre_untracked = _untracked_paths(worktree_path)
             fix_callback(payloads, worktree_path)
-            changed = _changed_paths(worktree_path, pre_rev, pre_untracked)
+            changed = _without_bookkeeping(
+                _changed_paths(worktree_path, pre_rev, pre_untracked),
+                worktree_path=worktree_path,
+                artifacts_dir=artifacts_dir,
+            )
             allowed: list[str] = []
             seen_allowed: set[str] = set()
             for payload in payloads:
-                for path in payload.get("allowed_paths") or []:
+                for raw in payload.get("allowed_paths") or []:
+                    path = _repo_relative(raw, worktree_path)
                     if path not in seen_allowed:
                         seen_allowed.add(path)
                         allowed.append(path)
             if changed:
                 reject_out_of_scope_fix(changed, allowed)
             last_fix_diff = _last_fix_diff(worktree_path, pre_rev)
-            mark_addressed(ledger, [int(item["id"]) for item in dispatch_items])
+            mark_addressed(
+                ledger, [int(item["id"]) for item in dispatch_items], touched_paths=changed,
+            )
             save_ledger(ledger, artifacts_dir)
 
             # 2l. Post-fix validation (optional)

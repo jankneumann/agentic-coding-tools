@@ -11,6 +11,7 @@ from __future__ import annotations
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -27,6 +28,8 @@ SCRIPT = (
 class _Reviewer:
     def __init__(self, vendor: str) -> None:
         self.vendor = vendor
+        self.dispatch_tier = "cli"
+        self.cli_config = SimpleNamespace(command=f"{vendor}-cli")
 
 
 class _Orch:
@@ -34,10 +37,22 @@ class _Orch:
 
     def __init__(self, vendors: list[str]) -> None:
         self._vendors = vendors
-        self.adapters = {v: object() for v in vendors}
+        self.adapters = {
+            v: SimpleNamespace(vendor=v, cli_config=SimpleNamespace(command=f"{v}-cli"))
+            for v in vendors
+        }
+        self.sdk_adapters: dict = {}
 
     def discover_reviewers(self, exclude_vendor=None, dispatch_mode="review"):
         return [_Reviewer(v) for v in self._vendors if v != exclude_vendor]
+
+
+@pytest.fixture(autouse=True)
+def _dry_invocations_succeed(monkeypatch):
+    """Every lane's dry invocation succeeds unless a test says otherwise
+    (dispatch-contract D10: a lane counts only after one); see
+    test_check_vendors_dispatchable.py for the failing cases."""
+    monkeypatch.setattr(rd, "_dry_invoke", lambda argv, timeout=10: None)
 
 
 @pytest.fixture()

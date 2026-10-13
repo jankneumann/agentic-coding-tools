@@ -1,0 +1,163 @@
+{
+  "review_type": "plan",
+  "target": "dispatch-contract",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "severity": "critical",
+      "axis": "architecture",
+      "evidence_class": "deterministic",
+      "disposition": "fix",
+      "file_path": "openspec/changes/dispatch-contract/design.md",
+      "description": "D2 claims the boundary is defined only by hand validators plus an inline checkpoint copy, but published JSON Schemas already exist at openspec/contracts/roadmap-orchestration/schemas/{supervised-dispatch-request,supervised-dispatch-result,delegated-dispatch-attempt,bounded-dispatch-context}.schema.json (with $id https://agentic-coding-tools.dev/contracts/...), consumed by skills/tests/supervise/test_execution_contract.py, test_execution.py:386, roadmap-runtime/test_dispatch_scheduler.py:34 and autopilot-roadmap/test_supervised_dispatch_e2e.py:42. Adding openspec/schemas/dispatch-*.schema.json without deciding what happens to them creates a fourth definition, the exact root cause the change exists to remove.",
+      "resolution": "Add to D2 an explicit decision for the existing contract schemas: v2 request/result live only at openspec/schemas/dispatch-*.schema.json; supervised-dispatch-request/result.schema.json are frozen as the v1 reader schemas used by upgrade_v1; delegated-dispatch-attempt.schema.json becomes the single attempt definition that checkpoint.schema.json $refs; bounded-dispatch-context.schema.json is $ref'd by the v2 request. Name the tests that move to dispatch_contract."
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "severity": "critical",
+      "axis": "architecture",
+      "evidence_class": "deterministic",
+      "disposition": "fix",
+      "file_path": "openspec/changes/dispatch-contract/proposal.md",
+      "description": "Why states the dispatch request and result 'exist only as three hand-kept validators ... plus test fixtures', and Impact lists only openspec/schemas/ files. openspec/contracts/roadmap-orchestration/schemas/ already publishes request, result, attempt and context schemas (listed in docs/architecture-analysis/contracts-inventory.md). The problem statement and Impact table are factually incomplete.",
+      "resolution": "Correct Why to say the published v1 contract schemas under openspec/contracts/roadmap-orchestration/schemas/ are not what the runtime validates against (execution.py/orchestrator.py keep their own field sets), and add those schema files and test_execution_contract.py to Affected code."
+    },
+    {
+      "id": 3,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "severity": "critical",
+      "axis": "correctness",
+      "evidence_class": "deterministic",
+      "disposition": "fix",
+      "file_path": "openspec/changes/dispatch-contract/specs/roadmap-orchestration/spec.md",
+      "description": "Scenario 'Existing fixtures validate against the published schemas' requires every valid-* fixture under skills/tests/supervise/fixtures/execution/contracts/ to pass validate_request/validate_result, but valid-prepared-attempt.json is a checkpoint attempt (with raw launch_token), and valid-results.json is a map {success, parked} rather than a result. Its v1 success result also carries absolute worktree_path and evidence.loop_state_path under /workspace/.git-worktrees, which the 'cannot be made portable' scenario would reject on any test host. The scenario is unexecutable as worded, and the requirement does not relate the existing openspec/contracts/roadmap-orchestration/schemas/ files to the new single definition.",
+      "resolution": "Rewrite the scenario with an explicit per-fixture mapping (request fixtures -> validate_request, each entry of valid-results.json -> validate_result, the attempt fixture -> checkpoint attempt validation through the legacy reader), state that v1 schema validation is host-independent while the portability upgrade takes explicit repo_root/managed_root, and state in the requirement that the v1 supervised-dispatch-*.schema.json files are frozen as v1 reader schemas."
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "high",
+      "severity": "critical",
+      "axis": "correctness",
+      "evidence_class": "deterministic",
+      "disposition": "fix",
+      "file_path": "openspec/changes/dispatch-contract/tasks.md",
+      "description": "Making checkpoint.schema.json's attempt result a $ref breaks every existing validator of that schema: roadmap-runtime/scripts/models.py validate_against_schema (lines 956-973) builds a bare Draft202012Validator with no registry, used by resolve_readiness.py:113 and models.py:1135; and tests that copy only checkpoint.schema.json into a tmp repo (supervise/test_execution.py _workspace, test_gate_router.py:54, test_gate_router_e2e.py:57, test_cycle_state.py:115, roadmap-runtime/test_readiness.py:105, autopilot-roadmap/test_supervised_dispatch.py:25, test_supervised_dispatch_e2e.py:95) would then fail with an unresolvable reference. No task updates the loader or those copies. Tasks also omit the existing contract schemas (finding 1), a host_id function in skills/shared/environment_profile.py (D7 cites it; the module has only detect() and its layers), and the install manifest test skills/tests/install_sh/test_openspec_assets.py.",
+      "resolution": "Add to 5.2 a registry-aware validate_against_schema (schemas dir as referencing.Registry); add a task to update every test helper that copies checkpoint.schema.json to also copy the dispatch schemas; add to 2.x the existing contract-schema decision and test_execution_contract.py; add to 4.2 environment_profile.host_id(); add the install manifest expectation to 2.4."
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "medium",
+      "severity": "critical",
+      "axis": "correctness",
+      "evidence_class": "deterministic",
+      "disposition": "fix",
+      "file_path": "openspec/changes/dispatch-contract/work-packages.yaml",
+      "description": "Write scopes omit files the plan must edit: openspec/contracts/roadmap-orchestration/schemas/*.schema.json and skills/tests/supervise/test_execution_contract.py (no package); skills/shared/environment_profile.py (host_id, D7; no package); skills/tests/roadmap-runtime/test_readiness.py, skills/tests/supervise/test_cycle_state.py, skills/tests/autopilot-roadmap/test_supervised_dispatch.py and skills/tests/install_sh/test_openspec_assets.py (schema copy sites broken by the checkpoint $ref; no package). Scope enforcement will reject these edits.",
+      "resolution": "Add the contract schemas, test_execution_contract.py and test_openspec_assets.py to wp-dispatch-schemas; environment_profile.py and its test to wp-contract-lib; test_readiness.py and test_supervised_dispatch.py to wp-runtime-ledger; test_cycle_state.py to wp-supervisor. Update contracts.openapi.files accordingly."
+    },
+    {
+      "id": 6,
+      "type": "spec_gap",
+      "criticality": "high",
+      "severity": "critical",
+      "axis": "correctness",
+      "evidence_class": "deterministic",
+      "disposition": "fix",
+      "file_path": "openspec/changes/dispatch-contract/design.md",
+      "description": "D9 says one operator answer resumes every attempt sharing a fingerprint, but the resume path verifies a record bound to one dispatch: gate_router.require_approval_ref (gate_router.py:1095-1140) rejects a record whose dispatch_id differs and, for escalate_resume, whose lease_generation differs; ExecutionAdapter.resume rejects any kind other than pending_gate/policy_pause (execution.py:852). D9 never defines the decision-record shape for a fingerprint subject, so the fan-out cannot pass the existing verification.",
+      "resolution": "In D9, define that answering a fingerprint entry writes one escalate_resume proceed record per listed dispatch (own dispatch_id and lease_generation, plus shared dedupe_fingerprint and the answer's provenance), so require_approval_ref keeps its per-dispatch check, and that resume accepts permission_blocked and capability_unavailable with expected gate escalate_resume."
+    },
+    {
+      "id": 7,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "severity": "critical",
+      "axis": "correctness",
+      "evidence_class": "deterministic",
+      "disposition": "fix",
+      "file_path": "openspec/changes/dispatch-contract/specs/roadmap-orchestration/spec.md",
+      "description": "Modified scenario 'Resume an authorized parked attempt' requires 'a subject matching the dispatch', replacing the base 'matching dispatch_id' with an undefined term. With D9 fingerprint subjects the verifiable condition is unclear and an implementer could accept a record whose subject lists the dispatch but whose lease_generation is stale.",
+      "resolution": "State that the record's dispatch_id equals the parked dispatch and, for escalate_resume, its lease_generation equals the attempt's current generation; for capability parks the record additionally carries the attempt's dedupe_fingerprint."
+    },
+    {
+      "id": 8,
+      "type": "correctness",
+      "criticality": "medium",
+      "severity": "critical",
+      "axis": "correctness",
+      "evidence_class": "deterministic",
+      "disposition": "fix",
+      "file_path": "openspec/changes/dispatch-contract/tasks.md",
+      "description": "Honest Review Quorum cannot be met by the tasked edits. Below quorum, skills/autopilot/SKILL.md (lines 175-179) sets CLI_REVIEW_ENABLED=false before run_loop, so PLAN_REVIEW is skipped and convergence_loop never runs; task 7.3 puts the park in convergence_loop.py, which therefore never fires for a dispatched child, and it also contradicts the skill-workflow rule that runner.py park is the only writer of park. The standalone review_skipped degradation likewise cannot come from convergence_loop because no review runs.",
+      "resolution": "Task 6.5: the SKILL.md probe keeps review enabled in a dispatched child and, at PLAN_REVIEW/IMPL_REVIEW entry, compares execution_profile against review_requirements and calls runner.py park --kind capability_unavailable; standalone below-quorum calls runner.py record-degradation review_skipped. Task 7.3: convergence_loop only returns reason capability_unavailable before dispatch when given fewer verified lanes than min_quorum, writing no loop state."
+    },
+    {
+      "id": 9,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "severity": "critical",
+      "axis": "correctness",
+      "evidence_class": "deterministic",
+      "disposition": "fix",
+      "file_path": "openspec/changes/dispatch-contract/design.md",
+      "description": "D10 defines counting_lanes as 'verified lanes ordered by the cost_policy.tiers ladder'. The skill-workflow scenario requires missing_lanes to name 'the counting lanes not verified', which is always empty under that definition, so every capability_unavailable park fingerprints to sha256(phase, []) and D9's 'different missing lanes are separate escalations' cannot hold.",
+      "resolution": "Define counting_lanes as the review-mode lanes configured in the roster (agents.yaml), verified or not, ordered by the ladder; execution_profile.lanes holds the verified subset; missing_lanes = counting_lanes minus verified."
+    },
+    {
+      "id": 10,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "severity": "critical",
+      "axis": "security",
+      "evidence_class": "deterministic",
+      "disposition": "fix",
+      "file_path": "openspec/changes/dispatch-contract/tasks.md",
+      "description": "Task 6.2 says the gate session 'passes the marker's roadmap_approval_ref into gate context', but D8 and the trust-posture requirement say a context-supplied roadmap_approval_ref is ignored and the gate reads the marker only through its marker_reader seam. Implemented as tasked, either scope never applies or the context path becomes the trust channel D8 forbids.",
+      "resolution": "Change 6.2 to wire ApprovalGate's marker_reader (default dispatch_contract.read_launch_marker) in the gate session and pass nothing scope-related through the context."
+    },
+    {
+      "id": 11,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "severity": "critical",
+      "axis": "compatibility",
+      "evidence_class": "deterministic",
+      "disposition": "fix",
+      "file_path": "openspec/changes/dispatch-contract/design.md",
+      "description": "D1's v1 upgrade converts only worktree_path, but v1 results also carry an absolute evidence.loop_state_path (see fixtures/execution/contracts/valid-results.json), while Host-Portable Attempt Isolation forbids persisting absolute paths in the result. An upgraded v1 result would still carry an absolute path into checkpoint outcome metadata.",
+      "resolution": "Extend D1: upgrade_v1 also rewrites evidence.loop_state_path to a worktree-relative path, and takes repo_root/managed_root explicitly so schema validation stays host-independent."
+    },
+    {
+      "id": 12,
+      "type": "spec_gap",
+      "criticality": "low",
+      "severity": "nit",
+      "axis": "correctness",
+      "evidence_class": "judgment",
+      "disposition": "fix",
+      "file_path": "openspec/changes/dispatch-contract/design.md",
+      "description": "D9 says the stored command is 'the output of sanitize_session_log.sanitize()', but sanitize() returns a (content, redactions) tuple (sanitize_session_log.py:177).",
+      "resolution": "Say the first element of sanitize()'s return value."
+    },
+    {
+      "id": 13,
+      "type": "resilience",
+      "criticality": "low",
+      "severity": "optional",
+      "axis": "resilience",
+      "evidence_class": "judgment",
+      "disposition": "accept",
+      "file_path": "openspec/changes/dispatch-contract/design.md",
+      "description": "D7 reinitializes a parked attempt on another host by incrementing its generation, which invalidates any already-recorded escalate_resume approval bound to the old lease_generation; the operator would need to answer again.",
+      "resolution": "Note in D7 that reinitializing a parked attempt re-projects its pending gate for the new generation, or prefer rebind for parked attempts."
+    }
+  ]
+}

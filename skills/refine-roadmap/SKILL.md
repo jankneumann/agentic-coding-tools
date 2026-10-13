@@ -55,6 +55,22 @@ Each request has non-empty `rationale`, `actor`, `source`, and `operations` fiel
 
 New items default to `approved` on an approved, in-progress, or blocked roadmap and `candidate` while the roadmap is still planning. `change_id` is optional; when absent it is derived deterministically and collision-safe.
 
+To bring an **existing active change** under roadmap ownership instead of scaffolding a new one, set `adopt_existing: true` on the add operation and give the exact `change_id`:
+
+```yaml
+- op: add
+  adopt_existing: true
+  before: ri-09
+  item:
+    item_id: ri-10
+    title: Integrate the in-flight pilot
+    change_id: add-pilot-harness     # required: the active openspec/changes/<id>/
+    effort: L
+    acceptance_outcomes: [Pilot is dispatchable.]
+```
+
+Adoption is refused when the change does not exist, is archived, or is already owned by an item in any roadmap. The adopted directory is never rewritten, never scaffolded, and never removed on rollback. The preview lists it under `adopted_change_ids` (not `scaffold_change_ids`), and provenance records the operation as `adopt:<item-id>`.
+
 ### Edit
 
 ```yaml

@@ -1,0 +1,50 @@
+{
+  "attempt": 1,
+  "branch": "openspec/dispatch-contract",
+  "change_id": "dispatch-contract",
+  "degradations": [
+    {
+      "code": "single_vendor_review",
+      "detail": "claude_code only; min_quorum=1 under cloud-container policy (TRUST_POSTURE.md 479dcd9)",
+      "phase": "PLAN_REVIEW"
+    },
+    {
+      "code": "single_vendor_review",
+      "detail": "claude_code only; min_quorum=1 under cloud-container policy (TRUST_POSTURE.md 479dcd9)",
+      "phase": "IMPL_REVIEW"
+    },
+    {
+      "code": "single_vendor_review",
+      "detail": "claude_code only; min_quorum=1 under cloud-container policy (TRUST_POSTURE.md 479dcd9)",
+      "phase": "VAL_REVIEW"
+    },
+    {
+      "code": "coordinator_projection_forbidden",
+      "detail": "every project-state submit returned forbidden (trust-2 cloud agent)",
+      "phase": "SUBMIT_PR"
+    },
+    {
+      "code": "audit_sink_failed",
+      "detail": "audit sink failed for proposal_approval, escalate_resume, pr_creation, merge gate decisions",
+      "phase": "SUBMIT_PR"
+    }
+  ],
+  "dispatch_id": "batch-1199bf07b6cb5035d4c22472:ri-21:attempt-1",
+  "evidence": {
+    "commit": "b66144b122452c48ddcdf21121c206c6cf265f2a",
+    "loop_state_digest": "ccdcdedc0b4ef529458a42ac64128c0b077f71c0baa1c5a9bba1f777f2b71e7e",
+    "loop_state_path": "openspec/changes/dispatch-contract/loop-state.json"
+  },
+  "host_id": "machine-801452e4fd3b9a26",
+  "lease_generation": 2,
+  "outcome": "parked",
+  "parked": {
+    "deadline": null,
+    "gate": "merge",
+    "kind": "pending_gate",
+    "reason": "Authorize merging this pull request? (autopilot records the authorization only; /cleanup-feature merges)",
+    "resume_hint": "answer gate merge through the resume request's gate_answer"
+  },
+  "schema_version": 2,
+  "worktree_ref": null
+}

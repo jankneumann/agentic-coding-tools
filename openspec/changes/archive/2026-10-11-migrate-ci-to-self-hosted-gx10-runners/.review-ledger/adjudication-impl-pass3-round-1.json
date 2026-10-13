@@ -1,0 +1,54 @@
+{
+ "phase": "IMPL_REVIEW",
+ "pass": 3,
+ "round": 1,
+ "adjudicator": "orchestrator (claude_code IMPL_REVIEW sub-agent)",
+ "at": "2026-10-11T03:37:21.561320+00:00",
+ "decisions": [
+  {
+   "id": 76,
+   "vendor": "codex",
+   "criticality": "high",
+   "verdict": "valid (severity medium in practice: measurement/verification CLI, not an enforcement point)",
+   "action": "fixed",
+   "rationale": "job_lane() treated any non-gx10 label set as GitHub-hosted, so a job on some other self-hosted runner passed hosted-pinned and rollback (--expect-lane hosted) checks. job_lane now returns OTHER_SELF_HOSTED for a 'self-hosted' label without 'gx10'; verify_run flags it for hosted-pinned jobs and as a wrong lane for routed jobs; compare excludes it. Test test_other_self_hosted_runner_is_never_a_valid_placement."
+  }
+ ],
+ "also_fixed": [
+  64,
+  65,
+  66,
+  67,
+  69,
+  71,
+  72,
+  73,
+  74,
+  75,
+  77,
+  78,
+  79,
+  80
+ ],
+ "corroborated": {
+  "75+78": "sudo grant removal (claude_code + codex)",
+  "74+80": "task 2.9 record (claude_code + codex)",
+  "71+79": "ghrunner user-manager/XDG_RUNTIME_DIR commands (claude_code + codex)"
+ },
+ "parked": {
+  "68": "advisory: pinned job counts are a deliberate snapshot that also catches silent lane reclassification; low, single-vendor",
+  "70": "advisory: inside design D10's documented limit (command-position scan), backstopped by the O6 dry run; low, single-vendor"
+ },
+ "lanes": {
+  "succeeded": [
+   "claude_code",
+   "codex"
+  ],
+  "failed": {
+   "pi": "writes findings to worktree files (review_findings.json, overwrote tracked findings.json) instead of stdout; dispatcher misclassifies as auth_required; dropped after 2 attempts",
+   "antigravity": "E2BIG: agy takes the 297 KB packet via --prompt argv",
+   "grok": "CLI 1.0.5 < required 1.0.13 (HTTP 426); pre-dropped"
+  },
+  "notes": "codex returned string ids and omitted review_type/target twice; format-normalized in the scratchpad driver (content untouched). Packet excluded autopilot bookkeeping (ledger, loop-state, session-log, adjudications, plan-findings, work-packages, proposal) so code and tests were not truncated by the 320k budget."
+ }
+}

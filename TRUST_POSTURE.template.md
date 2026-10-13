@@ -86,6 +86,75 @@ error (it usually means a mis-placed field).
 A gate omitted from `gates:` resolves to `block` (fail-closed). Only an unknown
 gate key or an unknown disposition is a hard validation error.
 
+## Roadmap-approval-scoped `auto` (`proposal_approval`, `replan_required`)
+
+`auto` on `proposal_approval` or `replan_required` applies **only** to a run
+dispatched by `/supervise` under a recorded `roadmap_approval`: the launch marker
+the supervisor writes into the child's worktree carries that approval reference,
+and the approval gate reads it from the marker itself (a reference passed any
+other way is ignored). Every other run — a standalone `/autopilot`, for example —
+uses the gate's `unscoped` fallback instead, which defaults to `block`:
+
+```yaml
+  proposal_approval:
+    disposition: auto
+    unscoped:                       # optional; absent means {disposition: block}
+      disposition: notify_with_timeout
+      timeout_seconds: 600
+      default_action: block
+```
+
+`unscoped` follows the same rules as a gate config except that `auto` is not
+allowed, and it may only appear on these two gates. The decision record names the
+scope that applied (`scope: roadmap_approval` or `scope: unscoped`).
+
+Every gate decision also records its `provenance`: a posture-derived decision
+carries the posture's digest — a SHA-256 over the parsed `gates:` map, so prose
+edits and key order never count as a posture change — and is re-evaluated when
+that digest changes; a human answer is final.
+
+## Sync windows (optional)
+
+A *sync window* authorizes a sync-point skill to be started by a non-user trigger
+(a scheduler) instead of by a person. It is declared in the same front matter,
+as an optional top-level `sync_windows` list beside `gates`. This template
+declares none, so the commented-out example below is inert:
+
+```yaml
+# sync_windows:
+#   - id: nightly-drain
+#     cadence: "0 3 * * 1-5"
+#     skills: [merge-pull-requests, update-specs]
+#     allowed_sources: [openspec, dependabot]
+#     auto_merge_ceiling: plan
+```
+
+| field | rules |
+|---|---|
+| `id` | kebab-case (`^[a-z0-9]+(-[a-z0-9]+)*$`), unique within the list |
+| `cadence` | exactly five fields of `[0-9*/,-]` separated by spaces (no tabs, no leading or trailing whitespace), interpreted in **UTC**. Only the shape is validated here: `@daily`, `MON` and six-field forms are rejected, while `99 * * * *` passes and is refused by the scheduler that computes fire times |
+| `skills` | non-empty, no repeats, from `merge-pull-requests`, `update-specs`, `cleanup-feature` |
+| `allowed_sources` | non-empty, no repeats, PR origins from `openspec`, `sentinel`, `bolt`, `palette`, `jules`, `codex`, `dependabot`, `renovate`, `other` |
+| `auto_merge_ceiling` | `none` < `automation` < `plan` < `implementation`; a ceiling permits a PR kind only at or below it, and never an unknown kind |
+
+Rules:
+
+- **Fail closed.** `sync_windows` absent, `null` or `[]` declares no window, and
+  `authorize_sync_window` refuses every window id and skill. A present but
+  malformed window is a validation error; it is never silently dropped.
+- **Guards unchanged.** A window changes who may *start* a sync-point skill, not
+  what the skill checks once running; every guard and validation gate still applies.
+- **Necessary, never sufficient.** A window does not change any gate
+  disposition. A scheduled run still evaluates every
+  gate that its scheduled caller's change declares applicable, and `block`
+  stops it; a window never implies `auto` for any gate.
+- **Digest.** The posture digest covers declared windows (order-independent).
+  Declaring or editing a window therefore re-evaluates posture-derived gate
+  decisions, and in-flight supervised children whose worktree posture predates
+  the edit take no `auto` disposition until rebased. Declare windows while no
+  supervised run is in flight. A posture with no windows keeps the digest it
+  had before this field existed.
+
 ## Worked example
 
 A posture that auto-creates PRs, notifies-with-a-one-hour-timeout on merge

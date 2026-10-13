@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.dev/contracts/bounded-dispatch-context.schema.json",
+  "title": "Bounded Sanitized Dispatch Context",
+  "$ref": "#/$defs/contextLevel1",
+  "$defs": {
+    "key": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "not": {
+        "pattern": "([Ss][Ee][Cc][Rr][Ee][Tt]|[Tt][Oo][Kk][Ee][Nn]|[Pp][Aa][Ss][Ss][Ww][Oo][Rr][Dd]|[Cc][Rr][Ee][Dd][Ee][Nn][Tt][Ii][Aa][Ll]|[Aa][Pp][Ii][_-]?[Kk][Ee][Yy]|[Pp][Rr][Ii][Vv][Aa][Tt][Ee][_-]?[Kk][Ee][Yy]|[Aa][Uu][Tt][Hh]|[Cc][Oo][Oo][Kk][Ii][Ee]|[Rr][Aa][Ww][_-]?[Rr][Ee][Ss][Pp][Oo][Nn][Ss][Ee]|[Tt][Rr][Aa][Nn][Ss][Cc][Rr][Ii][Pp][Tt])"
+      }
+    },
+    "scalar": {
+      "oneOf": [
+        {"type": "string", "maxLength": 4096},
+        {"type": "number"},
+        {"type": "boolean"},
+        {"type": "null"}
+      ]
+    },
+    "scalarArray": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {"$ref": "#/$defs/scalar"}
+    },
+    "contextLevel4": {
+      "type": "object",
+      "maxProperties": 32,
+      "propertyNames": {"$ref": "#/$defs/key"},
+      "additionalProperties": {
+        "oneOf": [
+          {"$ref": "#/$defs/scalar"},
+          {"$ref": "#/$defs/scalarArray"}
+        ]
+      }
+    },
+    "contextLevel3": {
+      "type": "object",
+      "maxProperties": 32,
+      "propertyNames": {"$ref": "#/$defs/key"},
+      "additionalProperties": {
+        "oneOf": [
+          {"$ref": "#/$defs/scalar"},
+          {"$ref": "#/$defs/scalarArray"},
+          {"$ref": "#/$defs/contextLevel4"}
+        ]
+      }
+    },
+    "contextLevel2": {
+      "type": "object",
+      "maxProperties": 32,
+      "propertyNames": {"$ref": "#/$defs/key"},
+      "additionalProperties": {
+        "oneOf": [
+          {"$ref": "#/$defs/scalar"},
+          {"$ref": "#/$defs/scalarArray"},
+          {"$ref": "#/$defs/contextLevel3"}
+        ]
+      }
+    },
+    "contextLevel1": {
+      "type": "object",
+      "maxProperties": 32,
+      "propertyNames": {"$ref": "#/$defs/key"},
+      "additionalProperties": {
+        "oneOf": [
+          {"$ref": "#/$defs/scalar"},
+          {"$ref": "#/$defs/scalarArray"},
+          {"$ref": "#/$defs/contextLevel2"}
+        ]
+      }
+    }
+  }
+}

@@ -37,7 +37,10 @@ Options:
                          (default: .skills-venv)
   --copy                 Shorthand for --mode copy
   --force                Replace conflicting existing files/symlinks at destination paths
-  --check                Validate the complete install payload and exit without syncing
+  --check                Validate the complete install payload and exit without syncing.
+                         Also compares .agentic-toolkit/stamp.json (when present) with
+                         this checkout (checkout drift) and each installed mirror
+                         (runtime drift); an absent stamp is reported as unpinned
   -h, --help             Show this help
 
 Examples:
@@ -234,6 +237,20 @@ if [[ ${#skills[@]} -eq 0 ]]; then
 fi
 
 
+# True when the target root is the very repository that owns this skills/ tree.
+#
+# The distinction decides who wins when an asset and its installed copy differ.
+# In a consumer repo, openspec/ holds install output and the shipped asset is
+# authoritative, so overwriting is the whole point.  In THIS repository,
+# openspec/ is hand-maintained source that the assets are copied FROM, and
+# overwriting it silently reverts whatever feature work last edited it --
+# three schemas were rolled back that way before this guard existed.
+is_self_install() {
+  local target_skills
+  target_skills="$(canonicalize_existing_dir "$TARGET_ROOT/skills" 2>/dev/null || true)"
+  [[ -n "$target_skills" && "$target_skills" == "$SCRIPT_DIR" ]]
+}
+
 check_install_payload() {
   local drift=0
   local agent rel_dir dest_dir skill_path skill_name dest_path library_name
@@ -293,9 +310,114 @@ check_install_payload() {
 
   if [[ $drift -ne 0 ]]; then
     echo "Installed skill mirror validation failed" >&2
+  else
+    echo "Installed skill mirrors match canonical payload"
+  fi
+
+  # The stamp comparison is additive: it can only add failures, never
+  # clear the mirror-parity result above.
+  if ! check_install_stamp; then
+    drift=1
+  fi
+
+  [[ $drift -eq 0 ]]
+}
+
+# Compare .agentic-toolkit/stamp.json (the pin) with the source checkout
+# (checkout drift) and with each installed mirror (runtime drift).  An absent
+# stamp is advisory; an unreadable or schema-invalid one fails loud and is
+# never rewritten.
+check_install_stamp() {
+  local stamp="$TARGET_ROOT/.agentic-toolkit/stamp.json"
+  local status=0
+  local -a fields=()
+  local raw_fields
+  local pinned_version pinned_commit pinned_hash source_hash agent rel_dir mirror_hash
+
+  if is_self_install; then
+    echo "Self-install: source tree is the pin; stamp comparison skipped"
+    return 0
+  fi
+
+  if [[ ! -e "$stamp" && ! -L "$stamp" ]]; then
+    echo "Unpinned: no $stamp"
+    echo "  Run install.sh (without --check) from the toolkit checkout and commit .agentic-toolkit/stamp.json to pin this repository."
+    return 0
+  fi
+
+  if ! raw_fields="$(python3 - "$stamp" <<'PY'
+import json
+import sys
+
+path = sys.argv[1]
+try:
+    with open(path, encoding="utf-8") as handle:
+        data = json.load(handle)
+except (OSError, ValueError) as exc:
+    print(f"cannot read: {exc}", file=sys.stderr)
+    sys.exit(1)
+if not isinstance(data, dict):
+    print("not a JSON object", file=sys.stderr)
+    sys.exit(1)
+version = data.get("schema_version")
+if isinstance(version, bool) or version != 1:
+    print(f"unsupported schema_version {version!r} (expected 1)", file=sys.stderr)
+    sys.exit(1)
+payload_hash = data.get("payload_hash")
+if not isinstance(payload_hash, str) or not payload_hash.startswith("sha256:"):
+    print("missing or malformed payload_hash", file=sys.stderr)
+    sys.exit(1)
+print(data.get("toolkit_version") or "unknown")
+print(data.get("source_commit") or "unknown")
+print(payload_hash)
+PY
+  )"; then
+    echo "Invalid toolkit stamp: $stamp" >&2
     return 1
   fi
-  echo "Installed skill mirrors match canonical payload"
+  mapfile -t fields <<< "$raw_fields"
+  if [[ ${#fields[@]} -ne 3 ]]; then
+    echo "Invalid toolkit stamp: $stamp" >&2
+    return 1
+  fi
+  pinned_version="${fields[0]}"
+  pinned_commit="${fields[1]}"
+  pinned_hash="${fields[2]}"
+
+  source_hash="$(python3 "$SCRIPT_DIR/shared/payload_hash.py" --root "$SCRIPT_DIR" --manifest "$INSTALL_MANIFEST")" || {
+    echo "Cannot compute source payload hash" >&2
+    return 1
+  }
+  if [[ "$source_hash" != "$pinned_hash" ]]; then
+    echo "Checkout drift: this toolkit checkout is not the pinned version (pinned $pinned_version @ $pinned_commit, $pinned_hash; checkout $source_hash)" >&2
+    echo "  Check out the pinned toolkit commit, or re-run install.sh and commit the new stamp to move the pin." >&2
+    status=1
+  fi
+
+  for agent in "${agent_list[@]}"; do
+    agent="${agent//[[:space:]]/}"
+    [[ -n "$agent" ]] || continue
+    rel_dir="$(agent_dir_for "$agent")" || continue
+    # Hash the mirror against ITS OWN manifest (synced with the payload), not
+    # the checkout's: the pin was computed over the pinned manifest's skill
+    # set, so a mirror byte-identical to the pinned payload must hash equal
+    # even when this checkout has since added, removed or re-scoped a skill.
+    mirror_hash="$(python3 "$SCRIPT_DIR/shared/payload_hash.py" --root "$TARGET_ROOT/$rel_dir" --manifest "$TARGET_ROOT/$rel_dir/install-manifest.json")" || {
+      echo "Cannot compute mirror payload hash for $agent" >&2
+      status=1
+      continue
+    }
+    if [[ "$mirror_hash" != "$pinned_hash" ]]; then
+      echo "Runtime drift: installed $agent copies are not the pinned payload (pinned $pinned_version @ $pinned_commit, $pinned_hash; installed $mirror_hash)" >&2
+      echo "  Re-run install.sh from the pinned toolkit commit to resync $rel_dir." >&2
+      status=1
+    fi
+  done
+
+  if [[ $status -eq 0 ]]; then
+    echo "Pinned toolkit matches: $pinned_version (${pinned_hash:0:19})"
+  fi
+  return "$status"
 }
 
 if [[ $CHECK_ONLY -eq 1 ]]; then
@@ -481,20 +603,6 @@ mirror_tree() {
   for e in ${excludes[@]+"${excludes[@]}"}; do
     find "$dest" -type d -name "$e" -prune -exec rm -rf {} + 2>/dev/null || true
   done
-}
-
-# True when the target root is the very repository that owns this skills/ tree.
-#
-# The distinction decides who wins when an asset and its installed copy differ.
-# In a consumer repo, openspec/ holds install output and the shipped asset is
-# authoritative, so overwriting is the whole point.  In THIS repository,
-# openspec/ is hand-maintained source that the assets are copied FROM, and
-# overwriting it silently reverts whatever feature work last edited it --
-# three schemas were rolled back that way before this guard existed.
-is_self_install() {
-  local target_skills
-  target_skills="$(canonicalize_existing_dir "$TARGET_ROOT/skills" 2>/dev/null || true)"
-  [[ -n "$target_skills" && "$target_skills" == "$SCRIPT_DIR" ]]
 }
 
 sync_skill_openspec_assets() {
@@ -715,6 +823,7 @@ sync_references_library() {
         rm -rf "$refs_dest"
       else
         echo "  skip  references (destination exists; use --force to replace)"
+        payload_conflicts=$((payload_conflicts + 1))
         return 0
       fi
     fi
@@ -736,6 +845,7 @@ sync_install_manifest() {
         rm -f "$manifest_dest"
       else
         echo "  skip  install-manifest.json (destination exists; use --force to replace)"
+        payload_conflicts=$((payload_conflicts + 1))
         return 0
       fi
     fi
@@ -799,6 +909,80 @@ validate_related_keys() {
   return 0
 }
 
+# Write <target-root>/.agentic-toolkit/stamp.json: the pin that `--check`
+# compares against.  Called only after every mirror, shared-library, manifest
+# and asset step has succeeded (set -e aborts earlier, leaving any prior stamp
+# untouched), never for --check, and never for a self-install where the source
+# tree itself is the pin.  Written via a temp file + mv so a crash cannot leave
+# a truncated stamp.
+write_install_stamp() {
+  if is_self_install; then
+    echo "Install stamp: skipped (self-install: source tree is the pin)"
+    return 0
+  fi
+  if [[ $payload_conflicts -gt 0 ]]; then
+    echo "Install stamp: not written ($payload_conflicts destination(s) skipped for a conflict; re-run with --force to install and pin)"
+    return 0
+  fi
+
+  local stamp_dir="$TARGET_ROOT/.agentic-toolkit"
+  local stamp_tmp payload_hash source_commit toolkit_version agents_csv
+  local -a stamped_agents=()
+  local agent
+
+  for agent in "${agent_list[@]}"; do
+    agent="${agent//[[:space:]]/}"
+    [[ -n "$agent" ]] || continue
+    agent_dir_for "$agent" >/dev/null 2>&1 || continue
+    stamped_agents+=("$agent")
+  done
+  agents_csv="$(IFS=','; echo "${stamped_agents[*]}")"
+
+  payload_hash="$(python3 "$SCRIPT_DIR/shared/payload_hash.py" --root "$SCRIPT_DIR" --manifest "$INSTALL_MANIFEST")" || {
+    echo "Install stamp: payload hash failed; stamp not written" >&2
+    return 1
+  }
+  source_commit="$(git -C "$SCRIPT_DIR" rev-parse HEAD 2>/dev/null || true)"
+  toolkit_version="unknown"
+  if [[ -f "$SCRIPT_DIR/../VERSION" ]]; then
+    toolkit_version="$(tr -d '[:space:]' < "$SCRIPT_DIR/../VERSION")"
+  fi
+
+  mkdir -p "$stamp_dir"
+  stamp_tmp="$(mktemp "$stamp_dir/.stamp.XXXXXX")"
+  if ! python3 - "$stamp_tmp" "$toolkit_version" "$source_commit" "$payload_hash" "$agents_csv" "$MODE" <<'PY'
+import datetime
+import json
+import sys
+
+path, version, commit, payload_hash, agents_csv, mode = sys.argv[1:7]
+stamp = {
+    "schema_version": 1,
+    "toolkit_version": version,
+    "source_commit": commit or None,
+    "payload_hash": payload_hash,
+    "installed_at": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    "agents": sorted(a for a in agents_csv.split(",") if a),
+    "mode": mode,
+}
+with open(path, "w", encoding="utf-8") as handle:
+    json.dump(stamp, handle, indent=2)
+    handle.write("\n")
+PY
+  then
+    rm -f "$stamp_tmp"
+    echo "Install stamp: write failed" >&2
+    return 1
+  fi
+  chmod 644 "$stamp_tmp"
+  if ! mv -f "$stamp_tmp" "$stamp_dir/stamp.json"; then
+    rm -f "$stamp_tmp"
+    echo "Install stamp: could not replace $stamp_dir/stamp.json" >&2
+    return 1
+  fi
+  echo "Install stamp: $stamp_dir/stamp.json ($payload_hash)"
+}
+
 echo "Installing ${#skills[@]} skill directorie(s) from: $SCRIPT_DIR"
 echo "Target root: $TARGET_ROOT"
 echo "Mode: $MODE"
@@ -812,6 +996,9 @@ remove_deprecated_skills
 
 total_installed=0
 total_skipped=0
+# Destinations skipped for a conflict (not same-path self-install skips): the
+# payload was not installed there, so no stamp may claim it was.
+payload_conflicts=0
 
 if [[ "$MODE" == "rsync" || "$MODE" == "copy" ]]; then
   if ! command -v rsync >/dev/null 2>&1; then
@@ -871,6 +1058,7 @@ for agent in "${agent_list[@]}"; do
           rm -rf "$dest_path"
         else
           echo "  skip  $skill_name (destination exists; use --force to replace)"
+          payload_conflicts=$((payload_conflicts + 1))
           total_skipped=$((total_skipped + 1))
           continue
         fi
@@ -880,6 +1068,7 @@ for agent in "${agent_list[@]}"; do
             rm -rf "$dest_path"
           else
             echo "  skip  $skill_name (destination is a symlink; use --force to replace with a directory)"
+            payload_conflicts=$((payload_conflicts + 1))
             total_skipped=$((total_skipped + 1))
             continue
           fi
@@ -888,6 +1077,7 @@ for agent in "${agent_list[@]}"; do
             rm -rf "$dest_path"
           else
             echo "  skip  $skill_name (destination exists and is not a directory; use --force to replace)"
+            payload_conflicts=$((payload_conflicts + 1))
             total_skipped=$((total_skipped + 1))
             continue
           fi
@@ -933,6 +1123,7 @@ for agent in "${agent_list[@]}"; do
           rm -rf "$lib_dest"
         else
           echo "  skip  $lib_name (destination exists; use --force to replace)"
+          payload_conflicts=$((payload_conflicts + 1))
           total_skipped=$((total_skipped + 1))
           continue
         fi
@@ -941,6 +1132,7 @@ for agent in "${agent_list[@]}"; do
           rm -rf "$lib_dest"
         else
           echo "  skip  $lib_name (destination conflicts; use --force to replace)"
+          payload_conflicts=$((payload_conflicts + 1))
           total_skipped=$((total_skipped + 1))
           continue
         fi
@@ -967,6 +1159,7 @@ sync_skill_openspec_assets "$OPENSPEC_ASSETS_MODE"
 check_openspec_cli "$OPENSPEC_CLI_MODE"
 run_skill_dependency_hooks "$DEPS_MODE"
 install_python_tools "$PYTHON_TOOLS_MODE" "$PYTHON_PACKAGES" "$python_venv_path"
+write_install_stamp
 
 if [[ "$MODE" == "symlink" ]]; then
   printf '\nDone. Created %d symlink(s), skipped %d.\n' "$total_installed" "$total_skipped"

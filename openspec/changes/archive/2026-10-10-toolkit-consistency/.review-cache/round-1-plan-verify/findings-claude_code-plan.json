@@ -1,0 +1,241 @@
+{
+  "review_type": "plan",
+  "target": "toolkit-consistency",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Review fixes 9 (tag-namespace filtering) and 14 (`<project-root>` \u2192 `<target-root>`) were applied to spec.md only. The planning artifacts implementers actually follow still describe the pre-fix behaviour: tasks.md T5 defaults `--shared-learnings` to `<project-root>/.agentic-toolkit/learnings.jsonl`; tasks.md T4 and design.md D8 say records carry `tags` with no mention of filtering to the `failure_type:`/`capability_gap:`/`affected_skill:`/`severity:`/`source:` namespaces; proposal.md 'What Changes' \u00a74 likewise lists `tags` verbatim in the allowlist. An implementer working from tasks.md would ship the identity leak the spec now forbids and would reintroduce the two-roots ambiguity.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "optional",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/tasks.md",
+      "existing_code": "`analyze_failures.py` (default `<project-root>/.agentic-toolkit/learnings.jsonl`, read only",
+      "line_range": {
+        "start": 56,
+        "end": 56
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "The Exported learning privacy requirement ends with 'The exporter SHALL pass the Cross-Repo Portability gate' but has no scenario for it; the only portability scenario in the delta is under Payload hash and covers `payload_hash.py`, not `export_shared_learnings.py`. plan-findings.md row 8 claims 'portability scenarios under Payload hash and Exported learning privacy', so the ledger over-reports coverage. Either add a scenario (e.g. WHEN `validate_install_manifest.py` and the consumer-portability test run after the exporter is added THEN they pass and the exporter is listed in `smoke_entrypoints`) or move the SHALL into Payload hash's scenario.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "optional",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "existing_code": "(the same tags `analyze_failures.py` reads today). The exporter SHALL pass the Cross-Repo",
+      "line_range": {
+        "start": 155,
+        "end": 155
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 3,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "One-way consumption has three SHALLs without a scenario: accepting `--shared-learnings <path>` (no scenario with a non-default path), deduplicating merged records on `(capability_gap, affected_skill, summary)` against local and other shared findings (no scenario where a shared record duplicates a local one and appears once), and the behaviour when an exported record lacks a `capability_gap:` or `affected_skill:` tag, which leaves the dedupe key partially undefined for both exporter and consumer.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "existing_code": "`(capability_gap, affected_skill, summary)` \u2014 the exporter's key, because exported records",
+      "line_range": {
+        "start": 192,
+        "end": 192
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 4,
+      "type": "observability",
+      "criticality": "low",
+      "description": "Ledger item 16 (file_path `openspec/changes/owner-routed-escalation/proposal.md`) carries a `spec_file` that is (a) an absolute path into this agent's private worktree (`/home/user/agentic-coding-tools/.claude/worktrees/agent-a2592d0f7287ff5d2/...`) and (b) points at toolkit-consistency's spec, which the finding is not about. Every other item uses repo-relative paths. A committed machine-local path breaks the ledger for any other checkout and the mis-association would mislead a spec-level fingerprint match in later rounds.",
+      "disposition": "fix",
+      "axis": "observability",
+      "severity": "nit",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/.review-ledger/ledger.json",
+      "existing_code": "\"spec_file\": \"/home/user/agentic-coding-tools/.claude/worktrees/agent-a2592d0f7287ff5d2/openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md\",",
+      "line_range": {
+        "start": 274,
+        "end": 274
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 5,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "The summary table asserts that `pr_creation` 'Fails closed if the notification is undelivered', but the Dispositions section, which is the normative description of `notify_with_timeout`, defines only 'file approval, notify, poll until timeout, apply default_action' and says nothing about undelivered notifications. With `default_action: proceed` the documented semantics would proceed after an hour regardless of delivery. Either document the undelivered-notification rule under Dispositions or drop the claim from the table so the contract does not promise behaviour it does not specify.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "nit",
+      "evidence_class": "judgment",
+      "file_path": "TRUST_POSTURE.md",
+      "existing_code": "| `pr_creation` | notify_with_timeout (1h \u2192 proceed) | Humans can intervene, but PRs open without waiting. Fails closed if the notification is undelivered. |",
+      "line_range": {
+        "start": 39,
+        "end": 39
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 6,
+      "type": "observability",
+      "criticality": "low",
+      "description": "Iteration 2 cites `.review-cache/round-1/review-manifest.json` as dispatch evidence for the single-vendor degradation, but that file is not part of the committed packet (only `.review-ledger/ledger.json` is). The vendor-availability evidence for the min_quorum=1 decision is therefore not reproducible from git, which is the same P9 traceability gap ledger item 5 raises for the policy citation. Either commit the manifest or summarise its contents in plan-findings.md.",
+      "disposition": "fix",
+      "axis": "observability",
+      "severity": "fyi",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/plan-findings.md",
+      "existing_code": "`.review-cache/round-1/review-manifest.json`): `claude_code` (claude-local CLI, model",
+      "line_range": {
+        "start": 50,
+        "end": 50
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 7,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Re-verified ledger 1: still open. All 19 scaffold deltas retain `WHEN <change-id> is implemented THEN <outcome>` scenarios under the non-existent `multiplayer-collaboration` capability.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "optional",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/attention-budgets-digests/specs/multiplayer-collaboration/spec.md"
+    },
+    {
+      "id": 8,
+      "type": "style",
+      "criticality": "low",
+      "description": "Re-verified ledger 2: still open (`pRs created by`, `that /implement-feature provides`, `that given any audit entry` headings truncated with `...`).",
+      "disposition": "accept",
+      "axis": "readability",
+      "severity": "nit",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/reviewer-shaped-prs/specs/multiplayer-collaboration/spec.md"
+    },
+    {
+      "id": 9,
+      "type": "security",
+      "criticality": "medium",
+      "description": "Re-verified ledger 3: still open. `proposal_approval: auto` is unconditional in the front matter; nothing scopes it to changes with a recorded roadmap_approval.",
+      "disposition": "escalate",
+      "axis": "security",
+      "severity": "optional",
+      "evidence_class": "judgment",
+      "file_path": "TRUST_POSTURE.md"
+    },
+    {
+      "id": 10,
+      "type": "style",
+      "criticality": "low",
+      "description": "Re-verified ledger 4: still open. Header comment says every failure/escalation path waits for a human while `replan_required: auto`.",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "nit",
+      "evidence_class": "judgment",
+      "file_path": "TRUST_POSTURE.md"
+    },
+    {
+      "id": 11,
+      "type": "observability",
+      "criticality": "medium",
+      "description": "Re-verified ledger 5: still open. The TRUST_POSTURE.md in this packet has no 'Review quorum in cloud containers' section, yet plan-findings.md Iteration 2 and both `escalate_resume` approvals cite it (commit 479dcd9). The packet is internally inconsistent until 479dcd9 is on the branch.",
+      "disposition": "fix",
+      "axis": "observability",
+      "severity": "optional",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/loop-state.json"
+    },
+    {
+      "id": 12,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Re-verified ledger 6: still open. roadmap.yaml lists ri-20 `approved`, `status: planning`, checkpoint `current_item_id: ri-01` with no ri-20 dispatch_attempt, while toolkit-consistency/loop-state.json records GATEKEEPER, PLAN_ITERATE and two PLAN_REVIEW parks.",
+      "disposition": "escalate",
+      "axis": "correctness",
+      "severity": "optional",
+      "evidence_class": "judgment",
+      "file_path": "openspec/roadmaps/multiplayer-collaboration/roadmap.yaml"
+    },
+    {
+      "id": 13,
+      "type": "security",
+      "criticality": "low",
+      "description": "Re-verified ledger 7: still open. `launch_token` and `owner_nonce` remain committed in checkpoint.json.",
+      "disposition": "accept",
+      "axis": "security",
+      "severity": "nit",
+      "evidence_class": "judgment",
+      "file_path": "openspec/roadmaps/multiplayer-collaboration/checkpoint.json"
+    },
+    {
+      "id": 14,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "Re-verified ledger 10: still open. No scenario covers an install whose new payload hash differs from an existing stamp; plan-findings defers it as an open question.",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "nit",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md"
+    },
+    {
+      "id": 15,
+      "type": "observability",
+      "criticality": "low",
+      "description": "Re-verified ledger 12: still open. `written_at` 06:59:55.764Z precedes `decided_at` 06:59:55.799+00:00 and the two timestamp formats are mixed.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "nit",
+      "evidence_class": "judgment",
+      "file_path": "openspec/supervise/supervisor-record.json"
+    },
+    {
+      "id": 16,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Re-verified ledger 13: still open. ri-13 (priority 2) depends on ri-12 (priority 3).",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "nit",
+      "evidence_class": "judgment",
+      "file_path": "openspec/roadmaps/multiplayer-collaboration/roadmap.yaml"
+    },
+    {
+      "id": 17,
+      "type": "observability",
+      "criticality": "low",
+      "description": "Re-verified ledger 15: still open. `escalation_reason` retains the pre-resume text, `previous_phase == current_phase == PLAN_REVIEW`, `iteration: 0` with `total_iterations: 8`, and phase_history has no PLAN_REVIEW completion despite plan-findings reporting convergence at 08:21Z.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "nit",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/loop-state.json"
+    },
+    {
+      "id": 18,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "Re-verified ledger 16: still open. Scaffold proposals list dependencies as `ri-NN` rather than change IDs.",
+      "disposition": "accept",
+      "axis": "readability",
+      "severity": "nit",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/owner-routed-escalation/proposal.md"
+    }
+  ]
+}

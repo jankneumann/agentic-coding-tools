@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.dev/schemas/human-principals.schema.json",
+  "title": "agents.yaml `humans:` entry",
+  "description": "One human principal as declared under the top-level `humans:` mapping of the principal registry (agent-coordinator/agents.yaml). The mapping key is the principal id (slug pattern shared with agent names; a collision with an agent name is a load error). Humans are principals, not agents: they are never projected into agent_profiles, identities, dispatch configs or OpenBao AppRoles. This file is the JSON mirror of HUMAN_PRINCIPAL_SCHEMA in agent-coordinator/src/agents_config.py; a test pins the two equal after removing $schema, $id, title and description (design D2). The skills-side reader (skills/ownership-runtime/scripts/principals.py) validates each entry against this file.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["display_name"],
+  "properties": {
+    "display_name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "github": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 39,
+      "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$",
+      "description": "GitHub login without the leading `@`. Required for any principal that appears in an emitted CODEOWNERS owner set (design D8)."
+    },
+    "email": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 254,
+      "pattern": "^[^@\\s]+@[^@\\s]+$",
+      "description": "Declared for commit-author attribution in later roadmap items (ri-03); not consumed by ri-02 (design D5). Optional: omit it if you prefer not to publish it."
+    },
+    "domains": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "pattern": "^[a-z0-9][a-z0-9._-]*$"
+      },
+      "description": "Advisory area-of-expertise slugs. Nothing routes on them in ri-02; ri-06 is the first consumer and may tighten them to capability names."
+    },
+    "availability": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Declared so later items can consume it; not interpreted by ri-02.",
+      "properties": {
+        "timezone": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "description": "IANA time zone name, e.g. Europe/Berlin."
+        },
+        "hours": {
+          "type": "string",
+          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d-([01]\\d|2[0-3]):[0-5]\\d$",
+          "description": "Working hours in the declared time zone, HH:MM-HH:MM."
+        },
+        "days": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 7,
+          "uniqueItems": true,
+          "items": { "type": "string", "enum": ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] }
+        }
+      }
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000
+    }
+  }
+}

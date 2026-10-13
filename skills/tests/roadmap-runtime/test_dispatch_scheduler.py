@@ -4,13 +4,12 @@ from __future__ import annotations
 
 from copy import deepcopy
 import json
+import sys
 from pathlib import Path
 
 import pytest
 import yaml
 from jsonschema import Draft202012Validator
-from referencing import Registry, Resource
-from referencing.jsonschema import DRAFT202012
 
 from dispatch_scheduler import (
     ReadyDispatchItem,
@@ -21,18 +20,12 @@ from dispatch_scheduler import (
     select_safe_ready_batch,
 )
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from shared import dispatch_contract  # noqa: E402
+
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _FIXTURE_ROOT = Path(__file__).with_name("fixtures") / "dispatch-scopes"
-_SCHEMA_ROOT = (
-    _REPO_ROOT
-    / "openspec"
-    / "contracts"
-    / "roadmap-orchestration"
-    / "schemas"
-)
-_REQUEST_SCHEMA = _SCHEMA_ROOT / "supervised-dispatch-request.schema.json"
-_CONTEXT_SCHEMA = _SCHEMA_ROOT / "bounded-dispatch-context.schema.json"
 _INVALID_WORK_PACKAGES = _FIXTURE_ROOT / "invalid-work-packages.invalid.yaml"
 _WORK_PACKAGE_SCHEMA = _REPO_ROOT / "openspec" / "schemas" / "work-packages.schema.json"
 _VALID_WORK_PACKAGES = (
@@ -300,8 +293,10 @@ def test_indeterminate_scope_is_a_schema_valid_singleton(
     assert plan.items[0].scope.proof == "serial_indeterminate"
     assert plan.deferred_item_ids == ("ri-02",)
 
+    # The published v2 request (dispatch-contract D1): portable isolation, the
+    # raw launch token only in the request, profile and requirements carried.
     request = {
-        "schema_version": 1,
+        "schema_version": 2,
         "dispatch_id": "roadmap-fixture:ri-01:attempt-1",
         "roadmap_id": "roadmap-fixture",
         "item_id": "ri-01",
@@ -314,19 +309,16 @@ def test_indeterminate_scope_is_a_schema_valid_singleton(
         "scope": plan.items[0].scope.to_request_scope(),
         "isolation": {
             "mode": "managed_worktree",
-            "worktree_path": "/workspace/ri-01",
+            "worktree_ref": "ri-01",
             "branch": f"openspec/{change_id}",
+            "host_id": "host-a",
         },
         "context": {},
+        "execution_profile": {},
+        "review_requirements": {},
+        "roadmap_approval_ref": None,
     }
-    request_schema = json.loads(_REQUEST_SCHEMA.read_text())
-    context_schema = json.loads(_CONTEXT_SCHEMA.read_text())
-    registry = Registry().with_resource(
-        context_schema["$id"],
-        Resource.from_contents(context_schema, default_specification=DRAFT202012),
-    )
-    validator = Draft202012Validator(request_schema, registry=registry)
-    assert list(validator.iter_errors(request)) == []
+    assert dispatch_contract.validate_request(request) == request
 
 
 def test_batch_is_deterministic_priority_position_maximal_and_preserves_evidence() -> None:

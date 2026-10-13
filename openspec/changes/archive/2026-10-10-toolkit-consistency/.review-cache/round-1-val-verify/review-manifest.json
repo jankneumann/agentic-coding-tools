@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "change_id": "toolkit-consistency",
+  "review_type": "implementation",
+  "created_at": "2026-10-10T10:17:01Z",
+  "target": "toolkit-consistency",
+  "dispatches": [
+    {
+      "vendor": "claude_code",
+      "success": true,
+      "model_used": "fable",
+      "models_attempted": [
+        "fable"
+      ],
+      "elapsed_seconds": 117.43787297800009,
+      "error": null,
+      "error_class": null
+    }
+  ],
+  "quorum_requested": 1,
+  "quorum_received": 1,
+  "vendors": [
+    {
+      "name": "claude_code",
+      "findings_path": "findings-claude_code-implementation.json",
+      "finding_count": 10,
+      "unanchored_findings": 3,
+      "fact_check": "ran",
+      "fact_check_removed": 0,
+      "fact_check_tokens": 0
+    }
+  ]
+}

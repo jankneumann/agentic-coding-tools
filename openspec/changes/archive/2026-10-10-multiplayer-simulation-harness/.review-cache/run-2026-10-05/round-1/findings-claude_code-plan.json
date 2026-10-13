@@ -1,0 +1,165 @@
+{
+  "review_type": "plan",
+  "target": "multiplayer-simulation-harness",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "The memory-store scenario's readiness input is under-specified. D7 has every ScriptedAgent push to its own branch `refs/heads/sim/<principal>/<change>`, and D5 says each step's `set_status` edit to `roadmap.yaml` is committed and pushed by that principal. With two principals editing the same `roadmap.yaml` on two different branches, there is no single \"roadmap.yaml currently visible on the shared remote\" (spec wording) for `Roadmap.ready_items()` to evaluate: storage-owner's `completed` lives on `sim/storage-owner/sim-memory-store-core`, retrieval-owner's `approved` item on its own branch, and `main` still holds the seed. The scheduler must either (a) read the dependency item's status from the owner's branch and merge per-item statuses, or (b) have status transitions pushed to `main` (modelling a checkpoint commit). Each choice changes what task 5.2 implements, what the fixture must look like, and what ri-11's flip has to touch. State the chosen ref model in D5/D7 and in the Memory-Store requirement text, and reflect it in task 5.1/5.2.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/multiplayer-simulation-harness/design.md",
+      "existing_code": "- **Readiness**: on every tick, the scheduler fetches the shared remote into the dependent\n  principal's clone. It then loads the fixture world's `roadmap.yaml` through\n  roadmap-runtime's `load_roadmap`.",
+      "resolution": "Add to D5: which ref(s) the scheduler reads `roadmap.yaml` from after fetch, and how per-principal status edits are reconciled (e.g. agents push roadmap status commits to `main`, or the scheduler overlays each item's status from its owner's branch). Mirror the decision in the spec's Memory-Store requirement and tasks 5.1/5.2.",
+      "line_resolution": "unresolved"
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Group 2 check: several SHALL clauses have no scenario. (a) \"The harness SHALL NOT import agent-coordinator or coordination-bridge modules, SHALL NOT use HTTP or MCP transports\" (Offline requirement) has no WHEN/THEN; O.1/O.2 only test behaviour, not imports. (b) \"Every roadmap status change a simulated agent makes SHALL be declared as data in the fixture's step script, never in harness code\" (Memory-Store requirement) has no scenario; B.1 only implies it. (c) \"Registering a new probe SHALL NOT require editing any scenario definition other than its pinned expectations\" (Probe Seam) is only implicit in S.1. All three are cheap to pin with a static test (AST/grep over `mpsim/` for forbidden imports and for literal status strings; a test that registers a probe without touching `scenarios/`).",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "optional",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/multiplayer-simulation-harness/specs/multiplayer-simulation/spec.md",
+      "existing_code": "remote SHALL be a local `file://` bare repository. The harness SHALL NOT import\nagent-coordinator or coordination-bridge modules, SHALL NOT use HTTP or MCP transports, and",
+      "resolution": "Add a scenario \"The driver imports no coordinator or transport modules\" (WHEN a static scan of `mpsim/` runs THEN no import of agent-coordinator, coordination_bridge, httpx, requests or mcp is found) and a scenario asserting no roadmap status literal appears in `mpsim/` outside fixture loading; add a corresponding assertion to task 4.1 or 6.1. Alternatively demote (a)-(c) from SHALL to design notes.",
+      "line_range": {
+        "start": 172,
+        "end": 173
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 3,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Error-path reports cannot validate against `sim-report.schema.json`. The contract (exit 1) and D8 say \"a report carrying a non-null `error` is printed when possible\", including when \"a git operation failed\", and the Deterministic requirement says any scenario report validates against the schema. But the schema requires `principals` with `minItems: 2` and non-nullable `timeline`; a failure during world build (before principals exist) cannot satisfy it. Either relax `principals` to allow an empty array/null when `error` is non-null, or state explicitly that exit-1 reports are best-effort and exempt from the schema (and from D.2's \"any scenario report\" assertion).",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "optional",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/multiplayer-simulation-harness/contracts/schemas/sim-report.schema.json",
+      "existing_code": "\"principals\": {\n      \"type\": \"array\",\n      \"minItems\": 2,",
+      "resolution": "Decide the error-report shape: e.g. keep `minItems: 2` and scope D.2 to exit-0 reports, or use `\"minItems\": 0` with a documented rule that `principals` may be empty only when `error` is non-null (JSON Schema `if/then` can express this).",
+      "line_range": {
+        "start": 24,
+        "end": 26
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Stale cross-references in design.md after the iteration-2 renumbering: the Risks table says the 30 s budget is \"checked in task 6.2\" (it is 9.1) and that \"Task 4.2 documents the call site in the README\" (the README is 8.2 and the call site is in `scenarios/blocked.py`, task 5.2). D9 says \"the gen-eval pack test sets COORDINATION_API_URL\" and compares reports, but plan-findings iteration 2 #3 moved O.2 to task 6.1 against raw `mpsim run` stdout. D8's exit-code table omits code 2, which the contract and task 6.2 both declare.",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "nit",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/multiplayer-simulation-harness/design.md",
+      "existing_code": "| Git-heavy scenarios make the skills sweep slower | Four scenarios, each creating only a handful of commits. Budget is under 30 s for the whole harness directory, checked in task 6.2. |",
+      "resolution": "Update the task numbers in the Risks table, reword D9 to name task 6.1 / `test_cli.py`, and add exit code 2 to the D8 table.",
+      "line_range": {
+        "start": 311,
+        "end": 311
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 5,
+      "type": "style",
+      "criticality": "low",
+      "description": "Task 1.1 requires the promoted contract to be byte-identical to the change-local copy, but the change-local `mpsim.yaml` header says \"Authored here while the change is in flight; promoted to ...\" and gives a schema path \"relative to this file's change-local location\" (`../../../../contracts/gen-eval-framework/...`). At the promoted location that relative path is wrong and the provenance note is misleading. Byte-identity forces the stale comment to ship in the canonical copy.",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "nit",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/multiplayer-simulation-harness/contracts/cli/mpsim.yaml",
+      "existing_code": "# Validates against ../../../../contracts/gen-eval-framework/schemas/cli-contract.schema.json\n# (path relative to this file's change-local location).",
+      "resolution": "Phrase the header so it is true at both locations (e.g. reference the schema by its repo-rooted path `openspec/contracts/gen-eval-framework/schemas/cli-contract.schema.json` and describe the promotion without \"here\").",
+      "line_range": {
+        "start": 10,
+        "end": 11
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 6,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "Interpreter selection for the two subprocess entry points is unspecified. `bin/mpsim` \"runs `python -m mpsim`\"; `mpsim` imports `skills/roadmap-runtime/scripts` (needs pyyaml/jsonschema from the skills venv). Task 7.3 prepends only `bin/` to PATH and runs the `gen-eval` console script by name, so both resolutions depend on the skills venv already being first on PATH. Under `uv run --project skills pytest` that holds, but a developer running `pytest` from an activated other venv, or an IDE runner, gets a confusing ImportError or a `gen-eval: command not found`.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "optional",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/multiplayer-simulation-harness/tasks.md",
+      "existing_code": "- `bin/mpsim`, an executable launcher that runs `python -m mpsim` with the harness root on\n    `sys.path`.",
+      "resolution": "Specify `#!/usr/bin/env python3` (or a shell shim using `${PYTHON:-python3}`) for `bin/mpsim`; in `test_cli.py` and `test_gen_eval_pack.py` invoke via `sys.executable` / `Path(sys.executable).parent` prepended to PATH so the tests always use the interpreter running pytest.",
+      "line_range": {
+        "start": 52,
+        "end": 53
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 7,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "D5 asserts `Roadmap.ready_items()` \"decides from item statuses alone\" (dependency satisfied when `status: completed`, admitted when `approved`), but the architecture diagram in Context says readiness is evaluated \"over the remote's roadmap/checkpoint\", hinting that roadmap-runtime may also read checkpoint state. The pinned 10-tick baseline, B.4, and the ri-11 flip all depend on the exact admission semantic. The plan does not record where this was verified.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "fyi",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/multiplayer-simulation-harness/design.md",
+      "existing_code": "`Roadmap.ready_items()` whether the dependent's item is admitted. `ready_items()` decides\n  from item statuses alone: a dependency counts as satisfied when its item `status` is\n  `completed`, and only items whose status is `approved` are admitted.",
+      "resolution": "Cite the roadmap-runtime source (file/function) for the admission rule in D5, reconcile the diagram's \"roadmap/checkpoint\" wording, and have task 5.1 include a direct unit test of `ready_items()` on the fixture roadmap before pinning values.",
+      "line_range": {
+        "start": 153,
+        "end": 155
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 8,
+      "type": "style",
+      "criticality": "low",
+      "description": "Exit-code 64 text lists \"missing --fixture-dir\" as a usage error, but the flag is optional; the intended meaning is a `--fixture-dir` value that points at a non-existent directory. Task 6.1 repeats the ambiguous phrase. A reader could conclude the flag is required.",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "nit",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/multiplayer-simulation-harness/contracts/cli/mpsim.yaml",
+      "existing_code": "      Semantic usage error: unknown scenario, unknown probe, missing\n      --fixture-dir, --tick-budget below 1, or a fixture with fewer than two\n      principals.",
+      "resolution": "Reword to \"a --fixture-dir that does not exist\" in the contract, D8 and task 6.1.",
+      "line_range": {
+        "start": 102,
+        "end": 104
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 9,
+      "type": "observability",
+      "criticality": "low",
+      "description": "`loop-state.json` records `findings_trend: []` and `iteration: 0` although plan-findings.md documents three PLAN_ITERATE iterations with 16, 8 and 3 findings. The trend field exists to let PLAN_REVIEW and escalation logic see convergence; leaving it empty hides that history from the orchestrator.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "fyi",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/multiplayer-simulation-harness/loop-state.json",
+      "existing_code": "  \"findings_trend\": [],",
+      "resolution": "If the autopilot writer is expected to populate `findings_trend` from PLAN_ITERATE outcomes, record the three iteration counts; otherwise no change.",
+      "line_range": {
+        "start": 8,
+        "end": 8
+      },
+      "line_resolution": "hunk_new"
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+{
+  "review_type": "implementation",
+  "target": "dispatch-contract",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "low",
+      "severity": "nit",
+      "axis": "readability",
+      "evidence_class": "deterministic",
+      "disposition": "fix",
+      "file_path": "openspec/changes/dispatch-contract/validation-report.md",
+      "line_range": "126-129",
+      "existing_code": "passed on PR #662, including head 4955e24, where the live checkpoint was migrated to digest-only with live attempts (latest run 37976320517, success)",
+      "description": "The parenthetical run id sits next to head 4955e24, so it reads as the run for that head. Run 37976320517 ran on PR #662 head 789705a. 4955e24 is in that run's PR commit range, so the claim holds, but 4955e24's own Security run is 37974967529 (secret-scan success). A reader checking the run id will see a different head SHA than the sentence implies. The Security section (line 182) repeats 37976320517 without a head.",
+      "resolution": "Name both runs with their heads: 37974967529 at 4955e24 (secret-scan success) and 37976320517 at 789705a (latest PR #662 head, success); give the head for each run id in the Security section (line 182) too."
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "low",
+      "severity": "nit",
+      "axis": "readability",
+      "evidence_class": "deterministic",
+      "disposition": "fix",
+      "file_path": "openspec/changes/dispatch-contract/validation-report.md",
+      "line_range": "132-153",
+      "existing_code": "   Tests added after IMPL review (PR #667 review fixes and post-merge commits), counted in the suite totals above:",
+      "description": "The 'Tests added after IMPL review' block (added in 794b4281) is indented inside item 6 (the secret-scan outcome), yet its bullets cite tests for outcomes 4, 5, 7, 1 and the goal gate, none for outcome 6. A reader of the numbered outcome list attributes those tests to outcome 6.",
+      "resolution": "Move the block out of item 6: either a separate sub-heading or paragraph after the numbered outcome list (after line 162), or each bullet under the outcome it supports."
+    },
+    {
+      "id": 3,
+      "type": "spec_gap",
+      "criticality": "low",
+      "severity": "nit",
+      "axis": "readability",
+      "evidence_class": "deterministic",
+      "disposition": "fix",
+      "file_path": "openspec/changes/dispatch-contract/validation-report.md",
+      "line_range": "98-106",
+      "existing_code": "5. execution_profile, review_requirements, degradations[] carried end to end; capability parks routed as single escalations: pass.",
+      "description": "Proposal outcome 5 requires both permission_blocked and capability_unavailable parks to be routed to the operator as single escalations. The report's outcome 5 says only 'capability parks'. The cited tests do cover permission_blocked (supervise/test_execution.py::test_three_workers_blocked_on_one_rule_produce_one_escalation uses _BLOCKED, kind permission_blocked, line 2247; test_concurrent_resolvers_on_one_fingerprint_are_single_flight likewise), and capability_unavailable (test_different_missing_lanes_are_separate_escalations, the e2e capability-park test), but the report never says which test proves which kind, so the permission_blocked half of the outcome is not visibly proved.",
+      "resolution": "Restate outcome 5 with both kinds and label the citations: permission_blocked -> test_three_workers_blocked_on_one_rule_produce_one_escalation (and the single-flight test); capability_unavailable -> test_a_capability_park_is_one_operator_escalation_that_resumes_the_child, test_different_missing_lanes_are_separate_escalations."
+    }
+  ]
+}

@@ -1,0 +1,56 @@
+# CI runner lane manifest (design D1). Validated by .github/runner-lanes.schema.json.
+# Every job of ci.yml and security.yml must be classified: tests/ci_runners fails on drift.
+schema_version: 1
+routing:
+  repository_variable: CI_RUNNER_LANE   # unset or anything but "self-hosted" => hosted
+  dispatch_input: runner_lane           # workflow_dispatch choice: auto | hosted | self-hosted
+  self_hosted_labels: [self-hosted, linux, ARM64, gx10]
+  hosted_label: ubuntu-latest
+workflows:
+  ci.yml:
+    jobs:
+      test-openbao-credentials: { lane: routed }
+      test-openbao-live:
+        lane: hosted
+        reason_code: container-engine
+        reason: "run_live_matrix.sh starts an OpenBao container through podman or docker; no container engine is exposed inside runner containers (D6)."
+      test: { lane: routed }
+      test-infra-skills: { lane: routed }
+      test-skills: { lane: routed }
+      skill-audit-freshness: { lane: routed }
+      validate-specs: { lane: routed }
+      context-drift-gate: { lane: routed }
+      contract-breaking-change-gate: { lane: routed }
+      coverage-ratchet: { lane: routed }
+      check-docker-imports: { lane: routed }
+      docker-smoke-import:
+        lane: hosted
+        reason_code: container-engine
+        reason: "Docker buildx build with the type=gha cache; the image it validates is the amd64 production image (Railway), so arm64 would also check the wrong architecture."
+      formal-coordination: { lane: routed }
+      test-integration:
+        lane: hosted
+        reason_code: container-engine
+        reason: "services: Postgres (paradedb) container and sudo apt-get need a container engine and root; neither exists inside runner containers (D6)."
+      gen-eval:
+        lane: hosted
+        reason_code: container-engine
+        reason: "services: Postgres (paradedb) container and sudo apt-get need a container engine and root; neither exists inside runner containers (D6)."
+      gen-eval-tests: { lane: routed }
+      code-search-tests: { lane: routed }
+      system-one-decisions-tests: { lane: routed }
+      agent-scenarios-tests: { lane: routed }
+      requirement-traceability-sweep: { lane: routed }
+      context-eval: { lane: routed }
+      semantic-enablement-gate: { lane: routed }
+      dependency-update-remediation:
+        lane: hosted
+        reason_code: privileged-token
+        reason: "Holds contents: write and pushes; write-scoped tokens stay off the shared host."
+      validate-context-producers: { lane: routed }
+      test-codebase-atlas: { lane: routed }
+  security.yml:
+    jobs:
+      secret-scan: { lane: routed }
+      dependency-audit-coordinator: { lane: routed }
+      dependency-audit-skills: { lane: routed }

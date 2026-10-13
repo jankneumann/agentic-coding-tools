@@ -5,6 +5,13 @@ on:
     branches: [main]
   pull_request:
   merge_group:
+  workflow_dispatch:
+    inputs:
+      runner_lane:
+        description: "Runner lane for routed jobs: auto follows the CI_RUNNER_LANE repository variable"
+        type: choice
+        options: [auto, hosted, self-hosted]
+        default: auto
 
 permissions:
   contents: read
@@ -49,17 +56,28 @@ concurrency:
 
 jobs:
   test-openbao-credentials:
-    runs-on: ubuntu-latest
+    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && ((github.event_name == 'workflow_dispatch' && inputs.runner_lane != 'auto') && inputs.runner_lane || vars.CI_RUNNER_LANE) == 'self-hosted' && fromJSON('["self-hosted","linux","ARM64","gx10"]') || 'ubuntu-latest' }}
     timeout-minutes: 10
     defaults:
       run:
         working-directory: packages/openbao-credentials
 
     steps:
+      - name: Refuse ineligible events on self-hosted runner
+        if: runner.environment == 'self-hosted' && !(github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        run: |
+          echo "::error::Only push, workflow_dispatch and same-repository pull_request runs may execute on self-hosted runners (fork PRs and merge_group never); routing expression bypassed."
+          exit 1
       - uses: actions/checkout@v7
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
+        with:
+          # D6: the runner image sets UV_CACHE_DIR to this path; without it setup-uv would
+          # redirect the cache to $RUNNER_TEMP and an opted-in shared cache would go unused.
+          cache-local-path: /home/runner/.cache/uv
 
       - name: Set up Python 3.12
         run: uv python install 3.12
@@ -71,6 +89,7 @@ jobs:
         run: uv run pytest tests -q
 
   test-openbao-live:
+    # Hosted lane (container-engine): see .github/runner-lanes.yaml for the reason.
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -92,17 +111,28 @@ jobs:
         run: bash skills/bao-vault/scripts/tests/integration/run_live_matrix.sh
 
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && ((github.event_name == 'workflow_dispatch' && inputs.runner_lane != 'auto') && inputs.runner_lane || vars.CI_RUNNER_LANE) == 'self-hosted' && fromJSON('["self-hosted","linux","ARM64","gx10"]') || 'ubuntu-latest' }}
     timeout-minutes: 15
     defaults:
       run:
         working-directory: agent-coordinator
 
     steps:
+      - name: Refuse ineligible events on self-hosted runner
+        if: runner.environment == 'self-hosted' && !(github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        run: |
+          echo "::error::Only push, workflow_dispatch and same-repository pull_request runs may execute on self-hosted runners (fork PRs and merge_group never); routing expression bypassed."
+          exit 1
       - uses: actions/checkout@v7
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
+        with:
+          # D6: the runner image sets UV_CACHE_DIR to this path; without it setup-uv would
+          # redirect the cache to $RUNNER_TEMP and an opted-in shared cache would go unused.
+          cache-local-path: /home/runner/.cache/uv
 
       - name: Set up Python 3.12
         run: uv python install 3.12
@@ -120,17 +150,28 @@ jobs:
         run: uv run pytest -m "not e2e and not integration"
 
   test-infra-skills:
-    runs-on: ubuntu-latest
+    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && ((github.event_name == 'workflow_dispatch' && inputs.runner_lane != 'auto') && inputs.runner_lane || vars.CI_RUNNER_LANE) == 'self-hosted' && fromJSON('["self-hosted","linux","ARM64","gx10"]') || 'ubuntu-latest' }}
     timeout-minutes: 20
     defaults:
       run:
         working-directory: skills
 
     steps:
+      - name: Refuse ineligible events on self-hosted runner
+        if: runner.environment == 'self-hosted' && !(github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        run: |
+          echo "::error::Only push, workflow_dispatch and same-repository pull_request runs may execute on self-hosted runners (fork PRs and merge_group never); routing expression bypassed."
+          exit 1
       - uses: actions/checkout@v7
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
+        with:
+          # D6: the runner image sets UV_CACHE_DIR to this path; without it setup-uv would
+          # redirect the cache to $RUNNER_TEMP and an opted-in shared cache would go unused.
+          cache-local-path: /home/runner/.cache/uv
 
       - name: Set up Python 3.12
         run: uv python install 3.12
@@ -142,6 +183,12 @@ jobs:
       # fails in seconds rather than after the full suite.
       - name: Lint (ruff)
         run: uv run ruff check .
+
+      # The bridge's _generated/ bindings are derived from the promoted
+      # contracts; fail when a contract edit was not followed by regeneration
+      # (generate-coordinator-clients-from-contracts).
+      - name: Bridge bindings are current
+        run: uv run python coordination-bridge/scripts/generate_bindings.py --check
 
       - name: Validate standalone skill install payload
         run: |
@@ -207,6 +254,7 @@ jobs:
             tests/improve-harness \
             tests/iterate-on-plan \
             tests/langfuse \
+            tests/multiplayer-simulation \
             tests/phase-record-compaction \
             tests/plan-roadmap \
             tests/playwright-validator \
@@ -230,14 +278,25 @@ jobs:
           exit $status
 
   test-skills:
-    runs-on: ubuntu-latest
+    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && ((github.event_name == 'workflow_dispatch' && inputs.runner_lane != 'auto') && inputs.runner_lane || vars.CI_RUNNER_LANE) == 'self-hosted' && fromJSON('["self-hosted","linux","ARM64","gx10"]') || 'ubuntu-latest' }}
     timeout-minutes: 10
 
     steps:
+      - name: Refuse ineligible events on self-hosted runner
+        if: runner.environment == 'self-hosted' && !(github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        run: |
+          echo "::error::Only push, workflow_dispatch and same-repository pull_request runs may execute on self-hosted runners (fork PRs and merge_group never); routing expression bypassed."
+          exit 1
       - uses: actions/checkout@v7
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
+        with:
+          # D6: the runner image sets UV_CACHE_DIR to this path; without it setup-uv would
+          # redirect the cache to $RUNNER_TEMP and an opted-in shared cache would go unused.
+          cache-local-path: /home/runner/.cache/uv
 
       - name: Set up Python 3.12
         run: uv python install 3.12
@@ -253,15 +312,26 @@ jobs:
   # re-run /skill-audit, not a defect in the change under review. Fails soft so
   # an unrelated archetypes.yaml edit never blocks a merge.
   skill-audit-freshness:
-    runs-on: ubuntu-latest
+    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && ((github.event_name == 'workflow_dispatch' && inputs.runner_lane != 'auto') && inputs.runner_lane || vars.CI_RUNNER_LANE) == 'self-hosted' && fromJSON('["self-hosted","linux","ARM64","gx10"]') || 'ubuntu-latest' }}
     timeout-minutes: 10
     continue-on-error: true
 
     steps:
+      - name: Refuse ineligible events on self-hosted runner
+        if: runner.environment == 'self-hosted' && !(github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        run: |
+          echo "::error::Only push, workflow_dispatch and same-repository pull_request runs may execute on self-hosted runners (fork PRs and merge_group never); routing expression bypassed."
+          exit 1
       - uses: actions/checkout@v7
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
+        with:
+          # D6: the runner image sets UV_CACHE_DIR to this path; without it setup-uv would
+          # redirect the cache to $RUNNER_TEMP and an opted-in shared cache would go unused.
+          cache-local-path: /home/runner/.cache/uv
 
       - name: Set up Python 3.12
         run: uv python install 3.12
@@ -297,10 +367,17 @@ jobs:
           exit 0
 
   validate-specs:
-    runs-on: ubuntu-latest
+    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && ((github.event_name == 'workflow_dispatch' && inputs.runner_lane != 'auto') && inputs.runner_lane || vars.CI_RUNNER_LANE) == 'self-hosted' && fromJSON('["self-hosted","linux","ARM64","gx10"]') || 'ubuntu-latest' }}
     timeout-minutes: 10
 
     steps:
+      - name: Refuse ineligible events on self-hosted runner
+        if: runner.environment == 'self-hosted' && !(github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        run: |
+          echo "::error::Only push, workflow_dispatch and same-repository pull_request runs may execute on self-hosted runners (fork PRs and merge_group never); routing expression bypassed."
+          exit 1
       - uses: actions/checkout@v7
 
       # Pinned via `.openspec-version`, not `@latest` (issue #318). `--strict`
@@ -310,6 +387,12 @@ jobs:
       # publish. Bump the pin by editing that one file; every other install
       # site (scripts/setup-cli.sh, the session-bootstrap scripts,
       # skills/install.sh) reads it too, so local and CI cannot disagree.
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          # The hosted image preinstalls node/npm; the self-hosted runner image does not (D10).
+          node-version: '22'
+
       - name: Install openspec
         run: npm install -g "@fission-ai/openspec@$(tr -d '[:space:]' < .openspec-version)"
 
@@ -357,10 +440,17 @@ jobs:
   # of it, because at those points there is no other branch to inherit from. The
   # rule itself lives in gate.py, not here — this job selects it and nothing more.
   context-drift-gate:
-    runs-on: ubuntu-latest
+    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && ((github.event_name == 'workflow_dispatch' && inputs.runner_lane != 'auto') && inputs.runner_lane || vars.CI_RUNNER_LANE) == 'self-hosted' && fromJSON('["self-hosted","linux","ARM64","gx10"]') || 'ubuntu-latest' }}
     timeout-minutes: 10
 
     steps:
+      - name: Refuse ineligible events on self-hosted runner
+        if: runner.environment == 'self-hosted' && !(github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        run: |
+          echo "::error::Only push, workflow_dispatch and same-repository pull_request runs may execute on self-hosted runners (fork PRs and merge_group never); routing expression bypassed."
+          exit 1
       - uses: actions/checkout@v7
         with:
           # The gate scopes work-package context-impact validation to
@@ -370,6 +460,10 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
+        with:
+          # D6: the runner image sets UV_CACHE_DIR to this path; without it setup-uv would
+          # redirect the cache to $RUNNER_TEMP and an opted-in shared cache would go unused.
+          cache-local-path: /home/runner/.cache/uv
 
       - name: Set up Python 3.12
         run: uv python install 3.12
@@ -475,6 +569,84 @@ jobs:
           path: ${{ runner.temp }}/context-gate-metrics.jsonl
           if-no-files-found: ignore
 
+  # Contract breaking-change gate (generate-coordinator-clients-from-contracts,
+  # design D4). Compares every promoted OpenAPI document under
+  # `openspec/contracts/**/openapi/` that the branch changes against its
+  # merge-base version with a pinned oasdiff, and fails on any ERR-level finding
+  # not acknowledged in a touched change's
+  # `contracts/accepted-breaking-changes.yaml`.
+  #
+  # oasdiff is pinned as a Go module version (scripts/contract_gate/oasdiff.sum),
+  # installed with `go install` under Go's checksum-database verification;
+  # fetch_oasdiff.py refuses to install if that verification is disabled or the
+  # go.mod hash differs from the recorded one. Go 1.26 is what v1.33.0 requires.
+  #
+  # Runs on all three events, like context-drift-gate, with the comparison base
+  # chosen per event inside the step: the PR's target branch, the merge group's
+  # base commit, or the pre-push tip of main (so a push compares exactly the
+  # commits it landed).
+  contract-breaking-change-gate:
+    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && ((github.event_name == 'workflow_dispatch' && inputs.runner_lane != 'auto') && inputs.runner_lane || vars.CI_RUNNER_LANE) == 'self-hosted' && fromJSON('["self-hosted","linux","ARM64","gx10"]') || 'ubuntu-latest' }}
+    timeout-minutes: 10
+
+    steps:
+      - name: Refuse ineligible events on self-hosted runner
+        if: runner.environment == 'self-hosted' && !(github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        run: |
+          echo "::error::Only push, workflow_dispatch and same-repository pull_request runs may execute on self-hosted runners (fork PRs and merge_group never); routing expression bypassed."
+          exit 1
+      - uses: actions/checkout@v7
+        with:
+          # The gate needs the merge base and the base versions of each document.
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.26.x'
+          cache: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          # D6: the runner image sets UV_CACHE_DIR to this path; without it setup-uv would
+          # redirect the cache to $RUNNER_TEMP and an opted-in shared cache would go unused.
+          cache-local-path: /home/runner/.cache/uv
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install skills deps
+        working-directory: skills
+        run: uv sync --all-extras
+
+      - name: Test the gate
+        run: skills/.venv/bin/python -m pytest scripts/contract_gate/tests -q
+
+      - name: Install and verify oasdiff
+        run: skills/.venv/bin/python scripts/contract_gate/fetch_oasdiff.py --bin-dir "$RUNNER_TEMP/bin"
+
+      - name: Check promoted contracts for breaking changes
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          MERGE_GROUP_BASE_SHA: ${{ github.event.merge_group.base_sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          case "$EVENT_NAME" in
+            pull_request) BASE="origin/$BASE_REF" ;;
+            merge_group)  BASE="$MERGE_GROUP_BASE_SHA" ;;
+            push)         BASE="$PUSH_BEFORE_SHA" ;;
+            *)
+              echo "::error::contract gate: unhandled event '$EVENT_NAME'"
+              exit 1
+              ;;
+          esac
+          skills/.venv/bin/python scripts/contract_gate/check_breaking.py \
+            --base "$BASE" --oasdiff "$RUNNER_TEMP/bin/oasdiff"
+
   # Coverage no-decrease ratchet (introduce-fitness-function-gates, design D5).
   #
   # Deliberately its own job rather than a `--cov` flag bolted onto `test` and
@@ -493,14 +665,25 @@ jobs:
   # pyproject: coverage is a CI-only concern here, and neither package's
   # dependency set should grow for it.
   coverage-ratchet:
-    runs-on: ubuntu-latest
+    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && ((github.event_name == 'workflow_dispatch' && inputs.runner_lane != 'auto') && inputs.runner_lane || vars.CI_RUNNER_LANE) == 'self-hosted' && fromJSON('["self-hosted","linux","ARM64","gx10"]') || 'ubuntu-latest' }}
     timeout-minutes: 20
 
     steps:
+      - name: Refuse ineligible events on self-hosted runner
+        if: runner.environment == 'self-hosted' && !(github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        run: |
+          echo "::error::Only push, workflow_dispatch and same-repository pull_request runs may execute on self-hosted runners (fork PRs and merge_group never); routing expression bypassed."
+          exit 1
       - uses: actions/checkout@v7
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
+        with:
+          # D6: the runner image sets UV_CACHE_DIR to this path; without it setup-uv would
+          # redirect the cache to $RUNNER_TEMP and an opted-in shared cache would go unused.
+          cache-local-path: /home/runner/.cache/uv
 
       - name: Set up Python 3.12
         run: uv python install 3.12
@@ -539,17 +722,28 @@ jobs:
   # that isn't COPY'd (e.g., `from gen_eval import ...` when
   # the gen-eval wheel isn't in .venv or evaluation/ isn't bundled).
   check-docker-imports:
-    runs-on: ubuntu-latest
+    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && ((github.event_name == 'workflow_dispatch' && inputs.runner_lane != 'auto') && inputs.runner_lane || vars.CI_RUNNER_LANE) == 'self-hosted' && fromJSON('["self-hosted","linux","ARM64","gx10"]') || 'ubuntu-latest' }}
     timeout-minutes: 10
     defaults:
       run:
         working-directory: agent-coordinator
 
     steps:
+      - name: Refuse ineligible events on self-hosted runner
+        if: runner.environment == 'self-hosted' && !(github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        run: |
+          echo "::error::Only push, workflow_dispatch and same-repository pull_request runs may execute on self-hosted runners (fork PRs and merge_group never); routing expression bypassed."
+          exit 1
       - uses: actions/checkout@v7
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
+        with:
+          # D6: the runner image sets UV_CACHE_DIR to this path; without it setup-uv would
+          # redirect the cache to $RUNNER_TEMP and an opted-in shared cache would go unused.
+          cache-local-path: /home/runner/.cache/uv
 
       - name: Set up Python 3.12
         run: uv python install 3.12
@@ -571,6 +765,7 @@ jobs:
   # (e.g., missing system libraries, PYTHONPATH issues, lazy imports from
   # third-party code).
   docker-smoke-import:
+    # Hosted lane (container-engine): see .github/runner-lanes.yaml for the reason.
     runs-on: ubuntu-latest
     timeout-minutes: 15
     # Build context is now repo root (D8 Strategy A) so the Dockerfile can
@@ -644,11 +839,18 @@ jobs:
           "
 
   formal-coordination:
-    runs-on: ubuntu-latest
+    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && ((github.event_name == 'workflow_dispatch' && inputs.runner_lane != 'auto') && inputs.runner_lane || vars.CI_RUNNER_LANE) == 'self-hosted' && fromJSON('["self-hosted","linux","ARM64","gx10"]') || 'ubuntu-latest' }}
     timeout-minutes: 10
     continue-on-error: true
 
     steps:
+      - name: Refuse ineligible events on self-hosted runner
+        if: runner.environment == 'self-hosted' && !(github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        run: |
+          echo "::error::Only push, workflow_dispatch and same-repository pull_request runs may execute on self-hosted runners (fork PRs and merge_group never); routing expression bypassed."
+          exit 1
       - uses: actions/checkout@v7
 
       - name: Install Java
@@ -661,6 +863,7 @@ jobs:
         run: .github/scripts/run_tlc.sh
 
   test-integration:
+    # Hosted lane (container-engine): see .github/runner-lanes.yaml for the reason.
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -719,6 +922,7 @@ jobs:
           COORDINATOR_PROFILE: local
 
   gen-eval:
+    # Hosted lane (container-engine): see .github/runner-lanes.yaml for the reason.
     runs-on: ubuntu-latest
     timeout-minutes: 10
     defaults:
@@ -786,17 +990,28 @@ jobs:
   gen-eval-tests:
     # Package-level unit tests for packages/gen-eval/ (task 3.4, D10).
     # Runs in parallel with other jobs; does NOT require a live DB.
-    runs-on: ubuntu-latest
+    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && ((github.event_name == 'workflow_dispatch' && inputs.runner_lane != 'auto') && inputs.runner_lane || vars.CI_RUNNER_LANE) == 'self-hosted' && fromJSON('["self-hosted","linux","ARM64","gx10"]') || 'ubuntu-latest' }}
     timeout-minutes: 15
     defaults:
       run:
         working-directory: packages/gen-eval
 
     steps:
+      - name: Refuse ineligible events on self-hosted runner
+        if: runner.environment == 'self-hosted' && !(github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        run: |
+          echo "::error::Only push, workflow_dispatch and same-repository pull_request runs may execute on self-hosted runners (fork PRs and merge_group never); routing expression bypassed."
+          exit 1
       - uses: actions/checkout@v7
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
+        with:
+          # D6: the runner image sets UV_CACHE_DIR to this path; without it setup-uv would
+          # redirect the cache to $RUNNER_TEMP and an opted-in shared cache would go unused.
+          cache-local-path: /home/runner/.cache/uv
 
       - name: Set up Python 3.12
         run: uv python install 3.12
@@ -882,17 +1097,28 @@ jobs:
   # findings. Adopting a style here is its own change, not a precondition for
   # running the tests that already exist.
   code-search-tests:
-    runs-on: ubuntu-latest
+    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && ((github.event_name == 'workflow_dispatch' && inputs.runner_lane != 'auto') && inputs.runner_lane || vars.CI_RUNNER_LANE) == 'self-hosted' && fromJSON('["self-hosted","linux","ARM64","gx10"]') || 'ubuntu-latest' }}
     timeout-minutes: 15
     defaults:
       run:
         working-directory: packages/code-search
 
     steps:
+      - name: Refuse ineligible events on self-hosted runner
+        if: runner.environment == 'self-hosted' && !(github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        run: |
+          echo "::error::Only push, workflow_dispatch and same-repository pull_request runs may execute on self-hosted runners (fork PRs and merge_group never); routing expression bypassed."
+          exit 1
       - uses: actions/checkout@v7
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
+        with:
+          # D6: the runner image sets UV_CACHE_DIR to this path; without it setup-uv would
+          # redirect the cache to $RUNNER_TEMP and an opted-in shared cache would go unused.
+          cache-local-path: /home/runner/.cache/uv
 
       - name: Set up Python 3.12
         run: uv python install 3.12
@@ -909,17 +1135,28 @@ jobs:
   # ruff/mypy config in this package yet) — a style pass is its own change,
   # not a precondition for running the tests that already exist.
   system-one-decisions-tests:
-    runs-on: ubuntu-latest
+    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && ((github.event_name == 'workflow_dispatch' && inputs.runner_lane != 'auto') && inputs.runner_lane || vars.CI_RUNNER_LANE) == 'self-hosted' && fromJSON('["self-hosted","linux","ARM64","gx10"]') || 'ubuntu-latest' }}
     timeout-minutes: 15
     defaults:
       run:
         working-directory: packages/system-one-decisions
 
     steps:
+      - name: Refuse ineligible events on self-hosted runner
+        if: runner.environment == 'self-hosted' && !(github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        run: |
+          echo "::error::Only push, workflow_dispatch and same-repository pull_request runs may execute on self-hosted runners (fork PRs and merge_group never); routing expression bypassed."
+          exit 1
       - uses: actions/checkout@v7
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
+        with:
+          # D6: the runner image sets UV_CACHE_DIR to this path; without it setup-uv would
+          # redirect the cache to $RUNNER_TEMP and an opted-in shared cache would go unused.
+          cache-local-path: /home/runner/.cache/uv
 
       - name: Set up Python 3.12
         run: uv python install 3.12
@@ -969,17 +1206,28 @@ jobs:
   # gen-eval-tests uses: the package is clean under --strict as of this commit,
   # so a non-blocking step would only invite it to rot again.
   agent-scenarios-tests:
-    runs-on: ubuntu-latest
+    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && ((github.event_name == 'workflow_dispatch' && inputs.runner_lane != 'auto') && inputs.runner_lane || vars.CI_RUNNER_LANE) == 'self-hosted' && fromJSON('["self-hosted","linux","ARM64","gx10"]') || 'ubuntu-latest' }}
     timeout-minutes: 15
     defaults:
       run:
         working-directory: packages/agent-scenarios
 
     steps:
+      - name: Refuse ineligible events on self-hosted runner
+        if: runner.environment == 'self-hosted' && !(github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        run: |
+          echo "::error::Only push, workflow_dispatch and same-repository pull_request runs may execute on self-hosted runners (fork PRs and merge_group never); routing expression bypassed."
+          exit 1
       - uses: actions/checkout@v7
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
+        with:
+          # D6: the runner image sets UV_CACHE_DIR to this path; without it setup-uv would
+          # redirect the cache to $RUNNER_TEMP and an opted-in shared cache would go unused.
+          cache-local-path: /home/runner/.cache/uv
 
       - name: Set up Python 3.12
         run: uv python install 3.12
@@ -1019,10 +1267,17 @@ jobs:
   # non-blocking run — see D12 for why this is an invariant, not a
   # coincidence.
   requirement-traceability-sweep:
-    runs-on: ubuntu-latest
+    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && ((github.event_name == 'workflow_dispatch' && inputs.runner_lane != 'auto') && inputs.runner_lane || vars.CI_RUNNER_LANE) == 'self-hosted' && fromJSON('["self-hosted","linux","ARM64","gx10"]') || 'ubuntu-latest' }}
     timeout-minutes: 10
 
     steps:
+      - name: Refuse ineligible events on self-hosted runner
+        if: runner.environment == 'self-hosted' && !(github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        run: |
+          echo "::error::Only push, workflow_dispatch and same-repository pull_request runs may execute on self-hosted runners (fork PRs and merge_group never); routing expression bypassed."
+          exit 1
       - uses: actions/checkout@v7
         with:
           # Change-id derivation diffs against the PR/merge-group base
@@ -1031,6 +1286,10 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
+        with:
+          # D6: the runner image sets UV_CACHE_DIR to this path; without it setup-uv would
+          # redirect the cache to $RUNNER_TEMP and an opted-in shared cache would go unused.
+          cache-local-path: /home/runner/.cache/uv
 
       - name: Set up Python 3.12
         run: uv python install 3.12
@@ -1246,18 +1505,28 @@ jobs:
     # construction. The live measurement is deliberately NOT a CI job — it needs
     # a real index and minutes of indexing — and its output, the committed
     # report under docs/evaluation/semantic-context/, is what CI reads.
-    runs-on: ubuntu-latest
+    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && ((github.event_name == 'workflow_dispatch' && inputs.runner_lane != 'auto') && inputs.runner_lane || vars.CI_RUNNER_LANE) == 'self-hosted' && fromJSON('["self-hosted","linux","ARM64","gx10"]') || 'ubuntu-latest' }}
     timeout-minutes: 15
     defaults:
       run:
         working-directory: packages/context-eval
 
     steps:
+      - name: Refuse ineligible events on self-hosted runner
+        if: runner.environment == 'self-hosted' && !(github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        run: |
+          echo "::error::Only push, workflow_dispatch and same-repository pull_request runs may execute on self-hosted runners (fork PRs and merge_group never); routing expression bypassed."
+          exit 1
       - uses: actions/checkout@v7
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
         with:
+          # D6: the runner image sets UV_CACHE_DIR to this path; without it setup-uv would
+          # redirect the cache to $RUNNER_TEMP and an opted-in shared cache would go unused.
+          cache-local-path: /home/runner/.cache/uv
           # Pinned, like every tool below and like the openspec CLI in
           # validate-specs. That one used to float on `@latest`, which let a
           # local 1.1.1 and CI's 1.6.0 disagree about the same tree and nearly
@@ -1312,10 +1581,17 @@ jobs:
     # It adds nothing at runtime and reaches no service: no database, no
     # embedder, no coordinator. It reads one committed source constant and one
     # committed report.
-    runs-on: ubuntu-latest
+    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && ((github.event_name == 'workflow_dispatch' && inputs.runner_lane != 'auto') && inputs.runner_lane || vars.CI_RUNNER_LANE) == 'self-hosted' && fromJSON('["self-hosted","linux","ARM64","gx10"]') || 'ubuntu-latest' }}
     timeout-minutes: 10
 
     steps:
+      - name: Refuse ineligible events on self-hosted runner
+        if: runner.environment == 'self-hosted' && !(github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        run: |
+          echo "::error::Only push, workflow_dispatch and same-repository pull_request runs may execute on self-hosted runners (fork PRs and merge_group never); routing expression bypassed."
+          exit 1
       - uses: actions/checkout@v7
         with:
           # Full history, because one of the six expiry conditions asks git
@@ -1328,6 +1604,9 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v7
         with:
+          # D6: the runner image sets UV_CACHE_DIR to this path; without it setup-uv would
+          # redirect the cache to $RUNNER_TEMP and an opted-in shared cache would go unused.
+          cache-local-path: /home/runner/.cache/uv
           # Pinned, like the `context-eval` job above and for the same reason:
           # `ci.yml` already carries one unpinned installer (issue #318) whose
           # drift let a local and a CI version disagree about the same tree.
@@ -1400,6 +1679,7 @@ jobs:
       github.event_name == 'pull_request'
       && github.event.pull_request.user.login == 'dependabot[bot]'
       && github.event.pull_request.head.repo.full_name == github.repository
+    # Hosted lane (privileged-token): see .github/runner-lanes.yaml for the reason.
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -1579,14 +1859,25 @@ jobs:
   #     point, where `cleanup-feature` performs the canonical spec merge.
   #   * decisions.timeline  — already covered by validate-decision-index above.
   validate-context-producers:
-    runs-on: ubuntu-latest
+    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && ((github.event_name == 'workflow_dispatch' && inputs.runner_lane != 'auto') && inputs.runner_lane || vars.CI_RUNNER_LANE) == 'self-hosted' && fromJSON('["self-hosted","linux","ARM64","gx10"]') || 'ubuntu-latest' }}
     timeout-minutes: 10
 
     steps:
+      - name: Refuse ineligible events on self-hosted runner
+        if: runner.environment == 'self-hosted' && !(github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        run: |
+          echo "::error::Only push, workflow_dispatch and same-repository pull_request runs may execute on self-hosted runners (fork PRs and merge_group never); routing expression bypassed."
+          exit 1
       - uses: actions/checkout@v7
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
+        with:
+          # D6: the runner image sets UV_CACHE_DIR to this path; without it setup-uv would
+          # redirect the cache to $RUNNER_TEMP and an opted-in shared cache would go unused.
+          cache-local-path: /home/runner/.cache/uv
 
       - name: Set up Python 3.12
         run: uv python install 3.12
@@ -1615,14 +1906,25 @@ jobs:
   # deterministic — that property is what makes `make atlas-check` meaningful.
   # The rendered HTML itself is gitignored, so it is never checked for drift here.
   test-codebase-atlas:
-    runs-on: ubuntu-latest
+    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && ((github.event_name == 'workflow_dispatch' && inputs.runner_lane != 'auto') && inputs.runner_lane || vars.CI_RUNNER_LANE) == 'self-hosted' && fromJSON('["self-hosted","linux","ARM64","gx10"]') || 'ubuntu-latest' }}
     timeout-minutes: 10
 
     steps:
+      - name: Refuse ineligible events on self-hosted runner
+        if: runner.environment == 'self-hosted' && !(github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        run: |
+          echo "::error::Only push, workflow_dispatch and same-repository pull_request runs may execute on self-hosted runners (fork PRs and merge_group never); routing expression bypassed."
+          exit 1
       - uses: actions/checkout@v7
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
+        with:
+          # D6: the runner image sets UV_CACHE_DIR to this path; without it setup-uv would
+          # redirect the cache to $RUNNER_TEMP and an opted-in shared cache would go unused.
+          cache-local-path: /home/runner/.cache/uv
 
       - name: Set up Python 3.12
         run: uv python install 3.12

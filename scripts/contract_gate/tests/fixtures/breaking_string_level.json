@@ -1,0 +1,17 @@
+[
+  {
+    "id": "api-security-added",
+    "text": "endpoint scheme security 'ApiKeyAuth' was added to the API",
+    "level": "error",
+    "operation": "get",
+    "path": "/features/{feature_id}",
+    "unknownField": {"nested": true}
+  },
+  {
+    "id": "request-property-became-enum",
+    "text": "request property 'mode' was restricted to a list of enum values",
+    "level": "WARN",
+    "operation": "POST",
+    "path": "/features/conflicts"
+  }
+]

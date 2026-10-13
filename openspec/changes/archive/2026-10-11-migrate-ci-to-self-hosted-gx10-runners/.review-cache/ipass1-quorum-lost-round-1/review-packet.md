@@ -1,0 +1,6151 @@
+## Review Round 1
+
+The packet is complete; do not explore the repo for missing artifacts.
+
+Review the attached artifacts for correctness, completeness, and adherence to project standards.
+
+### Prompt contract
+REQUIRED on every finding — output is REJECTED if any is missing: id, type, criticality, description, disposition, axis, severity
+These fields use DIFFERENT vocabularies. Do not reuse one value for another:
+  criticality: low|medium|high|critical — how much it matters
+  severity: critical|nit|optional|fyi|none — review-gate grading (NOT the same scale as criticality)
+  axis: correctness|readability|architecture|security|performance|observability|resilience|compatibility
+  type: spec_gap|contract_mismatch|architecture|security|performance|style|correctness|observability|compatibility|resilience|behavioral_failure
+  disposition: fix|regenerate|accept|escalate
+Use exactly one value from each listed set; do not invent values.
+OPTIONAL: report which selected files you actually reviewed as a top-level `coverage` object: `{"reviewed": ["path", ...], "skipped": [{"path": "path", "reason": "why"}, ...]}`. Omitting `coverage` is treated as full coverage, never as a penalty.
+Output ONLY a JSON object with a top-level `findings` array.
+
+### Diff
+```diff
+diff --git a/.github/runner-lanes.schema.json b/.github/runner-lanes.schema.json
+new file mode 100644
+index 00000000..5fc1533f
+--- /dev/null
++++ b/.github/runner-lanes.schema.json
+@@ -0,0 +1,71 @@
++{
++  "$schema": "https://json-schema.org/draft/2020-12/schema",
++  "$id": "runner-lanes.schema.json",
++  "title": "CI runner lane manifest",
++  "description": "Classifies every job of the routed GitHub Actions workflows as routed (follows the lane selector) or hosted (pinned to ubuntu-latest with a justification). See migrate-ci-to-self-hosted-gx10-runners design D1.",
++  "type": "object",
++  "additionalProperties": false,
++  "required": ["schema_version", "routing", "workflows"],
++  "properties": {
++    "schema_version": { "const": 1 },
++    "routing": {
++      "type": "object",
++      "additionalProperties": false,
++      "required": ["repository_variable", "dispatch_input", "self_hosted_labels", "hosted_label"],
++      "properties": {
++        "repository_variable": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" },
++        "dispatch_input": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
++        "self_hosted_labels": {
++          "type": "array",
++          "minItems": 2,
++          "uniqueItems": true,
++          "items": { "type": "string", "minLength": 1 },
++          "contains": { "const": "self-hosted" }
++        },
++        "hosted_label": { "const": "ubuntu-latest" }
++      }
++    },
++    "workflows": {
++      "type": "object",
++      "minProperties": 1,
++      "propertyNames": { "pattern": "^[A-Za-z0-9_.-]+\\.ya?ml$" },
++      "additionalProperties": {
++        "type": "object",
++        "additionalProperties": false,
++        "required": ["jobs"],
++        "properties": {
++          "jobs": {
++            "type": "object",
++            "minProperties": 1,
++            "propertyNames": { "pattern": "^[A-Za-z_][A-Za-z0-9_-]*$" },
++            "additionalProperties": { "$ref": "#/$defs/job" }
++          }
++        }
++      }
++    }
++  },
++  "$defs": {
++    "job": {
++      "oneOf": [
++        {
++          "type": "object",
++          "additionalProperties": false,
++          "required": ["lane"],
++          "properties": { "lane": { "const": "routed" } }
++        },
++        {
++          "type": "object",
++          "additionalProperties": false,
++          "required": ["lane", "reason_code", "reason"],
++          "properties": {
++            "lane": { "const": "hosted" },
++            "reason_code": {
++              "enum": ["container-engine", "amd64-only", "privileged-token", "measured-slower"]
++            },
++            "reason": { "type": "string", "minLength": 10 }
++          }
++        }
++      ]
++    }
++  }
++}
+diff --git a/.github/runner-lanes.yaml b/.github/runner-lanes.yaml
+new file mode 100644
+index 00000000..a3cc0b62
+--- /dev/null
++++ b/.github/runner-lanes.yaml
+@@ -0,0 +1,56 @@
++# CI runner lane manifest (design D1). Validated by .github/runner-lanes.schema.json.
++# Every job of ci.yml and security.yml must be classified: tests/ci_runners fails on drift.
++schema_version: 1
++routing:
++  repository_variable: CI_RUNNER_LANE   # unset or anything but "self-hosted" => hosted
++  dispatch_input: runner_lane           # workflow_dispatch choice: auto | hosted | self-hosted
++  self_hosted_labels: [self-hosted, linux, ARM64, gx10]
++  hosted_label: ubuntu-latest
++workflows:
++  ci.yml:
++    jobs:
++      test-openbao-credentials: { lane: routed }
++      test-openbao-live:
++        lane: hosted
++        reason_code: container-engine
++        reason: "run_live_matrix.sh starts an OpenBao container through podman or docker; no container engine is exposed inside runner containers (D6)."
++      test: { lane: routed }
++      test-infra-skills: { lane: routed }
++      test-skills: { lane: routed }
++      skill-audit-freshness: { lane: routed }
++      validate-specs: { lane: routed }
++      context-drift-gate: { lane: routed }
++      contract-breaking-change-gate: { lane: routed }
++      coverage-ratchet: { lane: routed }
++      check-docker-imports: { lane: routed }
++      docker-smoke-import:
++        lane: hosted
++        reason_code: container-engine
++        reason: "Docker buildx build with the type=gha cache; the image it validates is the amd64 production image (Railway), so arm64 would also check the wrong architecture."
++      formal-coordination: { lane: routed }
++      test-integration:
++        lane: hosted
++        reason_code: container-engine
++        reason: "services: Postgres (paradedb) container and sudo apt-get need a container engine and root; neither exists inside runner containers (D6)."
++      gen-eval:
++        lane: hosted
++        reason_code: container-engine
++        reason: "services: Postgres (paradedb) container and sudo apt-get need a container engine and root; neither exists inside runner containers (D6)."
++      gen-eval-tests: { lane: routed }
++      code-search-tests: { lane: routed }
++      system-one-decisions-tests: { lane: routed }
++      agent-scenarios-tests: { lane: routed }
++      requirement-traceability-sweep: { lane: routed }
++      context-eval: { lane: routed }
++      semantic-enablement-gate: { lane: routed }
++      dependency-update-remediation:
++        lane: hosted
++        reason_code: privileged-token
++        reason: "Holds contents: write and pushes; write-scoped tokens stay off the shared host."
++      validate-context-producers: { lane: routed }
++      test-codebase-atlas: { lane: routed }
++  security.yml:
++    jobs:
++      secret-scan: { lane: routed }
++      dependency-audit-coordinator: { lane: routed }
++      dependency-audit-skills: { lane: routed }
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index f79a3178..fac78ba6 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -5,6 +5,13 @@ on:
+     branches: [main]
+   pull_request:
+   merge_group:
++  workflow_dispatch:
++    inputs:
++      runner_lane:
++        description: "Runner lane for routed jobs: auto follows the CI_RUNNER_LANE repository variable"
++        type: choice
++        options: [auto, hosted, self-hosted]
++        default: auto
+ 
+ permissions:
+   contents: read
+@@ -49,17 +56,28 @@ concurrency:
+ 
+ jobs:
+   test-openbao-credentials:
+-    runs-on: ubuntu-latest
++    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && ((github.event_name == 'workflow_dispatch' && inputs.runner_lane != 'auto') && inputs.runner_lane || vars.CI_RUNNER_LANE) == 'self-hosted' && fromJSON('["self-hosted","linux","ARM64","gx10"]') || 'ubuntu-latest' }}
+     timeout-minutes: 10
+     defaults:
+       run:
+         working-directory: packages/openbao-credentials
+ 
+     steps:
++      - name: Refuse ineligible events on self-hosted runner
++        if: runner.environment == 'self-hosted' && !(github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
++        shell: bash
++        working-directory: ${{ github.workspace }}
++        run: |
++          echo "::error::Only push, workflow_dispatch and same-repository pull_request runs may execute on self-hosted runners (fork PRs and merge_group never); routing expression bypassed."
++          exit 1
+       - uses: actions/checkout@v7
+ 
+       - name: Install uv
+         uses: astral-sh/setup-uv@v7
++        with:
++          # D6: the runner image sets UV_CACHE_DIR to this path; without it setup-uv would
++          # redirect the cache to $RUNNER_TEMP and an opted-in shared cache would go unused.
++          cache-local-path: /home/runner/.cache/uv
+ 
+       - name: Set up Python 3.12
+         run: uv python install 3.12
+@@ -71,6 +89,7 @@ jobs:
+         run: uv run pytest tests -q
+ 
+   test-openbao-live:
++    # Hosted lane (container-engine): see .github/runner-lanes.yaml for the reason.
+     runs-on: ubuntu-latest
+     timeout-minutes: 15
+     steps:
+@@ -92,17 +111,28 @@ jobs:
+         run: bash skills/bao-vault/scripts/tests/integration/run_live_matrix.sh
+ 
+   test:
+-    runs-on: ubuntu-latest
++    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && ((github.event_name == 'workflow_dispatch' && inputs.runner_lane != 'auto') && inputs.runner_lane || vars.CI_RUNNER_LANE) == 'self-hosted' && fromJSON('["self-hosted","linux","ARM64","gx10"]') || 'ubuntu-latest' }}
+     timeout-minutes: 15
+     defaults:
+       run:
+         working-directory: agent-coordinator
+ 
+     steps:
++      - name: Refuse ineligible events on self-hosted runner
++        if: runner.environment == 'self-hosted' && !(github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
++        shell: bash
++        working-directory: ${{ github.workspace }}
++        run: |
++          echo "::error::Only push, workflow_dispatch and same-repository pull_request runs may execute on self-hosted runners (fork PRs and merge_group never); routing expression bypassed."
++          exit 1
+       - uses: actions/checkout@v7
+ 
+       - name: Install uv
+         uses: astral-sh/setup-uv@v7
++        with:
++          # D6: the runner image sets UV_CACHE_DIR to this path; without it setup-uv would
++          # redirect the cache to $RUNNER_TEMP and an opted-in shared cache would go unused.
++          cache-local-path: /home/runner/.cache/uv
+ 
+       - name: Set up Python 3.12
+         run: uv python install 3.12
+@@ -120,17 +150,28 @@ jobs:
+         run: uv run pytest -m "not e2e and not integration"
+ 
+   test-infra-skills:
+-    runs-on: ubuntu-latest
++    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && ((github.event_name == 'workflow_dispatch' && inputs.runner_lane != 'auto') && inputs.runner_lane || vars.CI_RUNNER_LANE) == 'self-hosted' && fromJSON('["self-hosted","linux","ARM64","gx10"]') || 'ubuntu-latest' }}
+     timeout-minutes: 20
+     defaults:
+       run:
+         working-directory: skills
+ 
+     steps:
++      - name: Refuse ineligible events on self-hosted runner
++        if: runner.environment == 'self-hosted' && !(github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
++        shell: bash
++        working-directory: ${{ github.workspace }}
++        run: |
++          echo "::error::Only push, workflow_dispatch and same-repository pull_request runs may execute on self-hosted runners (fork PRs and merge_group never); routing expression bypassed."
++          exit 1
+       - uses: actions/checkout@v7
+ 
+       - name: Install uv
+         uses: astral-sh/setup-uv@v7
++        with:
++          # D6: the runner image sets UV_CACHE_DIR to this path; without it setup-uv would
++          # redirect the cache to $RUNNER_TEMP and an opted-in shared cache would go unused.
++          cache-local-path: /home/runner/.cache/uv
+ 
+       - name: Set up Python 3.12
+         run: uv python install 3.12
+@@ -237,14 +278,25 @@ jobs:
+           exit $status
+ 
+   test-skills:
+-    runs-on: ubuntu-latest
++    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && ((github.event_name == 'workflow_dispatch' && inputs.runner_lane != 'auto') && inputs.runner_lane || vars.CI_RUNNER_LANE) == 'self-hosted' && fromJSON('["self-hosted","linux","ARM64","gx10"]') || 'ubuntu-latest' }}
+     timeout-minutes: 10
+ 
+     steps:
++      - name: Refuse ineligible events on self-hosted runner
++        if: runner.environment == 'self-hosted' && !(github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
++        shell: bash
++        working-directory: ${{ github.workspace }}
++        run: |
++          echo "::error::Only push, workflow_dispatch and same-repository pull_request runs may execute on self-hosted runners (fork PRs and merge_group never); routing expression bypassed."
++          exit 1
+       - uses: actions/checkout@v7
+ 
+       - name: Install uv
+         uses: astral-sh/setup-uv@v7
++        with:
++          # D6: the runner image sets UV_CACHE_DIR to this path; without it setup-uv would
++          # redirect the cache to $RUNNER_TEMP and an opted-in shared cache would go unused.
++          cache-local-path: /home/runner/.cache/uv
+ 
+       - name: Set up Python 3.12
+         run: uv python install 3.12
+@@ -260,15 +312,26 @@ jobs:
+   # re-run /skill-audit, not a defect in the change under review. Fails soft so
+   # an unrelated archetypes.yaml edit never blocks a merge.
+   skill-audit-freshness:
+-    runs-on: ubuntu-latest
++    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && ((github.event_name == 'workflow_dispatch' && inputs.runner_lane != 'auto') && inputs.runner_lane || vars.CI_RUNNER_LANE) == 'self-hosted' && fromJSON('["self-hosted","linux","ARM64","gx10"]') || 'ubuntu-latest' }}
+     timeout-minutes: 10
+     continue-on-error: true
+ 
+     steps:
++      - name: Refuse ineligible events on self-hosted runner
++        if: runner.environment == 'self-hosted' && !(github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
++        shell: bash
++        working-directory: ${{ github.workspace }}
++        run: |
++          echo "::error::Only push, workflow_dispatch and same-repository pull_request runs may execute on self-hosted runners (fork PRs and merge_group never); routing expression bypassed."
++          exit 1
+       - uses: actions/checkout@v7
+ 
+       - name: Install uv
+         uses: astral-sh/setup-uv@v7
++        with:
++          # D6: the runner image sets UV_CACHE_DIR to this path; without it setup-uv would
++          # redirect the cache to $RUNNER_TEMP and an opted-in shared cache would go unused.
++          cache-local-path: /home/runner/.cache/uv
+ 
+       - name: Set up Python 3.12
+         run: uv python install 3.12
+@@ -304,10 +367,17 @@ jobs:
+           exit 0
+ 
+   validate-specs:
+-    runs-on: ubuntu-latest
++    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && ((github.event_name == 'workflow_dispatch' && inputs.runner_lane != 'auto') && inputs.runner_lane || vars.CI_RUNNER_LANE) == 'self-hosted' && fromJSON('["self-hosted","linux","ARM64","gx10"]') || 'ubuntu-latest' }}
+     timeout-minutes: 10
+ 
+     steps:
++      - name: Refuse ineligible events on self-hosted runner
++        if: runner.environment == 'self-hosted' && !(github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
++        shell: bash
++        working-directory: ${{ github.workspace }}
++        run: |
++          echo "::error::Only push, workflow_dispatch and same-repository pull_request runs may execute on self-hosted runners (fork PRs and merge_group never); routing expression bypassed."
++          exit 1
+       - uses: actions/checkout@v7
+ 
+       # Pinned via `.openspec-version`, not `@latest` (issue #318). `--strict`
+@@ -317,6 +387,12 @@ jobs:
+       # publish. Bump the pin by editing that one file; every other install
+       # site (scripts/setup-cli.sh, the session-bootstrap scripts,
+       # skills/install.sh) reads it too, so local and CI cannot disagree.
++      - name: Set up Node.js
++        uses: actions/setup-node@v6
++        with:
++          # The hosted image preinstalls node/npm; the self-hosted runner image does not (D10).
++          node-version: '22'
++
+       - name: Install openspec
+         run: npm install -g "@fission-ai/openspec@$(tr -d '[:space:]' < .openspec-version)"
+ 
+@@ -364,10 +440,17 @@ jobs:
+   # of it, because at those points there is no other branch to inherit from. The
+   # rule itself lives in gate.py, not here — this job selects it and nothing more.
+   context-drift-gate:
+-    runs-on: ubuntu-latest
++    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && ((github.event_name == 'workflow_dispatch' && inputs.runner_lane != 'auto') && inputs.runner_lane || vars.CI_RUNNER_LANE) == 'self-hosted' && fromJSON('["self-hosted","linux","ARM64","gx10"]') || 'ubuntu-latest' }}
+     timeout-minutes: 10
+ 
+     steps:
++      - name: Refuse ineligible events on self-hosted runner
++        if: runner.environment == 'self-hosted' && !(github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
++        shell: bash
++        working-directory: ${{ github.workspace }}
++        run: |
++          echo "::error::Only push, workflow_dispatch and same-repository pull_request runs may execute on self-hosted runners (fork PRs and merge_group never); routing expression bypassed."
++          exit 1
+       - uses: actions/checkout@v7
+         with:
+           # The gate scopes work-package context-impact validation to
+@@ -377,6 +460,10 @@ jobs:
+ 
+       - name: Install uv
+         uses: astral-sh/setup-uv@v7
++        with:
++          # D6: the runner image sets UV_CACHE_DIR to this path; without it setup-uv would
++          # redirect the cache to $RUNNER_TEMP and an opted-in shared cache would go unused.
++          cache-local-path: /home/runner/.cache/uv
+ 
+       - name: Set up Python 3.12
+         run: uv python install 3.12
+@@ -499,10 +586,17 @@ jobs:
+   # base commit, or the pre-push tip of main (so a push compares exactly the
+   # commits it landed).
+   contract-breaking-change-gate:
+-    runs-on: ubuntu-latest
++    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && ((github.event_name == 'workflow_dispatch' && inputs.runner_lane != 'auto') && inputs.runner_lane || vars.CI_RUNNER_LANE) == 'self-hosted' && fromJSON('["self-hosted","linux","ARM64","gx10"]') || 'ubuntu-latest' }}
+     timeout-minutes: 10
+ 
+     steps:
++      - name: Refuse ineligible events on self-hosted runner
++        if: runner.environment == 'self-hosted' && !(github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
++        shell: bash
++        working-directory: ${{ github.workspace }}
++        run: |
++          echo "::error::Only push, workflow_dispatch and same-repository pull_request runs may execute on self-hosted runners (fork PRs and merge_group never); routing expression bypassed."
++          exit 1
+       - uses: actions/checkout@v7
+         with:
+           # The gate needs the merge base and the base versions of each document.
+@@ -516,6 +610,10 @@ jobs:
+ 
+       - name: Install uv
+         uses: astral-sh/setup-uv@v7
++        with:
++          # D6: the runner image sets UV_CACHE_DIR to this path; without it setup-uv would
++          # redirect the cache to $RUNNER_TEMP and an opted-in shared cache would go unused.
++          cache-local-path: /home/runner/.cache/uv
+ 
+       - name: Set up Python 3.12
+         run: uv python install 3.12
+@@ -567,14 +665,25 @@ jobs:
+   # pyproject: coverage is a CI-only concern here, and neither package's
+   # dependency set should grow for it.
+   coverage-ratchet:
+-    runs-on: ubuntu-latest
++    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && ((github.event_name == 'workflow_dispatch' && inputs.runner_lane != 'auto') && inputs.runner_lane || vars.CI_RUNNER_LANE) == 'self-hosted' && fromJSON('["self-hosted","linux","ARM64","gx10"]') || 'ubuntu-latest' }}
+     timeout-minutes: 20
+ 
+     steps:
++      - name: Refuse ineligible events on self-hosted runner
++        if: runner.environment == 'self-hosted' && !(github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
++        shell: bash
++        working-directory: ${{ github.workspace }}
++        run: |
++          echo "::error::Only push, workflow_dispatch and same-repository pull_request runs may execute on self-hosted runners (fork PRs and merge_group never); routing expression bypassed."
++          exit 1
+       - uses: actions/checkout@v7
+ 
+       - name: Install uv
+         uses: astral-sh/setup-uv@v7
++        with:
++          # D6: the runner image sets UV_CACHE_DIR to this path; without it setup-uv would
++          # redirect the cache to $RUNNER_TEMP and an opted-in shared cache would go unused.
++          cache-local-path: /home/runner/.cache/uv
+ 
+       - name: Set up Python 3.12
+         run: uv python install 3.12
+@@ -613,17 +722,28 @@ jobs:
+   # that isn't COPY'd (e.g., `from gen_eval import ...` when
+   # the gen-eval wheel isn't in .venv or evaluation/ isn't bundled).
+   check-docker-imports:
+-    runs-on: ubuntu-latest
++    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && ((github.event_name == 'workflow_dispatch' && inputs.runner_lane != 'auto') && inputs.runner_lane || vars.CI_RUNNER_LANE) == 'self-hosted' && fromJSON('["self-hosted","linux","ARM64","gx10"]') || 'ubuntu-latest' }}
+     timeout-minutes: 10
+     defaults:
+       run:
+         working-directory: agent-coordinator
+ 
+     steps:
++      - name: Refuse ineligible events on self-hosted runner
++        if: runner.environment == 'self-hosted' && !(github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
++        shell: bash
++        working-directory: ${{ github.workspace }}
++        run: |
++          echo "::error::Only push, workflow_dispatch and same-repository pull_request runs may execute on self-hosted runners (fork PRs and merge_group never); routing expression bypassed."
++          exit 1
+       - uses: actions/checkout@v7
+ 
+       - name: Install uv
+         uses: astral-sh/setup-uv@v7
++        with:
++          # D6: the runner image sets UV_CACHE_DIR to this path; without it setup-uv would
++          # redirect the cache to $RUNNER_TEMP and an opted-in shared cache would go unused.
++          cache-local-path: /home/runner/.cache/uv
+ 
+       - name: Set up Python 3.12
+         run: uv python install 3.12
+@@ -645,6 +765,7 @@ jobs:
+   # (e.g., missing system libraries, PYTHONPATH issues, lazy imports from
+   # third-party code).
+   docker-smoke-import:
++    # Hosted lane (container-engine): see .github/runner-lanes.yaml for the reason.
+     runs-on: ubuntu-latest
+     timeout-minutes: 15
+     # Build context is now repo root (D8 Strategy A) so the Dockerfile can
+@@ -718,11 +839,18 @@ jobs:
+           "
+ 
+   formal-coordination:
+-    runs-on: ubuntu-latest
++    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && ((github.event_name == 'workflow_dispatch' && inputs.runner_lane != 'auto') && inputs.runner_lane || vars.CI_RUNNER_LANE) == 'self-hosted' && fromJSON('["self-hosted","linux","ARM64","gx10"]') || 'ubuntu-latest' }}
+     timeout-minutes: 10
+     continue-on-error: true
+ 
+     steps:
++      - name: Refuse ineligible events on self-hosted runner
++        if: runner.environment == 'self-hosted' && !(github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
++        shell: bash
++        working-directory: ${{ github.workspace }}
++        run: |
++          echo "::error::Only push, workflow_dispatch and same-repository pull_request runs may execute on self-hosted runners (fork PRs and merge_group never); routing expression bypassed."
++          exit 1
+       - uses: actions/checkout@v7
+ 
+       - name: Install Java
+@@ -735,6 +863,7 @@ jobs:
+         run: .github/scripts/run_tlc.sh
+ 
+   test-integration:
++    # Hosted lane (container-engine): see .github/runner-lanes.yaml for the reason.
+     runs-on: ubuntu-latest
+     timeout-minutes: 15
+ 
+@@ -793,6 +922,7 @@ jobs:
+           COORDINATOR_PROFILE: local
+ 
+   gen-eval:
++    # Hosted lane (container-engine): see .github/runner-lanes.yaml for the reason.
+     runs-on: ubuntu-latest
+     timeout-minutes: 10
+     defaults:
+@@ -860,17 +990,28 @@ jobs:
+   gen-eval-tests:
+     # Package-level unit tests for packages/gen-eval/ (task 3.4, D10).
+     # Runs in parallel with other jobs; does NOT require a live DB.
+-    runs-on: ubuntu-latest
++    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && ((github.event_name == 'workflow_dispatch' && inputs.runner_lane != 'auto') && inputs.runner_lane || vars.CI_RUNNER_LANE) == 'self-hosted' && fromJSON('["self-hosted","linux","ARM64","gx10"]') || 'ubuntu-latest' }}
+     timeout-minutes: 15
+     defaults:
+       run:
+         working-directory: packages/gen-eval
+ 
+     steps:
++      - name: Refuse ineligible events on self-hosted runner
++        if: runner.environment == 'self-hosted' && !(github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
++        shell: bash
++        working-directory: ${{ github.workspace }}
++        run: |
++          echo "::error::Only push, workflow_dispatch and same-repository pull_request runs may execute on self-hosted runners (fork PRs and merge_group never); routing expression bypassed."
++          exit 1
+       - uses: actions/checkout@v7
+ 
+       - name: Install uv
+         uses: astral-sh/setup-uv@v7
++        with:
++          # D6: the runner image sets UV_CACHE_DIR to this path; without it setup-uv would
++          # redirect the cache to $RUNNER_TEMP and an opted-in shared cache would go unused.
++          cache-local-path: /home/runner/.cache/uv
+ 
+       - name: Set up Python 3.12
+         run: uv python install 3.12
+@@ -956,17 +1097,28 @@ jobs:
+   # findings. Adopting a style here is its own change, not a precondition for
+   # running the tests that already exist.
+   code-search-tests:
+-    runs-on: ubuntu-latest
++    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && ((github.event_name == 'workflow_dispatch' && inputs.runner_lane != 'auto') && inputs.runner_lane || vars.CI_RUNNER_LANE) == 'self-hosted' && fromJSON('["self-hosted","linux","ARM64","gx10"]') || 'ubuntu-latest' }}
+     timeout-minutes: 15
+     defaults:
+       run:
+         working-directory: packages/code-search
+ 
+     steps:
++      - name: Refuse ineligible events on self-hosted runner
++        if: runner.environment == 'self-hosted' && !(github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
++        shell: bash
++        working-directory: ${{ github.workspace }}
++        run: |
++          echo "::error::Only push, workflow_dispatch and same-repository pull_request runs may execute on self-hosted runners (fork PRs and merge_group never); routing expression bypassed."
++          exit 1
+       - uses: actions/checkout@v7
+ 
+       - name: Install uv
+         uses: astral-sh/setup-uv@v7
++        with:
++          # D6: the runner image sets UV_CACHE_DIR to this path; without it setup-uv would
++          # redirect the cache to $RUNNER_TEMP and an opted-in shared cache would go unused.
++          cache-local-path: /home/runner/.cache/uv
+ 
+       - name: Set up Python 3.12
+         run: uv python install 3.12
+@@ -983,17 +1135,28 @@ jobs:
+   # ruff/mypy config in this package yet) — a style pass is its own change,
+   # not a precondition for running the tests that already exist.
+   system-one-decisions-tests:
+-    runs-on: ubuntu-latest
++    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && ((github.event_name == 'workflow_dispatch' && inputs.runner_lane != 'auto') && inputs.runner_lane || vars.CI_RUNNER_LANE) == 'self-hosted' && fromJSON('["self-hosted","linux","ARM64","gx10"]') || 'ubuntu-latest' }}
+     timeout-minutes: 15
+     defaults:
+       run:
+         working-directory: packages/system-one-decisions
+ 
+     steps:
++      - name: Refuse ineligible events on self-hosted runner
++        if: runner.environment == 'self-hosted' && !(github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
++        shell: bash
++        working-directory: ${{ github.workspace }}
++        run: |
++          echo "::error::Only push, workflow_dispatch and same-repository pull_request runs may execute on self-hosted runners (fork PRs and merge_group never); routing expression bypassed."
++          exit 1
+       - uses: actions/checkout@v7
+ 
+       - name: Install uv
+         uses: astral-sh/setup-uv@v7
++        with:
++          # D6: the runner image sets UV_CACHE_DIR to this path; without it setup-uv would
++          # redirect the cache to $RUNNER_TEMP and an opted-in shared cache would go unused.
++          cache-local-path: /home/runner/.cache/uv
+ 
+       - name: Set up Python 3.12
+         run: uv python install 3.12
+@@ -1015,17 +1178,28 @@ jobs:
+   # gen-eval-tests uses: the package is clean under --strict as of this commit,
+   # so a non-blocking step would only invite it to rot again.
+   agent-scenarios-tests:
+-    runs-on: ubuntu-latest
++    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && ((github.event_name == 'workflow_dispatch' && inputs.runner_lane != 'auto') && inputs.runner_lane || vars.CI_RUNNER_LANE) == 'self-hosted' && fromJSON('["self-hosted","linux","ARM64","gx10"]') || 'ubuntu-latest' }}
+     timeout-minutes: 15
+     defaults:
+       run:
+         working-directory: packages/agent-scenarios
+ 
+     steps:
++      - name: Refuse ineligible events on self-hosted runner
++        if: runner.environment == 'self-hosted' && !(github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
++        shell: bash
++        working-directory: ${{ github.workspace }}
++        run: |
++          echo "::error::Only push, workflow_dispatch and same-repository pull_request runs may execute on self-hosted runners (fork PRs and merge_group never); routing expression bypassed."
++          exit 1
+       - uses: actions/checkout@v7
+ 
+       - name: Install uv
+         uses: astral-sh/setup-uv@v7
++        with:
++          # D6: the runner image sets UV_CACHE_DIR to this path; without it setup-uv would
++          # redirect the cache to $RUNNER_TEMP and an opted-in shared cache would go unused.
++          cache-local-path: /home/runner/.cache/uv
+ 
+       - name: Set up Python 3.12
+         run: uv python install 3.12
+@@ -1065,10 +1239,17 @@ jobs:
+   # non-blocking run — see D12 for why this is an invariant, not a
+   # coincidence.
+   requirement-traceability-sweep:
+-    runs-on: ubuntu-latest
++    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && ((github.event_name == 'workflow_dispatch' && inputs.runner_lane != 'auto') && inputs.runner_lane || vars.CI_RUNNER_LANE) == 'self-hosted' && fromJSON('["self-hosted","linux","ARM64","gx10"]') || 'ubuntu-latest' }}
+     timeout-minutes: 10
+ 
+     steps:
++      - name: Refuse ineligible events on self-hosted runner
++        if: runner.environment == 'self-hosted' && !(github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
++        shell: bash
++        working-directory: ${{ github.workspace }}
++        run: |
++          echo "::error::Only push, workflow_dispatch and same-repository pull_request runs may execute on self-hosted runners (fork PRs and merge_group never); routing expression bypassed."
++          exit 1
+       - uses: actions/checkout@v7
+         with:
+           # Change-id derivation diffs against the PR/merge-group base
+@@ -1077,6 +1258,10 @@ jobs:
+ 
+       - name: Install uv
+         uses: astral-sh/setup-uv@v7
++        with:
++          # D6: the runner image sets UV_CACHE_DIR to this path; without it setup-uv would
++          # redirect the cache to $RUNNER_TEMP and an opted-in shared cache would go unused.
++          cache-local-path: /home/runner/.cache/uv
+ 
+       - name: Set up Python 3.12
+         run: uv python install 3.12
+@@ -1292,18 +1477,28 @@ jobs:
+     # construction. The live measurement is deliberately NOT a CI job — it needs
+     # a real index and minutes of indexing — and its output, the committed
+     # report under docs/evaluation/semantic-context/, is what CI reads.
+-    runs-on: ubuntu-latest
++    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && ((github.event_name == 'workflow_dispatch' && inputs.runner_lane != 'auto') && inputs.runner_lane || vars.CI_RUNNER_LANE) == 'self-hosted' && fromJSON('["self-hosted","linux","ARM64","gx10"]') || 'ubuntu-latest' }}
+     timeout-minutes: 15
+     defaults:
+       run:
+         working-directory: packages/context-eval
+ 
+     steps:
++      - name: Refuse ineligible events on self-hosted runner
++        if: runner.environment == 'self-hosted' && !(github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
++        shell: bash
++        working-directory: ${{ github.workspace }}
++        run: |
++          echo "::error::Only push, workflow_dispatch and same-repository pull_request runs may execute on self-hosted runners (fork PRs and merge_group never); routing expression bypassed."
++          exit 1
+       - uses: actions/checkout@v7
+ 
+       - name: Install uv
+         uses: astral-sh/setup-uv@v7
+         with:
++          # D6: the runner image sets UV_CACHE_DIR to this path; without it setup-uv would
++          # redirect the cache to $RUNNER_TEMP and an opted-in shared cache would go unused.
++          cache-local-path: /home/runner/.cache/uv
+           # Pinned, like every tool below and like the openspec CLI in
+           # validate-specs. That one used to float on `@latest`, which let a
+           # local 1.1.1 and CI's 1.6.0 disagree about the same tree and nearly
+@@ -1358,10 +1553,17 @@ jobs:
+     # It adds nothing at runtime and reaches no service: no database, no
+     # embedder, no coordinator. It reads one committed source constant and one
+     # committed report.
+-    runs-on: ubuntu-latest
++    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && ((github.event_name == 'workflow_dispatch' && inputs.runner_lane != 'auto') && inputs.runner_lane || vars.CI_RUNNER_LANE) == 'self-hosted' && fromJSON('["self-hosted","linux","ARM64","gx10"]') || 'ubuntu-latest' }}
+     timeout-minutes: 10
+ 
+     steps:
++      - name: Refuse ineligible events on self-hosted runner
++        if: runner.environment == 'self-hosted' && !(github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
++        shell: bash
++        working-directory: ${{ github.workspace }}
++        run: |
++          echo "::error::Only push, workflow_dispatch and same-repository pull_request runs may execute on self-hosted runners (fork PRs and merge_group never); routing expression bypassed."
++          exit 1
+       - uses: actions/checkout@v7
+         with:
+           # Full history, because one of the six expiry conditions asks git
+@@ -1374,6 +1576,9 @@ jobs:
+       - name: Install uv
+         uses: astral-sh/setup-uv@v7
+         with:
++          # D6: the runner image sets UV_CACHE_DIR to this path; without it setup-uv would
++          # redirect the cache to $RUNNER_TEMP and an opted-in shared cache would go unused.
++          cache-local-path: /home/runner/.cache/uv
+           # Pinned, like the `context-eval` job above and for the same reason:
+           # `ci.yml` already carries one unpinned installer (issue #318) whose
+           # drift let a local and a CI version disagree about the same tree.
+@@ -1446,6 +1651,7 @@ jobs:
+       github.event_name == 'pull_request'
+       && github.event.pull_request.user.login == 'dependabot[bot]'
+       && github.event.pull_request.head.repo.full_name == github.repository
++    # Hosted lane (privileged-token): see .github/runner-lanes.yaml for the reason.
+     runs-on: ubuntu-latest
+     timeout-minutes: 20
+ 
+@@ -1625,14 +1831,25 @@ jobs:
+   #     point, where `cleanup-feature` performs the canonical spec merge.
+   #   * decisions.timeline  — already covered by validate-decision-index above.
+   validate-context-producers:
+-    runs-on: ubuntu-latest
++    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && ((github.event_name == 'workflow_dispatch' && inputs.runner_lane != 'auto') && inputs.runner_lane || vars.CI_RUNNER_LANE) == 'self-hosted' && fromJSON('["self-hosted","linux","ARM64","gx10"]') || 'ubuntu-latest' }}
+     timeout-minutes: 10
+ 
+     steps:
++      - name: Refuse ineligible events on self-hosted runner
++        if: runner.environment == 'self-hosted' && !(github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
++        shell: bash
++        working-directory: ${{ github.workspace }}
++        run: |
++          echo "::error::Only push, workflow_dispatch and same-repository pull_request runs may execute on self-hosted runners (fork PRs and merge_group never); routing expression bypassed."
++          exit 1
+       - uses: actions/checkout@v7
+ 
+       - name: Install uv
+         uses: astral-sh/setup-uv@v7
++        with:
++          # D6: the runner image sets UV_CACHE_DIR to this path; without it setup-uv would
++          # redirect the cache to $RUNNER_TEMP and an opted-in shared cache would go unused.
++          cache-local-path: /home/runner/.cache/uv
+ 
+       - name: Set up Python 3.12
+         run: uv python install 3.12
+@@ -1661,14 +1878,25 @@ jobs:
+   # deterministic — that property is what makes `make atlas-check` meaningful.
+   # The rendered HTML itself is gitignored, so it is never checked for drift here.
+   test-codebase-atlas:
+-    runs-on: ubuntu-latest
++    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && ((github.event_name == 'workflow_dispatch' && inputs.runner_lane != 'auto') && inputs.runner_lane || vars.CI_RUNNER_LANE) == 'self-hosted' && fromJSON('["self-hosted","linux","ARM64","gx10"]') || 'ubuntu-latest' }}
+     timeout-minutes: 10
+ 
+     steps:
++      - name: Refuse ineligible events on self-hosted runner
++        if: runner.environment == 'self-hosted' && !(github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
++        shell: bash
++        working-directory: ${{ github.workspace }}
++        run: |
++          echo "::error::Only push, workflow_dispatch and same-repository pull_request runs may execute on self-hosted runners (fork PRs and merge_group never); routing expression bypassed."
++          exit 1
+       - uses: actions/checkout@v7
+ 
+       - name: Install uv
+         uses: astral-sh/setup-uv@v7
++        with:
++          # D6: the runner image sets UV_CACHE_DIR to this path; without it setup-uv would
++          # redirect the cache to $RUNNER_TEMP and an opted-in shared cache would go unused.
++          cache-local-path: /home/runner/.cache/uv
+ 
+       - name: Set up Python 3.12
+         run: uv python install 3.12
+diff --git a/.github/workflows/security.yml b/.github/workflows/security.yml
+index 7f14a02e..2035146f 100644
+--- a/.github/workflows/security.yml
++++ b/.github/workflows/security.yml
+@@ -6,6 +6,13 @@ on:
+   pull_request:
+     branches: [main]
+   merge_group:
++  workflow_dispatch:
++    inputs:
++      runner_lane:
++        description: "Runner lane for routed jobs: auto follows the CI_RUNNER_LANE repository variable"
++        type: choice
++        options: [auto, hosted, self-hosted]
++        default: auto
+ 
+ permissions:
+   contents: read
+@@ -60,9 +67,16 @@ env:
+ 
+ jobs:
+   secret-scan:
+-    runs-on: ubuntu-latest
++    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && ((github.event_name == 'workflow_dispatch' && inputs.runner_lane != 'auto') && inputs.runner_lane || vars.CI_RUNNER_LANE) == 'self-hosted' && fromJSON('["self-hosted","linux","ARM64","gx10"]') || 'ubuntu-latest' }}
+     timeout-minutes: 10
+     steps:
++      - name: Refuse ineligible events on self-hosted runner
++        if: runner.environment == 'self-hosted' && !(github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
++        shell: bash
++        working-directory: ${{ github.workspace }}
++        run: |
++          echo "::error::Only push, workflow_dispatch and same-repository pull_request runs may execute on self-hosted runners (fork PRs and merge_group never); routing expression bypassed."
++          exit 1
+       - uses: actions/checkout@v7
+         with:
+           fetch-depth: 0  # Full history for gitleaks
+@@ -71,16 +85,27 @@ jobs:
+           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+ 
+   dependency-audit-coordinator:
+-    runs-on: ubuntu-latest
++    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && ((github.event_name == 'workflow_dispatch' && inputs.runner_lane != 'auto') && inputs.runner_lane || vars.CI_RUNNER_LANE) == 'self-hosted' && fromJSON('["self-hosted","linux","ARM64","gx10"]') || 'ubuntu-latest' }}
+     timeout-minutes: 10
+     defaults:
+       run:
+         working-directory: agent-coordinator
+     steps:
++      - name: Refuse ineligible events on self-hosted runner
++        if: runner.environment == 'self-hosted' && !(github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
++        shell: bash
++        working-directory: ${{ github.workspace }}
++        run: |
++          echo "::error::Only push, workflow_dispatch and same-repository pull_request runs may execute on self-hosted runners (fork PRs and merge_group never); routing expression bypassed."
++          exit 1
+       - uses: actions/checkout@v7
+ 
+       - name: Install uv
+         uses: astral-sh/setup-uv@v7
++        with:
++          # D6: the runner image sets UV_CACHE_DIR to this path; without it setup-uv would
++          # redirect the cache to $RUNNER_TEMP and an opted-in shared cache would go unused.
++          cache-local-path: /home/runner/.cache/uv
+ 
+       - name: Set up Python 3.12
+         run: uv python install 3.12
+@@ -97,16 +122,27 @@ jobs:
+           uv run pip-audit --desc on $IGNORE_ARGS
+ 
+   dependency-audit-skills:
+-    runs-on: ubuntu-latest
++    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && ((github.event_name == 'workflow_dispatch' && inputs.runner_lane != 'auto') && inputs.runner_lane || vars.CI_RUNNER_LANE) == 'self-hosted' && fromJSON('["self-hosted","linux","ARM64","gx10"]') || 'ubuntu-latest' }}
+     timeout-minutes: 10
+     defaults:
+       run:
+         working-directory: skills
+     steps:
++      - name: Refuse ineligible events on self-hosted runner
++        if: runner.environment == 'self-hosted' && !(github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
++        shell: bash
++        working-directory: ${{ github.workspace }}
++        run: |
++          echo "::error::Only push, workflow_dispatch and same-repository pull_request runs may execute on self-hosted runners (fork PRs and merge_group never); routing expression bypassed."
++          exit 1
+       - uses: actions/checkout@v7
+ 
+       - name: Install uv
+         uses: astral-sh/setup-uv@v7
++        with:
++          # D6: the runner image sets UV_CACHE_DIR to this path; without it setup-uv would
++          # redirect the cache to $RUNNER_TEMP and an opted-in shared cache would go unused.
++          cache-local-path: /home/runner/.cache/uv
+ 
+       - name: Set up Python 3.12
+         run: uv python install 3.12
+diff --git a/deploy/gx10-runner/Containerfile b/deploy/gx10-runner/Containerfile
+new file mode 100644
+index 00000000..778af66c
+--- /dev/null
++++ b/deploy/gx10-runner/Containerfile
+@@ -0,0 +1,34 @@
++# GX10 ephemeral runner image (design D4, D6). Built by the OPERATOR as `ghrunner` (O3):
++#   podman build -t localhost/gx10-runner:<sha> deploy/gx10-runner
++#
++# Base: official multi-arch actions-runner image, pinned by version AND index digest (read
++# with `skopeo inspect --raw docker://ghcr.io/actions/actions-runner:<version> | sha256sum`).
++# Bump both together; never use `latest`.
++FROM ghcr.io/actions/actions-runner:2.338.0@sha256:4ffadc0002b2581327e06101fc8c06cd189232baf79fe561fac9caeb76f5e807
++
++USER root
++
++# Baseline toolchain (D6), one package per line in toolchain.txt.
++COPY toolchain.txt /tmp/toolchain.txt
++RUN apt-get update \
++    && xargs -a /tmp/toolchain.txt apt-get install -y --no-install-recommends \
++    && rm -rf /var/lib/apt/lists/* /tmp/toolchain.txt
++
++# Runner-side fork enforcement (D4). Root-owned and read-only to the runner user, so job
++# steps cannot edit it; the runner executes it before any step of every job.
++COPY job-started-hook.sh /opt/gx10/job-started-hook.sh
++RUN chmod 0755 /opt/gx10/job-started-hook.sh && chown -R root:root /opt/gx10
++ENV ACTIONS_RUNNER_HOOK_JOB_STARTED=/opt/gx10/job-started-hook.sh
++
++# uv cache location (D6). Empty unless the operator opts in to mounting a shared volume.
++ENV UV_CACHE_DIR=/home/runner/.cache/uv
++RUN mkdir -p /home/runner/.cache/uv && chown -R runner:runner /home/runner/.cache
++
++# The upstream image may ship a passwordless-sudo grant for `runner`. Remove it: jobs must
++# not be able to escalate (and --cap-drop ALL / no-new-privileges back this up at runtime).
++RUN sed -i '/NOPASSWD/d' /etc/sudoers 2>/dev/null || true
++
++USER runner
++WORKDIR /home/runner
++# The JIT config arrives as ACTIONS_RUNNER_INPUT_JITCONFIG in the environment.
++ENTRYPOINT ["/home/runner/run.sh"]
+diff --git a/deploy/gx10-runner/cleanup-runner.sh b/deploy/gx10-runner/cleanup-runner.sh
+new file mode 100755
+index 00000000..fbfd85e2
+--- /dev/null
++++ b/deploy/gx10-runner/cleanup-runner.sh
+@@ -0,0 +1,57 @@
++#!/usr/bin/env bash
++# Best-effort removal of this instance's runner registration (design D5).
++#
++# Usage: cleanup-runner.sh <instance>
++#
++# Runs as the unit's ExecStopPost. A JIT runner deregisters itself after its job, so the
++# registration normally no longer exists; this removes it only when it is still registered
++# AND offline (a never-used or crashed runner). It always exits 0.
++set -uo pipefail
++umask 077
++
++instance="${1:-}"
++repo="${GX10_RUNNER_REPO:-}"
++api="${GX10_GITHUB_API:-https://api.github.com}"
++env_file="${XDG_RUNTIME_DIR:-/nonexistent}/gx10-runner/${instance}.env"
++
++log() { printf 'cleanup-runner[%s]: %s\n' "$instance" "$*" >&2; }
++
++main() {
++  [[ -n "$instance" && -n "$repo" && -f "$env_file" ]] || return 0
++  local rid token_file work code status
++  rid="$(sed -n 's/^GX10_RUNNER_ID=//p' "$env_file" | head -n1)"
++  # The env file holds the single-use JIT config; drop it whatever happens next.
++  rm -f "$env_file"
++  [[ "$rid" =~ ^[0-9]+$ ]] || return 0
++
++  token_file=""
++  if [[ -n "${CREDENTIALS_DIRECTORY:-}" && -f "${CREDENTIALS_DIRECTORY}/github-token" ]]; then
++    token_file="${CREDENTIALS_DIRECTORY}/github-token"
++  elif [[ -n "${GX10_RUNNER_TOKEN_FILE:-}" ]]; then
++    token_file="${GX10_RUNNER_TOKEN_FILE}"
++  fi
++  [[ -n "$token_file" && -f "$token_file" ]] || { log "no credential; skipping"; return 0; }
++
++  work="$(mktemp -d)"
++  trap 'rm -rf "$work"' RETURN
++  { printf 'Authorization: Bearer '; tr -d '\r\n' < "$token_file"; printf '\n'; } > "$work/auth"
++  local common=(-sS --max-time 30 -H "Accept: application/vnd.github+json"
++    -H "X-GitHub-Api-Version: 2022-11-28" -H "@$work/auth" -o "$work/body" -w '%{http_code}')
++
++  code="$(curl "${common[@]}" -X GET "${api}/repos/${repo}/actions/runners/${rid}" 2>/dev/null)" || code=000
++  if [[ "$code" != 2* ]]; then
++    log "runner $rid not registered (HTTP $code); nothing to delete"
++    return 0
++  fi
++  status="$(jq -r '.status // empty' "$work/body" 2>/dev/null)"
++  if [[ "$status" == "offline" ]]; then
++    code="$(curl "${common[@]}" -X DELETE "${api}/repos/${repo}/actions/runners/${rid}" 2>/dev/null)" || code=000
++    log "deleted offline runner $rid: HTTP $code"
++  else
++    log "runner $rid is '$status'; leaving it"
++  fi
++  return 0
++}
++
++main "$@" || true
++exit 0
+diff --git a/deploy/gx10-runner/gx10-runner.env.example b/deploy/gx10-runner/gx10-runner.env.example
+new file mode 100644
+index 00000000..008eb4d7
+--- /dev/null
++++ b/deploy/gx10-runner/gx10-runner.env.example
+@@ -0,0 +1,26 @@
++# Copy to ~ghrunner/.config/gx10-runner/env (EnvironmentFile= of gx10-runner@.service).
++# Plain KEY=VALUE lines; no quoting needed. The registration credential is NOT set here:
++# the unit delivers it through LoadCredential= from ~/.config/gx10-runner/token (mode 0600).
++
++# Repository the runners register against (owner/name).
++GX10_RUNNER_REPO=OWNER/REPO
++
++# Locally built image (operator step O3). The unit never pulls.
++GX10_RUNNER_IMAGE=localhost/gx10-runner:REPLACE_WITH_BUILD_SHA
++
++# Per-instance resource limits (8 instances on the host; tune against measurement).
++GX10_RUNNER_CPUS=2
++GX10_RUNNER_MEMORY=8g
++
++# Labels mirrored from .github/runner-lanes.yaml routing.self_hosted_labels. The mint script
++# strips the labels the runner assigns itself (self-hosted, Linux, ARM64) before requesting
++# the JIT config, because the API takes custom labels only.
++GX10_RUNNER_LABELS=self-hosted,linux,ARM64,gx10
++
++# Total retry budget (seconds) for minting a JIT config. Must stay below TimeoutStartSec.
++GX10_MINT_MAX_ELAPSED=600
++
++# Shared uv cache: OFF by default. Leave empty unless the operator has recorded the risk
++# acceptance described in docs/guides/self-hosted-ci-runners.md. The only opt-in value is:
++#   GX10_RUNNER_CACHE_ARGS=--volume gx10-runner-uv-cache:/home/runner/.cache/uv
++GX10_RUNNER_CACHE_ARGS=
+diff --git a/deploy/gx10-runner/install-units.sh b/deploy/gx10-runner/install-units.sh
+new file mode 100755
+index 00000000..b976aa97
+--- /dev/null
++++ b/deploy/gx10-runner/install-units.sh
+@@ -0,0 +1,55 @@
++#!/usr/bin/env bash
++# Copy the GX10 runner kit into a user's home and PRINT the commands that enable it (D7).
++#
++# Usage: install-units.sh [--prefix DIR]
++#
++# --prefix defaults to the `ghrunner` home directory. This script only copies files beneath
++# the prefix. It never runs systemctl, loginctl or podman: those are operator steps (O1, O4)
++# and are printed for the operator to run, as `ghrunner`.
++set -euo pipefail
++
++kit="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
++prefix=""
++instances="${GX10_INSTANCES:-8}"
++
++while (( $# )); do
++  case "$1" in
++    --prefix) prefix="${2:?--prefix needs a directory}"; shift 2 ;;
++    --prefix=*) prefix="${1#--prefix=}"; shift ;;
++    --instances) instances="${2:?--instances needs a number}"; shift 2 ;;
++    -h|--help) sed -n '2,9p' "${BASH_SOURCE[0]}"; exit 0 ;;
++    *) echo "install-units.sh: unknown argument: $1" >&2; exit 2 ;;
++  esac
++done
++[[ "$instances" =~ ^[0-9]+$ && "$instances" -ge 1 ]] || { echo "invalid --instances" >&2; exit 2; }
++
++if [[ -z "$prefix" ]]; then
++  prefix="$(getent passwd ghrunner | cut -d: -f6 || true)"
++  [[ -n "$prefix" ]] || { echo "install-units.sh: no ghrunner user; pass --prefix DIR" >&2; exit 2; }
++fi
++
++unit_dir="$prefix/.config/systemd/user"
++lib_dir="$prefix/.local/lib/gx10-runner"
++conf_dir="$prefix/.config/gx10-runner"
++mkdir -p "$unit_dir" "$lib_dir" "$conf_dir"
++chmod 700 "$conf_dir"
++
++install -m 0644 "$kit/systemd/gx10-runner@.service" "$unit_dir/gx10-runner@.service"
++install -m 0755 "$kit/mint-jitconfig.sh" "$lib_dir/mint-jitconfig.sh"
++install -m 0755 "$kit/cleanup-runner.sh" "$lib_dir/cleanup-runner.sh"
++if [[ ! -e "$conf_dir/env" ]]; then
++  install -m 0600 "$kit/gx10-runner.env.example" "$conf_dir/env"
++  echo "Wrote $conf_dir/env from the example: edit GX10_RUNNER_REPO and GX10_RUNNER_IMAGE."
++fi
++
++cat <<MSG
++
++Files installed under: $prefix
++Nothing was enabled or started. As the operator, run (as ghrunner where noted):
++
++  sudo loginctl enable-linger ghrunner
++  systemctl --user daemon-reload
++  systemctl --user enable --now gx10-runner@{1..$instances}
++
++Token (mode 0600, read through LoadCredential=):  $conf_dir/token
++MSG
+diff --git a/deploy/gx10-runner/job-started-hook.sh b/deploy/gx10-runner/job-started-hook.sh
+new file mode 100755
+index 00000000..0eaf5cc4
+--- /dev/null
++++ b/deploy/gx10-runner/job-started-hook.sh
+@@ -0,0 +1,45 @@
++#!/usr/bin/env bash
++# Runner-side enforcement point (design D4).
++#
++# The runner executes this hook at the start of EVERY job (ACTIONS_RUNNER_HOOK_JOB_STARTED),
++# before any step, `container:` or `services:` setup, with the runner process's environment.
++# Workflow YAML is PR-controlled for pull_request runs, so a fork PR can rewrite `runs-on`
++# and delete its fork-guard step; this hook lives in the image and cannot be changed by a PR.
++#
++# It reads the GitHub-written event payload and fails the job (non-zero) unless the run is:
++#   - push to refs/heads/main
++#   - workflow_dispatch (only users with write access can dispatch)
++#   - pull_request whose head repository equals this repository (not a fork)
++# Everything else (fork pull_request, merge_group, pull_request_target, any new trigger) is
++# refused. The hook fails closed: a missing or unparsable payload is a refusal.
++set -euo pipefail
++
++event="${GITHUB_EVENT_NAME:-}"
++ref="${GITHUB_REF:-}"
++repo="${GITHUB_REPOSITORY:-}"
++payload="${GITHUB_EVENT_PATH:-}"
++
++refuse() {
++  echo "::error::gx10 runner refused this job: ${1}. Only push to main, workflow_dispatch and same-repository pull_request runs may execute on this runner." >&2
++  exit 1
++}
++
++case "$event" in
++  push)
++    [[ "$ref" == "refs/heads/main" ]] || refuse "push to '${ref}' (only refs/heads/main is allowed)"
++    ;;
++  workflow_dispatch)
++    ;;
++  pull_request)
++    [[ -n "$repo" && -n "$payload" && -r "$payload" ]] || refuse "no readable event payload for pull_request"
++    head_repo="$(jq -r '.pull_request.head.repo.full_name // empty' "$payload")" ||
++      refuse "unparsable event payload"
++    [[ -n "$head_repo" ]] || refuse "pull_request payload has no head repository"
++    [[ "${head_repo,,}" == "${repo,,}" ]] ||
++      refuse "pull_request from fork '${head_repo}' (base is '${repo}')"
++    ;;
++  *)
++    refuse "event '${event}' is not allowed"
++    ;;
++esac
++exit 0
+diff --git a/deploy/gx10-runner/mint-jitconfig.sh b/deploy/gx10-runner/mint-jitconfig.sh
+new file mode 100755
+index 00000000..fa3b592a
+--- /dev/null
++++ b/deploy/gx10-runner/mint-jitconfig.sh
+@@ -0,0 +1,145 @@
++#!/usr/bin/env bash
++# Mint a single-use GitHub Actions JIT runner config on the HOST (design D5).
++#
++# Usage: mint-jitconfig.sh <instance>
++#
++# Runs as the unit's ExecStartPre. The registration credential is read on the host and
++# never written to the container env file; the container receives only the single-use
++# encoded JIT config and the runner id.
++#
++# Environment (from the unit's EnvironmentFile=):
++#   GX10_RUNNER_REPO         owner/name (required)
++#   GX10_RUNNER_LABELS       comma-separated full label set; runner-assigned defaults are stripped
++#   GX10_MINT_MAX_ELAPSED    total retry budget in seconds (default 600; keep < TimeoutStartSec)
++#   GX10_MINT_BASE_DELAY     first retry delay in seconds (default 5; doubles, capped at 300)
++#   GX10_RUNNER_TOKEN_FILE   credential fallback when $CREDENTIALS_DIRECTORY is unset
++#   GX10_GITHUB_API          API base (default https://api.github.com)
++#   GX10_HOSTNAME            override for `hostname -s` (tests)
++set -euo pipefail
++umask 077
++
++instance="${1:?usage: mint-jitconfig.sh <instance>}"
++repo="${GX10_RUNNER_REPO:?GX10_RUNNER_REPO is not set}"
++api="${GX10_GITHUB_API:-https://api.github.com}"
++max_elapsed="${GX10_MINT_MAX_ELAPSED:-600}"
++base_delay="${GX10_MINT_BASE_DELAY:-5}"
++host="${GX10_HOSTNAME:-$(hostname -s)}"
++prefix="gx10-${host}-${instance}-"
++max_pages=10
++
++log() { printf 'mint-jitconfig[%s]: %s\n' "$instance" "$*" >&2; }
++
++# --- credential -----------------------------------------------------------------------
++token_file=""
++if [[ -n "${CREDENTIALS_DIRECTORY:-}" && -f "${CREDENTIALS_DIRECTORY}/github-token" ]]; then
++  token_file="${CREDENTIALS_DIRECTORY}/github-token"
++elif [[ -n "${GX10_RUNNER_TOKEN_FILE:-}" ]]; then
++  token_file="${GX10_RUNNER_TOKEN_FILE}"
++fi
++if [[ -z "$token_file" || ! -f "$token_file" ]]; then
++  log "no credential: expected \$CREDENTIALS_DIRECTORY/github-token or GX10_RUNNER_TOKEN_FILE"
++  exit 1
++fi
++mode="$(stat -c '%a' "$token_file")"
++if (( (8#$mode) & ~8#600 )); then
++  log "refusing credential file $token_file with mode $mode (must be 0600 or narrower)"
++  exit 1
++fi
++
++work="$(mktemp -d)"
++trap 'rm -rf "$work"' EXIT
++# The Authorization header lives in a 0600 file passed as -H @file, so the credential
++# never appears in a process argument list.
++{ printf 'Authorization: Bearer '; tr -d '\r\n' < "$token_file"; printf '\n'; } > "$work/auth"
++
++# api_call METHOD URL [JSON_BODY] -> prints the HTTP status; body in $work/body, headers in
++# $work/hdr. A transport failure prints 000.
++api_call() {
++  local method="$1" url="$2" data="${3:-}" code
++  local args=(-sS --max-time 30 -X "$method"
++    -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28"
++    -H "@$work/auth" -D "$work/hdr" -o "$work/body" -w '%{http_code}')
++  [[ -n "$data" ]] && args+=(-d "$data")
++  code="$(curl "${args[@]}" "$url" 2>/dev/null)" || code="000"
++  printf '%s' "${code:-000}"
++}
++
++# --- sweep stale registrations of THIS instance (best-effort) -------------------------
++sweep() {
++  local page=1 url code id name status listing has_next
++  while (( page <= max_pages )); do
++    url="${api}/repos/${repo}/actions/runners?per_page=100&page=${page}"
++    code="$(api_call GET "$url")"
++    if [[ "$code" != 2* ]]; then
++      log "sweep: list runners returned HTTP $code (continuing without sweep)"
++      return 0
++    fi
++    # Snapshot the page before issuing DELETEs: api_call reuses the body/header files.
++    listing="$(jq -r '.runners[]? | [.id, .name, .status] | @tsv' "$work/body" 2>/dev/null || true)"
++    has_next=0
++    grep -qi '^link:.*rel="next"' "$work/hdr" 2>/dev/null && has_next=1
++    while IFS=$'\t' read -r id name status; do
++      [[ -z "$id" ]] && continue
++      if [[ "$name" == "$prefix"* && "$status" == "offline" ]]; then
++        code="$(api_call DELETE "${api}/repos/${repo}/actions/runners/${id}")"
++        log "sweep: deleted stale offline runner $name (id $id): HTTP $code"
++      fi
++    done <<< "$listing"
++    (( has_next )) || return 0
++    page=$((page + 1))
++  done
++  log "sweep: reached the ${max_pages}-page bound for instance ${instance}; stale runners beyond it" \
++    "are left for the next start (continuing to mint)"
++}
++sweep || log "sweep failed (ignored)"
++
++# --- labels: the API takes CUSTOM labels only -----------------------------------------
++custom_labels="$(printf '%s' "${GX10_RUNNER_LABELS:-self-hosted,linux,ARM64,gx10}" |
++  tr ',' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' |
++  awk 'NF && tolower($0) != "self-hosted" && tolower($0) != "linux" && tolower($0) != "arm64"' |
++  jq -R . | jq -sc .)"
++
++name="${prefix}$(date +%s)"
++body="$(jq -nc --arg name "$name" --argjson labels "$custom_labels" \
++  '{name: $name, runner_group_id: 1, labels: $labels, work_folder: "_work"}')"
++
++# --- mint with bounded exponential backoff --------------------------------------------
++now_us() { local t="${EPOCHREALTIME/./}"; printf '%s' "$t"; }
++budget_us="$(awk -v s="$max_elapsed" 'BEGIN { printf "%d", s * 1000000 }')"
++start_us="$(now_us)"
++attempt=0
++env_dir="${XDG_RUNTIME_DIR:?XDG_RUNTIME_DIR is not set}/gx10-runner"
++env_file="${env_dir}/${instance}.env"
++mkdir -p "$env_dir"
++chmod 700 "$env_dir"
++rm -f "$env_file"
++
++while :; do
++  code="$(api_call POST "${api}/repos/${repo}/actions/runners/generate-jitconfig" "$body")"
++  if [[ "$code" == 2* ]]; then
++    jit="$(jq -r '.encoded_jit_config // empty' "$work/body")"
++    rid="$(jq -r '.runner.id // empty' "$work/body")"
++    if [[ -n "$jit" && -n "$rid" ]]; then
++      tmp="$(mktemp "${env_dir}/.${instance}.XXXXXX")"
++      printf 'ACTIONS_RUNNER_INPUT_JITCONFIG=%s\nGX10_RUNNER_ID=%s\n' "$jit" "$rid" > "$tmp"
++      chmod 600 "$tmp"
++      mv -f "$tmp" "$env_file"
++      log "minted runner $name (id $rid)"
++      exit 0
++    fi
++    log "HTTP $code but the response lacked encoded_jit_config/runner.id"
++  elif [[ "$code" != 5* && "$code" != "000" && "$code" != "429" ]]; then
++    log "generate-jitconfig failed with non-retryable HTTP $code"
++    exit 1
++  fi
++  delay="$(awk -v b="$base_delay" -v n="$attempt" 'BEGIN { d = b * (2 ^ n); if (d > 300) d = 300; print d }')"
++  elapsed_us=$(( $(now_us) - start_us ))
++  next_us="$(awk -v d="$delay" 'BEGIN { printf "%d", d * 1000000 }')"
++  if (( elapsed_us + next_us > budget_us )); then
++    log "retry budget of ${max_elapsed}s spent after $((attempt + 1)) attempt(s) (last HTTP $code)"
++    exit 1
++  fi
++  log "HTTP $code; retrying in ${delay}s (attempt $((attempt + 1)))"
++  sleep "$delay"
++  attempt=$((attempt + 1))
++done
+diff --git a/deploy/gx10-runner/systemd/gx10-runner@.service b/deploy/gx10-runner/systemd/gx10-runner@.service
+new file mode 100644
+index 00000000..b91ea85a
+--- /dev/null
++++ b/deploy/gx10-runner/systemd/gx10-runner@.service
+@@ -0,0 +1,40 @@
++# GX10 ephemeral GitHub Actions runner -- systemd USER template unit (design D6/D7).
++#
++# Installed for the dedicated, lingering `ghrunner` account by install-units.sh. One
++# instance == one container == one job: the container exits after its single job
++# (`--rm`), and `Restart=always` starts a fresh one with a freshly minted JIT config.
++[Unit]
++Description=GX10 ephemeral GitHub Actions runner %i
++After=network-online.target
++Wants=network-online.target
++# Restarts after every job are normal and frequent. Back-off on persistent API failure
++# lives in mint-jitconfig.sh, not in the start limit. (Must be in [Unit]; in [Service]
++# systemd ignores it with a warning.)
++StartLimitIntervalSec=0
++
++[Service]
++Type=simple
++Restart=always
++RestartSec=10
++# Bounds ExecStartPre. Must exceed GX10_MINT_MAX_ELAPSED (default 600) or systemd kills
++# the mint script mid-backoff and the API is hammered every RestartSec instead.
++TimeoutStartSec=900
++TimeoutStopSec=90
++# Operator copy of gx10-runner.env.example: repo slug, image, limits, labels, mint budget,
++# cache switch. Distinct from the per-instance container env file written by the mint
++# script (JIT config and runner id only).
++EnvironmentFile=%h/.config/gx10-runner/env
++# The registration credential, exposed to ExecStartPre as
++# $CREDENTIALS_DIRECTORY/github-token. It never enters the container.
++LoadCredential=github-token:%h/.config/gx10-runner/token
++ExecStartPre=%h/.local/lib/gx10-runner/mint-jitconfig.sh %i
++# --replace: a container left over from an unclean stop must not wedge the restart loop.
++# --pull=never: start only the locally built image (O3), never one pulled from a registry.
++# --network is pinned: podman 5 defaults to pasta, which maps the gateway to the host.
++# $GX10_RUNNER_CACHE_ARGS is deliberately a bare, unbraced word: systemd splits it on
++# whitespace into zero or more arguments. Empty (the default) means no shared cache volume.
++ExecStart=/usr/bin/podman run --rm --replace --pull=never --name gx10-runner-%i --env-file %t/gx10-runner/%i.env --security-opt no-new-privileges --cap-drop ALL --network slirp4netns:allow_host_loopback=false --pids-limit 4096 --cpus ${GX10_RUNNER_CPUS} --memory ${GX10_RUNNER_MEMORY} --tmpfs /tmp $GX10_RUNNER_CACHE_ARGS ${GX10_RUNNER_IMAGE}
++ExecStopPost=%h/.local/lib/gx10-runner/cleanup-runner.sh %i
++
++[Install]
++WantedBy=default.target
+diff --git a/deploy/gx10-runner/toolchain.txt b/deploy/gx10-runner/toolchain.txt
+new file mode 100644
+index 00000000..bff1e9ba
+--- /dev/null
++++ b/deploy/gx10-runner/toolchain.txt
+@@ -0,0 +1,10 @@
++git
++curl
++jq
++make
++build-essential
++unzip
++xz-utils
++zstd
++ca-certificates
++python3
+diff --git a/docs/guides/documentation.md b/docs/guides/documentation.md
+index 15dd92c1..5bd0217d 100644
+--- a/docs/guides/documentation.md
++++ b/docs/guides/documentation.md
+@@ -25,6 +25,7 @@ Read these before contributing infrastructure changes:
+ - [Cloud Session Hooks](../cloud-session-hooks.md) — Lifecycle hooks for hosted harness sessions
+ - [Cloud vs Local Execution](../cloud-vs-local-execution.md) — Environment detection and worktree short-circuit behavior
+ - [Cloudflare Setup](../cloudflare-setup.md) — Cloudflare integration for hosted endpoints
++- [Self-Hosted CI Runners](self-hosted-ci-runners.md) — Operator runbook O1-O12 for routing CI to ephemeral GX10 runners, with rollback and fork-PR isolation
+ - [Local Migration](../local-migration.md) — Runbook for moving the coordinator from Railway to a local box behind a Cloudflare Tunnel
+ - [OpenBao Secret Management](../openbao-secret-management.md) — Setup options, seeding, API key resolution for SDK dispatch
+ 
+diff --git a/docs/guides/self-hosted-ci-runners.md b/docs/guides/self-hosted-ci-runners.md
+new file mode 100644
+index 00000000..f2c79704
+--- /dev/null
++++ b/docs/guides/self-hosted-ci-runners.md
+@@ -0,0 +1,348 @@
++# Self-Hosted CI Runners (GX10)
++
++Operator runbook for `migrate-ci-to-self-hosted-gx10-runners` (roadmap item ri-20). CI jobs
++route to ephemeral runners on the GX10 host when the repository variable `CI_RUNNER_LANE` is
++`self-hosted`, and to GitHub-hosted `ubuntu-latest` otherwise. Everything below needs a human
++with host and repository-admin access.
++
++## Hard boundary
++
++The implementation of this change wrote files on a branch only. It did **not** register
++runners, mint registration or JIT tokens, call a mutating GitHub API, set repository or
++organization settings or variables, run `systemctl`, `loginctl` or `podman run`/`podman build`
++against the host, or touch `main`. Every step of that kind is **operator-only** and lives
++here as O1-O12. Do the steps in this order: O1-O5 prepare the host and the repository, O6 is
++the dry run, O7 flips the lane, O8-O11 measure and verify, O12 is the rollback drill.
++
++Notation: `{owner}/{repo}` is filled in by `gh` from the current checkout. The account has
++no login shell, so run "as `ghrunner`" commands as
++`sudo -u ghrunner XDG_RUNTIME_DIR=/run/user/$(id -u ghrunner) <command>`, or use
++`systemctl --user --machine=ghrunner@ ...` for unit operations.
++
++Where things live:
++
++| What | Path |
++|---|---|
++| Lane manifest and schema | `.github/runner-lanes.yaml`, `.github/runner-lanes.schema.json` |
++| Runner kit | `deploy/gx10-runner/` (`Containerfile`, `toolchain.txt`, `job-started-hook.sh`, `mint-jitconfig.sh`, `cleanup-runner.sh`, `install-units.sh`, `gx10-runner.env.example`, `systemd/gx10-runner@.service`) |
++| Measurement CLI | `scripts/ci/ci_wallclock.py` |
++
++## O1 - Create the dedicated host user and enable linger
++
++```bash
++sudo useradd --system --create-home --shell /usr/sbin/nologin ghrunner
++# useradd --system allocates no subordinate ids, which rootless podman needs for the
++# non-root `runner` user in the image. Pick a 65536-id range that overlaps nothing in
++# /etc/subuid or /etc/subgid (start above the highest existing end).
++sort -t: -k2 -n /etc/subuid
++sudo usermod --add-subuids <start>-<start+65535> --add-subgids <start>-<start+65535> ghrunner
++sudo loginctl enable-linger ghrunner
++```
++
++Verify:
++
++```bash
++loginctl show-user ghrunner -p Linger        # Linger=yes
++grep ghrunner /etc/subuid /etc/subgid        # one range in each file
++sort -t: -k2 -n /etc/subuid                  # each start is above the previous entry's end
++```
++
++## O2 - Provision the registration credential
++
++Create a fine-grained PAT for this repository only, with *Administration: read and write* and
++an expiry of 90 days or less. Store it where the unit's `LoadCredential=` reads it, and copy
++the example environment file.
++
++```bash
++sudo -u ghrunner install -d -m 700 ~ghrunner/.config/gx10-runner
++sudo install -m 600 -o ghrunner -g ghrunner /dev/stdin ~ghrunner/.config/gx10-runner/token   # paste the PAT, Ctrl-D
++sudo -u ghrunner cp deploy/gx10-runner/gx10-runner.env.example ~ghrunner/.config/gx10-runner/env
++# edit GX10_RUNNER_REPO and GX10_RUNNER_IMAGE in that file
++```
++
++Verify:
++
++```bash
++sudo stat -c %a ~ghrunner/.config/gx10-runner/token                       # 600
++GH_TOKEN=$(sudo cat ~ghrunner/.config/gx10-runner/token) \
++  gh api repos/{owner}/{repo}/actions/runners --jq .total_count           # exits 0
++```
++
++Upgrade path: a **GitHub App** (short-lived installation tokens) replaces the PAT once the
++host can sign JWTs. The mint script only needs a bearer token in
++`$CREDENTIALS_DIRECTORY/github-token`, so an App is a change to how that file is produced,
++not to the kit.
++
++## O3 - Build the runner image on the GX10 as `ghrunner`
++
++```bash
++sudo -u ghrunner podman build -t localhost/gx10-runner:<sha> deploy/gx10-runner
++sudo -u ghrunner sed -i 's#^GX10_RUNNER_IMAGE=.*#GX10_RUNNER_IMAGE=localhost/gx10-runner:<sha>#' \
++  ~ghrunner/.config/gx10-runner/env
++```
++
++Verify:
++
++```bash
++sudo -u ghrunner podman image inspect localhost/gx10-runner:<sha> --format '{{.Architecture}}'   # arm64
++```
++
++The base image is pinned by version and digest in the `Containerfile`; bump both together.
++
++## O4 - Install the host-service isolation control, then install and enable the units
++
++Podman 4.9 uses `slirp4netns` and, with `allow_host_loopback=false`, makes host *loopback*
++services unreachable. It does **not** stop PR code reaching a host service bound to `0.0.0.0`
++or a LAN or Tailscale address: slirp4netns NATs through the host's network stack as
++`ghrunner`. Isolation therefore rests on an operator-installed control that this step proves.
++
++**Preferred: a persistent nftables egress rule for `ghrunner`**, in a `table inet` so IPv4 and
++IPv6 are both filtered. Order matters: the DNS exemption for the host stub resolver comes
++first, otherwise the mint script and container DNS cannot resolve `api.github.com` and no
++instance ever comes online.
++
++```bash
++sudo tee /etc/nftables.d/gx10-runner.nft >/dev/null <<'NFT'
++table inet gx10_runner_isolation
++delete table inet gx10_runner_isolation
++table inet gx10_runner_isolation {
++  chain output {
++    type filter hook output priority 0; policy accept;
++    meta skuid ghrunner ip daddr 127.0.0.53 udp dport 53 accept
++    meta skuid ghrunner ip daddr 127.0.0.53 tcp dport 53 accept
++    meta skuid ghrunner fib daddr type local drop
++    meta skuid ghrunner ip daddr { 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 100.64.0.0/10, 169.254.0.0/16 } drop
++    meta skuid ghrunner ip6 daddr { fc00::/7, fe80::/10 } drop
++    meta skuid ghrunner oifname "tailscale0" drop
++  }
++}
++NFT
++# Persist it: include the file from /etc/nftables.conf and enable the service. Keep it clear of
++# ufw/firewalld reloads that would flush a hand-added table.
++grep -q 'nftables.d/gx10-runner.nft' /etc/nftables.conf || \
++  echo 'include "/etc/nftables.d/gx10-runner.nft"' | sudo tee -a /etc/nftables.conf
++sudo nft -c -f /etc/nftables.conf && sudo systemctl enable --now nftables
++```
++
++**Fallback:** rebind every host service the runners must not reach to `127.0.0.1` (for example
++publish compose ports as `127.0.0.1:54322:5432`) and check with `ss -ltnp`.
++
++Then install and enable the units:
++
++```bash
++sudo -u ghrunner deploy/gx10-runner/install-units.sh          # copies files, prints the next commands
++sudo -u ghrunner XDG_RUNTIME_DIR=/run/user/$(id -u ghrunner) systemctl --user daemon-reload
++sudo -u ghrunner XDG_RUNTIME_DIR=/run/user/$(id -u ghrunner) systemctl --user enable --now gx10-runner@{1..8}
++```
++
++Verify:
++
++```bash
++gh api repos/{owner}/{repo}/actions/runners \
++  --jq '[.runners[]|select(any(.labels[];.name=="gx10"))|.status]'    # 8 entries, all "online"
++
++# Transport-level TCP connects (an HTTP curl probe is wrong: it fails AFTER connecting to a
++# non-HTTP service such as Postgres). Every address, both ports, IPv6 included.
++for addr in 10.0.2.2 $(hostname -I); do
++  for port in 54322 <coordinator-port>; do
++    echo -n "$addr:$port "
++    sudo -u ghrunner podman exec gx10-runner-1 bash -c \
++      "timeout 3 bash -c 'exec 3<>/dev/tcp/$addr/$port' && echo reachable || echo unreachable"
++  done
++done                                                                # every line: unreachable
++
++sudo -u ghrunner podman exec gx10-runner-1 getent hosts api.github.com   # resolves (DNS exemption works)
++grep -c 'nftables.d/gx10-runner.nft' /etc/nftables.conf                  # non-zero: the include is persistent
++grep -c skuid /etc/nftables.d/gx10-runner.nft                            # non-zero: the rules are in the included file
++sudo nft list ruleset | grep skuid                                       # rules are loaded
++sudo -u ghrunner podman inspect gx10-runner-1 --format '{{.HostConfig.NetworkMode}}'   # slirp4netns
++```
++
++A probe of `10.0.2.2` alone is not sufficient evidence. A host-side `getent` does not exercise
++the DNS exemption either, because glibc reaches systemd-resolved over its unix socket.
++
++**Podman 5 note.** The unit passes `--network slirp4netns:allow_host_loopback=false`
++explicitly because podman 5 defaults rootless networking to `pasta`, which maps the gateway to
++the host. Keep the explicit `slirp4netns` option; moving to `pasta:--no-map-gw` is a reviewed
++unit change, never a default.
++
++### Optional: shared uv cache (off by default)
++
++The cache is a cross-trust poisoning vector: a same-repository PR job can write files that a
++later `main` job reads, and uv does not re-hash cached entries on reuse. Same-repository
++branches are pushed by humans, **Dependabot** and agent PR sources (Jules, Codex), and by any
++holder of a leaked collaborator credential. Enable the cache only as a recorded risk
++acceptance. Fill in this line first, then set the variable:
++
++```text
++Risk acceptance: accepted by <name> on <YYYY-MM-DD>; every same-repository writer, including
++Dependabot and agent branches, is acceptable as a cache writer.
++```
++
++```bash
++# enable
++sudo -u ghrunner sed -i 's#^GX10_RUNNER_CACHE_ARGS=.*#GX10_RUNNER_CACHE_ARGS=--volume gx10-runner-uv-cache:/home/runner/.cache/uv#' \
++  ~ghrunner/.config/gx10-runner/env
++# disable again
++sudo -u ghrunner sed -i 's#^GX10_RUNNER_CACHE_ARGS=.*#GX10_RUNNER_CACHE_ARGS=#' ~ghrunner/.config/gx10-runner/env
++sudo -u ghrunner podman volume rm gx10-runner-uv-cache
++```
++
++A move to multiplayer team mode requires the cache to be disabled.
++
++## O5 - Set the fork-PR approval policy
++
++```bash
++gh api -X PUT repos/{owner}/{repo}/actions/permissions/fork-pr-contributor-approval \
++  -f approval_policy=all_external_contributors
++```
++
++Confirm the runners are repository-scoped, not organization-scoped (O4 listed them under the
++repository). Verify:
++
++```bash
++gh api repos/{owner}/{repo}/actions/permissions/fork-pr-contributor-approval --jq .approval_policy
++# all_external_contributors
++```
++
++Approval only lets a fork run start. Fork `pull_request` runs and every `merge_group` run
++resolve to `ubuntu-latest`; the runner image's job-started hook refuses them even if a PR
++rewrites its own workflow.
++
++## O6 - Self-hosted dry run before flipping
++
++```bash
++gh workflow run ci.yml --ref main -f runner_lane=self-hosted
++gh workflow run security.yml --ref main -f runner_lane=self-hosted
++```
++
++Verify (run ids from `gh run list --workflow ci.yml --limit 1 --json databaseId`):
++
++```bash
++python scripts/ci/ci_wallclock.py verify-run <run-id> --workflow ci.yml
++python scripts/ci/ci_wallclock.py verify-run <run-id> --workflow security.yml
++# both: 0 violation(s)
++```
++
++If a routed job fails on arm64 (for example `secret-scan` or `formal-coordination`), open a PR
++that moves it to `hosted` in `.github/runner-lanes.yaml` with `reason_code: amd64-only` and
++changes its `runs-on` to the literal `ubuntu-latest`, then repeat O6. Jobs that call a
++container engine indirectly through a script are also caught here.
++
++## O7 - Flip the lane
++
++```bash
++gh variable set CI_RUNNER_LANE --body self-hosted
++```
++
++Verify:
++
++```bash
++gh variable get CI_RUNNER_LANE                                    # self-hosted
++python scripts/ci/ci_wallclock.py verify-run <next-pr-run-id> --workflow ci.yml   # 0 violations
++```
++
++**If the host goes down while the lane is `self-hosted`**, routed jobs queue (GitHub keeps them
++24 hours; `timeout-minutes` does not cover queue time). Detect runs queued for more than ten
++minutes:
++
++```bash
++gh run list --status queued --limit 100 --json databaseId,workflowName,createdAt \
++  --jq '[.[] | select((now - (.createdAt | fromdateiso8601)) > 600)] | length'
++```
++
++A non-zero count means: set the variable to `hosted` (O12), cancel the queued runs, re-run
++them. Automatic fallback is deferred (it needs a token that can list runners).
++
++## O8 - Measure wall-clock time
++
++Dispatch five or more paired runs per lane on the same commit (`runner_lane=hosted` versus
++`runner_lane=self-hosted`).
++
++```bash
++for i in 1 2 3 4 5; do
++  gh workflow run ci.yml --ref main -f runner_lane=hosted
++  gh workflow run ci.yml --ref main -f runner_lane=self-hosted
++done
++```
++
++Verify (the ratio must be 0.85 or less with n >= 5 on each side):
++
++```bash
++python scripts/ci/ci_wallclock.py compare --baseline-lane hosted --candidate-lane self-hosted \
++  --workflow ci.yml --event workflow_dispatch --head-sha <sha>
++```
++
++Corroborate with the median over 20 or more PR runs before and after the O7 date:
++
++```bash
++python scripts/ci/ci_wallclock.py median --workflow ci.yml --event pull_request \
++  --since 2026-01-01 --until <o7-date> --limit 200
++python scripts/ci/ci_wallclock.py median --workflow ci.yml --event pull_request \
++  --since <o7-date> --limit 200
++```
++
++If the comparison fails, tune the instance count (`systemctl --user enable --now
++gx10-runner@{9..N}`), or move the slowest routed jobs to `hosted` with
++`reason_code: measured-slower`.
++
++## O9 - Check per-job ephemerality
++
++Verify, after three or more jobs have run on instance 1:
++
++```bash
++journalctl --user -u gx10-runner@1 | grep -c 'Listening for Jobs'                    # 3 or more
++gh api repos/{owner}/{repo}/actions/runs/<run-id>/jobs --jq '.jobs[].runner_name'    # distinct names
++sudo -u ghrunner podman ps -a --filter name=gx10-runner --filter status=exited       # empty
++```
++
++JIT runners deregister after their job, so the runners list cannot show them; the runner names
++recorded on the jobs are the evidence.
++
++## O10 - Check reboot survival
++
++```bash
++sudo systemctl reboot        # do not log in as ghrunner afterwards
++```
++
++Verify:
++
++```bash
++sudo systemctl --user --machine=ghrunner@ is-active gx10-runner@1                 # active
++gh api repos/{owner}/{repo}/actions/runners --jq '[.runners[].status]'            # online within 2 minutes
++sudo nft list ruleset | grep skuid                                                # O4 rules survived
++# Repeat the O4 TCP-connect probes and the in-container DNS check: same results as before.
++```
++
++## O11 - Fork-PR end-to-end check
++
++Open a trivial PR from a fork account, and a second one that edits `ci.yml` to set one routed
++job's `runs-on` to the GX10 labels and delete its guard step.
++
++```bash
++gh run list --branch <fork-branch> --json status,conclusion        # action_required: awaiting approval
++```
++
++After approval:
++
++```bash
++python scripts/ci/ci_wallclock.py verify-run <run-id> --workflow ci.yml --expect-lane hosted   # 0 violations
++```
++
++Without `--expect-lane hosted` the default `self-hosted` expectation would flag every routed
++job. For the second PR, the rewritten job must fail in its `Set up job` phase with the
++job-started hook's refusal message ("gx10 runner refused this job") and no step of that job
++runs.
++
++## O12 - Rollback drill
++
++```bash
++gh variable set CI_RUNNER_LANE --body hosted
++```
++
++Verify on the next CI run, then restore with O7:
++
++```bash
++python scripts/ci/ci_wallclock.py verify-run <run-id> --workflow ci.yml --expect-lane hosted   # all jobs on GitHub-hosted runners
++gh variable delete CI_RUNNER_LANE      # alternative to setting it to "hosted"
++```
+diff --git a/openspec/changes/migrate-ci-to-self-hosted-gx10-runners/contracts/README.md b/openspec/changes/migrate-ci-to-self-hosted-gx10-runners/contracts/README.md
+new file mode 100644
+index 00000000..902a207a
+--- /dev/null
++++ b/openspec/changes/migrate-ci-to-self-hosted-gx10-runners/contracts/README.md
+@@ -0,0 +1,21 @@
++# Contracts — migrate-ci-to-self-hosted-gx10-runners
++
++| Sub-type | Applies? | Artifact |
++|---|---|---|
++| OpenAPI | No. The change adds no HTTP endpoint. `ci_wallclock.py` only *consumes* GitHub's REST API through `gh api` | — |
++| Database | No. The change makes no schema change | — |
++| Events | No. The change adds no event payload | — |
++| Config schema | **Yes** | `schemas/runner-lanes.schema.json` |
++
++The lane manifest is the coordination boundary between packages. `wp-workflows` routes jobs
++according to it. `wp-runner-kit` reads `routing.self_hosted_labels` for the JIT label set.
++`wp-tooling` uses it to verify runs.
++
++`wp-contracts` promotes the draft here to `.github/runner-lanes.schema.json`. Every
++downstream package validates against that promoted copy.
++
++Two companion contracts are defined in `design.md` and tested in place, not schema'd:
++
++- The canonical `runs-on` expression (D3).
++- The container env-file contract (D5). The file contains only `ACTIONS_RUNNER_INPUT_JITCONFIG`
++  and `GX10_RUNNER_ID`.
+diff --git a/openspec/changes/migrate-ci-to-self-hosted-gx10-runners/contracts/schemas/runner-lanes.schema.json b/openspec/changes/migrate-ci-to-self-hosted-gx10-runners/contracts/schemas/runner-lanes.schema.json
+new file mode 100644
+index 00000000..5fc1533f
+--- /dev/null
++++ b/openspec/changes/migrate-ci-to-self-hosted-gx10-runners/contracts/schemas/runner-lanes.schema.json
+@@ -0,0 +1,71 @@
++{
++  "$schema": "https://json-schema.org/draft/2020-12/schema",
++  "$id": "runner-lanes.schema.json",
++  "title": "CI runner lane manifest",
++  "description": "Classifies every job of the routed GitHub Actions workflows as routed (follows the lane selector) or hosted (pinned to ubuntu-latest with a justification). See migrate-ci-to-self-hosted-gx10-runners design D1.",
++  "type": "object",
++  "additionalProperties": false,
++  "required": ["schema_version", "routing", "workflows"],
++  "properties": {
++    "schema_version": { "const": 1 },
++    "routing": {
++      "type": "object",
++      "additionalProperties": false,
++      "required": ["repository_variable", "dispatch_input", "self_hosted_labels", "hosted_label"],
++      "properties": {
++        "repository_variable": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" },
++        "dispatch_input": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
++        "self_hosted_labels": {
++          "type": "array",
++          "minItems": 2,
++          "uniqueItems": true,
++          "items": { "type": "string", "minLength": 1 },
++          "contains": { "const": "self-hosted" }
++        },
++        "hosted_label": { "const": "ubuntu-latest" }
++      }
++    },
++    "workflows": {
++      "type": "object",
++      "minProperties": 1,
++      "propertyNames": { "pattern": "^[A-Za-z0-9_.-]+\\.ya?ml$" },
++      "additionalProperties": {
++        "type": "object",
++        "additionalProperties": false,
++        "required": ["jobs"],
++        "properties": {
++          "jobs": {
++            "type": "object",
++            "minProperties": 1,
++            "propertyNames": { "pattern": "^[A-Za-z_][A-Za-z0-9_-]*$" },
++            "additionalProperties": { "$ref": "#/$defs/job" }
++          }
++        }
++      }
++    }
++  },
++  "$defs": {
++    "job": {
++      "oneOf": [
++        {
++          "type": "object",
++          "additionalProperties": false,
++          "required": ["lane"],
++          "properties": { "lane": { "const": "routed" } }
++        },
++        {
++          "type": "object",
++          "additionalProperties": false,
++          "required": ["lane", "reason_code", "reason"],
++          "properties": {
++            "lane": { "const": "hosted" },
++            "reason_code": {
++              "enum": ["container-engine", "amd64-only", "privileged-token", "measured-slower"]
++            },
++            "reason": { "type": "string", "minLength": 10 }
++          }
++        }
++      ]
++    }
++  }
++}
+diff --git a/openspec/changes/migrate-ci-to-self-hosted-gx10-runners/design.md b/openspec/changes/migrate-ci-to-self-hosted-gx10-runners/design.md
+new file mode 100644
+index 00000000..df0a526a
+--- /dev/null
++++ b/openspec/changes/migrate-ci-to-self-hosted-gx10-runners/design.md
+@@ -0,0 +1,561 @@
++# Design — migrate-ci-to-self-hosted-gx10-runners
++
++Selected approach: **A** (proposal.md). It combines four parts:
++- a lane manifest;
++- an inline canonical `runs-on` expression that defaults to the hosted lane and excludes forks;
++- host-minted JIT runners in rootless podman containers;
++- a systemd user template unit.
++
++## Context and constraints
++
++- **Host.** The GX10 runs linux/aarch64, Ubuntu 24.04 class, systemd 255, podman 4.9.3, rootless.
++  There is no Docker daemon.
++- **Rootless networking.** Podman 4.9 uses `slirp4netns` with `allow_host_loopback=false` by
++  default. A container therefore cannot reach host loopback services: the coordinator API and
++  Postgres on `:54322`.
++- **Current workflows.** `ci.yml` has 25 jobs and `security.yml` has 3, all on `ubuntu-latest`.
++  The triggers are `push` (main), `pull_request`, and `merge_group`.
++- **Other services on the host.** The host also carries the ri-08 dispatcher daemon and the
++  vendor CLIs. Runner containers must not exhaust its resources or reach its credentials.
++- **Implementation boundary (proposal.md § Hard boundary).** The implementation must not:
++  - register runners;
++  - mint tokens;
++  - change repository settings or variables;
++  - install, enable or start units or containers;
++  - touch `main`.
++
++## Decisions
++
++### D1 — A machine-readable lane manifest is the single source of routing truth
++
++`.github/runner-lanes.yaml` (schema `.github/runner-lanes.schema.json`, drafted in
++`contracts/schemas/runner-lanes.schema.json`) holds the following:
++
++```yaml
++schema_version: 1
++routing:
++  repository_variable: CI_RUNNER_LANE   # unset or anything but "self-hosted" => hosted
++  dispatch_input: runner_lane           # workflow_dispatch choice: auto | hosted | self-hosted
++  self_hosted_labels: [self-hosted, linux, ARM64, gx10]
++  hosted_label: ubuntu-latest
++workflows:
++  ci.yml:
++    jobs:
++      test: { lane: routed }
++      test-integration:
++        lane: hosted
++        reason_code: container-engine
++        reason: "services: paradedb container needs a container engine; none is exposed inside runner containers (D6)."
++      # ... every job, no omissions
++  security.yml:
++    jobs: { ... }
++```
++
++**Rationale.** The manifest is an auditable record of which jobs run on which lane and why. It
++also lets tests check the workflows against the manifest instead of hard-coding job names.
++Without it, the hosted pin is a bare `ubuntu-latest` string, and nothing distinguishes "pinned
++on purpose" from "never migrated".
++
++**Closed `reason_code` set:**
++
++| Code | Meaning |
++|---|---|
++| `container-engine` | The job needs `services:`, a Docker build, or podman |
++| `amd64-only` | The job uses an image, binary or validated artifact that exists only for amd64, or fails on arm64 |
++| `privileged-token` | The job holds a write-scoped `GITHUB_TOKEN` |
++| `measured-slower` | The operator moved the job back after measurement |
++
++### D2 — Initial job classification
++
++| Workflow | Job | Lane | Reason |
++|---|---|---|---|
++| ci | test-openbao-credentials, test, test-infra-skills, test-skills, skill-audit-freshness, validate-specs, context-drift-gate, contract-breaking-change-gate, coverage-ratchet, check-docker-imports, formal-coordination, gen-eval-tests, code-search-tests, system-one-decisions-tests, agent-scenarios-tests, requirement-traceability-sweep, context-eval, semantic-enablement-gate, validate-context-producers, test-codebase-atlas | routed | — |
++| ci | test-openbao-live | hosted | `container-engine`: `run_live_matrix.sh` starts an OpenBao container through podman or docker |
++| ci | test-integration, gen-eval | hosted | `container-engine`: `services:` Postgres (paradedb) and `sudo apt-get` |
++| ci | docker-smoke-import | hosted | `container-engine` (buildx with the `type=gha` cache). The image it validates is the amd64 production image (Railway), so arm64 would also check the wrong architecture |
++| ci | dependency-update-remediation | hosted | `privileged-token`: it holds `contents: write` and pushes. Write tokens stay off the shared host |
++| security | secret-scan, dependency-audit-coordinator, dependency-audit-skills | routed | — |
++
++`check-docker-imports` is routed because it is a static Python import check and needs no engine.
++
++Arm64 risk for `secret-scan` (gitleaks-action binary download) and `formal-coordination` (Java)
++is resolved by the operator dry run (O6). A failure there produces a manifest move to
++`amd64-only`, not a workaround.
++
++### D3 — Canonical inline `runs-on` expression (no routing job)
++
++Every routed job uses exactly this string. The tests compare it after whitespace normalization:
++
++```yaml
++runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && ((github.event_name == 'workflow_dispatch' && inputs.runner_lane != 'auto') && inputs.runner_lane || vars.CI_RUNNER_LANE) == 'self-hosted' && fromJSON('["self-hosted","linux","ARM64","gx10"]') || 'ubuntu-latest' }}
++```
++
++**Evaluation table.** This table is the spec for the tests' reference evaluator (task 2.1):
++
++| Event | Fork? | dispatch input | `vars.CI_RUNNER_LANE` | Result |
++|---|---|---|---|---|
++| pull_request | yes | — | any | `ubuntu-latest` |
++| pull_request | no | — | unset / `hosted` / other | `ubuntu-latest` |
++| pull_request | no | — | `self-hosted` | GX10 labels |
++| push | — | — | `self-hosted` | GX10 labels |
++| push | — | — | unset | `ubuntu-latest` |
++| merge_group | — | — | any | `ubuntu-latest` |
++| any other event | — | — | any | `ubuntu-latest` |
++| workflow_dispatch | — | `self-hosted` | any | GX10 labels |
++| workflow_dispatch | — | `hosted` | any | `ubuntu-latest` |
++| workflow_dispatch | — | `auto` | follows variable | follows variable |
++
++**Event eligibility is an allowlist, not a fork test.** Only three event shapes can reach the
++GX10: `push` (to `main`, i.e. code already merged), `workflow_dispatch` (started by a user with
++write access, on a ref of this repository) and a same-repository `pull_request`. Everything
++else resolves to `ubuntu-latest`. In particular, **`merge_group` always runs hosted**: a merge
++queue builds a temporary merge commit that can contain an approved *fork* PR's code, and the
++`merge_group` payload carries no reliable head-repository field to tell fork from same-repo
++entries. Routing it would let fork code execute on the host after a maintainer enqueues it,
++which the fork requirement forbids. The cost is that merge-queue runs keep hosted wall-clock
++time; the post-merge `push` run on `main` still routes. A later change may route `merge_group`
++only if fork provenance of every queued PR can be established safely.
++
++**Rejected: routing job (Approach B).** It adds a serial hosted hop in front of every job,
++which costs wall-clock time.
++
++**Rejected: YAML anchors.** GitHub Actions supports anchors, but `actionlint` and some
++downstream parsers in this repository do not handle them uniformly. Repeating the expression
++and enforcing it with a test is the safer option.
++
++The labels inside `fromJSON(...)` must equal `routing.self_hosted_labels` in the manifest, the
++`vars.<name>` reference must name `routing.repository_variable`, and the `inputs.<name>`
++references must name `routing.dispatch_input`. A test checks all three, so no field of the
++manifest's routing block is decorative.
++
++### D4 — Enforcement outside PR-controlled YAML, plus in-job guard and trigger allowlist
++
++**The workflow YAML is not a security boundary for `pull_request` runs.** A `pull_request` run
++evaluates the workflow files from the PR's merge ref, so a fork PR can edit `ci.yml` to put the
++public GX10 labels in `runs-on` and delete the guard step. Once a maintainer approves the run
++(O5), that job would be scheduled on the repository-scoped runner. The D3 expression and the
++in-job guard below are therefore *routing* and *defense in depth*; the enforcement point is
++the runner image, which the PR cannot change.
++
++**Runner-side job-started hook (the enforcement point).** The image built from
++`deploy/gx10-runner/Containerfile` contains `deploy/gx10-runner/job-started-hook.sh` at
++`/opt/gx10/job-started-hook.sh` and sets
++`ENV ACTIONS_RUNNER_HOOK_JOB_STARTED=/opt/gx10/job-started-hook.sh`. The runner executes this
++hook at the start of every job, before any job step, `container:` or `services:` setup, with
++the environment of the runner process (job-level `env:` cannot unset it). The hook reads the
++GitHub-generated event payload at `$GITHUB_EVENT_PATH` and exits non-zero, failing the job
++before any PR code runs, unless the run is one of:
++- `GITHUB_EVENT_NAME=push` with `GITHUB_REF=refs/heads/main`;
++- `GITHUB_EVENT_NAME=workflow_dispatch` (only users with write access can dispatch);
++- `GITHUB_EVENT_NAME=pull_request` with `.pull_request.head.repo.full_name` equal to
++  `$GITHUB_REPOSITORY` in the event payload.
++
++Every other event — a fork `pull_request`, `merge_group`, `pull_request_target`, any trigger a
++modified workflow adds — is refused. The payload is written by GitHub, not by the PR, so a fork
++cannot forge it. Same-repository branches can also edit workflows; they are inside the trust
++scope already accepted in A10 (write access), and the hook still confines them to the allowed
++event shapes.
++
++Each routed job's **first** step:
++
++```yaml
++- name: Refuse ineligible events on self-hosted runner
++  if: runner.environment == 'self-hosted' && !(github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
++  shell: bash
++  working-directory: ${{ github.workspace }}
++  run: |
++    echo "::error::Only push, workflow_dispatch and same-repository pull_request runs may execute on self-hosted runners (fork PRs and merge_group never); routing expression bypassed."
++    exit 1
++```
++
++The guard condition is `runner.environment == 'self-hosted'` combined with the **negation of
++the D3 event-eligibility clause**, character for character, so a fork `pull_request` and every
++`merge_group` run fail the job if they ever land on a self-hosted runner. A test pins the
++guard's clause to the clause inside the canonical expression.
++
++`working-directory` is overridden so that jobs with `defaults.run.working-directory` do not fail
++on a directory that has not been checked out yet.
++
++Trigger allowlist for both workflows: `push`, `pull_request`, `merge_group`,
++`workflow_dispatch`. A test fails if either workflow gains any of the following, because they
++run with base-repo privileges on fork-supplied input:
++- `pull_request_target`
++- `workflow_run`
++- `issue_comment`
++
++**Repository setting (operator-only, O5).** Set *Require approval for all external
++contributors* through the `fork-pr-contributor-approval` API. Approval only lets a fork run
++start. Under D3 that run still lands on `ubuntu-latest`, and so does any `merge_group` run that
++later carries the fork PR's code.
++
++### D5 — Host-minted JIT config; credentials never enter the container
++
++`deploy/gx10-runner/mint-jitconfig.sh <instance>` runs as the unit's `ExecStartPre` on the host.
++It works in four steps:
++
++1. It reads the credential from `$CREDENTIALS_DIRECTORY/github-token` (systemd
++   `LoadCredential=`), falling back to `GX10_RUNNER_TOKEN_FILE`. It refuses any credential file
++   whose mode is wider than 0600.
++2. It calls
++   `POST /repos/{owner}/{repo}/actions/runners/generate-jitconfig` with:
++   - `name=gx10-<hostname>-<instance>-<epoch>`
++   - `runner_group_id=1`
++   - `labels` = the **custom** labels only: manifest `self_hosted_labels` minus the labels the
++     runner assigns itself (`self-hosted`, `Linux`, `ARM64`, compared case-insensitively),
++     i.e. `["gx10"]` today, read from the env file. The API documents `labels` as custom
++     labels, so sending the defaults risks a 422; the effective label set is defaults ∪
++     requested, which must equal the manifest set (case-insensitively)
++   - `work_folder=_work`
++3. It writes `ACTIONS_RUNNER_INPUT_JITCONFIG=<encoded>` and the runner id into
++   `$XDG_RUNTIME_DIR/gx10-runner/<instance>.env`, with umask 077.
++4. On API failure it retries with exponential backoff (per-attempt delay capped at 300 s) inside
++   a **total retry budget** `GX10_MINT_MAX_ELAPSED` (default 600 s), then exits non-zero so
++   systemd restarts it. The budget must stay below the unit's `TimeoutStartSec=` (D7), or
++   systemd kills the script mid-backoff, restarts it after `RestartSec`, and the backoff never
++   takes effect (the API is hammered every ~10 s instead). A test pins
++   `GX10_MINT_MAX_ELAPSED < TimeoutStartSec`.
++
++The container receives only the single-use encoded JIT config, through `--env-file`. That value
++is not inert: it encodes the runner's identity and Actions-service credentials, and because it
++is in the runner's environment every job step inherits it, so PR code could act as that runner
++against the Actions service (read its own job message, post status) **while the job runs**.
++Ephemerality bounds this to one job on one single-use registration that cannot be reused after
++the job, and it grants nothing on the host or on other jobs. This residual is **accepted**. A
++narrower option, deferred, is an entrypoint wrapper that reads the variable, `unset`s it and
++passes it as `--jitconfig` (at the cost of the value appearing briefly in `ps`).
++
++**Credential choice.** A fine-grained PAT scoped to this repository with
++*Administration: read and write*, expiring in 90 days or less (A3).
++
++**Rejected: registration token plus `config.sh --ephemeral` inside the container.** Either the
++long-lived credential or a reusable registration token would sit inside the PR-code container.
++
++**Deferred: GitHub App.** It gives short-lived installation tokens, but needs JWT signing on the
++host. It is recorded as the upgrade path in the runbook.
++
++`cleanup-runner.sh <instance>` runs as `ExecStopPost`. If the JIT runner id from the env file
++is still registered and offline, it deletes the registration. Deletion is best-effort and
++always exits 0.
++
++`ExecStopPost` does not run after a power loss or hard reboot, so never-used registrations can
++survive it. Before minting, `mint-jitconfig.sh <instance>` therefore **sweeps** stale
++registrations: it lists the repository's runners (read-only GETs with `per_page=100`)
++across all pages (following `Link: rel="next"`, up to a safety bound of 10 pages; reaching
++the bound logs an actionable diagnostic naming the instance and continues to mint) and deletes
++every **offline** runner whose name starts with `gx10-<hostname>-<instance>-`
++(the instance's own prefix, so it never touches another instance's or another host's runners).
++The sweep is best-effort: a failure is logged and does not consume the mint retry budget.
++
++**Host DNS must stay reachable for `ghrunner`.** The mint script resolves `api.github.com`
++through the host resolver; on Ubuntu 24.04 that is systemd-resolved's stub at `127.0.0.53`, a
++local address. The D6 nftables control therefore exempts the resolver (see D6).
++
++### D6 — Container hardening and isolation
++
++The `podman run` invocation in the unit (`ExecStart`) MUST include:
++- `--rm`
++- `--pull=never` (the image is the locally built `localhost/gx10-runner:<sha>` from O3; a start
++  must never pull a different image from a registry)
++- `--network slirp4netns:allow_host_loopback=false` (explicit, see below)
++- `--name gx10-runner-%i`
++- `--env-file %t/gx10-runner/%i.env`
++- `--security-opt no-new-privileges`
++- `--cap-drop ALL`
++- `--pids-limit`
++- `--cpus` and `--memory`, from the env file (default 2 CPU / 8 GiB per instance)
++- `--tmpfs /tmp`
++- the word `$GX10_RUNNER_CACHE_ARGS`, unbraced and standing alone, which systemd splits on
++  whitespace into zero or more arguments. It is empty by default (no cache volume); the only
++  opted-in value is `--volume gx10-runner-uv-cache:/home/runner/.cache/uv` (see the uv cache
++  trade-off below)
++
++It MUST NOT include any of the following:
++- `--privileged`
++- `--network host`
++- a mounted podman or docker socket (`*.sock`)
++- any bind mount of the host user's home directory
++
++**Network is pinned explicitly, not inherited from the podman default.** Podman 4.9 (the GX10
++today) defaults rootless networking to `slirp4netns` with `allow_host_loopback=false`, which
++makes host loopback services (coordinator API, Postgres on `:54322`) unreachable. Podman 5.x
++changes the default to `pasta`, which by default maps the gateway address to the host and
++would expose those services to PR code after a routine host upgrade. The unit therefore passes
++`--network slirp4netns:allow_host_loopback=false` and a test requires that exact option. If the
++host later moves to podman 5 and the operator prefers `pasta`, the equivalent is
++`--network pasta:--no-map-gw`, which is a reviewed unit change, not a default.
++
++**What the pin does not cover: services bound to non-loopback host addresses.**
++`allow_host_loopback=false` only removes the `10.0.2.2 → 127.0.0.1` mapping. slirp4netns still
++NATs container traffic through the host's network stack as the `ghrunner` user, so any host
++service listening on `0.0.0.0` or on the host's LAN or Tailscale address (a compose-published
++`0.0.0.0:54322` Postgres is the common case; the coordinator API and the ri-08 daemon may also
++bind non-loopback) stays reachable from PR code through the host's real IP. Isolation of host
++services therefore rests on one of two operator-enforced controls, and O4 must prove it:
++1. **Preferred — an nftables egress rule for the runner user**, in a `table inet` (so IPv4
++   and IPv6 are both filtered) `output` hook chain: first accept DNS to the host stub resolver
++   (`meta skuid ghrunner ip daddr 127.0.0.53 udp dport 53 accept` and the same for `tcp`), then
++   drop every other packet whose socket owner is `ghrunner` and whose destination is a local
++   host address (`meta skuid ghrunner fib daddr type local drop`). Because slirp4netns runs as
++   `ghrunner`, this blocks every host-local service regardless of how it binds, while leaving
++   internet egress and name resolution intact (both for the mint script and for container DNS,
++   which slirp4netns forwards through the host resolver). Without the DNS exemption the mint
++   script cannot resolve `api.github.com`, burns its retry budget on every start, and no
++   instance ever comes online. In the same chain, drop `ghrunner`-owned traffic to private
++   and link-local ranges (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, the Tailscale CGNAT
++   range `100.64.0.0/10`, `169.254.0.0/16`, `fc00::/7`, `fe80::/10`) and out of `tailscale0`,
++   so PR code cannot move laterally to LAN or tailnet peers (other machines' coordinators,
++   Postgres, NAS); the runner only needs internet egress, and upstream DNS is queried by
++   systemd-resolved, not by `ghrunner`. The rules MUST be **persistent** — written to
++   `/etc/nftables.conf` (or an included file) with `nftables.service` enabled, and kept clear
++   of ufw/firewalld reloads that would flush a hand-added table — because the lingering units
++   restart at boot and would otherwise run PR code before anyone re-adds a runtime-only rule.
++   O10 re-verifies the rules after reboot. Installing and persisting them is operator-only.
++2. **Fallback — loopback-only binding**: every host service the runners must not reach binds to
++   `127.0.0.1` only (compose ports published as `127.0.0.1:54322:5432`), checked with
++   `ss -ltnp`.
++
++O4's verification probes the coordinator API port and `:54322` on **each** host address
++(`10.0.2.2`, the LAN address and the Tailscale address, from `hostname -I`) from inside a
++runner container and requires every **TCP connect** to be refused or to time out. The probe is
++transport-level (`timeout 3 bash -c 'exec 3<>/dev/tcp/<addr>/<port>'`), not an HTTP request:
++`curl` against a non-HTTP service such as Postgres fails *after* connecting, which would report
++"unreachable" exactly when the port is reachable. A probe of `10.0.2.2` alone is not sufficient
++evidence. The probe loop includes the host's IPv6 addresses from `hostname -I`. O4 also confirms
++DNS still works **from inside a runner container** (`podman exec gx10-runner-1 getent hosts
++api.github.com`): on the host, glibc reaches systemd-resolved over its unix socket and never
++exercises the UDP exemption, so a host-side `getent` would pass even with a mis-ordered rule.
++
++**Shared uv cache trade-off: off by default, explicit operator opt-in.** A cache shared across
++jobs speeds up `uv sync`. It is also a cross-trust poisoning vector: a same-repository PR job
++can write arbitrary files into a cache that a later `main` push job reads, and uv does not
++re-hash cached entries on reuse. Lockfile hash checking does **not** mitigate this: it applies
++at download time only, and several jobs run `uv sync --all-extras` without `--locked`,
++`uv run --with pytest-cov` or `uv pip install pip-audit`, which resolve outside the lockfile.
++
++"Every same-repository branch author is a trusted human" is **not** true here. Same-repository
++branches are also pushed by automation — Dependabot (whose PRs carry freshly bumped third-party
++packages) and the agent PR sources the `merge-pull-requests` skill accepts (Jules, Codex and
++other agent branches) — and by any holder of a leaked collaborator credential. Pushing a branch
++is also weaker than merging to protected `main`. With a shared writable cache, such a branch
++could influence a later `main` job before any human has reviewed its diff.
++
++Per-trust-tier volumes are not available: the container starts before the job is assigned, so
++the unit cannot choose a volume by event. The design therefore makes the cache **opt-in**:
++- `gx10-runner.env.example` ships `GX10_RUNNER_CACHE_ARGS=` (empty), so a default install
++  mounts no shared cache and every job starts with an empty in-container cache.
++- Enabling it is an operator decision recorded as an explicit risk acceptance (assumption A10,
++  runbook step O4): the operator sets
++  `GX10_RUNNER_CACHE_ARGS=--volume gx10-runner-uv-cache:/home/runner/.cache/uv`, and records
++  in the runbook's acceptance line who accepted the risk and on what date, having confirmed that
++  every same-repository writer (humans and automation) is acceptable as a cache writer.
++- Disabling it again is the same variable set back to empty, plus
++  `podman volume rm gx10-runner-uv-cache`. A move to team mode requires disabling it.
++- A trust-split follow-up (a separate cache-holding pool selected by label for `push` runs
++  only) is the upgrade path if the cache is needed without the shared-writer risk.
++
++When the cache is on, routed jobs must actually use it: the container sets
++`UV_CACHE_DIR=/home/runner/.cache/uv`, and routed jobs that use `astral-sh/setup-uv` pass
++`cache-local-path: /home/runner/.cache/uv` so the action does not redirect the cache to
++`$RUNNER_TEMP`. The setup-* toolcache stays inside the container, because concurrent writers
++would race on a shared toolcache.
++
++**Runner image.** `deploy/gx10-runner/Containerfile` is built
++`FROM ghcr.io/actions/actions-runner:<version>@sha256:<digest>`, a multi-arch image that is
++pinned with no `latest`. It adds a baseline toolchain declared in
++`deploy/gx10-runner/toolchain.txt`:
++- `git`, `curl`, `jq`, `make`, `build-essential`
++- `unzip`, `xz-utils`, `zstd`, `ca-certificates`, `python3`
++
++The entrypoint is `/home/runner/run.sh` with the JIT config from the environment. The image
++also installs the D4 job-started hook and sets `ACTIONS_RUNNER_HOOK_JOB_STARTED` to it. The runner
++user stays non-root, and sudo is not granted to it.
++
++### D7 — systemd user template unit, dedicated lingering user
++
++`deploy/gx10-runner/systemd/gx10-runner@.service` is installed as a **user** unit for a
++dedicated `ghrunner` account (A4). It has these properties:
++- `Restart=always` and `RestartSec=10`. The container exits after its single job, and systemd
++  starts a fresh one. This is the per-job ephemerality mechanism.
++- `StartLimitIntervalSec=0` in the **`[Unit]`** section (that is where systemd ≥ 230 reads it;
++  in `[Service]` it is ignored with a warning), because restarts after normal jobs are frequent
++  and expected. Back-off on persistent API failure lives in `mint-jitconfig.sh`, not in the
++  start limit.
++- `TimeoutStartSec=900`, which bounds `ExecStartPre` and must exceed the mint script's total
++  retry budget `GX10_MINT_MAX_ELAPSED` (D5). The default of 90 s would kill the script in the
++  middle of its backoff.
++- `EnvironmentFile=%h/.config/gx10-runner/env`: the operator's copy of
++  `gx10-runner.env.example`. It supplies the repository slug, image reference, CPU and memory
++  limits, labels, `GX10_MINT_MAX_ELAPSED` and `GX10_RUNNER_CACHE_ARGS` to `ExecStartPre` and
++  `ExecStart`; without it they are all unset. It is distinct from the per-instance container
++  env file `%t/gx10-runner/%i.env` that the mint script writes (JIT config and runner id only).
++- `LoadCredential=github-token:%h/.config/gx10-runner/token`: the registration credential (O2
++  stores it at that path, mode 0600). systemd exposes it to `ExecStartPre` as
++  `$CREDENTIALS_DIRECTORY/github-token`, the mint script's primary source;
++  `GX10_RUNNER_TOKEN_FILE` remains only as a fallback for running the script by hand and is
++  not set in the env file.
++- `ExecStartPre` is the mint script.
++- `ExecStart` is `podman run --replace …` (D6). `--replace` removes a leftover container of the
++  same name (from an unclean stop or a crash before `--rm` cleanup) instead of failing on the
++  name conflict, which would otherwise make `Restart=always` retry every 10 s forever while the
++  instance silently drops out of the pool.
++- `ExecStopPost` is the cleanup script.
++- `TimeoutStopSec=90`.
++- `[Install] WantedBy=default.target`.
++
++Reboot survival comes from `loginctl enable-linger ghrunner`, an operator-only step (O1). It
++starts the user manager at boot without a login, and the user manager starts enabled
++`default.target` units.
++
++`deploy/gx10-runner/install-units.sh` is a script for the **operator** to run. It copies the
++units and scripts into `<prefix>/.config/systemd/user` and `<prefix>/.local/lib/gx10-runner`.
++`--prefix` defaults to the `ghrunner` home directory. The script then prints the
++`loginctl enable-linger` and `systemctl --user enable --now` commands. It never executes
++`systemctl`, `loginctl` or `podman`. The implementation tests it only with
++`--prefix <tmpdir>`, and never runs it against a real home directory.
++
++**Initial instance count.** 8 (A9). The operator tunes it against O8.
++
++**Rejected: a system unit running rootful podman.** It gives a larger blast radius on container
++escape.
++
++**Rejected: rootless podman under the operator's own account.** That account holds vendor CLI
++credentials and SSH keys.
++
++### D8 — Measurement and verification tooling is pure over JSON
++
++`scripts/ci/ci_wallclock.py` provides:
++- `median_wallclock(runs, *, conclusion="success")`. It computes `run_started_at → updated_at`
++  seconds over successful runs and excludes cancelled and failed runs.
++- `compare(baseline, candidate, *, threshold=0.85, min_n=5)`. It returns pass/fail plus the
++  numbers. Pass requires `candidate_median ≤ threshold × baseline_median` and `n ≥ min_n` on
++  both sides (A6).
++- `verify_run(jobs, manifest, workflow, *, expected_lane="self-hosted")`. It returns one
++  violation per job in these cases:
++  - with `expected_lane="self-hosted"`, a routed job did not run on a runner labelled `gx10`;
++    with `expected_lane="hosted"`, a routed job ran on a self-hosted runner (the O12 rollback
++    check);
++  - a hosted job ran on a self-hosted runner;
++  - a job concluded anything other than `success` or `skipped` (a job declared
++    `continue-on-error: true` is reported as a **warning**, not a violation; the result model is
++    `{violations: [...], warnings: [...]}` and the CLI exits non-zero only on violations);
++  - a job concluded `skipped` although its workflow definition has **no** job-level `if:`
++    (an unconditional job can only be skipped by an upstream failure, which is a violation);
++  - a manifest job is missing from the run's jobs list.
++
++  A job that concluded `skipped` **and** has a job-level `if:` is not a violation, and its
++  runner placement is not checked, because a skipped job is never assigned a runner. This is
++  the normal case for `dependency-update-remediation`, whose `if:` limits it to Dependabot pull
++  requests: it is skipped on every dispatch, push and ordinary PR run. Without this rule every
++  O6, O7, O11 and O12 check would report a false violation.
++
++**Job correlation contract.** The jobs API returns each job's display `name`, not its YAML job
++id. `verify_run` maps a manifest job id to API job entries by deriving the expected display
++name from the workflow definition:
++- a job with no `name:` key is displayed as its job id; a job with a literal `name:` is
++  displayed as that string;
++- a job with a `strategy.matrix` expands to one API entry per combination, displayed as
++  `<display name> (<v1>, <v2>, …)`; `verify_run` matches the prefix `<display name> (` and
++  checks every expansion individually (each must meet the lane and conclusion rules, and at
++  least one expansion must be present);
++- a `name:` that contains an expression (`${{`) is rejected by the manifest completeness test,
++  because it cannot be resolved statically.
++
++`verify-run` reads the workflow definition **at the run's `head_sha`**, fetched read-only with
++`gh api repos/{owner}/{repo}/contents/.github/workflows/<file>?ref=<head_sha>` (or from a local
++file passed with `--workflow-file`, which the tests use), never from the local checkout, so a
++run of an older or newer commit is judged against the job-level `if:`, `name:`,
++`strategy.matrix` and `continue-on-error` it actually ran with.
++
++Today no job in `ci.yml` or `security.yml` sets `name:` or `strategy.matrix`, so every display
++name equals its job id. The completeness test (task 2.2) asserts that derived display names are
++unique within each workflow, so the mapping is one-to-one; an API entry that matches no
++manifest job is reported as a violation ("unknown job"), which also catches a renamed job.
++
++A run's lane is derived from where its routed jobs actually ran, using the runner labels in the
++jobs API. It is not derived from dispatch inputs, because the runs API does not expose them.
++`compare --baseline-lane hosted --candidate-lane self-hosted` groups runs on that basis. A run
++is classified only when **all** its routed jobs that were assigned a runner ran on the same
++lane. A run with mixed placement, or with no routed job assigned a runner, is **excluded** from
++both samples and listed in a diagnostic (`excluded_runs` with a reason), so it cannot distort
++the ratio. Lane derivation costs one `actions/runs/<id>/jobs` GET per candidate run, so a
++comparison issues at most `--limit` such requests per side on top of the runs listing; with
++`--head-sha` selecting the paired O8 runs that is a few dozen requests, well inside a PAT's
++hourly budget. The CLI fetches jobs sequentially and stops at `--limit`.
++
++Run selection for `median` and `compare` is explicit, so that the A6 measurement is reproducible:
++- `--workflow <file>` (required);
++- `--head-sha <sha>` restricts to runs of one commit, which is how the paired O8 dispatch runs
++  are selected;
++- `--event <name>` (for example `workflow_dispatch` for O8, `pull_request` for the corroborating
++  window);
++- `--since` / `--until` (ISO dates) bound the before/after window;
++- `--limit` (default 200) caps the number of runs fetched, so a paginated fetch is bounded.
++
++The CLI wrappers (`median`, `compare`, `verify-run`) shell out to `gh api` only when the
++**operator** runs them. The tests use JSON fixtures only, with no network access.
++
++### D9 — Hosted fallback is operator-switched; automatic fallback deferred
++
++When `CI_RUNNER_LANE=self-hosted` and no GX10 runner is online, routed jobs queue. GitHub's
++queue limit is 24 h, and `timeout-minutes` does not cover queue time.
++
++The documented fallback works in three steps:
++1. `gh variable set CI_RUNNER_LANE --body hosted`, or `gh variable delete CI_RUNNER_LANE`.
++2. Cancel the queued runs.
++3. Re-run them.
++
++The runbook gives a detection command that counts runs queued for more than 10 minutes.
++
++Automatic fallback needs a token that can list runners. That is either a routing job (Approach
++B, rejected for latency) or a host-side watchdog that changes repository variables, which is
++outside this change's boundary. It is filed as a follow-up candidate for the ri-18 operator
++status surface.
++
++### D10 — Tool parity for routed jobs
++
++Some routed jobs call tools that `ubuntu-latest` preinstalls but the runner image does not, for
++example `npm` in `validate-specs`. Each such job either:
++- gains an explicit setup action (`actions/setup-node` pinned to the same major version the
++  repository uses elsewhere), or
++- uses a tool listed in `toolchain.txt`.
++
++A static test scans the `run:` blocks of routed jobs for a fixed list of commands that are
++hosted-only. It matches a command only in **command position**: at the start of a line or after
++`;`, `&&`, `||`, `|`, `$(`, `sudo ` or `env `, followed by whitespace or end of line. A
++substring such as `scripts/check_docker_imports.py` therefore never matches `docker`. The
++commands are:
++- `npm`, `npx`, `node`, `java`, `go`
++- `docker`, `podman`, `sudo`, `apt-get`
++
++For every hit, the job must have the matching setup action, or must be hosted. `docker`,
++`podman`, `sudo` and `apt-get` are always disallowed in routed jobs. The test keeps an
++allowlist mechanism (each entry: workflow, job, command and a comment) for a future justified
++exception; it starts **empty**, because command-position matching already ignores the
++`check_docker_imports.py` script path.
++
++**Known limit.** The scan sees only `run:` text. A command invoked indirectly, from inside a
++script the step calls (as `run_live_matrix.sh` does with podman), is invisible to it. The O6
++self-hosted dry run is the backstop for that class, and any job it catches moves to `hosted`
++through the manifest.
++
++## Operator-only steps (summary; the full runbook is in `docs/guides/self-hosted-ci-runners.md`)
++
++O1–O12 are listed in tasks.md § 7, each with its verification command. None is an
++implementation task, and nothing in the implementation phases performs them.
++
++## Risks
++
++| Risk | Mitigation |
++|---|---|
++| A routed job fails on arm64 | O6 dry run with `verify-run`. Move the job to `amd64-only` through the manifest |
++| Lower concurrency (8 vs ~20 hosted) lengthens the critical path | Measure in O8. Tune the instance count, or move jobs back with `measured-slower` |
++| PAT leak from the host | 0600 file or systemd credential; dedicated user; 90-day expiry; minimum scope; App upgrade path |
++| Host down with lane=self-hosted | D9 manual flip plus the queued-run detection command |
++| New jobs added by concurrent changes | Manifest completeness test fails until they are classified |
++| Podman upgrade changes the rootless network default to `pasta` and exposes host loopback | Explicit `--network slirp4netns:allow_host_loopback=false` in the unit, pinned by a test (D6) |
++| A fork PR rewrites `runs-on` in its own workflow YAML and drops the guard | Runner-image job-started hook refuses every event except `push` to `main`, `workflow_dispatch` and same-repo PRs, from the GitHub-written payload (D4); O11 exercises it |
++| Runtime-only nftables rule lost on reboot while the units restart | Rules persisted in `/etc/nftables.conf`; O10 re-verifies isolation after reboot (D6) |
++| PR code reaches a host service bound to `0.0.0.0` or a LAN/Tailscale address through slirp4netns NAT | Operator nftables rule dropping `ghrunner`-owned traffic to local addresses, or loopback-only binding; O4 probes every host address (D6) |
++| Mint script killed mid-backoff by the start timeout, hammering the API | Explicit `TimeoutStartSec` above the bounded `GX10_MINT_MAX_ELAPSED` budget, pinned by a test (D5, D7) |
++| Cache poisoning by a same-repository PR job (human, Dependabot or agent branch) | Cache off by default; enabling it is a recorded operator risk acceptance (A10); disabled again by emptying `GX10_RUNNER_CACHE_ARGS`, mandated on a move to team mode |
++| A routed job invokes a container engine indirectly through a script | O6 dry run backstop; the static scan only sees `run:` text (D10) |
+diff --git a/openspec/changes/migrate-ci-to-self-hosted-gx10-runners/specs/ci-runner-infrastructure/spec.md b/openspec/changes/migrate-ci-to-self-hosted-gx10-runners/specs/ci-runner-infrastructure/spec.md
+new file mode 100644
+index 00000000..d4cb6b54
+--- /dev/null
++++ b/openspec/changes/migrate-ci-to-self-hosted-gx10-runners/specs/ci-runner-infrastructure/spec.md
+@@ -0,0 +1,279 @@
++## ADDED Requirements
++
++### Requirement: Lane Manifest Classifies Every Workflow Job
++
++The repository SHALL maintain a lane manifest at `.github/runner-lanes.yaml`, valid against `.github/runner-lanes.schema.json`. The manifest SHALL classify every job in `.github/workflows/ci.yml` and `.github/workflows/security.yml` as either `routed` or `hosted`. Every `hosted` job MUST carry a `reason_code` from the closed set `container-engine`, `amd64-only`, `privileged-token` and `measured-slower`, together with a non-empty written `reason`.
++
++#### Scenario: Unclassified job fails the suite
++- **WHEN** a job id exists in `ci.yml` or `security.yml` but not in the manifest
++- **THEN** the lane manifest test fails and names the unclassified workflow and job id
++
++#### Scenario: Stale manifest entry fails the suite
++- **WHEN** the manifest names a job id that no longer exists in its workflow
++- **THEN** the lane manifest test fails and names the stale entry
++
++#### Scenario: Hosted job without justification is rejected
++- **WHEN** a manifest entry has `lane: hosted` and lacks `reason_code` or has an empty `reason`
++- **THEN** schema validation of the manifest fails
++
++### Requirement: Routed Jobs Default To The Hosted Lane
++
++Every `routed` job SHALL use the single canonical `runs-on` expression defined in design D3. Under that expression a job SHALL resolve to `ubuntu-latest` unless the event is eligible — a `push`, a `workflow_dispatch`, or a same-repository `pull_request` (never a fork `pull_request`, never `merge_group`, never any other event) — and one of the following holds:
++- a `workflow_dispatch` `runner_lane` input of `self-hosted` is supplied;
++- the `CI_RUNNER_LANE` repository variable equals `self-hosted`, and no dispatch override of `hosted` is supplied.
++
++The self-hosted label set inside the expression MUST equal the manifest's `routing.self_hosted_labels`.
++
++Both `ci.yml` and `security.yml` SHALL declare a `workflow_dispatch` trigger with a `runner_lane` choice input whose options are exactly `auto`, `hosted` and `self-hosted`, with default `auto`.
++
++#### Scenario: Unset variable keeps CI on hosted runners
++- **WHEN** the reference evaluator resolves the canonical expression for a same-repository `pull_request`, `push` or `merge_group` event with `CI_RUNNER_LANE` unset
++- **THEN** the result is `ubuntu-latest`
++
++#### Scenario: Variable opts same-repository events into the self-hosted lane
++- **WHEN** the reference evaluator resolves the expression for a same-repository `pull_request` with `CI_RUNNER_LANE` set to `self-hosted`
++- **THEN** the result is the manifest's self-hosted label set
++
++#### Scenario: Dispatch input overrides the variable in both directions
++- **WHEN** the expression is resolved for a `workflow_dispatch` event with `runner_lane` set to `hosted` while `CI_RUNNER_LANE` is `self-hosted`
++- **THEN** the result is `ubuntu-latest`
++- **AND** with `runner_lane` set to `self-hosted` while the variable is unset, the result is the self-hosted label set
++
++#### Scenario: Expression is tied to every manifest routing field
++- **WHEN** the routing test changes the manifest's `routing.self_hosted_labels`, `routing.repository_variable` or `routing.dispatch_input` without changing the workflows
++- **THEN** the test fails, because the expression's `fromJSON` labels, its `vars.<name>` reference and its `inputs.<name>` reference must equal those three fields
++
++#### Scenario: Merge queue runs stay hosted
++- **WHEN** the reference evaluator resolves the expression for a `merge_group` event with `CI_RUNNER_LANE` set to `self-hosted`
++- **THEN** the result is `ubuntu-latest`, because a merge-group commit can contain an approved fork pull request's code
++
++#### Scenario: Dispatch trigger and lane input are declared
++- **WHEN** the fork guard test reads `ci.yml` and `security.yml`
++- **THEN** each declares `workflow_dispatch` with a `runner_lane` choice input of options `auto`, `hosted`, `self-hosted` and default `auto`
++
++#### Scenario: Routed job drifts from the canonical expression
++- **WHEN** any `routed` job's `runs-on` differs from the canonical expression after whitespace normalization
++- **THEN** the workflow routing test fails and names the job
++
++### Requirement: Hosted-Pinned Jobs Are Explicit
++
++Every `hosted` job SHALL declare a literal `runs-on: ubuntu-latest` and MUST NOT use the routing expression. A `routed` job MUST NOT declare `services:`, and its `run:` blocks MUST NOT invoke `docker`, `podman`, `sudo` or `apt-get` in command position, except for an entry in the tool-parity allowlist that names the workflow, job and command with a justifying comment (the allowlist starts empty). A `routed` job that invokes `npm`, `npx`, `node`, `java` or `go` in command position MUST include the matching setup action. A command name that appears only inside a path or identifier, such as `scripts/check_docker_imports.py`, is not an invocation. The scan covers `run:` text only; a command invoked indirectly from inside a script that a step calls is outside its reach and is caught by the operator's self-hosted dry run (O6), which moves such a job to `hosted` through the manifest.
++
++#### Scenario: Container-engine job marked routed is rejected
++- **WHEN** a job that declares `services:` or runs `docker`, `podman`, `sudo` or `apt-get` is classified `routed`
++- **THEN** the tool-parity test fails, unless the job and command appear in the documented allowlist with a comment
++
++#### Scenario: Hosted job uses a literal hosted label
++- **WHEN** the routing test reads a manifest job with `lane: hosted`
++- **THEN** that job's `runs-on` equals the string `ubuntu-latest`
++
++#### Scenario: Command name inside a script path is not an invocation
++- **WHEN** a routed job's `run:` block contains `uv run python scripts/check_docker_imports.py` and no other container command
++- **THEN** the tool-parity test passes for that job without an allowlist entry
++
++#### Scenario: Routed job calls npm without setup-node
++- **WHEN** a routed job's `run:` block invokes `npm` and the job has no `actions/setup-node` step
++- **THEN** the tool-parity test fails and names the job and command
++
++### Requirement: Fork Pull Requests Never Execute On Self-Hosted Runners
++
++A `pull_request` event whose head repository differs from the base repository, and every `merge_group` event (whose merge commit can contain approved fork code), SHALL resolve to `ubuntu-latest` regardless of the variable value. Every `routed` job's first step SHALL be a guard that fails the job when it is running on a self-hosted runner for any event outside the D3 eligibility allowlist, which includes every fork pull request and every `merge_group` run. Because a `pull_request` run uses the pull request's own workflow YAML, the runner image SHALL enforce this independently of the workflows: it SHALL install a job-started hook (`ACTIONS_RUNNER_HOOK_JOB_STARTED`) that fails the job before any step runs unless the GitHub-written event payload shows a `push` to `refs/heads/main`, a `workflow_dispatch`, or a `pull_request` whose head repository equals the base repository. Neither workflow SHALL declare the triggers `pull_request_target`, `workflow_run` or `issue_comment`. The repository's fork-PR contributor approval policy MUST be set to require approval for all external contributors; this is an operator-only step with a verification command.
++
++#### Scenario: Fork pull request routes to hosted even with the self-hosted lane enabled
++- **WHEN** the reference evaluator resolves the expression for a fork `pull_request` with `CI_RUNNER_LANE` set to `self-hosted`
++- **THEN** the result is `ubuntu-latest`
++
++#### Scenario: Routed job lacks the in-job fork guard
++- **WHEN** a routed job's first step is not the canonical guard, with condition `runner.environment == 'self-hosted'` combined with the negation of the D3 event-eligibility clause
++- **THEN** the fork guard test fails and names the job
++
++#### Scenario: Runner hook refuses a fork PR that rewrote its workflow
++- **WHEN** the hook test runs `job-started-hook.sh` with `GITHUB_EVENT_NAME=pull_request` and an event payload whose `pull_request.head.repo.full_name` differs from `GITHUB_REPOSITORY`
++- **THEN** the hook exits non-zero
++- **AND** it also exits non-zero for `merge_group`, for `pull_request_target`, and for `push` to a ref other than `refs/heads/main`
++- **AND** it exits zero for `push` to `refs/heads/main`, for `workflow_dispatch`, and for a same-repository `pull_request`
++
++#### Scenario: Runner image installs the hook
++- **WHEN** the image test reads `deploy/gx10-runner/Containerfile`
++- **THEN** it copies `job-started-hook.sh` into the image and sets `ACTIONS_RUNNER_HOOK_JOB_STARTED` to its path
++
++#### Scenario: Privileged trigger is introduced
++- **WHEN** `ci.yml` or `security.yml` declares `pull_request_target`, `workflow_run` or `issue_comment`
++- **THEN** the trigger allowlist test fails
++
++#### Scenario: Operator verifies the approval policy
++- **WHEN** the operator runs `gh api repos/{owner}/{repo}/actions/permissions/fork-pr-contributor-approval --jq .approval_policy`
++- **THEN** the output is `all_external_contributors`
++
++### Requirement: Runners Are Ephemeral Per Job
++
++The runner kit under `deploy/gx10-runner/` SHALL meet all of the following:
++- It SHALL register each runner with a single-use just-in-time configuration minted on the host before the container starts.
++- It SHALL run the runner in a container started with `--rm`, so that one container serves exactly one job, and with `--replace`, so that a container left over from an unclean stop cannot wedge the restart loop.
++- It SHALL delete the instance's own registration on stop (`ExecStopPost` runs `cleanup-runner.sh`) and, before minting, SHALL delete only the instance's own stale offline registrations, identified by the runner-name prefix `gx10-<hostname>-<instance>-`, searching every page of the runners list up to a bounded page count.
++- It SHALL load its operator configuration through `EnvironmentFile=` and deliver the registration credential through `LoadCredential=`.
++- It SHALL NOT pass the registration credential, a container engine socket, host networking or privileged mode into the container.
++- It SHALL pin the container network explicitly to `slirp4netns:allow_host_loopback=false`, so that host loopback services stay unreachable regardless of the host's podman default.
++- It SHALL start only the locally built image (`--pull=never`).
++- It SHALL bound the mint script's total retry time below the unit's start timeout.
++- It SHALL pin its base image by version and digest.
++- It SHALL mount no shared cache volume by default; a shared uv cache volume is mounted only when the operator sets `GX10_RUNNER_CACHE_ARGS` to the documented named-volume value after recording a risk acceptance.
++- Its runbook SHALL require an operator-installed control that keeps host services unreachable from runner containers on every host address, not only through the loopback mapping.
++
++#### Scenario: Unit runs a removable container with a single-use config
++- **WHEN** the unit test parses `gx10-runner@.service`
++- **THEN** `ExecStartPre` invokes `mint-jitconfig.sh`
++- **AND** `ExecStart` invokes `podman run` with `--rm`, `--replace`, `--pull=never`, `--env-file`, `--cap-drop ALL`, `--security-opt no-new-privileges` and `--network slirp4netns:allow_host_loopback=false`
++- **AND** `ExecStopPost` invokes `cleanup-runner.sh`
++
++#### Scenario: Dangerous container options are absent
++- **WHEN** the unit test scans `ExecStart`
++- **THEN** none of `--privileged`, `--network host`, `--network=host`, a `--network` value other than `slirp4netns:allow_host_loopback=false`, or a volume whose source ends in `.sock` is present
++
++#### Scenario: Credential stays on the host
++- **WHEN** the runner-kit tests inspect `mint-jitconfig.sh` and the container env-file contract
++- **THEN** the env file written for the container contains only the JIT config and the runner id
++- **AND** the mint script refuses a credential file whose mode is wider than `0600`
++
++#### Scenario: Mint retries are bounded below the start timeout
++- **WHEN** the stubbed GitHub API returns HTTP 503 on every call and the test sets a short retry budget
++- **THEN** `mint-jitconfig.sh` retries with growing delays, exits non-zero once the budget is spent, and writes no env file
++- **AND** the unit's `TimeoutStartSec` is greater than the default `GX10_MINT_MAX_ELAPSED` in the example env file
++
++#### Scenario: Unit wiring delivers configuration and credential
++- **WHEN** the unit test parses `gx10-runner@.service` and `gx10-runner.env.example`
++- **THEN** `[Service]` declares `EnvironmentFile=` for the operator env file and `LoadCredential=github-token:<path>`
++- **AND** every variable referenced by `ExecStartPre` or `ExecStart` is defined in the example env file
++
++#### Scenario: Stale registrations of the instance are swept before minting
++- **WHEN** the stubbed runners API lists an offline runner `gx10-<host>-1-<epoch>`, an online runner with the same prefix, and an offline runner `gx10-<host>-2-<epoch>`, and `mint-jitconfig.sh 1` runs
++- **THEN** it deletes only the offline instance-1 runner before requesting a new JIT config
++- **AND** a matching offline runner served on the second page of the runners list is also deleted
++
++#### Scenario: Shared cache is off unless the operator opts in
++- **WHEN** the unit test expands `ExecStart` with the example env file's `GX10_RUNNER_CACHE_ARGS` (empty)
++- **THEN** no `--volume` argument is present
++- **AND** with the documented opt-in value the only added arguments are `--volume gx10-runner-uv-cache:/home/runner/.cache/uv`
++
++#### Scenario: Operator verifies host services are unreachable on every host address
++- **WHEN** the operator attempts a TCP connect (not an HTTP request) to `:54322` and the coordinator API port from inside a runner container at `10.0.2.2` and at every address printed by `hostname -I`
++- **THEN** every connect is refused or times out
++- **AND** either the persistent `table inet` nftables rules (a DNS exemption for the host stub resolver, then drops of `ghrunner`-owned traffic to local addresses and to private, CGNAT and link-local ranges) are listed and present in `/etc/nftables.conf`, or `ss -ltnp` shows those ports bound to `127.0.0.1` only
++- **AND** `api.github.com` resolves from inside the runner container
++- **AND** after a host reboot the same rules are listed and the same probes still fail
++
++#### Scenario: JIT labels match the routing labels
++- **WHEN** the runner-kit test compares the labels requested by `mint-jitconfig.sh` with `routing.self_hosted_labels`
++- **THEN** the request carries no runner default label (`self-hosted`, `Linux`, `ARM64`)
++- **AND** the defaults together with the requested labels equal `routing.self_hosted_labels`, compared case-insensitively
++
++#### Scenario: Base image is pinned
++- **WHEN** the runner-kit test reads `deploy/gx10-runner/Containerfile`
++- **THEN** its `FROM` line names a version tag and an `@sha256:` digest, and does not use `latest`
++
++#### Scenario: Operator observes per-job ephemerality
++- **WHEN** after three jobs have run on instance 1 the operator reads the runner names those jobs ran on with `gh api repos/{owner}/{repo}/actions/runs/<run-id>/jobs --jq '.jobs[].runner_name'` (JIT runners deregister after their job, so the runners list no longer shows them) and inspects `podman ps -a --filter name=gx10-runner --filter status=exited`
++- **THEN** each executed job ran on a distinct runner name
++- **AND** no exited runner container remains
++
++### Requirement: Runners Survive Host Reboot Via systemd
++
++The runner kit SHALL provide a systemd user template unit, `gx10-runner@.service`, with `Restart=always` and an explicit `TimeoutStartSec` in `[Service]`, `StartLimitIntervalSec=0` in `[Unit]`, and `WantedBy=default.target` in `[Install]`. The unit is intended to run under a dedicated lingering, unprivileged host user. Enabling linger and the units is an operator-only step. The kit's `install-units.sh` SHALL only copy files beneath its `--prefix` and print, never execute, the `loginctl` and `systemctl` commands that enable them.
++
++#### Scenario: Unit restart and install properties
++- **WHEN** the unit test parses `gx10-runner@.service`
++- **THEN** `[Service]` has `Restart=always` and a `TimeoutStartSec` greater than 90
++- **AND** `[Unit]` has `StartLimitIntervalSec=0`
++- **AND** `[Install]` has `WantedBy=default.target`
++
++#### Scenario: Install script does not mutate the host during tests
++- **WHEN** the runner-kit test runs `install-units.sh --prefix <tmpdir>`
++- **THEN** it writes only beneath that prefix
++- **AND** it prints, without executing, the `loginctl enable-linger` and `systemctl --user enable --now` commands
++
++#### Scenario: Operator verifies reboot survival
++- **WHEN** the GX10 is rebooted and nobody logs in
++- **THEN** `systemctl --user --machine=ghrunner@ is-active gx10-runner@1` reports `active`
++- **AND** the runner appears `online` in `gh api repos/{owner}/{repo}/actions/runners`
++
++### Requirement: CI Wall-Clock Measurement And Run Verification
++
++The repository SHALL provide `scripts/ci/ci_wallclock.py` with three functions:
++- `median_wallclock(runs, *, conclusion="success")` SHALL compute the median wall-clock seconds over successful runs only.
++- `compare(baseline, candidate, *, threshold=0.85, min_n=5)` SHALL pass only when the candidate median is at most `threshold` times the baseline median and both samples meet `min_n`.
++- `verify_run(jobs, manifest, workflow, expected_lane="self-hosted")` SHALL report: every routed job that did not run on a `gx10`-labelled runner (or, with `expected_lane="hosted"`, every routed job that ran on a self-hosted runner); every hosted job that ran on a self-hosted runner; every job that concluded anything other than `success` or `skipped`, except that a job declared `continue-on-error: true` SHALL be reported as a warning rather than a violation; every `skipped` job whose definition has no job-level `if:`; and every manifest job missing from the run. A `skipped` job that has a job-level `if:` SHALL NOT be reported, and its runner placement SHALL NOT be checked. `verify_run` SHALL correlate manifest job ids with jobs-API entries through the display name derived from the workflow definition (the job id, or a literal `name:`; matrix expansions match `<display name> (` and are each checked), and SHALL report any jobs-API entry that matches no manifest job.
++
++The CLI SHALL select runs only through explicit filters (`--workflow`, `--head-sha`, `--event`, `--since`, `--until`) and SHALL cap fetched runs with `--limit`.
++
++#### Scenario: CLI fetches are filtered and bounded
++- **WHEN** `ci_wallclock.py compare` runs under test with a stubbed `gh` that records its calls and serves more matching runs than `--limit 10`, with `--workflow ci.yml --event workflow_dispatch --head-sha <sha>`
++- **THEN** the recorded `gh api` requests carry the workflow, event and `head_sha` filters, are all GET requests, and stop fetching pages once 10 runs are collected
++
++#### Scenario: Runs with mixed placement are excluded from comparison
++- **WHEN** `compare` receives a run whose routed jobs ran partly on `gx10` runners and partly on hosted runners
++- **THEN** that run is excluded from both samples and listed in the result's `excluded_runs` with a reason
++
++#### Scenario: Median ignores cancelled and failed runs
++- **WHEN** `median_wallclock` receives runs whose conclusions include `cancelled` and `failure`
++- **THEN** only `success` runs contribute to the median
++
++#### Scenario: Comparison enforces threshold and sample size
++- **WHEN** `compare` receives a baseline median of 600 s and a candidate median of 540 s, each with n=6
++- **THEN** it fails, because 540 is greater than 0.85 × 600 = 510
++- **AND** with a candidate median of 500 s it passes
++- **AND** with n=4 on either side it fails for insufficient samples
++
++#### Scenario: Run verification flags misrouted jobs
++- **WHEN** `verify_run` receives a run in which a routed job ran on a `ubuntu-latest` runner while the lane was self-hosted, and a hosted job ran on a runner labelled `gx10`
++- **THEN** it returns one violation for each job, naming the job and the expected lane
++
++#### Scenario: Conditionally skipped job is not a violation
++- **WHEN** `verify_run` receives a run in which `dependency-update-remediation`, which has a job-level `if:`, concluded `skipped` with no runner assigned, and every other job succeeded on its expected lane
++- **THEN** it returns zero violations
++
++#### Scenario: Matrix expansions are correlated to their job id
++- **WHEN** `verify_run` receives a workflow definition whose job `lint` has a two-entry `strategy.matrix`, and the jobs API returns `lint (a)` on a `gx10` runner and `lint (b)` on a hosted runner while the lane is self-hosted
++- **THEN** it returns a violation for `lint (b)` and none for `lint (a)`
++- **AND** a jobs-API entry whose name matches no manifest job is reported as an unknown job
++
++#### Scenario: Manifest job missing from the run is a violation
++- **WHEN** `verify_run` receives a jobs list that lacks a job the manifest names for that workflow
++- **THEN** it returns a violation naming the missing job
++
++#### Scenario: Unconditional job skipped by an upstream failure is a violation
++- **WHEN** a job with no job-level `if:` concluded `skipped`
++- **THEN** `verify_run` returns a violation naming that job
++
++#### Scenario: Failed continue-on-error job is a warning
++- **WHEN** a job declared `continue-on-error: true` concluded `failure` and every other job succeeded on its expected lane
++- **THEN** `verify_run` returns zero violations and one warning naming that job
++- **AND** the `verify-run` CLI exits zero, printing the warning (it exits non-zero only on violations)
++
++#### Scenario: Rollback check expects hosted placement
++- **WHEN** `verify_run` is called with `expected_lane="hosted"` and a routed job ran on a runner labelled `gx10`
++- **THEN** it returns a violation naming that job
++
++#### Scenario: Operator confirms both workflows green on the self-hosted lane
++- **WHEN** the operator dispatches `ci.yml` and `security.yml` with `runner_lane=self-hosted` and runs `python scripts/ci/ci_wallclock.py verify-run <run-id> --workflow <file>` for each run
++- **THEN** both report zero violations
++
++### Requirement: Implementation Does Not Mutate Hosts Or Repository Settings
++
++The implementation of this capability MUST NOT perform any of the following actions:
++- register runners;
++- mint registration or JIT tokens;
++- change repository or organization settings or variables;
++- install, enable or start systemd units or containers;
++- modify workflows on `main`.
++
++Each of those actions SHALL be documented as an operator-only runbook step in `docs/guides/self-hosted-ci-runners.md`, and each step MUST carry a concrete verification command.
++
++#### Scenario: Runbook covers every operator step with a verification command
++- **WHEN** the runbook test parses `docs/guides/self-hosted-ci-runners.md`
++- **THEN** each operator step O1 to O12 appears as a heading
++- **AND** each step contains at least one fenced verification command block
++
++#### Scenario: Scripts default to non-mutating behaviour
++- **WHEN** `install-units.sh` runs, with any arguments, or `ci_wallclock.py` runs under test
++- **THEN** no `systemctl`, `loginctl` or `podman` command and no mutating `gh api` call is executed
++- **AND** the commands that would mutate the host are only printed
+diff --git a/openspec/changes/migrate-ci-to-self-hosted-gx10-runners/tasks.md b/openspec/changes/migrate-ci-to-self-hosted-gx10-runners/tasks.md
+new file mode 100644
+index 00000000..cbbd2e3e
+--- /dev/null
++++ b/openspec/changes/migrate-ci-to-self-hosted-gx10-runners/tasks.md
+@@ -0,0 +1,519 @@
++# Tasks — migrate-ci-to-self-hosted-gx10-runners
++
++> Change ID: `migrate-ci-to-self-hosted-gx10-runners` · Roadmap item `roadmap-always-on-agent-automation/ri-20`
++
++**Conventions**
++- Sizes follow the plan-feature sizing table. No task is XL, and none is L.
++- Ordering is TDD: every test task comes before the implementation task it verifies, and that
++  implementation task depends on it.
++- Spec scenario references use the form `ci-runner-infrastructure / "<scenario>"`.
++- Design decisions are cited by D-number from `design.md`.
++- All tests live in `skills/tests/ci_runners/`. Run them with
++  `skills/.venv/bin/python -m pytest skills/tests/ci_runners -q`.
++- No test may pin `openspec/changes/<id>/`. Tests read the promoted `.github/` copies only.
++
++**HARD BOUNDARY — applies to every task in § 1–6.** Implementation tasks write files on this
++branch only. They MUST NOT do any of the following:
++- register runners;
++- mint registration or JIT tokens;
++- call a mutating GitHub API;
++- set repository or organization settings or variables;
++- run `systemctl`, `loginctl` or `podman run`/`podman build` against the host;
++- push to `main`.
++
++Everything of that kind is in § 7 (operator-only).
++
++## Status
++
++- [x] Planning
++- [x] Implementation
++- [ ] Testing
++- [ ] Review
++- [ ] Done
++
++## Phase 1 — Contracts: manifest schema, manifest, test package
++
++- [x] 1.1 Write `skills/tests/ci_runners/test_manifest_schema.py` (S)
++  - The promoted `.github/runner-lanes.schema.json` is valid Draft 2020-12.
++  - `.github/runner-lanes.yaml` validates against it.
++  - Negative fixtures are rejected:
++    - a hosted job with no `reason_code`;
++    - a hosted job with an empty `reason`;
++    - an unknown `reason_code`;
++    - `hosted_label` set to anything other than `ubuntu-latest`;
++    - `self_hosted_labels` without `self-hosted`.
++
++  **Spec scenarios**: ci-runner-infrastructure / "Hosted job without justification is rejected"
++  **Contracts**: contracts/schemas/runner-lanes.schema.json
++  **Design decisions**: D1
++  **Dependencies**: none
++- [x] 1.2 Promote the schema from the change's `contracts/schemas/` to
++      `.github/runner-lanes.schema.json`, then author `.github/runner-lanes.yaml` (S)
++  - The manifest classifies every current job of `ci.yml` (25) and `security.yml` (3) exactly
++    as the design D2 table does.
++  - The routing block is `CI_RUNNER_LANE` / `runner_lane` /
++    `[self-hosted, linux, ARM64, gx10]` / `ubuntu-latest`.
++
++  **Spec scenarios**: ci-runner-infrastructure / "Hosted job without justification is rejected"
++  **Design decisions**: D1, D2
++  **Dependencies**: 1.1
++- [x] 1.3 Create the `skills/tests/ci_runners/` package skeleton and register it (XS)
++  - Add `__init__.py`.
++  - Add `conftest.py` with fixtures `repo_root`, `manifest` and `load_workflow(name)`.
++  - Register the directory in the `testpaths` of `skills/pyproject.toml`, so that
++    `skills/tests/ci_coverage/test_ci_test_coverage.py` stays green.
++
++  **Dependencies**: none
++- [x] Checkpoint: run tests, review diff, verify scope
++
++## Phase 2 — Workflow routing (`ci.yml`, `security.yml` on this branch)
++
++- [x] 2.1 Write `test_routing_expression.py` (M)
++  - It contains a minimal reference evaluator for the D3 expression grammar:
++    - the `&&`/`||` value semantics of GitHub expressions;
++    - `==`/`!=`;
++    - `fromJSON` of a literal;
++    - context lookups from a dict.
++  - It asserts every row of the D3 evaluation table.
++  - It asserts that every routed job's `runs-on` equals the canonical string after whitespace
++    normalization.
++  - It asserts that the labels inside `fromJSON(...)` equal `routing.self_hosted_labels`, that
++    the `vars.<name>` reference equals `routing.repository_variable`, and that the
++    `inputs.<name>` references equal `routing.dispatch_input` (mutating any one manifest field
++    makes the test fail).
++
++  **Spec scenarios**: ci-runner-infrastructure / "Unset variable keeps CI on hosted runners",
++  "Variable opts same-repository events into the self-hosted lane", "Dispatch input overrides
++  the variable in both directions", "Expression is tied to every manifest routing field",
++  "Merge queue runs stay hosted", "Routed job drifts from the
++  canonical expression", "Fork pull request routes to hosted even with the self-hosted lane
++  enabled"
++  **Contracts**: .github/runner-lanes.schema.json
++  **Design decisions**: D3
++  **Dependencies**: 1.2, 1.3
++- [x] 2.2 Write `test_manifest_completeness.py` (S)
++  - The set of job ids in each workflow equals the manifest's job set for that workflow, so
++    unclassified and stale entries are both caught.
++  - Every hosted job has `runs-on == "ubuntu-latest"` as a literal string.
++  - Derived display names (D8 correlation contract: job id, or a literal `name:`) are unique
++    within each workflow, and no job uses an expression in `name:`.
++
++  **Spec scenarios**: ci-runner-infrastructure / "Unclassified job fails the suite", "Stale
++  manifest entry fails the suite", "Hosted job uses a literal hosted label"
++  **Design decisions**: D1, D2
++  **Dependencies**: 1.2, 1.3
++- [x] 2.3 Write `test_fork_guard.py` (S)
++  - Every routed job's first step is the D4 guard: its `if` condition and its `exit 1`.
++  - The guard's eligibility clause equals, after whitespace normalization, the negated
++    event-eligibility clause of the canonical D3 expression (so `merge_group` and fork PRs are
++    refused on a self-hosted runner).
++  - Both workflows' triggers are a subset of `{push, pull_request, merge_group,
++    workflow_dispatch}`.
++  - Both workflows declare a `workflow_dispatch` `runner_lane` choice input with options
++    `[auto, hosted, self-hosted]` and default `auto`.
++
++  **Spec scenarios**: ci-runner-infrastructure / "Routed job lacks the in-job fork guard",
++  "Privileged trigger is introduced", "Dispatch trigger and lane input are declared"
++  **Design decisions**: D4
++  **Dependencies**: 1.2, 1.3
++- [x] 2.4 Write `test_tool_parity.py` (S)
++  - A routed job must not declare `services:`.
++  - A routed job's `run:` blocks must not invoke `docker`, `podman`, `sudo` or `apt-get` in
++    command position (D10 matching rule), except for entries in the commented allowlist, which
++    starts empty.
++  - A path such as `scripts/check_docker_imports.py` is not an invocation (positive fixture).
++  - A routed job that invokes `npm`/`npx`/`node`, `java` or `go` must have the matching
++    `actions/setup-*` step.
++  - Every routed job's `astral-sh/setup-uv` step passes
++    `cache-local-path: /home/runner/.cache/uv` (D6; implemented by 2.8).
++
++  **Spec scenarios**: ci-runner-infrastructure / "Container-engine job marked routed is
++  rejected", "Command name inside a script path is not an invocation", "Routed job calls npm
++  without setup-node"
++  **Design decisions**: D2, D10
++  **Dependencies**: 1.2, 1.3
++- [x] Checkpoint: run tests (expect 2.1–2.4 RED), review diff, verify scope
++> **Same-file chain.** 2.5 → 2.6 → 2.7 → 2.8 all edit `ci.yml` and/or `security.yml` and run
++> serially inside `wp-workflows`; they are never split across agents.
++
++- [x] 2.5 Route the 20 routed `ci.yml` jobs (M)
++  - Replace their `runs-on` with the canonical expression and insert the D4 guard as their
++    first step.
++  - Leave the 5 hosted jobs on a literal `ubuntu-latest`, each with a one-line comment that
++    points to the manifest reason.
++  - Do not change job ids, `needs`, `permissions`, `concurrency` or `timeout-minutes`.
++
++  **Dependencies**: 2.1, 2.2, 2.3
++- [x] 2.6 Route the 3 `security.yml` jobs (S)
++  - Apply the canonical expression and the D4 guard, as in 2.5.
++
++  **Dependencies**: 2.1, 2.2, 2.3, 2.5 (serial; same package)
++- [x] 2.7 Add the `workflow_dispatch` trigger to both workflows (XS)
++  - Add the trigger with the `runner_lane` choice input: `auto` | `hosted` | `self-hosted`,
++    default `auto`.
++  - Leave the existing triggers unchanged.
++
++  **Dependencies**: 2.3, 2.6 (serial; edits both workflows after routing)
++- [x] 2.8 Add explicit setup steps to routed jobs that rely on hosted-preinstalled tools (S)
++  - `validate-specs` needs `npm` and gets `actions/setup-node` at the repository's pinned
++    major version. Any other job that 2.4 flags gets the same treatment.
++  - The setup step goes after the D4 guard, which must stay the first step.
++  - Every routed job that uses `astral-sh/setup-uv` passes
++    `cache-local-path: /home/runner/.cache/uv`, so an opted-in shared cache is actually used
++    (D6); on the hosted lane the path is harmless because the hosted user is also `runner`.
++    Test 2.4 asserts it for routed jobs.
++
++  **Dependencies**: 2.4, 2.7 (serial; edits `ci.yml` after routing)
++- [ ] 2.9 Run the existing tests that parse workflows and confirm they stay green (XS)
++  - `skills/tests/ci_coverage/`
++  - `skills/tests/validate-feature/test_ci_sweep_wiring.py`
++  - `skills/tests/project-context-refresh/test_gate.py`
++  - `skills/tests/project-context-refresh/test_remediation_policy.py`
++  - `skills/tests/install_sh/test_consumer_portability.py`
++
++  Fix only by adjusting this change's workflow edits, never by editing those tests' contracts.
++
++  **Dependencies**: 2.5, 2.6, 2.7, 2.8
++- [x] Checkpoint: run tests (2.1–2.4 GREEN), review diff, verify scope
++
++## Phase 3 — Runner kit (`deploy/gx10-runner/`), written and never installed
++
++- [x] 3.1 Write `test_systemd_unit.py` (S)
++  - Parse `systemd/gx10-runner@.service` with an INI parser that allows repeated keys.
++  - `Restart=always` and `StartLimitIntervalSec=0` are set, and `WantedBy=default.target` is
++    present.
++  - `Restart=always` and `TimeoutStartSec` (> 90, and > the example env file's
++    `GX10_MINT_MAX_ELAPSED`) are in `[Service]`; `StartLimitIntervalSec=0` is in `[Unit]`.
++  - `ExecStartPre` invokes `mint-jitconfig.sh`, and `ExecStopPost` invokes `cleanup-runner.sh`.
++  - `[Service]` has `EnvironmentFile=%h/.config/gx10-runner/env` and
++    `LoadCredential=github-token:%h/.config/gx10-runner/token` (D7), and every `$VAR` that
++    `ExecStartPre`/`ExecStart` reference is defined in `gx10-runner.env.example`.
++  - `ExecStart` is `podman run` with each of these: `--rm`, `--replace`, `--pull=never`, `--env-file`,
++    `--cap-drop ALL`, `--security-opt no-new-privileges`,
++    `--network slirp4netns:allow_host_loopback=false`, `--pids-limit`, `--cpus`, `--memory`.
++  - `ExecStart` contains none of these: `--privileged`, `--network host`/`--network=host`, any
++    other `--network` value, a `*.sock` volume source, or `%h`/`$HOME` as a bind source.
++  - Cache switch (D6/A10): `ExecStart` contains `$GX10_RUNNER_CACHE_ARGS` as a standalone,
++    unbraced word and no literal cache `--volume`; the example env file sets it empty. Expanding
++    `ExecStart` with systemd word-splitting semantics yields no `--volume` argument when the
++    value is empty, and exactly `--volume gx10-runner-uv-cache:/home/runner/.cache/uv` (a named
++    volume, never a bind path) when it holds the documented opt-in value.
++  - If `systemd-analyze` is present, also run `systemd-analyze verify --user` on a copy whose
++    `Exec*` paths are stubbed. Otherwise skip that check.
++
++  **Spec scenarios**: ci-runner-infrastructure / "Unit runs a removable container with a
++  single-use config", "Dangerous container options are absent", "Unit restart and install
++  properties", "Unit wiring delivers configuration and credential", "Shared cache is off unless
++  the operator opts in"
++  **Design decisions**: D5, D6, D7
++  **Dependencies**: 1.3
++- [x] 3.2 Author `deploy/gx10-runner/systemd/gx10-runner@.service` and
++      `deploy/gx10-runner/gx10-runner.env.example` (S)
++  - The example env file sets: repo slug, instance CPU and memory limits, image reference,
++    `GX10_RUNNER_CACHE_ARGS=` (empty: no shared cache, D6/A10), `GX10_MINT_MAX_ELAPSED`
++    (default 600), and labels mirrored from the
++    manifest. It does not set `GX10_RUNNER_TOKEN_FILE`: the unit delivers the credential
++    through `LoadCredential=` (D7).
++
++  **Dependencies**: 3.1
++- [x] 3.3 Write `test_jit_scripts.py` (M)
++  - Run `mint-jitconfig.sh` and `cleanup-runner.sh` under `bash` with a stub `curl` on `PATH`.
++    The stub records its arguments and returns fixture JSON, so the test never touches the
++    network.
++  - The mint script refuses a credential file whose mode is wider than 0600.
++  - The mint script POSTs to `actions/runners/generate-jitconfig` with only the custom labels;
++    the runner defaults (`self-hosted`, `Linux`, `ARM64`) ∪ the requested labels equal
++    `routing.self_hosted_labels`, compared case-insensitively (D5).
++  - The output env file has mode 0600 and contains only `ACTIONS_RUNNER_INPUT_JITCONFIG` and
++    `GX10_RUNNER_ID`.
++  - The mint script retries with backoff on HTTP 5xx and exits non-zero, writing no env file,
++    once `GX10_MINT_MAX_ELAPSED` is spent. The test overrides the base delay and the budget so
++    it stays fast.
++  - The cleanup script issues a DELETE only for an offline runner id and always exits 0.
++  - Before minting, the mint script DELETEs only **offline** runners whose name starts with
++    `gx10-<hostname>-<instance>-`; an online runner, another instance's runner and another
++    host's runner are left alone, a match on the second page is found, and a failing sweep does
++    not stop the mint (D5).
++
++  **Spec scenarios**: ci-runner-infrastructure / "Credential stays on the host", "Mint retries
++  are bounded below the start timeout", "JIT labels match the routing labels", "Stale
++  registrations of the instance are swept before minting"
++  **Design decisions**: D5
++  **Dependencies**: 1.2, 1.3
++- [x] Checkpoint: run tests, review diff, verify scope
++- [x] 3.4 Author `deploy/gx10-runner/mint-jitconfig.sh` (S)
++  - Use `set -euo pipefail`.
++  - Read the credential from `$CREDENTIALS_DIRECTORY/github-token`, falling back to
++    `GX10_RUNNER_TOKEN_FILE`.
++  - Write with umask 077.
++  - Sweep this instance's stale offline registrations before minting, across all pages up to
++    a 10-page bound (D5).
++  - Use exponential backoff with a per-attempt cap of 300 s, inside the total budget
++    `GX10_MINT_MAX_ELAPSED` (default 600 s).
++
++  **Dependencies**: 3.3
++- [x] 3.5 Author `deploy/gx10-runner/cleanup-runner.sh` (XS)
++  - Delete the runner registration only if it is still registered and offline. Cleanup is
++    best-effort and always exits 0.
++
++  **Dependencies**: 3.3
++- [x] 3.6 Write `test_runner_image.py` (XS)
++  - The `FROM` line of `Containerfile` names `ghcr.io/actions/actions-runner:<version>@sha256:<64 hex>`
++    and does not use `latest`.
++  - Every package in `toolchain.txt` is installed by the Containerfile.
++  - The final `USER` is not root.
++  - The image copies `job-started-hook.sh` and sets `ACTIONS_RUNNER_HOOK_JOB_STARTED` to it
++    (D4).
++  - `job-started-hook.sh`, run under `bash` with fixture event payloads, exits 0 only for
++    `push` to `refs/heads/main`, `workflow_dispatch` and a same-repository `pull_request`, and
++    non-zero for a fork `pull_request`, `merge_group`, `pull_request_target` and a `push` to
++    another ref (D4).
++  - The image sets `ENV UV_CACHE_DIR=/home/runner/.cache/uv` (D6).
++  - No `sudoers` grant is added.
++
++  **Spec scenarios**: ci-runner-infrastructure / "Base image is pinned", "Runner image installs
++  the hook", "Runner hook refuses a fork PR that rewrote its workflow"
++  **Design decisions**: D6
++  **Dependencies**: 1.3
++- [x] 3.7 Author `deploy/gx10-runner/Containerfile`, `deploy/gx10-runner/toolchain.txt` and
++      `deploy/gx10-runner/job-started-hook.sh` (S)
++  - Pin the base image digest: read it from the registry manifest with `podman manifest
++    inspect` or `skopeo inspect`. Reading is allowed; building or running an image is not.
++  - Follow the D6 baseline toolchain.
++  - Write the D4 job-started hook (`set -euo pipefail`, `jq` over `$GITHUB_EVENT_PATH`) and
++    install it in the image with `ACTIONS_RUNNER_HOOK_JOB_STARTED`.
++
++  **Dependencies**: 3.6
++- [x] 3.8 Write `test_install_units.py` (XS)
++  - Run `install-units.sh --prefix <tmp>` with stub `systemctl`/`loginctl`/`podman` on `PATH`.
++    Each stub fails the test if it is invoked.
++  - Files land only beneath `<tmp>`.
++  - The `loginctl enable-linger` and `systemctl --user enable --now gx10-runner@{1..N}`
++    commands are printed but not executed.
++
++  **Spec scenarios**: ci-runner-infrastructure / "Install script does not mutate the host
++  during tests", "Scripts default to non-mutating behaviour"
++  **Design decisions**: D7
++  **Dependencies**: 1.3
++- [x] 3.9 Author `deploy/gx10-runner/install-units.sh` (XS)
++  - Use the copy-and-print-only behaviour of D7.
++
++  **Dependencies**: 3.8
++- [x] Checkpoint: run tests, review diff, verify scope
++
++## Phase 4 — Measurement and run verification (`scripts/ci/ci_wallclock.py`)
++
++- [x] 4.1 Write `test_ci_wallclock.py` over JSON fixtures in `skills/tests/ci_runners/fixtures/` (S)
++  - The median uses `success` runs only.
++  - `compare` checks the 600/540/500 threshold cases and n<5 (insufficient sample).
++  - `verify_run` flags each of these:
++    - a misrouted routed job (both `expected_lane` values);
++    - a hosted job on `gx10`;
++    - a conclusion other than `success`/`skipped`, with jobs marked `continue-on-error`
++      reported as warnings;
++    - a `skipped` job that has no job-level `if:`;
++    - a missing job;
++    - a jobs-API entry that matches no manifest job (unknown job).
++  - Correlation follows the D8 contract: display name = job id or literal `name:`, matrix
++    expansions matched by `<display name> (` prefix and each checked (fixture with a matrix job).
++  - `verify_run` does **not** flag `dependency-update-remediation` concluding `skipped` with no
++    runner (it has a job-level `if:`).
++  - The CLI's argument parsing, including `--head-sha`, `--event`, `--since`, `--until`,
++    `--limit`, `--expect-lane` and `--workflow-file`, works with no network access. `gh` is
++    stubbed.
++  - With a recording `gh` stub that serves more matching runs than `--limit`, the issued
++    requests are GETs carrying the workflow/event/`head_sha` filters, and paging stops once
++    `--limit` runs are collected (no fetch-all-then-truncate).
++  - `compare` excludes a run with mixed routed-job placement (or no assigned routed runner)
++    from both samples and lists it in `excluded_runs`.
++  - `verify-run` without `--workflow-file` fetches the definition at the run's `head_sha`
++    (asserted on the recorded `gh api .../contents/...?ref=<sha>` call).
++
++  **Spec scenarios**: ci-runner-infrastructure / "Median ignores cancelled and failed runs",
++  "Comparison enforces threshold and sample size", "Run verification flags misrouted jobs",
++  "Conditionally skipped job is not a violation", "Unconditional job skipped by an upstream
++  failure is a violation", "Rollback check expects hosted placement", "Matrix expansions are
++  correlated to their job id", "Failed continue-on-error job is a warning", "CLI fetches are
++  filtered and bounded", "Runs with mixed placement are excluded from comparison"
++  **Design decisions**: D8
++  **Dependencies**: 1.2, 1.3
++- [x] 4.2 Implement the pure functions `median_wallclock`, `compare` and `verify_run` in
++      `scripts/ci/ci_wallclock.py` (S)
++  - Use the standard library plus PyYAML only.
++
++  **Dependencies**: 4.1
++- [x] 4.3 Add the CLI subcommands `median`, `compare` and `verify-run` (S)
++  - Each fetches through `gh api` read-only GETs, bounded by `--limit` (default 200).
++  - `median` and `compare` select runs with `--workflow` (required), `--head-sha`, `--event`,
++    `--since` and `--until` (D8).
++  - `verify-run` takes `--expect-lane self-hosted|hosted` (default `self-hosted`) and exits
++    non-zero on any violation; warnings (failed `continue-on-error` jobs) are printed and do
++    not change the exit code.
++
++  **Dependencies**: 4.2
++- [x] Checkpoint: run tests, review diff, verify scope
++
++## Phase 5 — Operator runbook
++
++- [x] 5.1 Write `test_runbook.py` (XS)
++  - `docs/guides/self-hosted-ci-runners.md` has headings `O1` through `O12`.
++  - Each section contains at least one fenced `bash` verification block.
++  - The runbook states the hard boundary.
++  - The runbook names the rollback command (`gh variable set CI_RUNNER_LANE --body hosted`).
++
++  **Spec scenarios**: ci-runner-infrastructure / "Runbook covers every operator step with a
++  verification command"
++  **Design decisions**: D9
++  **Dependencies**: 1.3
++- [x] 5.2 Author `docs/guides/self-hosted-ci-runners.md` (S)
++  - Write steps O1–O12 from § 7, each with its exact commands and verification.
++  - Include the queued-run detection command for D9.
++  - Include the GitHub App upgrade path for D5.
++  - Include the cache opt-in for D6: it is off by default; enabling it sets
++    `GX10_RUNNER_CACHE_ARGS=--volume gx10-runner-uv-cache:/home/runner/.cache/uv` only after the
++    operator fills in a recorded risk-acceptance line (date, confirmation that every
++    same-repository writer, including Dependabot and agent branches, is acceptable); disabling
++    empties it and removes the volume; a move to team mode requires disabling it (A10).
++  - Include the podman-5 note: keep the explicit `slirp4netns` network, or switch to
++    `pasta:--no-map-gw` only through a reviewed unit change (A11).
++
++  **Dependencies**: 5.1
++- [x] 5.3 Link the runbook from `docs/guides/documentation.md`, under setup and deployment (XS)
++
++  **Dependencies**: 5.2
++- [x] Checkpoint: run tests, review diff, verify scope
++
++## Phase 6 — Integration
++
++- [x] 6.1 Run the full skills suite and validators (S)
++  - Run the full skills suite with `skills/.venv/bin/python -m pytest skills/tests -q`.
++  - Run `openspec validate migrate-ci-to-self-hosted-gx10-runners --strict`.
++  - If `actionlint` is available, run it over both workflows. Otherwise record it as skipped.
++  - Confirm with `git diff origin/main --stat` that the diff touches only files inside the
++    package scopes.
++  - Cross-check the runbook against the kit: every `GX10_*` variable and every
++    `deploy/gx10-runner/*` path that `docs/guides/self-hosted-ci-runners.md` names exists in
++    `gx10-runner.env.example` or the kit, and every `ci_wallclock.py` flag it uses is accepted by
++    the CLI's parser (wp-docs runs in parallel with the kit, so drift is caught here).
++
++  **Dependencies**: 2.9, 3.2, 3.4, 3.5, 3.7, 3.9, 4.3, 5.3
++
++## Phase 7 — OPERATOR-ONLY (post-merge; NOT implementation tasks)
++
++> These steps need a human with host and repository-admin access. Autopilot phases MUST NOT
++> perform them or mark them done. The validation report lists them as `pending_gate`. The
++> runbook (§ 5) holds the full commands.
++>
++> **Order:** O1–O5 first, then O6 as the dry run, O7 to flip, O8–O11 to measure and verify, and
++> O12 to roll back if needed.
++
++- [ ] O1 Create the dedicated host user and enable linger *(outcome 4, host half)*
++  - Run `sudo useradd --system --create-home --shell /usr/sbin/nologin ghrunner`, then give it
++    a subordinate id range, which `useradd --system` does not allocate and rootless podman
++    needs for the non-root `runner` user in the image. Pick a 65536-id range that overlaps no
++    entry in `/etc/subuid` or `/etc/subgid` (start above the highest existing end), then
++    `sudo usermod --add-subuids <start>-<start+65535> --add-subgids <start>-<start+65535> ghrunner`.
++  - Run `sudo loginctl enable-linger ghrunner`.
++  - Because the account has no login shell, run every later "as `ghrunner`" command as
++    `sudo -u ghrunner XDG_RUNTIME_DIR=/run/user/$(id -u ghrunner) <command>` (or
++    `systemctl --user --machine=ghrunner@ …` for unit operations).
++  - **Verify**: `loginctl show-user ghrunner -p Linger` prints `Linger=yes`, and
++    `grep ghrunner /etc/subuid /etc/subgid` shows one range in each file, and no two entries in
++    either file overlap (`sort -t: -k2 -n /etc/subuid` shows each start above the previous
++    entry's end).
++- [ ] O2 Provision the registration credential
++  - Create a fine-grained PAT for this repository only, with *Administration: read and write*
++    and an expiry of 90 days or less.
++  - Store it as `~ghrunner/.config/gx10-runner/token` with mode 0600; the unit's
++    `LoadCredential=github-token:%h/.config/gx10-runner/token` reads it from there (D7).
++  - Copy `deploy/gx10-runner/gx10-runner.env.example` to `~ghrunner/.config/gx10-runner/env`
++    and fill in the repository slug and image reference (`EnvironmentFile=`, D7).
++  - **Verify**: `stat -c %a ~ghrunner/.config/gx10-runner/token` prints `600`, and
++    `GH_TOKEN=$(sudo cat …) gh api repos/{owner}/{repo}/actions/runners --jq .total_count`
++    exits 0.
++- [ ] O3 Build the runner image on the GX10 as `ghrunner`
++  - Run `podman build -t localhost/gx10-runner:<sha> deploy/gx10-runner`.
++  - **Verify**: `podman image inspect localhost/gx10-runner:<sha> --format '{{.Architecture}}'`
++    prints `arm64`.
++- [ ] O4 Install the host-service isolation control, then install and enable the units
++  - First, as root, install the isolation control (D6). Preferred: a `table inet` `output`
++    hook chain with, in order, `meta skuid ghrunner ip daddr 127.0.0.53 udp dport 53 accept`,
++    the same rule for `tcp`, `meta skuid ghrunner fib daddr type local drop`, and drops for
++    `ghrunner`-owned traffic to `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`,
++    `100.64.0.0/10`, `169.254.0.0/16`, `fc00::/7`, `fe80::/10` and out of `tailscale0`.
++    Persist it in `/etc/nftables.conf` and `sudo systemctl enable nftables`. Fallback: rebind
++    every host service the runners must not reach to `127.0.0.1`.
++  - Then run `deploy/gx10-runner/install-units.sh`, then `systemctl --user daemon-reload` and
++    `systemctl --user enable --now gx10-runner@{1..8}` as `ghrunner`.
++  - **Verify**:
++    `gh api repos/{owner}/{repo}/actions/runners --jq '[.runners[]|select(any(.labels[];.name=="gx10"))|.status]'`
++    lists 8 entries, all `online`.
++  - **Also verify**: for each address in `10.0.2.2 $(hostname -I)` and each port in
++    `54322 <coordinator-port>`,
++    `podman exec gx10-runner-1 bash -c 'timeout 3 bash -c "exec 3<>/dev/tcp/<addr>/<port>" && echo reachable || echo unreachable'`
++    prints `unreachable` (a transport-level connect; an HTTP `curl` probe is wrong here, because
++    it fails after connecting to a non-HTTP service such as Postgres);
++    the loop includes the host's IPv6 addresses;
++    `podman exec gx10-runner-1 getent hosts api.github.com` resolves (the DNS exemption works;
++    a host-side `getent` does not exercise it);
++    `grep -c skuid /etc/nftables.conf` is non-zero (the rules are persistent);
++    `sudo nft list ruleset | grep skuid` shows the rules (or `ss -ltnp` shows those ports bound
++    to `127.0.0.1` only); and
++    `podman inspect gx10-runner-1 --format '{{.HostConfig.NetworkMode}}'` shows `slirp4netns`.
++    A probe of `10.0.2.2` alone is not sufficient (D6).
++  - If the operator opts in to the shared uv cache (D6/A10), fill in the runbook's
++    risk-acceptance line (date; confirmation that every same-repository writer, including
++    Dependabot and agent branches, is acceptable) before setting `GX10_RUNNER_CACHE_ARGS`.
++- [ ] O5 Set the fork-PR approval policy *(outcome 3, settings half)*
++  - Run `gh api -X PUT repos/{owner}/{repo}/actions/permissions/fork-pr-contributor-approval -f approval_policy=all_external_contributors`.
++  - Confirm the runners are repository-scoped, not organization-scoped.
++  - **Verify**:
++    `gh api repos/{owner}/{repo}/actions/permissions/fork-pr-contributor-approval --jq .approval_policy`
++    prints `all_external_contributors`.
++- [ ] O6 Self-hosted dry run before flipping *(outcome 1)*
++  - Run `gh workflow run ci.yml --ref main -f runner_lane=self-hosted` and the same command for
++    `security.yml`.
++  - **Verify**: `python scripts/ci/ci_wallclock.py verify-run <run-id> --workflow ci.yml`, and
++    the same for `security.yml`, report 0 violations.
++  - If a routed job fails on arm64, open a PR that moves it to `hosted` with
++    `reason_code: amd64-only`, then repeat O6.
++- [ ] O7 Flip the lane
++  - Run `gh variable set CI_RUNNER_LANE --body self-hosted`.
++  - **Verify**: `gh variable get CI_RUNNER_LANE` prints `self-hosted`, and the next PR's
++    `verify-run` reports 0 violations.
++- [ ] O8 Measure wall-clock time *(outcome 2)*
++  - Dispatch 5 or more paired runs per lane on the same commit (`runner_lane=hosted` versus
++    `self-hosted`).
++  - **Verify**: `python scripts/ci/ci_wallclock.py compare --baseline-lane hosted --candidate-lane self-hosted --workflow ci.yml --event workflow_dispatch --head-sha <sha>`
++    passes, meaning the median ratio is 0.85 or less with n ≥ 5 on each side.
++  - **Corroborate**: run `median` over 20 or more PR runs before and after the O7 date.
++  - If the comparison fails, tune the instance count, or move the slowest routed jobs to
++    `measured-slower`.
++- [ ] O9 Check per-job ephemerality *(outcome 4)*
++  - **Verify**: after 3 or more jobs have run on instance 1,
++    `journalctl --user -u gx10-runner@1 | grep -c 'Listening for Jobs'` is 3 or more, and
++    `gh api repos/{owner}/{repo}/actions/runs/<run-id>/jobs --jq '.jobs[].runner_name'` shows
++    distinct names (JIT runners deregister after their job, so the runners list cannot show
++    them).
++  - **Also verify**: `podman ps -a --filter name=gx10-runner --filter status=exited` is empty.
++- [ ] O10 Check reboot survival *(outcome 4)*
++  - Run `sudo systemctl reboot`. Do not log in as `ghrunner`.
++  - **Verify**: `sudo systemctl --user --machine=ghrunner@ is-active gx10-runner@1` prints
++    `active`, and the runner shows `online` in the runners API within 2 minutes of boot.
++  - **Also verify** that host isolation survived the reboot: `sudo nft list ruleset | grep skuid`
++    lists the O4 rules (or `ss -ltnp` still shows loopback-only binding), and the O4
++    TCP-connect probes and in-container DNS check give the same results as before.
++- [ ] O11 Fork-PR end-to-end check *(outcome 3)*
++  - Open a trivial PR from a fork account, and a second one that edits `ci.yml` to set one
++    routed job's `runs-on` to the GX10 labels and delete its guard step.
++  - **Verify**: `gh run list --branch <fork-branch> --json status,conclusion` shows the run
++    awaiting approval (`action_required`).
++  - After approval, `python scripts/ci/ci_wallclock.py verify-run <run-id> --workflow ci.yml --expect-lane hosted`
++    reports 0 violations: every job ran on GitHub-hosted runners (without `--expect-lane hosted`
++    the default `self-hosted` expectation would flag every routed job).
++  - For the second PR, after approval, the rewritten job fails in its `Set up job` phase with
++    the job-started hook's refusal message and no step of that job runs (D4).
++- [ ] O12 Rollback drill
++  - Run `gh variable set CI_RUNNER_LANE --body hosted`.
++  - **Verify**: the next CI run's `verify-run --expect-lane hosted` shows every job on
++    GitHub-hosted runners. Then restore with O7.
+diff --git a/scripts/ci/ci_wallclock.py b/scripts/ci/ci_wallclock.py
+new file mode 100755
+index 00000000..836ff1d0
+--- /dev/null
++++ b/scripts/ci/ci_wallclock.py
+@@ -0,0 +1,533 @@
++#!/usr/bin/env python3
++"""CI wall-clock measurement and run verification (design D8).
++
++Pure functions over JSON-shaped data, plus a thin CLI that shells out to ``gh api`` for
++read-only GETs when the OPERATOR runs it. Standard library plus PyYAML only.
++
++Functions
++    median_wallclock(runs, *, conclusion="success")
++    compare(baseline, candidate, *, threshold=0.85, min_n=5, ...)
++    verify_run(jobs, manifest, workflow, *, workflow_file=None, expected_lane="self-hosted")
++
++CLI
++    ci_wallclock.py median     --workflow F [--head-sha S] [--event E] [--since D] [--until D] [--limit N]
++    ci_wallclock.py compare    --baseline-lane L --candidate-lane L --workflow F [filters] [--threshold X]
++    ci_wallclock.py verify-run RUN_ID --workflow F [--expect-lane self-hosted|hosted] [--workflow-file PATH]
++
++Nothing here mutates GitHub, the host, or repository settings.
++"""
++
++from __future__ import annotations
++
++import argparse
++import json
++import statistics
++import subprocess
++import sys
++from collections.abc import Callable
++from datetime import datetime
++from pathlib import Path
++from typing import Any
++
++import yaml
++
++DEFAULT_MANIFEST = Path(__file__).resolve().parents[2] / ".github" / "runner-lanes.yaml"
++SELF_HOSTED_MARKER = "gx10"
++
++
++# ------------------------------------------------------------------------------ helpers
++
++
++def _ts(value: str) -> datetime:
++    return datetime.fromisoformat(value.replace("Z", "+00:00"))
++
++
++def _duration(run: dict[str, Any]) -> float | None:
++    start, end = run.get("run_started_at"), run.get("updated_at")
++    if not start or not end:
++        return None
++    return (_ts(end) - _ts(start)).total_seconds()
++
++
++def _labels(job: dict[str, Any]) -> set[str]:
++    return {str(x).lower() for x in (job.get("labels") or [])}
++
++
++def job_lane(job: dict[str, Any]) -> str | None:
++    """'self-hosted' if the job asked for the gx10 runner, 'hosted' if it ran on a GitHub-hosted
++    label, None if no runner was assigned (no labels recorded)."""
++    labels = _labels(job)
++    if not labels:
++        return None
++    return "self-hosted" if SELF_HOSTED_MARKER in labels else "hosted"
++
++
++def _workflow_jobs(workflow: dict[str, Any]) -> dict[str, Any]:
++    return (workflow or {}).get("jobs") or {}
++
++
++def _display_name(job_id: str, definition: Any) -> str:
++    if isinstance(definition, dict) and isinstance(definition.get("name"), str):
++        return definition["name"]
++    return job_id
++
++
++def correlate(
++    api_jobs: list[dict[str, Any]], workflow: dict[str, Any], job_ids: list[str]
++) -> tuple[dict[str, list[dict[str, Any]]], list[dict[str, Any]]]:
++    """Map manifest job ids to jobs-API entries via the derived display name (D8).
++
++    A job is displayed as its id, or as its literal ``name:``. A matrix job expands to
++    ``<display> (<v1>, ...)`` entries, matched by the ``<display> (`` prefix. Returns
++    (matched by id, unmatched entries).
++    """
++    defs = _workflow_jobs(workflow)
++    names = {jid: _display_name(jid, defs.get(jid)) for jid in job_ids}
++    matched: dict[str, list[dict[str, Any]]] = {jid: [] for jid in job_ids}
++    unmatched: list[dict[str, Any]] = []
++    for entry in api_jobs:
++        name = str(entry.get("name", ""))
++        exact = [j for j, n in names.items() if n == name]
++        if exact:
++            matched[exact[0]].append(entry)
++            continue
++        prefixed = sorted(
++            (j for j, n in names.items() if name.startswith(n + " (")),
++            key=lambda j: len(names[j]),
++            reverse=True,
++        )
++        if prefixed:
++            matched[prefixed[0]].append(entry)
++        else:
++            unmatched.append(entry)
++    return matched, unmatched
++
++
++def _infer_workflow_file(manifest: dict[str, Any], workflow: dict[str, Any]) -> str:
++    ids = set(_workflow_jobs(workflow))
++    hits = [w for w, spec in manifest["workflows"].items() if set(spec["jobs"]) == ids]
++    if len(hits) != 1:
++        raise ValueError("cannot infer the manifest workflow; pass workflow_file=")
++    return hits[0]
++
++
++# ----------------------------------------------------------------------------- median
++
++
++def median_wallclock(
++    runs: list[dict[str, Any]], *, conclusion: str = "success"
++) -> float | None:
++    """Median ``run_started_at -> updated_at`` seconds over runs with ``conclusion``."""
++    values = [
++        d
++        for r in runs
++        if r.get("conclusion") == conclusion and (d := _duration(r)) is not None
++    ]
++    return statistics.median(values) if values else None
++
++
++# ----------------------------------------------------------------------------- compare
++
++
++def run_lane(
++    run: dict[str, Any],
++    manifest: dict[str, Any],
++    workflow: dict[str, Any],
++    workflow_file: str,
++) -> tuple[str | None, str]:
++    """Derive a run's lane from where its routed jobs actually ran.
++
++    Returns (lane, reason). ``lane`` is None when the run cannot be classified: mixed
++    placement, or no routed job was assigned a runner.
++    """
++    spec = manifest["workflows"][workflow_file]["jobs"]
++    routed = [j for j, e in spec.items() if e["lane"] == "routed"]
++    matched, _ = correlate(run.get("jobs") or [], workflow, routed)
++    lanes = {
++        lane
++        for entries in matched.values()
++        for entry in entries
++        if entry.get("conclusion") != "skipped"
++        and (lane := job_lane(entry)) is not None
++    }
++    if not lanes:
++        return None, "no routed job was assigned a runner"
++    if len(lanes) > 1:
++        return None, "mixed placement across routed jobs"
++    return lanes.pop(), "ok"
++
++
++def compare(
++    baseline: list[dict[str, Any]],
++    candidate: list[dict[str, Any]],
++    *,
++    threshold: float = 0.85,
++    min_n: int = 5,
++    manifest: dict[str, Any] | None = None,
++    workflow: dict[str, Any] | Callable[[dict[str, Any]], dict[str, Any]] | None = None,
++    workflow_file: str | None = None,
++    baseline_lane: str = "hosted",
++    candidate_lane: str = "self-hosted",
++) -> dict[str, Any]:
++    """Pass only if ``candidate_median <= threshold * baseline_median`` and both n >= min_n.
++
++    When ``manifest`` is given and runs carry a ``jobs`` list, each run's lane is derived
++    from its routed jobs; runs with mixed or no routed placement are excluded from both
++    samples and listed in ``excluded_runs``.
++    """
++    excluded: dict[Any, str] = {}
++
++    def lane_of(r: dict[str, Any]) -> str | None:
++        wf = workflow(r) if callable(workflow) else (workflow or {})
++        wf_file = workflow_file or _infer_workflow_file(manifest, wf)  # type: ignore[arg-type]
++        lane, why = run_lane(r, manifest, wf, wf_file)  # type: ignore[arg-type]
++        if lane is None:
++            excluded[r["id"]] = why
++        return lane
++
++    def select(runs: list[dict[str, Any]], want: str, other: list[dict[str, Any]]):
++        if manifest is None:
++            return runs
++        other_ids = {r.get("id") for r in other}
++        kept = []
++        for r in runs:
++            if "jobs" not in r:
++                kept.append(r)
++                continue
++            lane = lane_of(r)
++            if lane == want:
++                kept.append(r)
++            elif lane is not None and r["id"] not in other_ids:
++                excluded[r["id"]] = f"ran on the {lane} lane, expected {want}"
++        return kept
++
++    base = select(baseline, baseline_lane, candidate)
++    cand = select(candidate, candidate_lane, baseline)
++    b_med, c_med = median_wallclock(base), median_wallclock(cand)
++    n_b = sum(
++        1 for r in base if r.get("conclusion") == "success" and _duration(r) is not None
++    )
++    n_c = sum(
++        1 for r in cand if r.get("conclusion") == "success" and _duration(r) is not None
++    )
++    result: dict[str, Any] = {
++        "passed": False,
++        "threshold": threshold,
++        "min_n": min_n,
++        "baseline_median": b_med,
++        "candidate_median": c_med,
++        "n_baseline": n_b,
++        "n_candidate": n_c,
++        "ratio": (c_med / b_med) if b_med and c_med is not None else None,
++        "excluded_runs": [{"run_id": k, "reason": v} for k, v in excluded.items()],
++    }
++    if n_b < min_n or n_c < min_n:
++        result["reason"] = (
++            f"insufficient samples: n_baseline={n_b}, n_candidate={n_c}, need {min_n}"
++        )
++    elif c_med <= threshold * b_med:  # type: ignore[operator]
++        result["passed"] = True
++        result["reason"] = (
++            f"candidate median {c_med:g}s <= {threshold} x baseline {b_med:g}s"
++        )
++    else:
++        result["reason"] = (
++            f"candidate median {c_med:g}s > {threshold} x baseline {b_med:g}s"
++        )
++    return result
++
++
++# -------------------------------------------------------------------------- verify_run
++
++
++def verify_run(
++    jobs: list[dict[str, Any]],
++    manifest: dict[str, Any],
++    workflow: dict[str, Any],
++    *,
++    workflow_file: str | None = None,
++    expected_lane: str = "self-hosted",
++) -> dict[str, list[dict[str, str]]]:
++    """Check one run's jobs-API entries against the lane manifest (D8)."""
++    if expected_lane not in ("self-hosted", "hosted"):
++        raise ValueError("expected_lane must be 'self-hosted' or 'hosted'")
++    wf_file = workflow_file or _infer_workflow_file(manifest, workflow)
++    spec = manifest["workflows"][wf_file]["jobs"]
++    defs = _workflow_jobs(workflow)
++    matched, unmatched = correlate(jobs, workflow, list(spec))
++    violations: list[dict[str, str]] = []
++    warnings: list[dict[str, str]] = []
++
++    def violation(name: str, kind: str, message: str) -> None:
++        violations.append({"job": name, "kind": kind, "message": message})
++
++    for entry in unmatched:
++        violation(
++            str(entry.get("name")), "unknown", "unknown job: matches no manifest job"
++        )
++
++    for job_id, entries in matched.items():
++        lane = spec[job_id]["lane"]
++        definition = defs.get(job_id) or {}
++        if not entries:
++            violation(
++                job_id, "missing", f"manifest job {job_id!r} is missing from the run"
++            )
++            continue
++        for entry in entries:
++            name = str(entry.get("name"))
++            conclusion = entry.get("conclusion")
++            if conclusion == "skipped":
++                if "if" not in definition:
++                    violation(
++                        name,
++                        "skipped",
++                        "skipped although it has no job-level if: (an upstream job failed)",
++                    )
++                continue  # a skipped job never had a runner assigned: placement not checked
++            if conclusion != "success":
++                coe = definition.get("continue-on-error")
++                item = {
++                    "job": name,
++                    "kind": "conclusion",
++                    "message": f"concluded {conclusion}",
++                }
++                if coe is True or str(coe).lower() == "true":
++                    item["message"] += " (continue-on-error)"
++                    warnings.append(item)
++                else:
++                    violations.append(item)
++            actual = job_lane(entry)
++            if lane == "hosted":
++                if actual == "self-hosted":
++                    violation(
++                        name,
++                        "placement",
++                        "hosted job ran on a self-hosted (gx10) runner",
++                    )
++            elif actual is not None and actual != expected_lane:
++                violation(
++                    name,
++                    "placement",
++                    f"routed job ran on the {actual} lane; expected the {expected_lane} lane",
++                )
++    return {"violations": violations, "warnings": warnings}
++
++
++# ------------------------------------------------------------------------------- CLI
++
++
++class GhError(RuntimeError):
++    pass
++
++
++def gh_get(path: str, *, raw: bool = False) -> Any:
++    """A read-only ``gh api`` GET. ``path`` may carry a query string."""
++    cmd = ["gh", "api", "-X", "GET", path]
++    if raw:
++        cmd += ["-H", "Accept: application/vnd.github.raw+json"]
++    proc = subprocess.run(cmd, capture_output=True, text=True, check=False)
++    if proc.returncode != 0:
++        raise GhError(f"gh api {path} failed: {proc.stderr.strip()}")
++    return proc.stdout if raw else json.loads(proc.stdout)
++
++
++def _created_filter(since: str | None, until: str | None) -> str | None:
++    if since and until:
++        return f"{since}..{until}"
++    if since:
++        return f">={since}"
++    if until:
++        return f"<={until}"
++    return None
++
++
++def fetch_runs(args: argparse.Namespace) -> list[dict[str, Any]]:
++    """Page through workflow runs with explicit filters, stopping at ``--limit``."""
++    runs: list[dict[str, Any]] = []
++    page = 1
++    while len(runs) < args.limit:
++        per_page = min(100, args.limit - len(runs))
++        params = [f"per_page={per_page}", f"page={page}", "status=completed"]
++        for key, val in (("event", args.event), ("head_sha", args.head_sha)):
++            if val:
++                params.append(f"{key}={val}")
++        created = _created_filter(args.since, args.until)
++        if created:
++            params.append(f"created={created}")
++        data = gh_get(
++            f"repos/{{owner}}/{{repo}}/actions/workflows/{args.workflow}/runs?"
++            + "&".join(params)
++        )
++        batch = data.get("workflow_runs", [])
++        runs.extend(batch)
++        if len(batch) < per_page:
++            break
++        page += 1
++    return runs[: args.limit]
++
++
++def fetch_jobs(run_id: Any) -> list[dict[str, Any]]:
++    jobs: list[dict[str, Any]] = []
++    page = 1
++    while True:
++        data = gh_get(
++            f"repos/{{owner}}/{{repo}}/actions/runs/{run_id}/jobs?per_page=100&page={page}&filter=latest"
++        )
++        batch = data.get("jobs", [])
++        jobs.extend(batch)
++        if len(batch) < 100:
++            return jobs
++        page += 1
++
++
++def fetch_definition(workflow: str, sha: str) -> dict[str, Any]:
++    text = gh_get(
++        f"repos/{{owner}}/{{repo}}/contents/.github/workflows/{workflow}?ref={sha}",
++        raw=True,
++    )
++    return yaml.safe_load(text)
++
++
++def _load_manifest(path: str | None) -> dict[str, Any]:
++    return yaml.safe_load(Path(path or DEFAULT_MANIFEST).read_text())
++
++
++def _add_selection(p: argparse.ArgumentParser) -> None:
++    p.add_argument("--workflow", required=True, help="workflow file name, e.g. ci.yml")
++    p.add_argument("--head-sha")
++    p.add_argument("--event")
++    p.add_argument("--since", help="ISO date, inclusive")
++    p.add_argument("--until", help="ISO date, inclusive")
++    p.add_argument("--limit", type=int, default=200)
++
++
++def build_parser() -> argparse.ArgumentParser:
++    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
++    sub = parser.add_subparsers(dest="cmd", required=True)
++
++    med = sub.add_parser("median", help="median wall-clock of successful runs")
++    _add_selection(med)
++
++    cmp_ = sub.add_parser("compare", help="compare two lanes' median wall-clock")
++    _add_selection(cmp_)
++    cmp_.add_argument(
++        "--baseline-lane", default="hosted", choices=["hosted", "self-hosted"]
++    )
++    cmp_.add_argument(
++        "--candidate-lane", default="self-hosted", choices=["hosted", "self-hosted"]
++    )
++    cmp_.add_argument("--threshold", type=float, default=0.85)
++    cmp_.add_argument("--min-n", type=int, default=5)
++    cmp_.add_argument("--manifest")
++    cmp_.add_argument(
++        "--workflow-file", help="local workflow definition (skips fetching by sha)"
++    )
++
++    ver = sub.add_parser(
++        "verify-run", help="check one run's job placement against the manifest"
++    )
++    ver.add_argument("run_id")
++    ver.add_argument("--workflow", required=True)
++    ver.add_argument(
++        "--expect-lane", default="self-hosted", choices=["self-hosted", "hosted"]
++    )
++    ver.add_argument("--manifest")
++    ver.add_argument(
++        "--workflow-file", help="local workflow definition (skips fetching by sha)"
++    )
++    return parser
++
++
++def cmd_median(args: argparse.Namespace) -> int:
++    runs = fetch_runs(args)
++    ok = [
++        r for r in runs if r.get("conclusion") == "success" and _duration(r) is not None
++    ]
++    print(
++        json.dumps(
++            {
++                "n": len(ok),
++                "fetched": len(runs),
++                "median_seconds": median_wallclock(runs),
++            }
++        )
++    )
++    return 0
++
++
++def cmd_compare(args: argparse.Namespace) -> int:
++    manifest = _load_manifest(args.manifest)
++    runs = fetch_runs(args)
++    for r in runs:
++        r["jobs"] = fetch_jobs(r["id"])
++    cache: dict[str, dict[str, Any]] = {}
++    local = (
++        yaml.safe_load(Path(args.workflow_file).read_text())
++        if args.workflow_file
++        else None
++    )
++
++    def definition(run: dict[str, Any]) -> dict[str, Any]:
++        if local is not None:
++            return local
++        sha = run["head_sha"]
++        if sha not in cache:
++            cache[sha] = fetch_definition(args.workflow, sha)
++        return cache[sha]
++
++    result = compare(
++        runs,
++        runs,
++        threshold=args.threshold,
++        min_n=args.min_n,
++        manifest=manifest,
++        workflow=definition,
++        workflow_file=args.workflow,
++        baseline_lane=args.baseline_lane,
++        candidate_lane=args.candidate_lane,
++    )
++    print(json.dumps(result, indent=2))
++    return 0 if result["passed"] else 1
++
++
++def cmd_verify_run(args: argparse.Namespace) -> int:
++    manifest = _load_manifest(args.manifest)
++    if args.workflow_file:
++        definition = yaml.safe_load(Path(args.workflow_file).read_text())
++    else:
++        run = gh_get(f"repos/{{owner}}/{{repo}}/actions/runs/{args.run_id}")
++        definition = fetch_definition(args.workflow, run["head_sha"])
++    result = verify_run(
++        fetch_jobs(args.run_id),
++        manifest,
++        definition,
++        workflow_file=args.workflow,
++        expected_lane=args.expect_lane,
++    )
++    for w in result["warnings"]:
++        print(f"warning: {w['job']}: {w['message']}")
++    for v in result["violations"]:
++        print(f"violation: {v['job']}: {v['message']}")
++    print(
++        f"{len(result['violations'])} violation(s), {len(result['warnings'])} warning(s) "
++        f"(expected lane: {args.expect_lane})"
++    )
++    return 1 if result["violations"] else 0
++
++
++def main(argv: list[str] | None = None) -> int:
++    args = build_parser().parse_args(argv)
++    try:
++        return {
++            "median": cmd_median,
++            "compare": cmd_compare,
++            "verify-run": cmd_verify_run,
++        }[args.cmd](args)
++    except GhError as exc:
++        print(f"error: {exc}", file=sys.stderr)
++        return 2
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/skills/pyproject.toml b/skills/pyproject.toml
+index cec50030..eaeab34e 100644
+--- a/skills/pyproject.toml
++++ b/skills/pyproject.toml
+@@ -147,6 +147,8 @@ testpaths = [
+     "tests/skill-audit",
+     "tests/state-artifacts",
+     "tests/ownership-runtime",
++    # migrate-ci-to-self-hosted-gx10-runners: lane manifest, routing, runner kit, tooling.
++    "tests/ci_runners",
+     # multiplayer-principles-guide: structural guard for docs/guides/multiplayer-collaboration.md.
+     "tests/multiplayer-collaboration",
+     "expedite/scripts/tests",
+diff --git a/skills/tests/ci_runners/__init__.py b/skills/tests/ci_runners/__init__.py
+new file mode 100644
+index 00000000..e69de29b
+diff --git a/skills/tests/ci_runners/_gha_expr.py b/skills/tests/ci_runners/_gha_expr.py
+new file mode 100644
+index 00000000..9b536f7f
+--- /dev/null
++++ b/skills/tests/ci_runners/_gha_expr.py
+@@ -0,0 +1,215 @@
++"""Minimal reference evaluator for the GitHub Actions expression grammar used by D3.
++
++Covers only what the canonical ``runs-on`` expression needs: ``&&``/``||`` with
++GitHub's value semantics (they return an operand, not a boolean), ``==``/``!=``
++(string compare is case-insensitive), ``!``, parentheses, single-quoted string
++literals, ``fromJSON`` of a literal, and dotted context lookups from a dict.
++
++Also holds the canonical expression and the canonical fork-guard step so that the
++routing, completeness and guard tests share one definition (design D3/D4).
++"""
++
++from __future__ import annotations
++
++import json
++import re
++from typing import Any
++
++CANONICAL_RUNS_ON = (
++    "${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || "
++    "(github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name "
++    "== github.repository)) && ((github.event_name == 'workflow_dispatch' && "
++    "inputs.runner_lane != 'auto') && inputs.runner_lane || vars.CI_RUNNER_LANE) == "
++    '\'self-hosted\' && fromJSON(\'["self-hosted","linux","ARM64","gx10"]\') || '
++    "'ubuntu-latest' }}"
++)
++
++GUARD_STEP_NAME = "Refuse ineligible events on self-hosted runner"
++
++
++def normalize(text: str) -> str:
++    """Collapse all whitespace runs to one space (D3: compare after normalization)."""
++    return re.sub(r"\s+", " ", text).strip()
++
++
++def strip_wrapper(expr: str) -> str:
++    m = re.fullmatch(r"\s*\$\{\{(.*)\}\}\s*", expr, flags=re.S)
++    if not m:
++        raise ValueError(f"not a ${{{{ }}}} expression: {expr!r}")
++    return m.group(1).strip()
++
++
++def eligibility_clause(expr: str = CANONICAL_RUNS_ON) -> str:
++    """The leading parenthesised event-eligibility group of a runs-on expression."""
++    body = strip_wrapper(expr)
++    if not body.startswith("("):
++        raise ValueError("expression does not start with the eligibility group")
++    depth = 0
++    in_str = False
++    for i, ch in enumerate(body):
++        if ch == "'":
++            in_str = not in_str
++        elif not in_str:
++            if ch == "(":
++                depth += 1
++            elif ch == ")":
++                depth -= 1
++                if depth == 0:
++                    return normalize(body[: i + 1])
++    raise ValueError("unbalanced parentheses")
++
++
++def guard_condition(expr: str = CANONICAL_RUNS_ON) -> str:
++    """D4: ``runner.environment == 'self-hosted' && !(<eligibility clause>)``."""
++    return f"runner.environment == 'self-hosted' && !{eligibility_clause(expr)}"
++
++
++# --------------------------------------------------------------------------- tokenizer
++
++_TOKEN = re.compile(
++    r"\s*(?:(?P<op>&&|\|\||==|!=|!|\(|\)|,)|(?P<str>'(?:[^']|'')*')|(?P<ident>[A-Za-z_][\w.-]*))"
++)
++
++
++def _tokenize(src: str) -> list[tuple[str, str]]:
++    pos, out = 0, []
++    src = src.strip()
++    while pos < len(src):
++        m = _TOKEN.match(src, pos)
++        if not m:
++            raise ValueError(f"cannot tokenize at {src[pos:]!r}")
++        kind = m.lastgroup
++        assert kind is not None
++        out.append((kind, m.group(kind)))
++        pos = m.end()
++    return out
++
++
++# --------------------------------------------------------------------------- semantics
++
++
++def _truthy(v: Any) -> bool:
++    return not (v is None or v is False or v == "" or v == 0)
++
++
++def _equal(a: Any, b: Any) -> bool:
++    if a is None:
++        a = ""  # null coerces like the empty string for our purposes
++    if b is None:
++        b = ""
++    if isinstance(a, str) and isinstance(b, str):
++        return a.lower() == b.lower()
++    return a == b
++
++
++class _Parser:
++    def __init__(self, tokens: list[tuple[str, str]], ctx: dict[str, Any]):
++        self.t, self.i, self.ctx = tokens, 0, ctx
++
++    def _peek(self) -> tuple[str, str] | None:
++        return self.t[self.i] if self.i < len(self.t) else None
++
++    def _eat(self, val: str | None = None) -> tuple[str, str]:
++        tok = self._peek()
++        if tok is None or (val is not None and tok[1] != val):
++            raise ValueError(f"expected {val!r}, got {tok!r}")
++        self.i += 1
++        return tok
++
++    def parse(self) -> Any:
++        v = self._or()
++        if self._peek() is not None:
++            raise ValueError(f"trailing tokens: {self.t[self.i :]!r}")
++        return v
++
++    def _or(self) -> Any:
++        left = self._and()
++        while self._peek() == ("op", "||"):
++            self._eat()
++            right = self._and()
++            left = left if _truthy(left) else right
++        return left
++
++    def _and(self) -> Any:
++        left = self._eq()
++        while self._peek() == ("op", "&&"):
++            self._eat()
++            right = self._eq()
++            left = right if _truthy(left) else left
++        return left
++
++    def _eq(self) -> Any:
++        left = self._unary()
++        while self._peek() in (("op", "=="), ("op", "!=")):
++            op = self._eat()[1]
++            right = self._unary()
++            res = _equal(left, right)
++            left = res if op == "==" else not res
++        return left
++
++    def _unary(self) -> Any:
++        if self._peek() == ("op", "!"):
++            self._eat()
++            return not _truthy(self._unary())
++        return self._primary()
++
++    def _primary(self) -> Any:
++        kind, val = self._eat()
++        if kind == "str":
++            return val[1:-1].replace("''", "'")
++        if kind == "op" and val == "(":
++            v = self._or()
++            self._eat(")")
++            return v
++        if kind == "ident":
++            if val.lower() == "fromjson":
++                self._eat("(")
++                arg = self._or()
++                self._eat(")")
++                return json.loads(arg)
++            if val in ("true", "false", "null"):
++                return {"true": True, "false": False, "null": None}[val]
++            return _lookup(self.ctx, val)
++        raise ValueError(f"unexpected token {val!r}")
++
++
++def _lookup(ctx: dict[str, Any], dotted: str) -> Any:
++    cur: Any = ctx
++    for part in dotted.split("."):
++        if not isinstance(cur, dict) or part not in cur:
++            return None
++        cur = cur[part]
++    return cur
++
++
++def evaluate(expr: str, ctx: dict[str, Any]) -> Any:
++    """Evaluate a ``${{ ... }}`` expression (or bare expression) against ``ctx``."""
++    body = strip_wrapper(expr) if expr.lstrip().startswith("${{") else expr
++    return _Parser(_tokenize(body), ctx).parse()
++
++
++def make_context(
++    event: str,
++    *,
++    fork: bool = False,
++    dispatch_input: str | None = None,
++    variable: str | None = None,
++    repository: str = "owner/repo",
++    runner_environment: str | None = None,
++) -> dict[str, Any]:
++    """Build the context dict the expression reads."""
++    ctx: dict[str, Any] = {
++        "github": {"event_name": event, "repository": repository, "event": {}},
++        "vars": {},
++        "inputs": {},
++    }
++    if event == "pull_request":
++        head = "someone/repo" if fork else repository
++        ctx["github"]["event"] = {"pull_request": {"head": {"repo": {"full_name": head}}}}
++    if variable is not None:
++        ctx["vars"]["CI_RUNNER_LANE"] = variable
++    if dispatch_input is not None:
++        ctx["inputs"]["runner_lane"] = dispatch_input
++    if runner_environment is not None:
++        ctx["runner"] = {"environment": runner_environment}
++    return ctx
+diff --git a/skills/tests/ci_runners/_stubs.py b/skills/tests/ci_runners/_stubs.py
+new file mode 100644
+index 00000000..0d053870
+--- /dev/null
++++ b/skills/tests/ci_runners/_stubs.py
+@@ -0,0 +1,125 @@
++"""Command stubs for the runner-kit and tooling tests (no network, no host mutation)."""
++
++from __future__ import annotations
++
++import json
++import os
++import stat
++from pathlib import Path
++
++CURL_STUB = r"""#!/usr/bin/env python3
++import json, os, re, sys
++
++args = sys.argv[1:]
++method, url, hdr, out, fmt, data = None, None, None, None, "", None
++i = 0
++while i < len(args):
++    a = args[i]
++    if a == "-X": method = args[i + 1]; i += 2; continue
++    if a == "-D": hdr = args[i + 1]; i += 2; continue
++    if a == "-o": out = args[i + 1]; i += 2; continue
++    if a == "-w": fmt = args[i + 1]; i += 2; continue
++    if a == "-d": data = args[i + 1]; i += 2; continue
++    if a in ("-H", "--max-time"): i += 2; continue
++    if a.startswith("-"): i += 1; continue
++    url = a; i += 1
++method = method or ("POST" if data is not None else "GET")
++cfg = json.load(open(os.environ["STUB_CONFIG"]))
++log = open(os.environ["STUB_LOG"], "a")
++log.write(json.dumps({"method": method, "url": url, "data": data, "argv": args}) + "\n")
++log.close()
++state_path = os.environ["STUB_CONFIG"] + ".state"
++state = json.load(open(state_path)) if os.path.exists(state_path) else {}
++chosen = None
++for idx, route in enumerate(cfg["routes"]):
++    if route["method"] != method or not re.search(route["pattern"], url):
++        continue
++    used = state.get(str(idx), 0)
++    if "times" in route and used >= route["times"]:
++        continue
++    state[str(idx)] = used + 1
++    chosen = route
++    break
++json.dump(state, open(state_path, "w"))
++if chosen is None:
++    chosen = {"status": 404, "body": {}, "headers": {}}
++if hdr:
++    with open(hdr, "w") as fh:
++        fh.write("HTTP/2 %d\r\n" % chosen["status"])
++        for k, v in chosen.get("headers", {}).items():
++            fh.write("%s: %s\r\n" % (k, v))
++if out:
++    with open(out, "w") as fh:
++        json.dump(chosen.get("body", {}), fh)
++if "http_code" in fmt:
++    sys.stdout.write(str(chosen["status"]))
++"""
++
++
++def install_curl_stub(bin_dir: Path, config: dict, tmp: Path) -> tuple[dict[str, str], Path]:
++    """Write a stub ``curl`` into ``bin_dir``; return (env additions, call-log path)."""
++    bin_dir.mkdir(parents=True, exist_ok=True)
++    stub = bin_dir / "curl"
++    stub.write_text(CURL_STUB)
++    stub.chmod(stub.stat().st_mode | stat.S_IXUSR)
++    cfg = tmp / "stub-config.json"
++    cfg.write_text(json.dumps(config))
++    log = tmp / "stub-calls.jsonl"
++    log.write_text("")
++    env = {"STUB_CONFIG": str(cfg), "STUB_LOG": str(log)}
++    return env, log
++
++
++def read_calls(log: Path) -> list[dict]:
++    return [json.loads(x) for x in log.read_text().splitlines() if x.strip()]
++
++
++def path_with(bin_dir: Path) -> str:
++    return f"{bin_dir}{os.pathsep}{os.environ['PATH']}"
++
++
++GH_STUB = r"""#!/usr/bin/env python3
++import json, os, re, sys
++from urllib.parse import parse_qs, urlparse
++
++argv = sys.argv[1:]
++with open(os.environ["STUB_LOG"], "a") as fh:
++    fh.write(json.dumps({"argv": argv}) + "\n")
++cfg = json.load(open(os.environ["STUB_GH_CONFIG"]))
++if not argv or argv[0] != "api":
++    sys.stderr.write("stub gh: only 'gh api' is supported\n"); sys.exit(2)
++url = [a for a in argv[1:] if a.startswith("repos/")][-1]
++u = urlparse(url)
++q = {k: v[0] for k, v in parse_qs(u.query).items()}
++p = u.path
++if re.search(r"/actions/workflows/[^/]+/runs$", p):
++    per, page = int(q.get("per_page", 30)), int(q.get("page", 1))
++    total = cfg["total_runs"]
++    ids = list(range(1, total + 1))[(page - 1) * per: page * per]
++    runs = [{"id": i, "conclusion": "success", "status": "completed", "head_sha": q.get("head_sha", "sha1"),
++             "event": q.get("event", "push"), "run_started_at": "2026-01-01T00:00:00Z",
++             "updated_at": "2026-01-01T00:10:00Z"} for i in ids]
++    out = {"total_count": total, "workflow_runs": runs}
++elif re.search(r"/actions/runs/(\d+)/jobs$", p):
++    rid = re.search(r"/runs/(\d+)/jobs", p).group(1)
++    out = {"jobs": cfg.get("jobs_by_run", {}).get(rid, cfg.get("default_jobs", []))}
++elif re.search(r"/actions/runs/(\d+)$", p):
++    out = cfg["run"]
++elif "/contents/" in p:
++    sys.stdout.write(cfg["workflow_text"]); sys.exit(0)
++else:
++    sys.stderr.write("stub gh: unhandled " + url + "\n"); sys.exit(1)
++sys.stdout.write(json.dumps(out))
++"""
++
++
++def install_gh_stub(bin_dir: Path, config: dict, tmp: Path) -> tuple[dict[str, str], Path]:
++    bin_dir.mkdir(parents=True, exist_ok=True)
++    stub = bin_dir / "gh"
++    stub.write_text(GH_STUB)
++    stub.chmod(stub.stat().st_mode | stat.S_IXUSR)
++    cfg = tmp / "gh-config.json"
++    cfg.write_text(json.dumps(config))
++    log = tmp / "gh-calls.jsonl"
++    log.write_text("")
++    return {"STUB_GH_CONFIG": str(cfg), "STUB_LOG": str(log)}, log
+diff --git a/skills/tests/ci_runners/conftest.py b/skills/tests/ci_runners/conftest.py
+new file mode 100644
+index 00000000..d619965c
+--- /dev/null
++++ b/skills/tests/ci_runners/conftest.py
+@@ -0,0 +1,50 @@
++"""Shared fixtures for the CI runner lane tests.
++
++Tests read the promoted ``.github/`` copies only; they never pin
++``openspec/changes/<id>/`` (archival moves that directory).
++"""
++
++from __future__ import annotations
++
++import copy
++from pathlib import Path
++from typing import Any
++
++import pytest
++import yaml
++
++REPO_ROOT = Path(__file__).resolve().parents[3]
++
++
++@pytest.fixture(scope="session")
++def repo_root() -> Path:
++    return REPO_ROOT
++
++
++@pytest.fixture()
++def manifest(repo_root: Path) -> dict[str, Any]:
++    """A fresh (mutable) copy of the lane manifest per test."""
++    data = yaml.safe_load((repo_root / ".github" / "runner-lanes.yaml").read_text())
++    return copy.deepcopy(data)
++
++
++@pytest.fixture(scope="session")
++def load_workflow(repo_root: Path):
++    """Return ``load_workflow(name)`` -> parsed workflow dict.
++
++    PyYAML parses the bare key ``on`` as boolean ``True``; it is normalised to
++    the string ``"on"`` so tests can address triggers by name.
++    """
++
++    def _load(name: str) -> dict[str, Any]:
++        data = yaml.safe_load((repo_root / ".github" / "workflows" / name).read_text())
++        if True in data:
++            data["on"] = data.pop(True)
++        return data
++
++    return _load
++
++
++@pytest.fixture(scope="session")
++def kit_dir(repo_root: Path) -> Path:
++    return repo_root / "deploy" / "gx10-runner"
+diff --git a/skills/tests/ci_runners/test_ci_wallclock.py b/skills/tests/ci_runners/test_ci_wallclock.py
+new file mode 100644
+index 00000000..2a11304d
+--- /dev/null
++++ b/skills/tests/ci_runners/test_ci_wallclock.py
+@@ -0,0 +1,420 @@
++"""scripts/ci/ci_wallclock.py: median, compare, verify_run and the CLI (D8). No network."""
++
++from __future__ import annotations
++
++import importlib.util
++import json
++import subprocess
++import sys
++from datetime import datetime, timedelta, timezone
++
++import pytest
++import yaml
++
++from ._stubs import install_gh_stub, path_with, read_calls
++
++SELF = ["self-hosted", "linux", "ARM64", "gx10"]
++HOSTED = ["ubuntu-latest"]
++
++
++@pytest.fixture(scope="module")
++def cw(repo_root):
++    spec = importlib.util.spec_from_file_location(
++        "ci_wallclock", repo_root / "scripts" / "ci" / "ci_wallclock.py"
++    )
++    mod = importlib.util.module_from_spec(spec)
++    sys.modules["ci_wallclock"] = mod
++    spec.loader.exec_module(mod)
++    return mod
++
++
++def run(rid, seconds, conclusion="success", jobs=None):
++    start = datetime(2026, 1, 1, tzinfo=timezone.utc)
++    r = {
++        "id": rid,
++        "conclusion": conclusion,
++        "status": "completed",
++        "run_started_at": start.isoformat().replace("+00:00", "Z"),
++        "updated_at": (start + timedelta(seconds=seconds)).isoformat().replace("+00:00", "Z"),
++    }
++    if jobs is not None:
++        r["jobs"] = jobs
++    return r
++
++
++# ----------------------------------------------------------------------------- median
++
++
++def test_median_uses_success_runs_only(cw):
++    runs = [run(1, 100), run(2, 300), run(3, 200), run(4, 9999, "cancelled"), run(5, 1, "failure")]
++    assert cw.median_wallclock(runs) == 200
++    assert cw.median_wallclock([run(1, 10), run(2, 20)]) == 15
++    assert cw.median_wallclock([run(1, 10, "failure")]) is None
++
++
++# ---------------------------------------------------------------------------- compare
++
++
++def _sample(seconds, n=6):
++    return [run(i, seconds) for i in range(n)]
++
++
++def test_compare_threshold_and_sample_size(cw):
++    fail = cw.compare(_sample(600), _sample(540))
++    assert fail["passed"] is False and fail["candidate_median"] == 540
++    assert cw.compare(_sample(600), _sample(500))["passed"] is True
++    small = cw.compare(_sample(600, 4), _sample(100))
++    assert small["passed"] is False and "insufficient" in small["reason"]
++    small = cw.compare(_sample(600), _sample(100, 4))
++    assert small["passed"] is False and "insufficient" in small["reason"]
++    assert cw.compare(_sample(600), _sample(510))["passed"] is True  # boundary: <=
++
++
++def _job(name, labels, conclusion="success"):
++    return {"name": name, "labels": labels, "conclusion": conclusion, "status": "completed"}
++
++
++def test_compare_excludes_mixed_placement_runs(cw, manifest):
++    wf = {"jobs": {j: {} for j in manifest["workflows"]["security.yml"]["jobs"]}}
++    mixed = [_job("secret-scan", SELF), _job("dependency-audit-coordinator", HOSTED)]
++    only_self = [_job(j, SELF) for j in wf["jobs"]]
++    unassigned = [_job(j, [], "skipped") for j in wf["jobs"]]
++    baseline = [run(i, 600, jobs=[_job(j, HOSTED) for j in wf["jobs"]]) for i in range(10, 16)]
++    cand = [run(i, 400, jobs=only_self) for i in range(20, 26)]
++    result = cw.compare(
++        baseline + [run(98, 1, jobs=mixed)] + [run(99, 1, jobs=unassigned)],
++        cand + [run(98, 1, jobs=mixed), run(99, 1, jobs=unassigned)],
++        manifest=manifest,
++        workflow=wf,
++        workflow_file="security.yml",
++    )
++    assert result["passed"] is True
++    ids = {e["run_id"]: e["reason"] for e in result["excluded_runs"]}
++    assert set(ids) == {98, 99}
++    assert "mixed" in ids[98] and "no routed job" in ids[99]
++    assert result["n_baseline"] == 6 and result["n_candidate"] == 6
++
++
++# -------------------------------------------------------------------------- verify_run
++
++WF = yaml.safe_load(
++    """
++jobs:
++  lint:
++    runs-on: x
++    strategy: {matrix: {v: [a, b]}}
++  build: {runs-on: x}
++  pinned: {runs-on: x}
++  flaky: {runs-on: x, continue-on-error: true}
++  maybe: {runs-on: x, if: "github.actor == 'dependabot[bot]'"}
++  named: {runs-on: x, name: Pretty Name}
++"""
++)
++MAN = {
++    "workflows": {
++        "t.yml": {
++            "jobs": {
++                "lint": {"lane": "routed"},
++                "build": {"lane": "routed"},
++                "pinned": {
++                    "lane": "hosted",
++                    "reason_code": "container-engine",
++                    "reason": "needs docker",
++                },
++                "flaky": {"lane": "routed"},
++                "maybe": {
++                    "lane": "hosted",
++                    "reason_code": "privileged-token",
++                    "reason": "write token",
++                },
++                "named": {"lane": "routed"},
++            }
++        }
++    }
++}
++
++
++def good_jobs():
++    return [
++        _job("lint (a)", SELF),
++        _job("lint (b)", SELF),
++        _job("build", SELF),
++        _job("pinned", HOSTED),
++        _job("flaky", SELF),
++        _job("maybe", [], "skipped"),
++        _job("Pretty Name", SELF),
++    ]
++
++
++def verify(cw, jobs, **kw):
++    return cw.verify_run(jobs, MAN, WF, workflow_file="t.yml", **kw)
++
++
++def test_clean_run_has_no_violations(cw):
++    res = verify(cw, good_jobs())
++    assert res["violations"] == [] and res["warnings"] == []
++
++
++def test_misrouted_and_wrongly_self_hosted_jobs(cw):
++    jobs = good_jobs()
++    jobs[2] = _job("build", HOSTED)  # routed job on hosted while lane is self-hosted
++    jobs[3] = _job("pinned", SELF)  # hosted job on gx10
++    res = verify(cw, jobs)
++    assert {v["job"] for v in res["violations"]} == {"build", "pinned"}
++    text = " | ".join(v["message"] for v in res["violations"])
++    assert "expected the self-hosted lane" in text
++
++
++def test_conditionally_skipped_job_is_not_a_violation(cw):
++    assert verify(cw, good_jobs())["violations"] == []
++
++
++def test_unconditional_skipped_job_is_a_violation(cw):
++    jobs = good_jobs()
++    jobs[2] = _job("build", [], "skipped")
++    res = verify(cw, jobs)
++    assert [v["job"] for v in res["violations"]] == ["build"]
++
++
++def test_failure_is_a_violation_but_continue_on_error_is_a_warning(cw):
++    jobs = good_jobs()
++    jobs[2] = _job("build", SELF, "failure")
++    jobs[4] = _job("flaky", SELF, "failure")
++    res = verify(cw, jobs)
++    assert [v["job"] for v in res["violations"]] == ["build"]
++    assert [w["job"] for w in res["warnings"]] == ["flaky"]
++    jobs[2] = _job("build", SELF)
++    res = verify(cw, jobs)
++    assert res["violations"] == [] and len(res["warnings"]) == 1
++
++
++def test_missing_job_is_a_violation(cw):
++    jobs = [j for j in good_jobs() if j["name"] != "build"]
++    res = verify(cw, jobs)
++    assert [v["job"] for v in res["violations"]] == ["build"]
++
++
++def test_matrix_expansions_are_checked_individually(cw):
++    jobs = good_jobs()
++    jobs[1] = _job("lint (b)", HOSTED)
++    res = verify(cw, jobs)
++    assert [v["job"] for v in res["violations"]] == ["lint (b)"]
++
++
++def test_unknown_job_is_reported(cw):
++    res = verify(cw, [*good_jobs(), _job("renamed-job", SELF)])
++    assert [v["job"] for v in res["violations"]] == ["renamed-job"]
++    assert "unknown" in res["violations"][0]["message"]
++
++
++def test_literal_name_correlation(cw):
++    jobs = [j for j in good_jobs() if j["name"] != "Pretty Name"] + [_job("named", SELF)]
++    res = verify(cw, jobs)
++    # the literal display name is "Pretty Name": job id "named" is not what the API reports
++    assert [v["job"] for v in res["violations"]] == ["named", "named"]
++    assert any("unknown" in v["message"] for v in res["violations"])
++    assert any("missing" in v["message"] for v in res["violations"])
++
++
++def test_rollback_check_expects_hosted_placement(cw):
++    jobs = good_jobs()
++    res = verify(cw, jobs, expected_lane="hosted")
++    flagged = {v["job"] for v in res["violations"]}
++    assert flagged == {"lint (a)", "lint (b)", "build", "flaky", "Pretty Name"}
++    all_hosted = [
++        _job(j["name"], HOSTED if j["conclusion"] != "skipped" else [], j["conclusion"])
++        for j in good_jobs()
++    ]
++    assert verify(cw, all_hosted, expected_lane="hosted")["violations"] == []
++
++
++def test_real_manifest_dependency_update_remediation_skipped_is_clean(cw, manifest, load_workflow):
++    """A realistic ci.yml run: the Dependabot-only job is skipped with no runner."""
++    wf = load_workflow("ci.yml")
++    jobs = []
++    for job_id, entry in manifest["workflows"]["ci.yml"]["jobs"].items():
++        if job_id == "dependency-update-remediation":
++            jobs.append(_job(job_id, [], "skipped"))
++        else:
++            jobs.append(_job(job_id, SELF if entry["lane"] == "routed" else HOSTED))
++    res = cw.verify_run(jobs, manifest, wf, workflow_file="ci.yml")
++    assert res["violations"] == [], res["violations"]
++
++
++# ------------------------------------------------------------------------------ CLI
++
++CI_TEXT = yaml.safe_dump(WF)
++
++
++def _cli(repo_root, tmp_path, config, args):
++    bin_dir = tmp_path / "bin"
++    env_add, log = install_gh_stub(bin_dir, config, tmp_path)
++    env = {"PATH": path_with(bin_dir), "HOME": str(tmp_path), **env_add}
++    res = subprocess.run(
++        [sys.executable, str(repo_root / "scripts" / "ci" / "ci_wallclock.py"), *args],
++        env=env,
++        capture_output=True,
++        text=True,
++        cwd=tmp_path,
++    )
++    return res, read_calls(log)
++
++
++def _write_manifest(tmp_path):
++    p = tmp_path / "manifest.yaml"
++    p.write_text(yaml.safe_dump({"schema_version": 1, **MAN}))
++    return str(p)
++
++
++def test_cli_median_filters_and_stops_at_limit(repo_root, tmp_path):
++    cfg = {"total_runs": 250}
++    res, calls = _cli(
++        repo_root,
++        tmp_path,
++        cfg,
++        [
++            "median",
++            "--workflow",
++            "t.yml",
++            "--event",
++            "workflow_dispatch",
++            "--head-sha",
++            "abc123",
++            "--since",
++            "2026-01-01",
++            "--until",
++            "2026-02-01",
++            "--limit",
++            "10",
++        ],
++    )
++    assert res.returncode == 0, res.stderr
++    assert json.loads(res.stdout)["n"] == 10
++    assert len(calls) == 1, "must stop after --limit runs are collected (no fetch-all)"
++    argv = " ".join(calls[0]["argv"])
++    assert "-X GET" in argv or "--method GET" in argv
++    for needle in (
++        "event=workflow_dispatch",
++        "head_sha=abc123",
++        "/actions/workflows/t.yml/runs",
++        "per_page=10",
++        "created=2026-01-01..2026-02-01",
++    ):
++        assert needle in argv, needle
++    assert not any(m in argv for m in ("POST", "PUT", "DELETE", "PATCH"))
++
++
++def test_cli_median_pages_until_limit(repo_root, tmp_path):
++    res, calls = _cli(
++        repo_root,
++        tmp_path,
++        {"total_runs": 250},
++        ["median", "--workflow", "t.yml", "--limit", "150"],
++    )
++    assert res.returncode == 0, res.stderr
++    assert json.loads(res.stdout)["n"] == 150
++    assert len(calls) == 2
++
++
++def test_cli_verify_run_fetches_definition_at_head_sha(repo_root, tmp_path):
++    cfg = {
++        "run": {"id": 7, "head_sha": "deadbeef", "event": "workflow_dispatch"},
++        "default_jobs": good_jobs(),
++        "workflow_text": CI_TEXT,
++    }
++    res, calls = _cli(
++        repo_root,
++        tmp_path,
++        cfg,
++        ["verify-run", "7", "--workflow", "t.yml", "--manifest", _write_manifest(tmp_path)],
++    )
++    assert res.returncode == 0, res.stdout + res.stderr
++    joined = [" ".join(c["argv"]) for c in calls]
++    assert any("/contents/.github/workflows/t.yml" in j and "ref=deadbeef" in j for j in joined)
++    assert all("-X GET" in j or "--method GET" in j for j in joined)
++
++
++def test_cli_verify_run_exit_codes_and_flags(repo_root, tmp_path):
++    bad = good_jobs()
++    bad[2] = _job("build", HOSTED)
++    cfg = {"run": {"id": 7, "head_sha": "s"}, "default_jobs": bad, "workflow_text": CI_TEXT}
++    wf_file = tmp_path / "wf.yml"
++    wf_file.write_text(CI_TEXT)
++    base = [
++        "verify-run",
++        "7",
++        "--workflow",
++        "t.yml",
++        "--manifest",
++        _write_manifest(tmp_path),
++        "--workflow-file",
++        str(wf_file),
++    ]
++    res, calls = _cli(repo_root, tmp_path, cfg, base)
++    assert res.returncode == 1 and "build" in res.stdout
++    assert not any("/contents/" in " ".join(c["argv"]) for c in calls), "local file wins"
++    res, _ = _cli(repo_root, tmp_path, cfg, [*base, "--expect-lane", "hosted"])
++    assert res.returncode == 1  # the other routed jobs ran on gx10
++
++
++def test_cli_verify_run_warning_keeps_exit_zero(repo_root, tmp_path):
++    jobs = good_jobs()
++    jobs[4] = _job("flaky", SELF, "failure")
++    cfg = {"run": {"id": 7, "head_sha": "s"}, "default_jobs": jobs, "workflow_text": CI_TEXT}
++    res, _ = _cli(
++        repo_root,
++        tmp_path,
++        cfg,
++        ["verify-run", "7", "--workflow", "t.yml", "--manifest", _write_manifest(tmp_path)],
++    )
++    assert res.returncode == 0
++    assert "warning" in res.stdout.lower() and "flaky" in res.stdout
++
++
++def test_cli_compare_parses_all_arguments(repo_root, tmp_path):
++    cfg = {"total_runs": 12, "default_jobs": [_job("build", HOSTED)]}
++    wf_file = tmp_path / "wf.yml"
++    wf_file.write_text(CI_TEXT)
++    res, calls = _cli(
++        repo_root,
++        tmp_path,
++        cfg,
++        [
++            "compare",
++            "--baseline-lane",
++            "hosted",
++            "--candidate-lane",
++            "self-hosted",
++            "--workflow",
++            "t.yml",
++            "--event",
++            "workflow_dispatch",
++            "--head-sha",
++            "abc",
++            "--since",
++            "2026-01-01",
++            "--until",
++            "2026-03-01",
++            "--limit",
++            "12",
++            "--manifest",
++            _write_manifest(tmp_path),
++            "--workflow-file",
++            str(wf_file),
++        ],
++    )
++    out = json.loads(res.stdout)
++    assert res.returncode == 1  # all runs are mixed/unclassifiable here, so it cannot pass
++    assert out["passed"] is False
++    assert len(calls) <= 1 + 12, "one listing plus at most one jobs GET per run"
++    assert all("-X GET" in " ".join(c["argv"]) for c in calls)
++
++
++def test_cli_issues_only_get_requests(repo_root):
++    import re
++
++    text = (repo_root / "scripts" / "ci" / "ci_wallclock.py").read_text()
++    methods = re.findall(r'"-X",\s*"(\w+)"', text)
++    assert methods and set(methods) == {"GET"}
++    for banned in ("systemctl", "loginctl", "podman"):
++        assert banned not in text
+diff --git a/skills/tests/ci_runners/test_fork_guard.py b/skills/tests/ci_runners/test_fork_guard.py
+new file mode 100644
+index 00000000..200da73c
+--- /dev/null
++++ b/skills/tests/ci_runners/test_fork_guard.py
+@@ -0,0 +1,81 @@
++"""Fork guard, trigger allowlist and dispatch input (D4)."""
++
++from __future__ import annotations
++
++import pytest
++
++from ._gha_expr import (
++    CANONICAL_RUNS_ON,
++    GUARD_STEP_NAME,
++    eligibility_clause,
++    evaluate,
++    guard_condition,
++    make_context,
++    normalize,
++)
++
++ALLOWED_TRIGGERS = {"push", "pull_request", "merge_group", "workflow_dispatch"}
++WORKFLOWS = ["ci.yml", "security.yml"]
++
++
++def _routed(manifest, load_workflow):
++    for wf_name, wf in manifest["workflows"].items():
++        jobs = load_workflow(wf_name)["jobs"]
++        for job_id, entry in wf["jobs"].items():
++            if entry["lane"] == "routed":
++                yield wf_name, job_id, jobs[job_id]
++
++
++def test_every_routed_job_starts_with_the_guard(manifest, load_workflow):
++    expected_if = normalize(guard_condition())
++    for wf_name, job_id, job in _routed(manifest, load_workflow):
++        step = job["steps"][0]
++        where = f"{wf_name}:{job_id}"
++        assert step.get("name") == GUARD_STEP_NAME, where
++        assert normalize(str(step.get("if"))) == expected_if, where
++        assert step.get("shell") == "bash", where
++        assert step.get("working-directory") == "${{ github.workspace }}", where
++        assert "exit 1" in step.get("run", ""), where
++
++
++def test_guard_clause_is_negated_eligibility_of_canonical_expression():
++    clause = eligibility_clause(normalize(CANONICAL_RUNS_ON))
++    assert guard_condition() == f"runner.environment == 'self-hosted' && !{clause}"
++
++
++@pytest.mark.parametrize(
++    "event,fork,fires",
++    [
++        ("pull_request", True, True),
++        ("merge_group", False, True),
++        ("pull_request_target", False, True),
++        ("schedule", False, True),
++        ("pull_request", False, False),
++        ("push", False, False),
++        ("workflow_dispatch", False, False),
++    ],
++)
++def test_guard_fires_only_for_ineligible_events_on_self_hosted(event, fork, fires):
++    ctx = make_context(event, fork=fork, runner_environment="self-hosted")
++    assert bool(evaluate(guard_condition(), ctx)) is fires
++    # never fires on a GitHub-hosted runner
++    hosted = make_context(event, fork=fork, runner_environment="github-hosted")
++    assert not evaluate(guard_condition(), hosted)
++
++
++@pytest.mark.parametrize("wf_name", WORKFLOWS)
++def test_trigger_allowlist(load_workflow, wf_name):
++    triggers = load_workflow(wf_name)["on"]
++    names = set(triggers) if isinstance(triggers, dict) else {triggers}
++    assert names <= ALLOWED_TRIGGERS, f"{wf_name}: forbidden trigger(s) {names - ALLOWED_TRIGGERS}"
++    for forbidden in ("pull_request_target", "workflow_run", "issue_comment"):
++        assert forbidden not in names
++
++
++@pytest.mark.parametrize("wf_name", WORKFLOWS)
++def test_dispatch_trigger_and_lane_input(load_workflow, manifest, wf_name):
++    dispatch = load_workflow(wf_name)["on"]["workflow_dispatch"]
++    inp = dispatch["inputs"][manifest["routing"]["dispatch_input"]]
++    assert inp["type"] == "choice"
++    assert inp["options"] == ["auto", "hosted", "self-hosted"]
++    assert inp["default"] == "auto"
+diff --git a/skills/tests/ci_runners/test_install_units.py b/skills/tests/ci_runners/test_install_units.py
+new file mode 100644
+index 00000000..2060a65c
+--- /dev/null
++++ b/skills/tests/ci_runners/test_install_units.py
+@@ -0,0 +1,90 @@
++"""install-units.sh copies beneath --prefix and only prints host commands (D7)."""
++
++from __future__ import annotations
++
++import os
++import stat
++import subprocess
++from pathlib import Path
++
++import pytest
++
++FORBIDDEN = ("systemctl", "loginctl", "podman")
++
++
++@pytest.fixture()
++def guarded_path(tmp_path: Path) -> tuple[Path, Path]:
++    """PATH prefix whose systemctl/loginctl/podman stubs record any invocation."""
++    bin_dir = tmp_path / "bin"
++    bin_dir.mkdir()
++    marker = tmp_path / "INVOKED"
++    for name in FORBIDDEN:
++        stub = bin_dir / name
++        stub.write_text(f'#!/bin/sh\necho "{name} $*" >> "{marker}"\nexit 99\n')
++        stub.chmod(stub.stat().st_mode | stat.S_IXUSR)
++    return bin_dir, marker
++
++
++def _run(kit_dir, tmp_path, guarded_path, *extra):
++    bin_dir, _ = guarded_path
++    prefix = tmp_path / "home"
++    env = {"PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}", "HOME": str(tmp_path / "realhome")}
++    return prefix, subprocess.run(
++        ["bash", str(kit_dir / "install-units.sh"), "--prefix", str(prefix), *extra],
++        env=env,
++        capture_output=True,
++        text=True,
++    )
++
++
++def test_files_land_only_under_prefix(kit_dir, tmp_path, guarded_path):
++    prefix, res = _run(kit_dir, tmp_path, guarded_path)
++    assert res.returncode == 0, res.stderr
++    assert (prefix / ".config/systemd/user/gx10-runner@.service").is_file()
++    for script in ("mint-jitconfig.sh", "cleanup-runner.sh"):
++        installed = prefix / ".local/lib/gx10-runner" / script
++        assert installed.is_file() and os.access(installed, os.X_OK)
++    env_file = prefix / ".config/gx10-runner/env"
++    assert env_file.is_file() and oct(env_file.stat().st_mode & 0o777) == "0o600"
++    # nothing was written outside the prefix (the fake real HOME was never created)
++    assert not (tmp_path / "realhome").exists()
++    written = {p for p in tmp_path.rglob("*") if p.is_file()}
++    assert all(prefix in p.parents or p.parent.name in {"bin"} for p in written)
++
++
++def test_host_commands_are_printed_not_executed(kit_dir, tmp_path, guarded_path):
++    _, marker = guarded_path
++    _, res = _run(kit_dir, tmp_path, guarded_path)
++    assert not marker.exists(), marker.read_text() if marker.exists() else ""
++    assert "loginctl enable-linger ghrunner" in res.stdout
++    assert "systemctl --user enable --now gx10-runner@{1..8}" in res.stdout
++
++
++def test_instance_count_is_printed(kit_dir, tmp_path, guarded_path):
++    _, res = _run(kit_dir, tmp_path, guarded_path, "--instances", "3")
++    assert "gx10-runner@{1..3}" in res.stdout
++
++
++def test_existing_operator_env_is_not_overwritten(kit_dir, tmp_path, guarded_path):
++    prefix, _ = _run(kit_dir, tmp_path, guarded_path)
++    env_file = prefix / ".config/gx10-runner/env"
++    env_file.write_text("GX10_RUNNER_REPO=me/mine\n")
++    _run(kit_dir, tmp_path, guarded_path)
++    assert env_file.read_text() == "GX10_RUNNER_REPO=me/mine\n"
++
++
++def test_script_never_invokes_host_commands(kit_dir):
++    in_heredoc = False
++    for line in (kit_dir / "install-units.sh").read_text().splitlines():
++        if in_heredoc:  # text printed for the operator, not executed
++            in_heredoc = line.strip() != "MSG"
++            continue
++        in_heredoc = "<<MSG" in line
++        code = line.split("#", 1)[0].strip()
++        if code.startswith(("sudo ", "systemctl ", "loginctl ", "podman ")):
++            raise AssertionError(f"install-units.sh executes: {line}")
++
++
++def test_unknown_argument_is_rejected(kit_dir, tmp_path, guarded_path):
++    _, res = _run(kit_dir, tmp_path, guarded_path, "--bogus")
++    assert res.returncode == 2
+diff --git a/skills/tests/ci_runners/test_jit_scripts.py b/skills/tests/ci_runners/test_jit_scripts.py
+new file mode 100644
+index 00000000..6a90ad2e
+--- /dev/null
++++ b/skills/tests/ci_runners/test_jit_scripts.py
+@@ -0,0 +1,263 @@
++"""mint-jitconfig.sh and cleanup-runner.sh against a stub curl (D5). No network."""
++
++from __future__ import annotations
++
++import json
++import os
++import subprocess
++from pathlib import Path
++
++import pytest
++
++from ._stubs import install_curl_stub, path_with, read_calls
++
++HOST = "testhost"
++REPO = "owner/repo"
++RUNNER_DEFAULTS = {"self-hosted", "linux", "arm64"}
++
++
++def _run(script: Path, args: list[str], env_extra: dict[str, str], tmp: Path, config: dict):
++    bin_dir = tmp / "bin"
++    stub_env, log = install_curl_stub(bin_dir, config, tmp)
++    runtime = tmp / "run"
++    runtime.mkdir(exist_ok=True)
++    token = tmp / "token"
++    if not token.exists():
++        token.write_text("ghp_SECRETTOKEN\n")
++        token.chmod(0o600)
++    env = {
++        "PATH": path_with(bin_dir),
++        "HOME": str(tmp),
++        "XDG_RUNTIME_DIR": str(runtime),
++        "GX10_RUNNER_REPO": REPO,
++        "GX10_HOSTNAME": HOST,
++        "GX10_RUNNER_TOKEN_FILE": str(token),
++        "GX10_RUNNER_LABELS": "self-hosted,linux,ARM64,gx10",
++        "GX10_MINT_BASE_DELAY": "0.01",
++        "GX10_MINT_MAX_ELAPSED": "5",
++        **stub_env,
++        **env_extra,
++    }
++    res = subprocess.run(
++        ["bash", str(script), *args], env=env, capture_output=True, text=True, timeout=60
++    )
++    return res, read_calls(log), runtime / "gx10-runner"
++
++
++def _mint_ok_route():
++    return {
++        "method": "POST",
++        "pattern": r"generate-jitconfig$",
++        "status": 201,
++        "body": {"runner": {"id": 4242}, "encoded_jit_config": "ENCODEDJIT=="},
++    }
++
++
++@pytest.fixture()
++def mint(kit_dir):
++    return kit_dir / "mint-jitconfig.sh"
++
++
++@pytest.fixture()
++def cleanup(kit_dir):
++    return kit_dir / "cleanup-runner.sh"
++
++
++def test_mint_writes_only_jitconfig_and_runner_id(mint, tmp_path):
++    cfg = {"routes": [_mint_ok_route()]}
++    res, calls, env_dir = _run(mint, ["1"], {}, tmp_path, cfg)
++    assert res.returncode == 0, res.stderr
++    env_file = env_dir / "1.env"
++    assert oct(env_file.stat().st_mode & 0o777) == "0o600"
++    lines = env_file.read_text().splitlines()
++    assert lines == ["ACTIONS_RUNNER_INPUT_JITCONFIG=ENCODEDJIT==", "GX10_RUNNER_ID=4242"]
++    # the credential is on the host only: not in the env file, not in any curl argument
++    assert "SECRETTOKEN" not in env_file.read_text()
++    for call in calls:
++        assert "SECRETTOKEN" not in json.dumps(call)
++
++
++def test_mint_refuses_wide_credential_mode(mint, tmp_path):
++    token = tmp_path / "token"
++    token.write_text("ghp_x\n")
++    token.chmod(0o640)
++    res, calls, env_dir = _run(mint, ["1"], {}, tmp_path, {"routes": [_mint_ok_route()]})
++    assert res.returncode != 0
++    assert "mode" in res.stderr
++    assert calls == []
++    assert not (env_dir / "1.env").exists()
++
++
++def test_mint_prefers_systemd_credential_directory(mint, tmp_path):
++    cred = tmp_path / "creds"
++    cred.mkdir()
++    (cred / "github-token").write_text("ghp_FROMCRED\n")
++    (cred / "github-token").chmod(0o400)
++    res, _, _ = _run(
++        mint,
++        ["1"],
++        {"CREDENTIALS_DIRECTORY": str(cred), "GX10_RUNNER_TOKEN_FILE": "/nonexistent"},
++        tmp_path,
++        {"routes": [_mint_ok_route()]},
++    )
++    assert res.returncode == 0, res.stderr
++
++
++def test_mint_requests_only_custom_labels(mint, tmp_path, manifest):
++    res, calls, _ = _run(mint, ["1"], {}, tmp_path, {"routes": [_mint_ok_route()]})
++    assert res.returncode == 0, res.stderr
++    (post,) = [c for c in calls if c["method"] == "POST"]
++    assert post["url"].endswith(f"/repos/{REPO}/actions/runners/generate-jitconfig")
++    body = json.loads(post["data"])
++    requested = {x.lower() for x in body["labels"]}
++    assert not requested & RUNNER_DEFAULTS
++    assert requested | RUNNER_DEFAULTS == {
++        x.lower() for x in manifest["routing"]["self_hosted_labels"]
++    }
++    assert body["name"].startswith(f"gx10-{HOST}-1-")
++    assert body["runner_group_id"] == 1 and body["work_folder"] == "_work"
++
++
++def test_mint_retries_with_backoff_then_gives_up(mint, tmp_path):
++    cfg = {
++        "routes": [{"method": "POST", "pattern": r"generate-jitconfig$", "status": 503, "body": {}}]
++    }
++    res, calls, env_dir = _run(mint, ["1"], {"GX10_MINT_MAX_ELAPSED": "0.5"}, tmp_path, cfg)
++    assert res.returncode != 0
++    posts = [c for c in calls if c["method"] == "POST"]
++    assert len(posts) >= 3, "expected several attempts before the budget was spent"
++    assert "retry budget" in res.stderr
++    assert not (env_dir / "1.env").exists()
++
++
++def test_mint_does_not_retry_client_errors(mint, tmp_path):
++    cfg = {
++        "routes": [{"method": "POST", "pattern": r"generate-jitconfig$", "status": 422, "body": {}}]
++    }
++    res, calls, env_dir = _run(mint, ["1"], {}, tmp_path, cfg)
++    assert res.returncode != 0
++    assert len([c for c in calls if c["method"] == "POST"]) == 1
++    assert not (env_dir / "1.env").exists()
++
++
++def _runner(rid, name, status):
++    return {"id": rid, "name": name, "status": status}
++
++
++def test_sweep_deletes_only_own_offline_runners_across_pages(mint, tmp_path):
++    page1 = {
++        "runners": [
++            _runner(1, f"gx10-{HOST}-1-100", "offline"),  # ours, offline: delete
++            _runner(2, f"gx10-{HOST}-1-101", "online"),  # ours, online: keep
++            _runner(3, f"gx10-{HOST}-2-102", "offline"),  # other instance: keep
++            _runner(4, "gx10-otherhost-1-103", "offline"),  # other host: keep
++            _runner(5, f"gx10-{HOST}-10-104", "offline"),  # instance 10, not 1: keep
++        ]
++    }
++    page2 = {"runners": [_runner(6, f"gx10-{HOST}-1-105", "offline")]}  # second page: delete
++    cfg = {
++        "routes": [
++            {
++                "method": "GET",
++                "pattern": r"runners\?per_page=100&page=1$",
++                "status": 200,
++                "body": page1,
++                "headers": {"Link": '<https://api.github.com/x?page=2>; rel="next"'},
++            },
++            {
++                "method": "GET",
++                "pattern": r"runners\?per_page=100&page=2$",
++                "status": 200,
++                "body": page2,
++            },
++            {"method": "DELETE", "pattern": r"/runners/\d+$", "status": 204, "body": {}},
++            _mint_ok_route(),
++        ]
++    }
++    res, calls, _ = _run(mint, ["1"], {}, tmp_path, cfg)
++    assert res.returncode == 0, res.stderr
++    deletes = sorted(c["url"].rsplit("/", 1)[1] for c in calls if c["method"] == "DELETE")
++    assert deletes == ["1", "6"]
++    order = [c["method"] for c in calls]
++    assert order.index("POST") > max(i for i, m in enumerate(order) if m == "DELETE")
++
++
++def test_failing_sweep_does_not_stop_the_mint(mint, tmp_path):
++    cfg = {
++        "routes": [
++            {"method": "GET", "pattern": r"/runners\?", "status": 500, "body": {}},
++            _mint_ok_route(),
++        ]
++    }
++    res, _, env_dir = _run(mint, ["1"], {}, tmp_path, cfg)
++    assert res.returncode == 0, res.stderr
++    assert (env_dir / "1.env").exists()
++
++
++def _seed_env(tmp_path, rid="4242"):
++    d = tmp_path / "run" / "gx10-runner"
++    d.mkdir(parents=True, exist_ok=True)
++    f = d / "1.env"
++    f.write_text(f"ACTIONS_RUNNER_INPUT_JITCONFIG=abc\nGX10_RUNNER_ID={rid}\n")
++    return f
++
++
++def test_cleanup_deletes_offline_runner(cleanup, tmp_path):
++    env_file = _seed_env(tmp_path)
++    cfg = {
++        "routes": [
++            {
++                "method": "GET",
++                "pattern": r"/runners/4242$",
++                "status": 200,
++                "body": {"status": "offline"},
++            },
++            {"method": "DELETE", "pattern": r"/runners/4242$", "status": 204, "body": {}},
++        ]
++    }
++    res, calls, _ = _run(cleanup, ["1"], {}, tmp_path, cfg)
++    assert res.returncode == 0
++    assert [c["method"] for c in calls] == ["GET", "DELETE"]
++    assert not env_file.exists(), "the single-use JIT config must not be left on disk"
++
++
++def test_cleanup_leaves_online_runner_alone(cleanup, tmp_path):
++    _seed_env(tmp_path)
++    cfg = {
++        "routes": [
++            {
++                "method": "GET",
++                "pattern": r"/runners/4242$",
++                "status": 200,
++                "body": {"status": "online"},
++            },
++        ]
++    }
++    res, calls, _ = _run(cleanup, ["1"], {}, tmp_path, cfg)
++    assert res.returncode == 0
++    assert [c["method"] for c in calls] == ["GET"]
++
++
++def test_cleanup_always_exits_zero(cleanup, tmp_path):
++    # no env file, an unregistered runner, and an API outage must all exit 0
++    res, calls, _ = _run(cleanup, ["1"], {}, tmp_path, {"routes": []})
++    assert res.returncode == 0 and calls == []
++    _seed_env(tmp_path)
++    res, _, _ = _run(
++        cleanup,
++        ["1"],
++        {},
++        tmp_path,
++        {"routes": [{"method": "GET", "pattern": ".", "status": 500, "body": {}}]},
++    )
++    assert res.returncode == 0
++    _seed_env(tmp_path)
++    res, _, _ = _run(
++        cleanup, ["1"], {"GX10_RUNNER_TOKEN_FILE": "/nonexistent"}, tmp_path, {"routes": []}
++    )
++    assert res.returncode == 0
++
++
++def test_scripts_are_executable(kit_dir):
++    for name in ("mint-jitconfig.sh", "cleanup-runner.sh"):
++        assert os.access(kit_dir / name, os.X_OK), name
+diff --git a/skills/tests/ci_runners/test_manifest_completeness.py b/skills/tests/ci_runners/test_manifest_completeness.py
+new file mode 100644
+index 00000000..7efce68b
+--- /dev/null
++++ b/skills/tests/ci_runners/test_manifest_completeness.py
+@@ -0,0 +1,61 @@
++"""The manifest classifies exactly the jobs the workflows declare (D1, D2, D8)."""
++
++from __future__ import annotations
++
++import pytest
++
++from ._gha_expr import normalize  # noqa: F401  (package import check)
++
++
++def _workflows(manifest):
++    return sorted(manifest["workflows"])
++
++
++def test_workflow_set_is_ci_and_security(manifest):
++    assert _workflows(manifest) == ["ci.yml", "security.yml"]
++
++
++def test_job_sets_match_manifest(manifest, load_workflow):
++    for wf_name, wf in manifest["workflows"].items():
++        declared = set(load_workflow(wf_name)["jobs"])
++        classified = set(wf["jobs"])
++        assert not (declared - classified), (
++            f"{wf_name}: unclassified job(s) {sorted(declared - classified)}"
++        )
++        assert not (classified - declared), (
++            f"{wf_name}: stale manifest entr(ies) {sorted(classified - declared)}"
++        )
++
++
++def test_job_counts(manifest):
++    assert len(manifest["workflows"]["ci.yml"]["jobs"]) == 25
++    assert len(manifest["workflows"]["security.yml"]["jobs"]) == 3
++
++
++def test_hosted_jobs_use_literal_hosted_label(manifest, load_workflow):
++    hosted_label = manifest["routing"]["hosted_label"]
++    n = 0
++    for wf_name, wf in manifest["workflows"].items():
++        jobs = load_workflow(wf_name)["jobs"]
++        for job_id, entry in wf["jobs"].items():
++            if entry["lane"] == "hosted":
++                n += 1
++                assert jobs[job_id]["runs-on"] == hosted_label, f"{wf_name}:{job_id}"
++    assert n == 5
++
++
++def test_display_names_are_unique_and_literal(manifest, load_workflow):
++    for wf_name in manifest["workflows"]:
++        seen: dict[str, str] = {}
++        for job_id, job in load_workflow(wf_name)["jobs"].items():
++            name = job.get("name", job_id)
++            assert "${{" not in str(name), f"{wf_name}:{job_id} has an expression in name:"
++            assert name not in seen, f"{wf_name}: {job_id} and {seen[name]} share name {name!r}"
++            seen[name] = job_id
++
++
++@pytest.mark.parametrize("missing", ["ci.yml", "security.yml"])
++def test_unclassified_job_is_reported(manifest, load_workflow, missing):
++    del manifest["workflows"][missing]["jobs"][next(iter(manifest["workflows"][missing]["jobs"]))]
++    declared = set(load_workflow(missing)["jobs"])
++    assert declared - set(manifest["workflows"][missing]["jobs"])
+diff --git a/skills/tests/ci_runners/test_manifest_schema.py b/skills/tests/ci_runners/test_manifest_schema.py
+new file mode 100644
+index 00000000..5b79346c
+--- /dev/null
++++ b/skills/tests/ci_runners/test_manifest_schema.py
+@@ -0,0 +1,68 @@
++"""The lane manifest validates against its schema; bad manifests are rejected."""
++
++from __future__ import annotations
++
++import copy
++import json
++
++import jsonschema
++import pytest
++from jsonschema import Draft202012Validator
++
++
++@pytest.fixture(scope="module")
++def schema(repo_root):
++    return json.loads((repo_root / ".github" / "runner-lanes.schema.json").read_text())
++
++
++def test_schema_is_valid_draft_2020_12(schema):
++    Draft202012Validator.check_schema(schema)
++
++
++def test_manifest_validates(schema, manifest):
++    Draft202012Validator(schema).validate(manifest)
++
++
++def _first_hosted(manifest):
++    for wf in manifest["workflows"].values():
++        for job in wf["jobs"].values():
++            if job["lane"] == "hosted":
++                return job
++    raise AssertionError("manifest has no hosted job")
++
++
++def _mutate_missing_reason_code(m):
++    del _first_hosted(m)["reason_code"]
++
++
++def _mutate_empty_reason(m):
++    _first_hosted(m)["reason"] = ""
++
++
++def _mutate_unknown_reason_code(m):
++    _first_hosted(m)["reason_code"] = "because-i-said-so"
++
++
++def _mutate_hosted_label(m):
++    m["routing"]["hosted_label"] = "ubuntu-22.04"
++
++
++def _mutate_no_self_hosted_label(m):
++    m["routing"]["self_hosted_labels"] = ["linux", "ARM64", "gx10"]
++
++
++@pytest.mark.parametrize(
++    "mutate",
++    [
++        _mutate_missing_reason_code,
++        _mutate_empty_reason,
++        _mutate_unknown_reason_code,
++        _mutate_hosted_label,
++        _mutate_no_self_hosted_label,
++    ],
++)
++def test_negative_fixtures_rejected(schema, manifest, mutate):
++    bad = copy.deepcopy(manifest)
++    mutate(bad)
++    with pytest.raises(jsonschema.ValidationError):
++        Draft202012Validator(schema).validate(bad)
+diff --git a/skills/tests/ci_runners/test_routing_expression.py b/skills/tests/ci_runners/test_routing_expression.py
+new file mode 100644
+index 00000000..e003dd20
+--- /dev/null
++++ b/skills/tests/ci_runners/test_routing_expression.py
+@@ -0,0 +1,109 @@
++"""The canonical runs-on expression: evaluation table, drift and manifest ties (D3)."""
++
++from __future__ import annotations
++
++import json
++import re
++
++import pytest
++
++from ._gha_expr import CANONICAL_RUNS_ON, evaluate, make_context, normalize
++
++HOSTED = "ubuntu-latest"
++LABELS = ["self-hosted", "linux", "ARM64", "gx10"]
++
++# (event, fork, dispatch_input, variable, expected) -- the D3 evaluation table.
++TABLE = [
++    ("pull_request", True, None, "self-hosted", HOSTED),
++    ("pull_request", True, None, None, HOSTED),
++    ("pull_request", False, None, None, HOSTED),
++    ("pull_request", False, None, "hosted", HOSTED),
++    ("pull_request", False, None, "other", HOSTED),
++    ("pull_request", False, None, "self-hosted", LABELS),
++    ("push", False, None, "self-hosted", LABELS),
++    ("push", False, None, None, HOSTED),
++    ("merge_group", False, None, "self-hosted", HOSTED),
++    ("merge_group", False, None, None, HOSTED),
++    ("schedule", False, None, "self-hosted", HOSTED),
++    ("workflow_dispatch", False, "self-hosted", None, LABELS),
++    ("workflow_dispatch", False, "self-hosted", "hosted", LABELS),
++    ("workflow_dispatch", False, "hosted", "self-hosted", HOSTED),
++    ("workflow_dispatch", False, "auto", "self-hosted", LABELS),
++    ("workflow_dispatch", False, "auto", None, HOSTED),
++    ("workflow_dispatch", False, "auto", "hosted", HOSTED),
++]
++
++
++@pytest.mark.parametrize("event,fork,dispatch,var,expected", TABLE)
++def test_evaluation_table(event, fork, dispatch, var, expected):
++    ctx = make_context(event, fork=fork, dispatch_input=dispatch, variable=var)
++    assert evaluate(CANONICAL_RUNS_ON, ctx) == expected
++
++
++def test_evaluator_value_semantics():
++    ctx = make_context("push")
++    assert evaluate("${{ 'a' && 'b' || 'c' }}", ctx) == "b"
++    assert evaluate("${{ '' && 'b' || 'c' }}", ctx) == "c"
++    assert evaluate("${{ 'x' == 'X' }}", ctx) is True
++    assert evaluate("${{ github.event_name != 'push' }}", ctx) is False
++    assert evaluate('${{ fromJSON(\'["a","b"]\') }}', ctx) == ["a", "b"]
++    assert evaluate("${{ !(github.missing.path) }}", ctx) is True
++
++
++def _routed_jobs(manifest, load_workflow):
++    for wf_name, wf in manifest["workflows"].items():
++        jobs = load_workflow(wf_name)["jobs"]
++        for job_id, entry in wf["jobs"].items():
++            if entry["lane"] == "routed":
++                yield wf_name, job_id, jobs[job_id]
++
++
++def test_every_routed_job_uses_canonical_expression(manifest, load_workflow):
++    expected = normalize(CANONICAL_RUNS_ON)
++    seen = 0
++    for wf_name, job_id, job in _routed_jobs(manifest, load_workflow):
++        seen += 1
++        assert normalize(str(job.get("runs-on"))) == expected, (
++            f"{wf_name}:{job_id} drifted from the canonical runs-on expression"
++        )
++    assert seen == 23
++
++
++def check_expression_ties(expr: str, routing: dict) -> list[str]:
++    """Errors if the expression's literals disagree with the manifest routing block."""
++    errors: list[str] = []
++    m = re.search(r"fromJSON\('(\[.*?\])'\)", expr)
++    labels = json.loads(m.group(1)) if m else None
++    if labels != routing["self_hosted_labels"]:
++        errors.append(f"fromJSON labels {labels} != self_hosted_labels")
++    if f"vars.{routing['repository_variable']}" not in expr:
++        errors.append("vars.<name> does not match repository_variable")
++    inputs = set(re.findall(r"inputs\.([A-Za-z_]\w*)", expr))
++    if inputs != {routing["dispatch_input"]}:
++        errors.append(f"inputs references {inputs} != dispatch_input")
++    if f"'{routing['hosted_label']}' }}}}" not in expr:
++        errors.append("hosted fallback label does not match hosted_label")
++    return errors
++
++
++def test_expression_is_tied_to_manifest_routing(manifest):
++    assert check_expression_ties(CANONICAL_RUNS_ON, manifest["routing"]) == []
++
++
++@pytest.mark.parametrize(
++    "field,value",
++    [
++        ("self_hosted_labels", ["self-hosted", "linux", "ARM64", "gx11"]),
++        ("repository_variable", "OTHER_LANE"),
++        ("dispatch_input", "other_input"),
++        ("hosted_label", "ubuntu-22.04"),
++    ],
++)
++def test_mutating_any_routing_field_breaks_the_tie(manifest, field, value):
++    routing = {**manifest["routing"], field: value}
++    assert check_expression_ties(CANONICAL_RUNS_ON, routing), field
++
++
++def test_routed_job_drift_is_detected(manifest, load_workflow):
++    drifted = CANONICAL_RUNS_ON.replace("'push'", "'pull_request_target'", 1)
++    assert normalize(drifted) != normalize(CANONICAL_RUNS_ON)
+diff --git a/skills/tests/ci_runners/test_runbook.py b/skills/tests/ci_runners/test_runbook.py
+new file mode 100644
+index 00000000..d626cb94
+--- /dev/null
++++ b/skills/tests/ci_runners/test_runbook.py
+@@ -0,0 +1,110 @@
++"""The operator runbook covers O1-O12 with verification blocks and cross-checks the kit."""
++
++from __future__ import annotations
++
++import re
++
++import pytest
++
++STEPS = [f"O{i}" for i in range(1, 13)]
++
++
++@pytest.fixture(scope="module")
++def runbook(repo_root):
++    return (repo_root / "docs" / "guides" / "self-hosted-ci-runners.md").read_text()
++
++
++def sections(text: str) -> dict[str, str]:
++    parts = re.split(r"^#{2,4}\s+(O\d+)\b.*$", text, flags=re.M)
++    return {parts[i]: parts[i + 1] for i in range(1, len(parts) - 1, 2)}
++
++
++def test_every_step_is_a_heading(runbook):
++    assert sorted(sections(runbook), key=lambda s: int(s[1:])) == STEPS
++
++
++@pytest.mark.parametrize("step", STEPS)
++def test_each_step_has_a_bash_verification_block(runbook, step):
++    body = sections(runbook)[step]
++    blocks = re.findall(r"```bash\n(.*?)```", body, flags=re.S)
++    assert blocks, f"{step} has no fenced bash block"
++    assert any(b.strip() for b in blocks)
++
++
++def test_hard_boundary_is_stated(runbook):
++    low = " ".join(runbook.lower().split())
++    assert "hard boundary" in low
++    for phrase in ("register runners", "mint", "systemctl", "main"):
++        assert phrase in low
++
++
++def test_rollback_command_is_named(runbook):
++    assert "gh variable set CI_RUNNER_LANE --body hosted" in runbook
++
++
++def test_design_commitments_are_documented(runbook):
++    assert "created" in runbook and "queued" in runbook  # D9 queued-run detection
++    assert "GitHub App" in runbook  # D5 upgrade path
++    assert "GX10_RUNNER_CACHE_ARGS=--volume gx10-runner-uv-cache:/home/runner/.cache/uv" in runbook
++    assert "risk" in runbook.lower() and "Dependabot" in runbook  # D6/A10
++    assert "pasta" in runbook and "slirp4netns" in runbook  # A11
++    assert "table inet" in runbook and "skuid" in runbook  # D6 nftables
++
++
++def test_runbook_names_only_existing_kit_paths_and_variables(runbook, kit_dir, repo_root):
++    env = (kit_dir / "gx10-runner.env.example").read_text()
++    for path in set(re.findall(r"deploy/gx10-runner/[\w./@-]+", runbook)):
++        assert (repo_root / path.rstrip(".,)")).exists(), path
++    for var in set(re.findall(r"\bGX10_[A-Z_]+\b", runbook)):
++        assert var in env or var in {
++            "GX10_INSTANCES",
++            "GX10_MINT_BASE_DELAY",
++            "GX10_GITHUB_API",
++            "GX10_HOSTNAME",
++            "GX10_RUNNER_TOKEN_FILE",
++        }, var
++
++
++def test_runbook_uses_only_flags_the_cli_accepts(runbook, repo_root):
++    import importlib.util
++    import sys
++
++    spec = importlib.util.spec_from_file_location(
++        "ci_wallclock_rb", repo_root / "scripts" / "ci" / "ci_wallclock.py"
++    )
++    mod = importlib.util.module_from_spec(spec)
++    sys.modules["ci_wallclock_rb"] = mod
++    spec.loader.exec_module(mod)
++    parser = mod.build_parser()
++    sub = next(a for a in parser._actions if a.dest == "cmd").choices
++    for m in re.finditer(r"ci_wallclock\.py\s+([a-z-]+)([^\n`]*)", runbook):
++        cmd, rest = m.group(1), m.group(2)
++        assert cmd in sub, cmd
++        accepted = {s for a in sub[cmd]._actions for s in a.option_strings}
++        for flag in re.findall(r"--[a-z-]+", rest):
++            assert flag in accepted, f"{cmd} does not accept {flag}"
++
++
++def _nft_block(runbook: str) -> str:
++    m = re.search(r"<<'NFT'\n(.*?)\nNFT\n", runbook, flags=re.S)
++    assert m, "runbook has no NFT ruleset heredoc"
++    return m.group(1)
++
++
++def test_nft_ruleset_is_ordered_persistent_and_dual_stack(runbook):
++    rules = _nft_block(runbook)
++    assert "table inet gx10_runner_isolation {" in rules
++    assert "hook output" in rules and "policy accept" in rules
++    lines = [ln.strip() for ln in rules.splitlines()]
++    dns_udp = next(i for i, ln in enumerate(lines) if "127.0.0.53 udp dport 53 accept" in ln)
++    dns_tcp = next(i for i, ln in enumerate(lines) if "127.0.0.53 tcp dport 53 accept" in ln)
++    local_drop = next(i for i, ln in enumerate(lines) if "fib daddr type local drop" in ln)
++    assert max(dns_udp, dns_tcp) < local_drop, "DNS exemption must precede the local drop"
++    for needle in ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "100.64.0.0/10",
++                   "169.254.0.0/16", "fc00::/7", "fe80::/10", 'oifname "tailscale0"'):
++        assert needle in rules, needle
++    assert all("meta skuid ghrunner" in ln for ln in lines if ln.endswith(("accept", "drop")))
++    # persistence and re-check after reboot
++    assert 'include "/etc/nftables.d/gx10-runner.nft"' in runbook
++    assert "systemctl enable --now nftables" in runbook
++    assert "nft list ruleset | grep skuid" in sections(runbook)["O10"]
+diff --git a/skills/tests/ci_runners/test_runner_image.py b/skills/tests/ci_runners/test_runner_image.py
+new file mode 100644
+index 00000000..adb35988
+--- /dev/null
++++ b/skills/tests/ci_runners/test_runner_image.py
+@@ -0,0 +1,149 @@
++"""Runner image: pinned base, toolchain, non-root user, job-started hook (D4, D6)."""
++
++from __future__ import annotations
++
++import json
++import re
++import subprocess
++
++import pytest
++
++FROM_RE = re.compile(
++    r"^FROM\s+ghcr\.io/actions/actions-runner:(?P<tag>[0-9]+\.[0-9]+\.[0-9]+)@sha256:(?P<digest>[0-9a-f]{64})\s*$",
++    re.M,
++)
++
++
++@pytest.fixture(scope="module")
++def containerfile(kit_dir):
++    return (kit_dir / "Containerfile").read_text()
++
++
++def test_base_image_is_pinned(containerfile):
++    froms = re.findall(r"^FROM\s+.*$", containerfile, flags=re.M)
++    assert len(froms) == 1
++    assert FROM_RE.match(froms[0]), froms[0]
++    assert "latest" not in froms[0]
++
++
++def test_every_toolchain_package_is_installed(kit_dir, containerfile):
++    packages = [
++        ln.strip() for ln in (kit_dir / "toolchain.txt").read_text().splitlines() if ln.strip()
++    ]
++    for required in (
++        "git",
++        "curl",
++        "jq",
++        "make",
++        "build-essential",
++        "unzip",
++        "xz-utils",
++        "zstd",
++        "ca-certificates",
++        "python3",
++    ):
++        assert required in packages, required
++    assert "COPY toolchain.txt" in containerfile
++    install_lines = [ln for ln in containerfile.splitlines() if "apt-get install" in ln]
++    assert install_lines and all("toolchain.txt" in ln or "xargs" in ln for ln in install_lines)
++
++
++def test_final_user_is_not_root(containerfile):
++    users = re.findall(r"^USER\s+(\S+)", containerfile, flags=re.M)
++    assert users and users[-1] not in ("root", "0")
++
++
++def test_no_sudoers_grant_is_added(containerfile):
++    assert not re.search(r"(echo|printf|tee|>>|>)\s.*sudoers", containerfile.replace("\\\n", " "))
++    assert "usermod -aG sudo" not in containerfile
++    assert "sudoers.d" not in containerfile
++
++
++def test_image_installs_the_hook(containerfile):
++    assert re.search(
++        r"^COPY\s+job-started-hook\.sh\s+/opt/gx10/job-started-hook\.sh", containerfile, re.M
++    )
++    assert re.search(
++        r"^ENV\s+ACTIONS_RUNNER_HOOK_JOB_STARTED=/opt/gx10/job-started-hook\.sh\s*$",
++        containerfile,
++        re.M,
++    )
++
++
++def test_image_sets_uv_cache_dir(containerfile):
++    assert re.search(r"^ENV\s+UV_CACHE_DIR=/home/runner/\.cache/uv\s*$", containerfile, re.M)
++
++
++def test_entrypoint_is_the_runner(containerfile):
++    assert "/home/runner/run.sh" in containerfile
++
++
++# ------------------------------------------------------------------------------- the hook
++
++REPO = "owner/repo"
++
++
++def _run_hook(kit_dir, tmp_path, event, ref="refs/heads/main", payload=None, drop_payload=False):
++    path = tmp_path / "event.json"
++    if not drop_payload:
++        path.write_text(json.dumps(payload if payload is not None else {}))
++    env = {
++        "PATH": "/usr/bin:/bin",
++        "GITHUB_EVENT_NAME": event,
++        "GITHUB_REF": ref,
++        "GITHUB_REPOSITORY": REPO,
++        "GITHUB_EVENT_PATH": str(path),
++    }
++    return subprocess.run(
++        ["bash", str(kit_dir / "job-started-hook.sh")], env=env, capture_output=True, text=True
++    )
++
++
++def _pr(head):
++    return {"pull_request": {"head": {"repo": {"full_name": head}}}}
++
++
++@pytest.mark.parametrize(
++    "event,ref,payload,ok",
++    [
++        ("push", "refs/heads/main", {}, True),
++        ("push", "refs/heads/feature", {}, False),
++        ("push", "refs/tags/v1", {}, False),
++        ("workflow_dispatch", "refs/heads/feature", {}, True),
++        ("pull_request", "refs/pull/1/merge", _pr(REPO), True),
++        ("pull_request", "refs/pull/1/merge", _pr("OWNER/Repo"), True),
++        ("pull_request", "refs/pull/1/merge", _pr("fork/repo"), False),
++        ("pull_request", "refs/pull/1/merge", {"pull_request": {"head": {"repo": None}}}, False),
++        ("pull_request", "refs/pull/1/merge", {}, False),
++        ("pull_request_target", "refs/heads/main", _pr(REPO), False),
++        ("merge_group", "refs/heads/gh-readonly-queue/main/x", {}, False),
++        ("schedule", "refs/heads/main", {}, False),
++        ("workflow_run", "refs/heads/main", {}, False),
++        ("", "", {}, False),
++    ],
++)
++def test_hook_decisions(kit_dir, tmp_path, event, ref, payload, ok):
++    res = _run_hook(kit_dir, tmp_path, event, ref, payload)
++    assert (res.returncode == 0) is ok, res.stderr
++    if not ok:
++        assert res.stderr.strip(), "a refusal must explain itself"
++
++
++def test_hook_fails_closed_without_a_payload(kit_dir, tmp_path):
++    res = _run_hook(kit_dir, tmp_path, "pull_request", "refs/pull/1/merge", drop_payload=True)
++    assert res.returncode != 0
++
++
++def test_hook_fails_closed_on_malformed_payload(kit_dir, tmp_path):
++    (tmp_path / "event.json").write_text("{not json")
++    env = {
++        "PATH": "/usr/bin:/bin",
++        "GITHUB_EVENT_NAME": "pull_request",
++        "GITHUB_REF": "refs/pull/1/merge",
++        "GITHUB_REPOSITORY": REPO,
++        "GITHUB_EVENT_PATH": str(tmp_path / "event.json"),
++    }
++    res = subprocess.run(
++        ["bash", str(kit_dir / "job-started-hook.sh")], env=env, capture_output=True, text=True
++    )
++    assert res.returncode != 0
+diff --git a/skills/tests/ci_runners/test_systemd_unit.py b/skills/tests/ci_runners/test_systemd_unit.py
+new file mode 100644
+index 00000000..872bfc7e
+--- /dev/null
++++ b/skills/tests/ci_runners/test_systemd_unit.py
+@@ -0,0 +1,204 @@
++"""The systemd user template unit and its example env file (D5, D6, D7)."""
++
++from __future__ import annotations
++
++import re
++import shutil
++import subprocess
++from pathlib import Path
++
++import pytest
++
++DANGEROUS_FLAGS = ("--privileged",)
++
++
++def parse_unit(text: str) -> dict[str, list[tuple[str, str]]]:
++    """INI parser that keeps repeated keys, as systemd does."""
++    sections: dict[str, list[tuple[str, str]]] = {}
++    cur: list[tuple[str, str]] | None = None
++    for raw in text.splitlines():
++        line = raw.strip()
++        if not line or line.startswith(("#", ";")):
++            continue
++        if line.startswith("[") and line.endswith("]"):
++            cur = sections.setdefault(line[1:-1], [])
++            continue
++        assert cur is not None, f"key outside a section: {raw!r}"
++        key, _, value = line.partition("=")
++        cur.append((key.strip(), value.strip()))
++    return sections
++
++
++def parse_env(text: str) -> dict[str, str]:
++    env: dict[str, str] = {}
++    for raw in text.splitlines():
++        line = raw.strip()
++        if not line or line.startswith("#"):
++            continue
++        key, _, value = line.partition("=")
++        env[key.strip()] = value.strip().strip("\"'")
++    return env
++
++
++def values(unit, section: str, key: str) -> list[str]:
++    return [v for k, v in unit.get(section, []) if k == key]
++
++
++def expand_exec(line: str, env: dict[str, str], instance: str = "1") -> list[str]:
++    """Expand an Exec line with systemd word-splitting semantics.
++
++    ``${VAR}`` is substituted into a single argument; a standalone ``$VAR`` word is
++    split on whitespace (so an empty value yields zero arguments). Specifiers ``%i`` and
++    ``%t``/``%h`` are replaced with stand-ins.
++    """
++    line = line.lstrip("-@+!:")
++    line = line.replace("%i", instance).replace("%t", "/run/user/1000").replace("%h", "/home/x")
++    out: list[str] = []
++    for word in line.split():
++        m = re.fullmatch(r"\$([A-Za-z_]\w*)", word)
++        if m:
++            out.extend(env.get(m.group(1), "").split())
++            continue
++        out.append(re.sub(r"\$\{(\w+)\}", lambda mm: env.get(mm.group(1), ""), word))
++    return out
++
++
++@pytest.fixture(scope="module")
++def unit(kit_dir):
++    return parse_unit((kit_dir / "systemd" / "gx10-runner@.service").read_text())
++
++
++@pytest.fixture(scope="module")
++def env(kit_dir):
++    return parse_env((kit_dir / "gx10-runner.env.example").read_text())
++
++
++@pytest.fixture(scope="module")
++def exec_start(unit):
++    (line,) = values(unit, "Service", "ExecStart")
++    return line
++
++
++def test_restart_and_install_properties(unit):
++    assert values(unit, "Service", "Restart") == ["always"]
++    assert int(values(unit, "Service", "TimeoutStartSec")[0]) > 90
++    assert values(unit, "Unit", "StartLimitIntervalSec") == ["0"]
++    assert "StartLimitIntervalSec" not in dict(unit["Service"])
++    assert values(unit, "Install", "WantedBy") == ["default.target"]
++
++
++def test_start_timeout_exceeds_mint_budget(unit, env):
++    assert int(values(unit, "Service", "TimeoutStartSec")[0]) > int(env["GX10_MINT_MAX_ELAPSED"])
++
++
++def test_pre_and_post_hooks(unit):
++    (pre,) = values(unit, "Service", "ExecStartPre")
++    (post,) = values(unit, "Service", "ExecStopPost")
++    assert "mint-jitconfig.sh" in pre
++    assert "cleanup-runner.sh" in post
++
++
++def test_configuration_and_credential_wiring(unit, env, exec_start):
++    assert values(unit, "Service", "EnvironmentFile") == ["%h/.config/gx10-runner/env"]
++    assert values(unit, "Service", "LoadCredential") == [
++        "github-token:%h/.config/gx10-runner/token"
++    ]
++    assert "GX10_RUNNER_TOKEN_FILE" not in env
++    (pre,) = values(unit, "Service", "ExecStartPre")
++    referenced = set(re.findall(r"\$\{?([A-Za-z_]\w*)\}?", pre + " " + exec_start))
++    assert referenced, "expected the unit to reference env variables"
++    assert referenced <= set(env), f"undefined in example env: {referenced - set(env)}"
++
++
++@pytest.mark.parametrize(
++    "needle",
++    [
++        "podman run",
++        "--rm",
++        "--replace",
++        "--pull=never",
++        "--env-file",
++        "--cap-drop ALL",
++        "--security-opt no-new-privileges",
++        "--network slirp4netns:allow_host_loopback=false",
++        "--pids-limit",
++        "--cpus",
++        "--memory",
++        "--tmpfs /tmp",
++    ],
++)
++def test_exec_start_has_hardening(exec_start, needle):
++    assert needle in exec_start
++
++
++def test_exec_start_has_no_dangerous_options(exec_start):
++    for flag in DANGEROUS_FLAGS:
++        assert flag not in exec_start
++    assert "--network host" not in exec_start and "--network=host" not in exec_start
++    networks = re.findall(r"--network[= ](\S+)", exec_start)
++    assert networks == ["slirp4netns:allow_host_loopback=false"]
++    assert not re.search(r"\S*\.sock\b", exec_start)
++    assert "%h" not in exec_start and "$HOME" not in exec_start
++    for src in re.findall(r"(?:--volume|-v)[= ](\S+)", exec_start):
++        assert not src.startswith(("/", "%", "$", "~")), src
++
++
++def test_cache_switch_is_a_bare_word_and_off_by_default(exec_start, env):
++    assert re.search(r"(?:^|\s)\$GX10_RUNNER_CACHE_ARGS(?:\s|$)", exec_start)
++    assert "--volume" not in exec_start and " -v " not in exec_start
++    assert env["GX10_RUNNER_CACHE_ARGS"] == ""
++    assert "--volume" not in expand_exec(exec_start, env)
++
++
++def test_cache_opt_in_adds_only_the_named_volume(exec_start, env):
++    base = expand_exec(exec_start, env)
++    opted = expand_exec(
++        exec_start,
++        {**env, "GX10_RUNNER_CACHE_ARGS": "--volume gx10-runner-uv-cache:/home/runner/.cache/uv"},
++    )
++    added = [a for a in opted if a not in base]
++    assert added == ["--volume", "gx10-runner-uv-cache:/home/runner/.cache/uv"]
++    assert len(opted) == len(base) + 2
++
++
++def test_env_example_contents(env):
++    for key in (
++        "GX10_RUNNER_REPO",
++        "GX10_RUNNER_IMAGE",
++        "GX10_RUNNER_CPUS",
++        "GX10_RUNNER_MEMORY",
++        "GX10_RUNNER_LABELS",
++        "GX10_MINT_MAX_ELAPSED",
++        "GX10_RUNNER_CACHE_ARGS",
++    ):
++        assert key in env, key
++    assert env["GX10_MINT_MAX_ELAPSED"] == "600"
++
++
++def test_env_labels_mirror_manifest(env, manifest):
++    got = {x.strip().lower() for x in env["GX10_RUNNER_LABELS"].split(",")}
++    assert got == {x.lower() for x in manifest["routing"]["self_hosted_labels"]}
++
++
++@pytest.mark.skipif(shutil.which("systemd-analyze") is None, reason="systemd-analyze missing")
++def test_systemd_analyze_verify(kit_dir, tmp_path: Path):
++    text = (kit_dir / "systemd" / "gx10-runner@.service").read_text()
++    stub = tmp_path / "stub.sh"
++    stub.write_text("#!/bin/sh\nexit 0\n")
++    stub.chmod(0o755)
++    out = []
++    for line in text.splitlines():
++        m = re.match(r"^(ExecStartPre|ExecStart|ExecStopPost)=", line)
++        out.append(f"{m.group(1)}={stub}" if m else line)
++    unit_path = tmp_path / "gx10-runner@1.service"
++    unit_path.write_text("\n".join(out) + "\n")
++    res = subprocess.run(
++        ["systemd-analyze", "verify", "--user", str(unit_path)],
++        capture_output=True,
++        text=True,
++        cwd=tmp_path,
++    )
++    problems = [
++        ln for ln in (res.stdout + res.stderr).splitlines() if "gx10-runner" in ln and ln.strip()
++    ]
++    assert not problems, problems
+diff --git a/skills/tests/ci_runners/test_tool_parity.py b/skills/tests/ci_runners/test_tool_parity.py
+new file mode 100644
+index 00000000..b7309057
+--- /dev/null
++++ b/skills/tests/ci_runners/test_tool_parity.py
+@@ -0,0 +1,128 @@
++"""Routed jobs must not need tools the runner image lacks (D2, D6, D10)."""
++
++from __future__ import annotations
++
++import re
++
++import pytest
++
++ALWAYS_DISALLOWED = ("docker", "podman", "sudo", "apt-get")
++NEEDS_SETUP = {
++    "npm": "actions/setup-node",
++    "npx": "actions/setup-node",
++    "node": "actions/setup-node",
++    "java": "actions/setup-java",
++    "go": "actions/setup-go",
++}
++#: (workflow, job, command, justification). Starts empty on purpose (D10).
++ALLOWLIST: list[tuple[str, str, str, str]] = []
++
++_SEPARATORS = re.compile(r"&&|\|\||;|\||\$\(|\(")
++
++
++def commands_in(run_text: str) -> set[str]:
++    """Hosted-only commands invoked in command position within a ``run:`` block.
++
++    Command position is the start of a line or the word after ``;``, ``&&``, ``||``,
++    ``|``, ``$(``, ``sudo`` or ``env`` (D10). A path such as
++    ``scripts/check_docker_imports.py`` is a single word that is not the command name.
++    """
++    watched = {*ALWAYS_DISALLOWED, *NEEDS_SETUP}
++    found: set[str] = set()
++    for line in run_text.splitlines():
++        if line.lstrip().startswith("#"):
++            continue
++        for segment in _SEPARATORS.split(line):
++            words = segment.split()
++            while words:
++                head = words[0]
++                if head in watched:
++                    found.add(head)
++                if head in ("sudo", "env"):
++                    words = words[1:]
++                    while head == "env" and words and "=" in words[0]:
++                        words = words[1:]
++                    continue
++                break
++    return found
++
++
++def _routed(manifest, load_workflow):
++    for wf_name, wf in manifest["workflows"].items():
++        jobs = load_workflow(wf_name)["jobs"]
++        for job_id, entry in wf["jobs"].items():
++            if entry["lane"] == "routed":
++                yield wf_name, job_id, jobs[job_id]
++
++
++def _uses(job) -> list[str]:
++    return [str(s.get("uses", "")) for s in job.get("steps", [])]
++
++
++def test_script_path_is_not_an_invocation():
++    text = "uv run python scripts/check_docker_imports.py\n"
++    assert commands_in(text) == set()
++
++
++@pytest.mark.parametrize(
++    "text,expected",
++    [
++        ("docker run --rm x", {"docker"}),
++        ("a && sudo apt-get install -y x", {"sudo", "apt-get"}),
++        ("x | podman load", {"podman"}),
++        ("v=$(npm bin)", {"npm"}),
++        ("# docker is not run here", set()),
++        ("echo go", set()),
++    ],
++)
++def test_matcher(text, expected):
++    assert commands_in(text) == expected
++
++
++def test_routed_jobs_have_no_services(manifest, load_workflow):
++    for wf_name, job_id, job in _routed(manifest, load_workflow):
++        assert "services" not in job, f"{wf_name}:{job_id} routed but declares services:"
++
++
++def test_routed_jobs_do_not_call_container_or_root_tools(manifest, load_workflow):
++    allowed = {(w, j, c) for w, j, c, _ in ALLOWLIST}
++    for wf_name, job_id, job in _routed(manifest, load_workflow):
++        for step in job.get("steps", []):
++            for cmd in commands_in(step.get("run", "")) & set(ALWAYS_DISALLOWED):
++                assert (wf_name, job_id, cmd) in allowed, (
++                    f"{wf_name}:{job_id} invokes {cmd} but is routed"
++                )
++
++
++def test_allowlist_entries_are_justified():
++    for entry in ALLOWLIST:
++        assert len(entry) == 4 and entry[3].strip()
++
++
++def test_setup_actions_present_for_runtime_commands(manifest, load_workflow):
++    for wf_name, job_id, job in _routed(manifest, load_workflow):
++        uses = _uses(job)
++        for step in job.get("steps", []):
++            for cmd in commands_in(step.get("run", "")) & set(NEEDS_SETUP):
++                needed = NEEDS_SETUP[cmd]
++                assert any(u.startswith(needed) for u in uses), (
++                    f"{wf_name}:{job_id} invokes {cmd} without {needed}"
++                )
++
++
++def test_routed_job_missing_setup_node_is_detected():
++    job = {"steps": [{"run": "npm install -g x"}]}
++    cmds = commands_in(job["steps"][0]["run"]) & set(NEEDS_SETUP)
++    assert cmds == {"npm"}
++    assert not any(u.startswith("actions/setup-node") for u in _uses(job))
++
++
++def test_setup_uv_uses_the_shared_cache_path(manifest, load_workflow):
++    n = 0
++    for wf_name, job_id, job in _routed(manifest, load_workflow):
++        for step in job.get("steps", []):
++            if str(step.get("uses", "")).startswith("astral-sh/setup-uv"):
++                n += 1
++                got = (step.get("with") or {}).get("cache-local-path")
++                assert got == "/home/runner/.cache/uv", f"{wf_name}:{job_id}"
++    assert n > 0
+diff --git a/skills/tests/project-context-refresh/test_gate.py b/skills/tests/project-context-refresh/test_gate.py
+index 5090f060..5814326c 100644
+--- a/skills/tests/project-context-refresh/test_gate.py
++++ b/skills/tests/project-context-refresh/test_gate.py
+@@ -1228,7 +1228,9 @@ class TestCiEventCoverage:
+         workflow = self._workflow()
+         # PyYAML 1.1 reads a bare `on:` key as the boolean True.
+         triggers = workflow.get("on", workflow.get(True))
+-        assert set(triggers) == {"push", "pull_request", "merge_group"}
++        # workflow_dispatch was added by migrate-ci-to-self-hosted-gx10-runners (runner-lane
++        # override); it is manual-only and does not change which events gate a merge.
++        assert set(triggers) - {"workflow_dispatch"} == {"push", "pull_request", "merge_group"}
+         assert triggers["push"]["branches"] == ["main"]
+ 
+     def test_gate_job_is_not_conditioned_on_the_event(self):
+diff --git a/skills/tests/validate-feature/test_ci_sweep_wiring.py b/skills/tests/validate-feature/test_ci_sweep_wiring.py
+index c9198616..e8adca3f 100644
+--- a/skills/tests/validate-feature/test_ci_sweep_wiring.py
++++ b/skills/tests/validate-feature/test_ci_sweep_wiring.py
+@@ -287,6 +287,13 @@ def test_job_has_no_if_guard() -> None:
+     assert "pull_request" in triggers
+     assert "merge_group" in triggers
+     for step in job["steps"]:
++        # The self-hosted fork guard (migrate-ci-to-self-hosted-gx10-runners D4) is conditioned
++        # on `runner.environment == 'self-hosted'`, so it can never skip the check on a
++        # hosted merge_group run; it is the one permitted step-level `if:`.
++        if step.get("name") == "Refuse ineligible events on self-hosted runner":
++            # Only the exact self-hosted-gated condition is permitted, never a skip of the check.
++            assert str(step.get("if", "")).startswith("runner.environment == 'self-hosted' &&")
++            continue
+         assert "if" not in step, f"step {step.get('name')!r} carries an `if:` guard"
+ 
+ 
+
+```
+
+### Rule groups
+
+#### Group 1 (default: `(default)`)
+Applies to:
+- .github/runner-lanes.schema.json
+- .github/runner-lanes.yaml
+- .github/workflows/ci.yml
+- .github/workflows/security.yml
+- deploy/gx10-runner/Containerfile
+- deploy/gx10-runner/cleanup-runner.sh
+- deploy/gx10-runner/gx10-runner.env.example
+- deploy/gx10-runner/install-units.sh
+- deploy/gx10-runner/job-started-hook.sh
+- deploy/gx10-runner/mint-jitconfig.sh
+- deploy/gx10-runner/systemd/gx10-runner@.service
+- deploy/gx10-runner/toolchain.txt
+- docs/guides/documentation.md
+- docs/guides/self-hosted-ci-runners.md
+- openspec/changes/migrate-ci-to-self-hosted-gx10-runners/contracts/README.md
+- openspec/changes/migrate-ci-to-self-hosted-gx10-runners/contracts/schemas/runner-lanes.schema.json
+- openspec/changes/migrate-ci-to-self-hosted-gx10-runners/design.md
+- openspec/changes/migrate-ci-to-self-hosted-gx10-runners/tasks.md
+- skills/pyproject.toml
+
+Review for correctness, security, and adherence to this repository's conventions.
+
+#### Group 2 (default: `openspec/changes/*/specs/**/spec.md`)
+Applies to:
+- openspec/changes/migrate-ci-to-self-hosted-gx10-runners/specs/ci-runner-infrastructure/spec.md
+
+Verify every SHALL/MUST has at least one Scenario with WHEN/THEN. Check that a MODIFIED requirement's unchanged scenarios were preserved, not silently dropped.
+
+#### Group 3 (default: `**/*.py`)
+Applies to:
+- scripts/ci/ci_wallclock.py
+
+Check for unhandled exceptions, resource leaks (files/sockets/locks not in a context manager), and mutable default arguments. Flag a docstring claim ("never raises", "pure function") the code does not actually satisfy.
+
+#### Group 4 (default: `skills/tests/**`)
+Applies to:
+- skills/tests/ci_runners/__init__.py
+- skills/tests/ci_runners/_gha_expr.py
+- skills/tests/ci_runners/_stubs.py
+- skills/tests/ci_runners/conftest.py
+- skills/tests/ci_runners/test_ci_wallclock.py
+- skills/tests/ci_runners/test_fork_guard.py
+- skills/tests/ci_runners/test_install_units.py
+- skills/tests/ci_runners/test_jit_scripts.py
+- skills/tests/ci_runners/test_manifest_completeness.py
+- skills/tests/ci_runners/test_manifest_schema.py
+- skills/tests/ci_runners/test_routing_expression.py
+- skills/tests/ci_runners/test_runbook.py
+- skills/tests/ci_runners/test_runner_image.py
+- skills/tests/ci_runners/test_systemd_unit.py
+- skills/tests/ci_runners/test_tool_parity.py
+- skills/tests/project-context-refresh/test_gate.py
+- skills/tests/validate-feature/test_ci_sweep_wiring.py
+
+Same standard as scripts/tests/: verify the test would fail if the behavior it targets were broken. Check that fixture paths use openspec_paths.change_dir rather than a literal openspec/changes/<id>/ path where the guide requires it.
+
+### Spec excerpts
+#### specs/ci-runner-infrastructure/spec.md
+## ADDED Requirements
+
+### Requirement: Lane Manifest Classifies Every Workflow Job
+
+The repository SHALL maintain a lane manifest at `.github/runner-lanes.yaml`, valid against `.github/runner-lanes.schema.json`. The manifest SHALL classify every job in `.github/workflows/ci.yml` and `.github/workflows/security.yml` as either `routed` or `hosted`. Every `hosted` job MUST carry a `reason_code` from the closed set `container-engine`, `amd64-only`, `privileged-token` and `measured-slower`, together with a non-empty written `reason`.
+
+#### Scenario: Unclassified job fails the suite
+- **WHEN** a job id exists in `ci.yml` or `security.yml` but not in the manifest
+- **THEN** the lane manifest test fails and names the unclassified workflow and job id
+
+#### Scenario: Stale manifest entry fails the suite
+- **WHEN** the manifest names a job id that no longer exists in its workflow
+- **THEN** the lane manifest test fails and names the stale entry
+
+#### Scenario: Hosted job without justification is rejected
+- **WHEN** a manifest entry has `lane: hosted` and lacks `reason_code` or has an empty `reason`
+- **THEN** schema validation of the manifest fails
+
+### Requirement: Routed Jobs Default To The Hosted Lane
+
+Every `routed` job SHALL use the single canonical `runs-on` expression defined in design D3. Under that expression a job SHALL resolve to `ubuntu-latest` unless the event is eligible — a `push`, a `workflow_dispatch`, or a same-repository `pull_request` (never a fork `pull_request`, never `merge_group`, never any other event) — and one of the following holds:
+- a `workflow_dispatch` `runner_lane` input of `self-hosted` is supplied;
+- the `CI_RUNNER_LANE` repository variable equals `self-hosted`, and no dispatch override of `hosted` is supplied.
+
+The self-hosted label set inside the expression MUST equal the manifest's `routing.self_hosted_labels`.
+
+Both `ci.yml` and `security.yml` SHALL declare a `workflow_dispatch` trigger with a `runner_lane` choice input whose options are exactly `auto`, `hosted` and `self-hosted`, with default `auto`.
+
+#### Scenario: Unset variable keeps CI on hosted runners
+- **WHEN** the reference evaluator resolves the canonical expression for a same-repository `pull_request`, `push` or `merge_group` event with `CI_RUNNER_LANE` unset
+- **THEN** the result is `ubuntu-latest`
+
+#### Scenario: Variable opts same-repository events into the self-hosted lane
+- **WHEN** the reference evaluator resolves the expression for a same-repository `pull_request` with `CI_RUNNER_LANE` set to `self-hosted`
+- **THEN** the result is the manifest's self-hosted label set
+
+#### Scenario: Dispatch input overrides the variable in both directions
+- **WHEN** the expression is resolved for a `workflow_dispatch` event with `runner_lane` set to `hosted` while `CI_RUNNER_LANE` is `self-hosted`
+- **THEN** the result is `ubuntu-latest`
+- **AND** with `runner_lane` set to `self-hosted` while the variable is unset, the result is the self-hosted label set
+
+#### Scenario: Expression is tied to every manifest routing field
+- **WHEN** the routing test changes the manifest's `routing.self_hosted_labels`, `routing.repository_variable` or `routing.dispatch_input` without changing the workflows
+- **THEN** the test fails, because the expression's `fromJSON` labels, its `vars.<name>` reference and its `inputs.<name>` reference must equal those three fields
+
+#### Scenario: Merge queue runs stay hosted
+- **WHEN** the reference evaluator resolves the expression for a `merge_group` event with `CI_RUNNER_LANE` set to `self-hosted`
+- **THEN** the result is `ubuntu-latest`, because a merge-group commit can contain an approved fork pull request's code
+
+#### Scenario: Dispatch trigger and lane input are declared
+- **WHEN** the fork guard test reads `ci.yml` and `security.yml`
+- **THEN** each declares `workflow_dispatch` with a `runner_lane` choice input of options `auto`, `hosted`, `self-hosted` and default `auto`
+
+#### Scenario: Routed job drifts from the canonical expression
+- **WHEN** any `routed` job's `runs-on` differs from the canonical expression after whitespace normalization
+- **THEN** the workflow routing test fails and names the job
+
+### Requirement: Hosted-Pinned Jobs Are Explicit
+
+Every `hosted` job SHALL declare a literal `runs-on: ubuntu-latest` and MUST NOT use the routing expression. A `routed` job MUST NOT declare `services:`, and its `run:` blocks MUST NOT invoke `docker`, `podman`, `sudo` or `apt-get` in command position, except for an entry in the tool-parity allowlist that names the workflow, job and command with a justifying comment (the allowlist starts empty). A `routed` job that invokes `npm`, `npx`, `node`, `java` or `go` in command position MUST include the matching setup action. A command name that appears only inside a path or identifier, such as `scripts/check_docker_imports.py`, is not an invocation. The scan covers `run:` text only; a command invoked indirectly from inside a script that a step calls is outside its reach and is caught by the operator's self-hosted dry run (O6), which moves such a job to `hosted` through the manifest.
+
+#### Scenario: Container-engine job marked routed is rejected
+- **WHEN** a job that declares `services:` or runs `docker`, `podman`, `sudo` or `apt-get` is classified `routed`
+- **THEN** the tool-parity test fails, unless the job and command appear in the documented allowlist with a comment
+
+#### Scenario: Hosted job uses a literal hosted label
+- **WHEN** the routing test reads a manifest job with `lane: hosted`
+- **THEN** that job's `runs-on` equals the string `ubuntu-latest`
+
+#### Scenario: Command name inside a script path is not an invocation
+- **WHEN** a routed job's `run:` block contains `uv run python scripts/check_docker_imports.py` and no other container command
+- **THEN** the tool-parity test passes for that job without an allowlist entry
+
+#### Scenario: Routed job calls npm without setup-node
+- **WHEN** a routed job's `run:` block invokes `npm` and the job has no `actions/setup-node` step
+- **THEN** the tool-parity test fails and names the job and command
+
+### Requirement: Fork Pull Requests Never Execute On Self-Hosted Runners
+
+A `pull_request` event whose head repository differs from the base repository, and every `merge_group` event (whose merge commit can contain approved fork code), SHALL resolve to `ubuntu-latest` regardless of the variable value. Every `routed` job's first step SHALL be a guard that fails the job when it is running on a self-hosted runner for any event outside the D3 eligibility allowlist, which includes every fork pull request and every `merge_group` run. Because a `pull_request` run uses the pull request's own workflow YAML, the runner image SHALL enforce this independently of the workflows: it SHALL install a job-started hook (`ACTIONS_RUNNER_HOOK_JOB_STARTED`) that fails the job before any step runs unless the GitHub-written event payload shows a `push` to `refs/heads/main`, a `workflow_dispatch`, or a `pull_request` whose head repository equals the base repository. Neither workflow SHALL declare the triggers `pull_request_target`, `workflow_run` or `issue_comment`. The repository's fork-PR contributor approval policy MUST be set to require approval for all external contributors; this is an operator-only step with a verification command.
+
+#### Scenario: Fork pull request routes to hosted even with the self-hosted lane enabled
+- **WHEN** the reference evaluator resolves the expression for a fork `pull_request` with `CI_RUNNER_LANE` set to `self-hosted`
+- **THEN** the result is `ubuntu-latest`
+
+#### Scenario: Routed job lacks the in-job fork guard
+- **WHEN** a routed job's first step is not the canonical guard, with condition `runner.environment == 'self-hosted'` combined with the negation of the D3 event-eligibility clause
+- **THEN** the fork guard test fails and names the job
+
+#### Scenario: Runner hook refuses a fork PR that rewrote its workflow
+- **WHEN** the hook test runs `job-started-hook.sh` with `GITHUB_EVENT_NAME=pull_request` and an event payload whose `pull_request.head.repo.full_name` differs from `GITHUB_REPOSITORY`
+- **THEN** the hook exits non-zero
+- **AND** it also exits non-zero for `merge_group`, for `pull_request_target`, and for `push` to a ref other than `refs/heads/main`
+- **AND** it exits zero for `push` to `refs/heads/main`, for `workflow_dispatch`, and for a same-repository `pull_request`
+
+#### Scenario: Runner image installs the hook
+- **WHEN** the image test reads `deploy/gx10-runner/Containerfile`
+- **THEN** it copies `job-started-hook.sh` into the image and sets `ACTIONS_RUNNER_HOOK_JOB_STARTED` to its path
+
+#### Scenario: Privileged trigger is introduced
+- **WHEN** `ci.yml` or `security.yml` declares `pull_request_target`, `workflow_run` or `issue_comment`
+- **THEN** the trigger allowlist test fails
+
+#### Scenario: Operator verifies the approval policy
+- **WHEN** the operator runs `gh api repos/{owner}/{repo}/actions/permissions/fork-pr-contributor-approval --jq .approval_policy`
+- **THEN** the output is `all_external_contributors`
+
+### Requirement: Runners Are Ephemeral Per Job
+
+The runner kit under `deploy/gx10-runner/` SHALL meet all of the following:
+- It SHALL register each runner with a single-use just-in-time configuration minted on the host before the container starts.
+- It SHALL run the runner in a container started with `--rm`, so that one container serves exactly one job, and with `--replace`, so that a container left over from an unclean stop cannot wedge the restart loop.
+- It SHALL delete the instance's own registration on stop (`ExecStopPost` runs `cleanup-runner.sh`) and, before minting, SHALL delete only the instance's own stale offline registrations, identified by the runner-name prefix `gx10-<hostname>-<instance>-`, searching every page of the runners list up to a bounded page count.
+- It SHALL load its operator configuration through `EnvironmentFile=` and deliver the registration credential through `LoadCredential=`.
+- It SHALL NOT pass the registration credential, a container engine socket, host networking or privileged mode into the container.
+- It SHALL pin the container network explicitly to `slirp4netns:allow_host_loopback=false`, so that host loopback services stay unreachable regardless of the host's podman default.
+- It SHALL start only the locally built image (`--pull=never`).
+- It SHALL bound the mint script's total retry time below the unit's start timeout.
+- It SHALL pin its base image by version and digest.
+- It SHALL mount no shared cache volume by default; a shared uv cache volume is mounted only when the operator sets `GX10_RUNNER_CACHE_ARGS` to the documented named-volume value after recording a risk acceptance.
+- Its runbook SHALL require an operator-installed control that keeps host services unreachable from runner containers on every host address, not only through the loopback mapping.
+
+#### Scenario: Unit runs a removable container with a single-use config
+- **WHEN** the unit test parses `gx10-runner@.service`
+- **THEN** `ExecStartPre` invokes `mint-jitconfig.sh`
+- **AND** `ExecStart` invokes `podman run` with `--rm`, `--replace`, `--pull=never`, `--env-file`, `--cap-drop ALL`, `--security-opt no-new-privileges` and `--network slirp4netns:allow_host_loopback=false`
+- **AND** `ExecStopPost` invokes `cleanup-runner.sh`
+
+#### Scenario: Dangerous container options are absent
+- **WHEN** the unit test scans `ExecStart`
+- **THEN** none of `--privileged`, `--network host`, `--network=host`, a `--network` value other than `slirp4netns:allow_host_loopback=false`, or a volume whose source ends in `.sock` is present
+
+#### Scenario: Credential stays on the host
+- **WHEN** the runner-kit tests inspect `mint-jitconfig.sh` and the container env-file contract
+- **THEN** the env file written for the container contains only the JIT config and the runner id
+- **AND** the mint script refuses a credential file whose mode is wider than `0600`
+
+#### Scenario: Mint
+
+[spec excerpt truncated]
+
+
+### Instructions
+Return findings as JSON with a top-level `findings` array.
+
+This is round 1. Focus on remaining issues.

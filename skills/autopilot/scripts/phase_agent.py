@@ -74,6 +74,16 @@ try:
 except ImportError:
     phase_outcome_shadow = None  # type: ignore[assignment]
 
+# Execution-environment detection (docs/guides/worktree-management.md). Same
+# defensive shape as worktree.py: without shared/ the legacy worktree
+# isolation applies.
+try:
+    if str(_THIS_DIR.parent.parent) not in sys.path:
+        sys.path.insert(0, str(_THIS_DIR.parent.parent))
+    from shared.environment_profile import detect as _detect_environment  # noqa: E402
+except ModuleNotFoundError:
+    _detect_environment = None  # type: ignore[assignment]
+
 # ---------------------------------------------------------------------------
 # Per-phase runtime config
 # ---------------------------------------------------------------------------
@@ -95,6 +105,19 @@ _WORKTREE_PHASES: set[str] = {
     "VAL_REVIEW",
     "VAL_FIX",
 }
+
+
+def _isolation_provided(agent_id: str | None = None) -> bool:
+    """True when the environment already isolates this agent (cloud harness).
+
+    Harness ``isolation="worktree"`` roots the sub-agent at the default
+    branch, so in a cloud container it would strand the phase off the feature
+    branch; there the container itself is the isolation boundary.
+    """
+    if _detect_environment is None:
+        return False
+    return _detect_environment(agent_id).isolation_provided
+
 
 # Crash-recovery cap (D8).
 _MAX_ATTEMPTS = 3
@@ -338,6 +361,7 @@ def _build_options(
     state_dict: dict[str, Any],
     *,
     provider: str | None = None,
+    agent_id: str | None = None,
 ) -> dict[str, Any]:
     """Assemble sub-agent dispatch options for *phase*.
 
@@ -353,7 +377,9 @@ def _build_options(
          dispatches normally.
 
     ``isolation="worktree"`` is set independently for phases in
-    :data:`_WORKTREE_PHASES`.
+    :data:`_WORKTREE_PHASES`, unless the environment already provides
+    isolation (see :func:`_isolation_provided`; *agent_id* lets detection
+    consult the coordinator's record for this agent).
 
     Mutates *state_dict* by writing ``_resolved_archetype`` only on the
     archetype-resolution path (path 2). The override path (path 1) does
@@ -361,7 +387,7 @@ def _build_options(
     archetype semantics.
     """
     options: dict[str, Any] = {}
-    if phase in _WORKTREE_PHASES:
+    if phase in _WORKTREE_PHASES and not _isolation_provided(agent_id):
         options["isolation"] = "worktree"
 
     # Path 1: operator override
@@ -556,7 +582,12 @@ _PHASE_TASKS: dict[str, str | None] = {
         "around that operation. Return 'converged' if no blocking ledger\n"
         "items remain, 'max_iter' if the inner loop stalled or exhausted\n"
         "rounds. Do not return 'not_converged' to bounce the outer machine\n"
-        "into PLAN_FIX."
+        "into PLAN_FIX.\n"
+        "When the only review lane is this agent (cloud single-vendor),\n"
+        "drive converge() with the committed\n"
+        "`skills/autopilot/scripts/agent_lane.py converge --phase PLAN_REVIEW`\n"
+        "and serve the lane through its protocol directory; never write an\n"
+        "ad-hoc driver script."
     ),
     "PLAN_FIX": (
         "PLAN_FIX is the inner fix_callback of converge(), not an outer\n"
@@ -590,7 +621,12 @@ _PHASE_TASKS: dict[str, str | None] = {
         "package_authors, scoped to cited file_paths) and record IMPL_FIX\n"
         "as a phase_history sub-step. Return 'converged' if no blocking\n"
         "ledger items remain, 'max_iter' if the inner loop stalled or\n"
-        "exhausted rounds."
+        "exhausted rounds.\n"
+        "When the only review lane is this agent (cloud single-vendor),\n"
+        "drive converge() with the committed\n"
+        "`skills/autopilot/scripts/agent_lane.py converge --phase IMPL_REVIEW`\n"
+        "and serve the lane through its protocol directory; never write an\n"
+        "ad-hoc driver script."
     ),
     "IMPL_FIX": (
         "IMPL_FIX is the inner fix_callback of converge(), not an outer\n"
@@ -610,7 +646,12 @@ _PHASE_TASKS: dict[str, str | None] = {
         "cold validation review. Pass a real VAL_FIX applicator as\n"
         "fix_callback and record VAL_FIX as a phase_history sub-step.\n"
         "Return 'converged' if validation passes critique, 'max_iter'\n"
-        "otherwise."
+        "otherwise.\n"
+        "When the only review lane is this agent (cloud single-vendor),\n"
+        "drive converge() with the committed\n"
+        "`skills/autopilot/scripts/agent_lane.py converge --phase VAL_REVIEW`\n"
+        "and serve the lane through its protocol directory; never write an\n"
+        "ad-hoc driver script."
     ),
     "VAL_FIX": (
         "VAL_FIX is the inner fix_callback of converge(), not an outer\n"
@@ -1025,7 +1066,9 @@ def build_phase_dispatch_kwargs(
     # _build_options writes _resolved_archetype into state_dict on the
     # archetype path; we read it back below to populate the cache.
     selected_provider = _selected_provider(provider)
-    options = _build_options(phase, state_dict, provider=selected_provider)
+    options = _build_options(
+        phase, state_dict, provider=selected_provider, agent_id=agent_id,
+    )
     phase_prompt = _build_prompt(phase, state_dict, incoming, artifacts_manifest=None)
 
     system_prompt = options.get("system_prompt")

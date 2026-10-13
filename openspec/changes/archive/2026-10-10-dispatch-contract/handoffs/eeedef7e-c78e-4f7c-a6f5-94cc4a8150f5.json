@@ -1,0 +1,52 @@
+{
+  "handoff_id": "eeedef7e-c78e-4f7c-a6f5-94cc4a8150f5",
+  "agent_name": "autopilot-plan-review",
+  "agent_type": "claude_code",
+  "change_id": "dispatch-contract",
+  "phase": "PLAN_REVIEW",
+  "outcome": "converged",
+  "recorded_at": "2026-10-09T07:25:00Z",
+  "previous_handoff_id": "9b138f6d-f5f3-4a7f-99bb-0d3bb6a5e86e",
+  "summary": "PLAN_REVIEW ran convergence_loop.converge() (review_type=plan, min_quorum=1, max_rounds=3, fix_mode=inline) with a single claude_code lane per the operator's escalate_resume decision. Converged in round 3: blocking trend [11, 1, 0]. Round 1 found 11 blocking plan defects (3 high, 8 medium, all deterministic and verified against the repo); a PLAN_FIX applicator edited only the cited file_paths and the scope check accepted every edit. Round 2 re-verified all 11 as resolved and found 1 new medium defect introduced by the round-1 fix; round 3 re-verified it resolved.",
+  "degradations": [
+    {"code": "single_vendor_review", "phase": "PLAN_REVIEW", "detail": "Only claude_code dispatchable; codex listed by --check-vendors is a known false positive (no codex binary). min_quorum lowered to 1 by recorded operator decision (escalate_resume console_approved 2026-10-09T07:09:10Z). Findings are one vendor's opinion with no cross-vendor confirmation."},
+    {"code": "coordinator_projection_forbidden", "phase": "PLAN_REVIEW", "detail": "No coordinator handoff/memory write available to this trust-2 cloud agent; handoff written to openspec/changes/dispatch-contract/handoffs/ and session-log.md instead."},
+    {"code": "handoff_local_fallback", "phase": "PLAN_REVIEW", "detail": "Handoff persisted locally (this file) rather than through the coordinator."}
+  ],
+  "phase_history_substeps": [
+    {"phase": "PLAN_FIX", "round": 1, "started_at": "2026-10-09T07:17:11Z", "completed_at": "2026-10-09T07:19:57Z", "ledger_items": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], "commit": "refine(plan): PLAN_FIX round 1"},
+    {"phase": "PLAN_FIX", "round": 2, "started_at": "2026-10-09T07:22:31Z", "completed_at": "2026-10-09T07:22:49Z", "ledger_items": [14], "commit": "refine(plan): PLAN_FIX round 2"}
+  ],
+  "completed_work": [
+    "Round 1 review: 13 findings (11 blocking) written to .review-cache/round-1/",
+    "PLAN_FIX round 1: design.md D1/D2/D9/D10, proposal.md Why/Impact, specs/roadmap-orchestration/spec.md, tasks.md (2.3a, 2.4, 4.2, 4.3, 5.2, 5.2a, 6.2, 6.5, 7.3, 8.1-8.3), work-packages.yaml scopes",
+    "Round 2 review: 11 items re-verified resolved, 1 new blocking (item 14), 1 low advisory (item 15)",
+    "PLAN_FIX round 2: design.md D2 test-repointing order",
+    "Round 3 review: item 14 re-verified resolved; 0 blocking",
+    "validate_work_packages.py: VALID; openspec validate dispatch-contract --strict: valid"
+  ],
+  "decisions": [
+    "Existing openspec/contracts/roadmap-orchestration/schemas/ v1 schemas: request/result frozen as v1 reader schemas, delegated-dispatch-attempt becomes the single attempt definition $ref'd by checkpoint.schema.json, bounded-dispatch-context $ref'd by the v2 request (design D2)",
+    "Capability-park fan-out writes one escalate_resume record per listed dispatch (own dispatch_id and lease_generation, shared dedupe_fingerprint) so require_approval_ref keeps per-dispatch checks (design D9)",
+    "counting_lanes = all roster review lanes, verified or not; missing_lanes = counting_lanes minus verified (design D10)",
+    "Dispatched-child quorum park happens in the worker protocol at review-phase entry via runner.py park; convergence_loop gets only a pre-dispatch guard that writes no loop state (design D10, tasks 6.5/7.3)"
+  ],
+  "advisory_open": [
+    "13 (low): D7 reinitializing a parked attempt on another host bumps lease_generation and invalidates an outstanding escalate_resume approval",
+    "15 (low): task 5.2 adds a roadmap-runtime -> skills/shared dependency; building the registry inside models.py would avoid it"
+  ],
+  "next_steps": [
+    "Orchestrator applies outcome 'converged' to move PLAN_REVIEW -> IMPLEMENT"
+  ],
+  "relevant_files": [
+    "openspec/changes/dispatch-contract/design.md",
+    "openspec/changes/dispatch-contract/proposal.md",
+    "openspec/changes/dispatch-contract/tasks.md",
+    "openspec/changes/dispatch-contract/work-packages.yaml",
+    "openspec/changes/dispatch-contract/specs/roadmap-orchestration/spec.md",
+    "openspec/changes/dispatch-contract/.review-ledger/ledger.json",
+    "openspec/changes/dispatch-contract/.review-cache/round-1/",
+    "openspec/changes/dispatch-contract/.review-cache/round-2/",
+    "openspec/changes/dispatch-contract/.review-cache/round-3/"
+  ]
+}

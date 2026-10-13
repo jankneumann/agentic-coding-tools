@@ -113,6 +113,22 @@ def from_rest_pr(rest_payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+#: Every detailed origin ``classify_pr`` can return. Consumers that need a closed
+#: vocabulary (for example trust-posture sync windows) pin to this set.
+PR_ORIGINS = frozenset(
+    {
+        "openspec",
+        "sentinel",
+        "bolt",
+        "palette",
+        "jules",
+        "codex",
+        "dependabot",
+        "renovate",
+        "other",
+    }
+)
+
 _FOLD: dict[str, str] = {
     "sentinel": "jules",
     "bolt": "jules",
@@ -136,6 +152,7 @@ def to_pr_card_origin(classifier_origin: str) -> str:
 
 
 __all__ = [
+    "PR_ORIGINS",
     "JULES_AUTHORS",
     "JULES_PATTERNS",
     "classify_pr",

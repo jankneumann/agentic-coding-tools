@@ -10,6 +10,7 @@ Design decisions: D5, D8, D9, D13.
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from typing import Any
 
 import coordination_bridge
@@ -52,6 +53,36 @@ def test_build_options_sets_isolation_for_validate(
     _stub_bridge(monkeypatch, _RESOLVED_ARCHITECT)
     options = phase_agent._build_options("VALIDATE", {})
     assert options.get("isolation") == "worktree"
+
+
+@pytest.mark.parametrize("phase", ["PLAN_REVIEW", "IMPLEMENT", "VAL_REVIEW"])
+def test_build_options_omits_isolation_in_cloud(
+    monkeypatch: pytest.MonkeyPatch, phase: str,
+) -> None:
+    """A cloud container is already isolated; a harness worktree would be
+    rooted at the default branch instead of the feature branch."""
+    monkeypatch.setenv("AGENT_EXECUTION_ENV", "cloud")
+    _stub_bridge(monkeypatch, _RESOLVED_ARCHITECT)
+    options = phase_agent._build_options(phase, {})
+    assert "isolation" not in options
+    assert options["model"] == "opus"
+
+
+def test_build_options_passes_agent_id_to_environment_detection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Coordinator-reported isolation needs the agent id to be consulted."""
+    seen: list[str | None] = []
+
+    def fake_detect(agent_id: str | None = None) -> SimpleNamespace:
+        seen.append(agent_id)
+        return SimpleNamespace(isolation_provided=agent_id == "agent-7")
+
+    monkeypatch.setattr(phase_agent, "_detect_environment", fake_detect)
+    _stub_bridge(monkeypatch, _RESOLVED_ARCHITECT)
+    assert "isolation" not in phase_agent._build_options("IMPLEMENT", {}, agent_id="agent-7")
+    assert phase_agent._build_options("IMPLEMENT", {})["isolation"] == "worktree"
+    assert seen == ["agent-7", None]
 
 
 def test_build_options_archetype_path_sets_model_and_prompt(

@@ -1,0 +1,9 @@
+# BEGIN ownership-map (generated from openspec/owners.yaml — do not edit; run codeowners.py emit)
+*                                      @jankneumann
+openspec/schemas/**                    @jankneumann
+openspec/contracts/**                  @jankneumann
+openspec/specs/agent-identity/         @jankneumann
+openspec/specs/agent-coordinator/      @jankneumann
+openspec/contracts/agent-identity/     @jankneumann
+openspec/contracts/agent-coordinator/  @jankneumann
+# END ownership-map

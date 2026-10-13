@@ -208,7 +208,8 @@ def test_execute_collects_only_bounded_outcomes_and_applies_each_once() -> None:
     assert "no transcript in the supervisor record" in collection
     assert "in-memory result lookup" in collection
     assert "synchronous `dispatch_fn` exactly once per returned generation" in collection
-    assert "`pending_gate` or `policy_pause`" in collection
+    # dispatch-contract D3: the four parked kinds are all nonfailures.
+    assert "`pending_gate`, `policy_pause`, `permission_blocked`, or `capability_unavailable`" in collection
     assert "nonfailure" in collection
 
 
@@ -229,4 +230,7 @@ def test_execute_documents_safe_reconciliation_and_authorized_resume() -> None:
     assert "never infer death from an absent or expired post-go heartbeat" in reconciliation
     assert "durable `approval_ref`" in reconciliation
     assert "generation increment" in reconciliation
-    assert "same dispatch ID, attempt, launch token, worktree, and branch" in reconciliation
+    # dispatch-contract D6: the token is minted per generation, so resume keeps
+    # everything but the launch token.
+    assert "mints a fresh launch token" in reconciliation
+    assert "dispatch ID, attempt, worktree reference, and branch" in reconciliation

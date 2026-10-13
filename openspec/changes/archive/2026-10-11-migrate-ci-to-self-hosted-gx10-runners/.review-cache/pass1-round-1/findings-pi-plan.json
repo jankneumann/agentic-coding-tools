@@ -1,0 +1,107 @@
+{
+  "review_type": "plan",
+  "target": "migrate-ci-to-self-hosted-gx10-runners",
+  "reviewer_vendor": "pi",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "work-packages.yaml contracts.openapi.primary and files reference openspec/changes/migrate-ci-to-self-hosted-gx10-runners/... paths directly. Per OpenSpec path stability guide (docs/guides/openspec-path-stability.md), these paths are unstable \u2014 archival moves them to openspec/changes/archive/<date>-<id>/. Any tooling consuming work-packages.yaml for contract resolution may break post-archive. The package verification commands correctly use promoted .github/ paths.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "optional",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "spec.md lacks an explicit SHALL requirement that both workflows MUST declare a workflow_dispatch trigger with runner_lane choice input (auto | hosted | self-hosted). Multiple scenarios (e.g., 'Dispatch input overrides the variable in both directions', 'Unset variable keeps CI on hosted runners') reference workflow_dispatch events and the runner_lane input, but no requirement mandates the trigger's existence. Tasks.md 2.7 and design.md D3 implement it.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "spec.md 'Requirement: Runners Are Ephemeral Per Job' lists 7 SHALL statements but omits the cleanup-runner.sh ExecStopPost requirement. The scenario 'Unit runs a removable container with a single-use config' checks that ExecStopPost invokes cleanup-runner.sh, but the requirement text should include it for completeness.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "spec.md 'Requirement: Runners Survive Host Reboot Via systemd' does not explicitly require the install-units.sh script to be copy-and-print-only (non-mutating during tests). The scenario 'Install script does not mutate the host during tests' covers this behavior, but the requirement text should mandate it.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "spec.md does not document the known limit that the tool-parity static scan only examines run: blocks and cannot detect container-engine commands invoked indirectly through scripts (e.g., run_live_matrix.sh calling podman). Design.md D10 explicitly documents this limit and the O6 dry-run backstop. The spec should include a scenario or note acknowledging this limitation.",
+      "disposition": "fix",
+      "axis": "observability",
+      "severity": "fyi",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 6,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "runner-lanes.schema.json allows arbitrary self_hosted_labels array (minItems: 2, uniqueItems: true, contains: 'self-hosted') but the canonical D3 runs-on expression hardcodes fromJSON('[\"self-hosted\",\"linux\",\"ARM64\",\"gx10\"]'). The schema should constrain self_hosted_labels to exactly these 4 labels (or at minimum enforce the exact array) to prevent drift between manifest and expression. The spec scenario 'JIT labels match the routing labels' tests equality but the schema permits divergence.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 7,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "wp-runner-kit package outputs.artifacts list omits gx10-runner.env.example, which is authored in task 3.2, referenced in design.md D7, and required for operator configuration. The artifact should be listed for completeness.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "nit",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 8,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "work-packages.yaml contracts.openapi.primary points to a README.md file instead of an OpenAPI spec. The comment acknowledges 'The schema requires an openapi block, so primary points at the README that records that decision.' This workaround may cause tooling that expects a valid OpenAPI document to fail or misbehave.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "fyi",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 9,
+      "type": "style",
+      "criticality": "low",
+      "description": "proposal.md assumptions list has inconsistent formatting: A1-A9 use '- **A1.**' format with no blank lines between entries, but a blank line separates A9 from A10/A11, making them appear as a separate list. Minor readability issue.",
+      "disposition": "accept",
+      "axis": "readability",
+      "severity": "fyi",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 10,
+      "type": "observability",
+      "criticality": "low",
+      "description": "loop-state.json records two degradations: 'coordinator_projection_forbidden' (project-state submit returned forbidden) and 'audit_sink_failed' (audit sink reported failure for gate proposal_approval decision auto). These are infrastructure issues in the coordinator environment, not plan defects, but should be monitored as they may affect subsequent phases.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "fyi",
+      "evidence_class": "judgment"
+    }
+  ]
+}

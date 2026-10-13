@@ -499,6 +499,13 @@ Any other caller reports the missing approval and stops; it does not call
 ### Prepare and launch
 
 1. Call `ExecutionAdapter.prepare` with each item's exact `change_id`.
+   `prepare` resolves the batch's `execution_profile` and `review_requirements` itself
+   by running `review_dispatcher.py --check-vendors --json` once (dispatch-contract
+   D10): verified lanes per mode, the sanctioned `probe_command`, `min_quorum` per
+   review phase from the per-environment quorum policy data (router context
+   `review_min_quorum` overrides), and `counting_lanes`. Both travel in every request
+   and launch marker; a probe that prints no JSON or an `error` stops the batch before
+   any attempt is written. Workers never probe the environment or credentials.
    Preserve every router-owned context key and value unchanged. When router context is absent, use the existing archetype/provider resolution path; the supervisor must not invent a vendor, must not invent a model, must not invent a location, and must not invent a cost policy.
 2. Admit only requests carrying a distinct verified worktree path and branch for the requested change.
    An independent isolation or verification error becomes a bounded correlated `failed` result before `/autopilot` starts.
@@ -516,12 +523,20 @@ It revalidates generation, owner, and go immediately before `enter`, then invoke
 
 ### Collect and apply
 
+Collect each child's result by the committed file path it returns —
+`openspec/changes/<change-id>/dispatch-results/<dispatch-slug>-g<N>.json`, written by
+`runner.py emit-result` from the committed `loop-state.json` at the returned commit —
+never a result composed in the cross-session message. `ExecutionAdapter.apply`
+validates it against `openspec/schemas/dispatch-result.schema.json` (a version-1
+result is upgraded in memory) and refuses a parked `(kind, gate)` that has no entry
+in `gate_router.ANSWER_PATHS`.
 Collect only a schema-valid `success`, `parked`, or `failed` result with its exact correlation fields.
 A success requires `handoff_id`; parked and failed outcomes carry a bounded reason and optional `handoff_id`.
+`apply` persists each result's `degradations` on its attempt and returns them.
 Discard the child transcript after extracting that public result.
 Keep an outcome-only parent session and no transcript in the supervisor record or any durable execution artifact.
 
-A `pending_gate` or `policy_pause` result is a parked nonfailure: retain its bounded next action, leave the roadmap item incomplete, and do not failure-block dependents.
+A `pending_gate`, `policy_pause`, `permission_blocked`, or `capability_unavailable` result is a parked nonfailure: retain its bounded next action, leave the roadmap item incomplete, and do not failure-block dependents.
 Validate exact identity, generation, worktree, branch, and realpath before application. For every successful or parked result, require the canonical `openspec/changes/<change-id>/loop-state.json` from that verified worktree, the current worktree commit, and the file SHA-256 digest; reject stale, alternate-path, or semantically inconsistent loop state.
 Pass the collected set to the orchestrator through an in-memory result lookup so it invokes the synchronous `dispatch_fn` exactly once per returned generation.
 The submitted result IDs must equal exactly the current batch members whose `application_journal.state` is not `effects_applied`; omit already-applied peers, and reject missing current members or historical peers before any callback.
@@ -539,7 +554,7 @@ Reconcile durable task evidence conservatively:
 After go, never infer death from an absent or expired post-go heartbeat.
 Quarantine is not an approval gate and cannot be approval-resumed.
 
-Only a parked `pending_gate` or `policy_pause` may resume, and only through
+Only a parked attempt may resume, and only through
 `gate_router.resolve_parked` — never a raw `ExecutionAdapter.resume` call:
 
 ```python
@@ -551,11 +566,15 @@ resolution = gate_router.resolve_parked(
 `resolve_parked` maps `policy_pause` to the ESCALATE-resume gate and `pending_gate` to
 the child's own recorded gate, then re-evaluates against the *current* posture — a
 flip to `auto` unparks with no console answer — and reuses a prior filed approval
-through `check_filed` rather than re-notifying. On `proceed` it calls
-`ExecutionAdapter.resume` with a durable `approval_ref` of the form
-`gate-decision:<decision_id>`; the authorized CAS then performs a generation increment
-while preserving the same dispatch ID, attempt, launch token, worktree, and branch,
-then repeats the normal child lifecycle. On `blocked` it returns the same pending-gate
+through `check_filed` rather than re-notifying. A posture-derived block is
+re-evaluated only when the posture digest changed; a human decision is final. On
+`proceed` it calls `ExecutionAdapter.resume` with a durable `approval_ref` of the form
+`gate-decision:<decision_id>`; the authorized CAS then performs a generation increment,
+mints a fresh launch token (the previous one stops working), preserves the same
+dispatch ID, attempt, worktree reference, and branch, and returns a request whose
+typed `gate_answer` the child applies with `runner.py gate-answer --approval-ref`;
+then the normal child lifecycle repeats. The supervisor writes nothing into a child
+worktree except the launch marker. On `blocked` it returns the same pending-gate
 entry shape `gate-check` prints, so the digest renders it without a special case.
 
 For every policy pause, manual and automatic resolution use exactly the allowlisted
@@ -564,6 +583,42 @@ For every policy pause, manual and automatic resolution use exactly the allowlis
 positive generation; an explicit `gate-answer --lease-generation` must match the
 current parked generation, while dispatch-only answers select the newest blocked
 current generation and legacy generationless records are bound at most once.
+
+An ESCALATE-resume answer covers exactly two parked kinds: the supervisor's own
+`policy_pause`, and a child's `pending_gate` whose `parked.gate` is the
+ESCALATE-resume gate (autopilot escalated under a `block` posture). Both are keyed
+on `(dispatch_id, lease_generation)`, so resolve once to record the blocked
+decision, answer it, then resolve again — the second call finds the console
+approval through the prior-record rule and resumes with
+`approval_ref=gate-decision:<decision_id>`:
+
+```bash
+# 1. resolve_parked(attempt, ...)        -> blocked; records the decision for this generation
+# 2. answer it, bound to the dispatch (and, optionally, its current generation)
+python3 "<skill-base-dir>/scripts/cycle_state.py" --repo-root . gate-answer --roadmap <roadmap-id> \
+  --gate escalate_resume --decision approved --dispatch-id <dispatch-id> [--lease-generation N]
+# 3. resolve_parked(attempt, ...)        -> proceed; generation N becomes N+1
+```
+
+A `pending_gate` parked on any other gate is answered under that gate's own name.
+
+A `permission_blocked` or `capability_unavailable` park is one escalation per
+*fingerprint* (the tool, matched rule and classifier reason; or the phase and missing
+lanes), not per dispatch: `resolve_parked` projects one pending entry listing every
+dispatch that shares it. One operator answer resumes them all — each through its own
+generation-checked CAS; an attempt whose generation moved since projection is skipped
+and reported:
+
+```python
+gate_router.answer_escalation(
+    fingerprint, workspace=roadmap_workspace, repo_root=repo, approved=True, adapter=adapter,
+)
+```
+
+An attempt committed on another host is reconciled first: `reconcile` rebinds it to
+this host's managed worktree for its branch when that worktree contains the recorded
+evidence, reinitializes it when no worktree exists and it never passed go (then
+`reissue` mints its launch token), and otherwise leaves it to the quarantine rules.
 The checkpoint `gate_decisions` ledger is authoritative. The supervisor mirror is
 a derived post-commit projection: projection failure never rolls authority back,
 and `gate-log`/rehydration repair it idempotently from the ledger.

@@ -10,9 +10,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from jsonschema import Draft202012Validator, FormatChecker
-from referencing import Registry, Resource
-from referencing.jsonschema import DRAFT202012
+from jsonschema import Draft202012Validator
 
 from models import Effort, ItemStatus, Roadmap, RoadmapItem, load_roadmap
 
@@ -31,6 +29,7 @@ from shared.approval_gate import (  # noqa: E402
     Resolution as _ApprovalResolution,
     build_gate_decision_record,
 )
+from shared import dispatch_contract  # noqa: E402
 from shared.trust_posture import Gate  # noqa: E402
 
 
@@ -42,6 +41,27 @@ _CONTRACT_ROOT = (
     / "openspec/contracts/roadmap-orchestration/schemas"
 )
 
+
+
+def _profile_probe(_repo_root: Path) -> tuple[int, str]:
+    """The supervisor's capability probe, faked (dispatch-contract D10): two
+    verified review lanes and the default quorum."""
+    return 0, json.dumps(
+        {
+            "modes": {
+                "review": {"verified": ["claude_code", "codex"], "unverified": []},
+                "alternative": {"verified": ["claude_code"], "unverified": []},
+                "quick": {"verified": ["claude_code"], "unverified": []},
+            },
+            "probe_command": "review_dispatcher.py --check-vendors --json",
+            "quorum_policy": {
+                "environment": "host",
+                "min_quorum": {"PLAN_REVIEW": 2, "IMPL_REVIEW": 2, "VAL_REVIEW": 2},
+                "policy_id": None,
+                "sunset": None,
+            },
+        }
+    )
 
 def _write_work_packages(repo: Path, entry: dict[str, Any]) -> None:
     change_id = entry["change_id"]
@@ -143,6 +163,7 @@ def _build_runtime(
                     "schema_version": 5,
                     "change_id": entry["change_id"],
                     "current_phase": "DONE",
+                    "goal_gate": {"verdict": "passed"},
                     "handoff_ids": [handoff_id],
                     "last_handoff_id": handoff_id,
                     "pending_gate": None,
@@ -155,24 +176,31 @@ def _build_runtime(
     return repo, workspace, managed_root, branches
 
 
+#: Managed worktree root of the runtime under test: requests carry only a
+#: host-portable worktree_ref (dispatch-contract D7).
+_MANAGED: dict[str, Path] = {}
+
+
 def _result(request: dict[str, Any]) -> dict[str, Any]:
     loop_state_path = (
-        Path(request["isolation"]["worktree_path"])
+        _MANAGED["root"] / request["isolation"]["worktree_ref"]
         / "openspec"
         / "changes"
         / request["change_id"]
         / "loop-state.json"
     )
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "dispatch_id": request["dispatch_id"],
         "change_id": request["change_id"],
         "attempt": request["attempt"],
         "lease_generation": request["lease_generation"],
         "outcome": "success",
         "handoff_id": f"handoff-{request['item_id']}",
-        "worktree_path": request["isolation"]["worktree_path"],
+        "worktree_ref": request["isolation"]["worktree_ref"],
         "branch": request["isolation"]["branch"],
+        "host_id": request["isolation"]["host_id"],
+        "degradations": [],
         "evidence": {
             "loop_state_path": f"openspec/changes/{request['change_id']}/loop-state.json",
             "commit": "a" * 40,
@@ -346,31 +374,16 @@ def _run_scenario(
     context: dict[str, Any],
 ) -> dict[str, Any]:
     repo, workspace, managed_root, branches = _build_runtime(tmp_path, scenario)
-    schemas = [
-        json.loads((_CONTRACT_ROOT / name).read_text())
-        for name in (
-            "bounded-dispatch-context.schema.json",
-            "supervised-dispatch-request.schema.json",
-            "supervised-dispatch-result.schema.json",
-        )
-    ]
-    registry = Registry().with_resources(
-        [
-            (
-                schema["$id"],
-                Resource.from_contents(schema, default_specification=DRAFT202012),
-            )
-            for schema in schemas
-        ]
-    )
+    _MANAGED["root"] = managed_root.resolve()
+    # The published v2 boundary (dispatch-contract D1, D2), resolved through the
+    # contract registry.
     validators = [
-        Draft202012Validator(
-            schema, registry=registry, format_checker=FormatChecker()
-        )
-        for schema in schemas[1:]
+        dispatch_contract.validator(dispatch_contract.REQUEST_V2),
+        dispatch_contract.validator(dispatch_contract.RESULT_V2),
     ]
     host = FakeHostCapture({entry["change_id"]: entry["sentinel"] for entry in scenario})
     adapter = ExecutionAdapter(
+        profile_probe=_profile_probe,
         managed_worktree_root=managed_root,
         branch_resolver=lambda path: branches[str(path.resolve())],
         commit_resolver=lambda _: "a" * 40,
@@ -475,7 +488,7 @@ def test_disjoint_children_are_live_together_in_distinct_isolation_without_trans
     assert result["live_counts"] == [2]
     assert result["host"].max_live == 2
     requests = result["batches"][0]
-    assert len({value["isolation"]["worktree_path"] for value in requests}) == 2
+    assert len({value["isolation"]["worktree_ref"] for value in requests}) == 2
     assert len({value["isolation"]["branch"] for value in requests}) == 2
     await_index = next(
         index for index, event in enumerate(result["host"].events)

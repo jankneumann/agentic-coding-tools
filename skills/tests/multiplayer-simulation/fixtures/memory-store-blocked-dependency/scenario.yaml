@@ -1,0 +1,33 @@
+# Fixture for the blocked-time scenarios (design D5). Durations are logical ticks.
+# Status transitions are declared here as data; the harness code holds none.
+principals:
+  - name: storage-owner
+    change_id: sim-memory-store-core
+    roadmap_item: ri-storage
+    steps:
+      - name: plan
+        duration: 1
+        files_from: principals/storage-owner/plan
+      # Today's roadmap schema has no contract-complete state, so this step
+      # declares no status. That absence is the baseline gap ri-11 closes.
+      - name: contract
+        duration: 2
+      - name: implement
+        duration: 8
+        on_start:
+          set_status: in_progress
+        on_finish:
+          set_status: completed
+  - name: retrieval-owner
+    change_id: sim-retrieval-api
+    roadmap_item: ri-retrieval
+    steps:
+      - name: plan
+        duration: 1
+        files_from: principals/retrieval-owner/plan
+      - name: implement
+        duration: 4
+        on_start:
+          set_status: in_progress
+        on_finish:
+          set_status: completed

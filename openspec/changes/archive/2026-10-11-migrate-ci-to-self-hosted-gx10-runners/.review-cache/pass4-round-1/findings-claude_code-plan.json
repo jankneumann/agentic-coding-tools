@@ -1,0 +1,186 @@
+{
+  "review_type": "plan",
+  "target": "migrate-ci-to-self-hosted-gx10-runners",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "resilience",
+      "criticality": "medium",
+      "severity": "critical",
+      "axis": "security",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/tasks.md",
+      "existing_code": "First, as root, install the isolation control (D6). Preferred: an nftables `output` hook",
+      "description": "The preferred host-service isolation control (D6, O4) is an nftables ruleset installed ad hoc as root, but nothing in D6, O4, O10 or the spec requires it to be persisted (/etc/nftables.conf + nftables.service, or a ufw/firewalld-managed rule) or re-verified after reboot. O10 verifies only that the runner units come back after `systemctl reboot`; the units will come back and immediately run PR code while the drop rule is gone, and a later ufw/firewalld reload can also flush a hand-added table. Require persistence in D6/O4, and extend O10's verification to re-run the O4 TCP-connect probes (or at least `nft list ruleset | grep skuid`) after the reboot.",
+      "resolution": "D6/O4: install the chain via /etc/nftables.conf (or a drop-in) and enable nftables.service; O10 verify: repeat the O4 probe set after boot; spec operator scenario 'Operator verifies reboot survival' gains an AND clause for the isolation rules.",
+      "line_range": {
+        "start": 418,
+        "end": 418
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "medium",
+      "severity": "critical",
+      "axis": "correctness",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/tasks.md",
+      "existing_code": "`sudo -u ghrunner getent hosts api.github.com` resolves (the DNS exemption works);",
+      "description": "O4's DNS check (`sudo -u ghrunner getent hosts api.github.com`, mirrored in the spec scenario 'ghrunner can still resolve api.github.com') does not exercise the path the nftables exemption protects. On Ubuntu 24.04 nsswitch uses `resolve [!UNAVAIL=return]`, so glibc getaddrinfo (getent and the mint script's curl alike) talks to systemd-resolved over the varlink/D-Bus unix socket and never sends UDP to 127.0.0.53. The check therefore passes even when the `ip daddr 127.0.0.53 udp dport 53 accept` rule is missing or ordered after the drop. The traffic that does hit 127.0.0.53 over UDP is slirp4netns forwarding container DNS (10.0.2.3), which this check never touches: a wrongly ordered rule leaves every runner unable to resolve github.com while O4 reports success. Probe from inside the container (`podman exec gx10-runner-1 getent hosts api.github.com`) and note that newer systemd also listens on 127.0.0.54, which the exemption should cover.",
+      "resolution": "O4 and the spec scenario: replace the host-side getent with a container-side resolution check; D6 exemption covers 127.0.0.53 and 127.0.0.54; keep the host check only as a secondary signal.",
+      "line_range": {
+        "start": 432,
+        "end": 432
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 3,
+      "type": "security",
+      "criticality": "medium",
+      "severity": "optional",
+      "axis": "security",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/design.md",
+      "existing_code": "drop every other packet whose socket owner is `ghrunner` and whose destination is a local",
+      "description": "The D6 drop rule `fib daddr type local` blocks only the host's own addresses. slirp4netns NATs container traffic out through every host interface as `ghrunner`, including `tailscale0` and the LAN, so PR code on the GX10 can reach every tailnet peer and LAN host the operator's machine can (other machines' coordinator/Postgres instances, NAS, dev boxes), a lateral-movement surface the hosted lane never had. The design and A11 scope the isolation claim to 'host services' without stating that LAN/tailnet peers remain reachable. Either add `meta skuid ghrunner oifname \"tailscale0\" drop` plus a drop for RFC1918/CGNAT (100.64.0.0/10) destinations, or record the residual explicitly as an accepted risk in A11 and the Risks table.",
+      "resolution": "D6 control #1 gains a peer-network drop (tailscale0 / private ranges) or an explicit residual-risk acceptance; O4 adds one probe against a tailnet peer address.",
+      "line_range": {
+        "start": 269,
+        "end": 269
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 4,
+      "type": "security",
+      "criticality": "medium",
+      "severity": "optional",
+      "axis": "security",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/design.md",
+      "existing_code": "1. **Preferred \u2014 an nftables egress rule for the runner user**: in an `output` hook chain,",
+      "description": "D6 and O4 give the nftables rules but never the table family. An operator who follows the text literally with `table ip` leaves IPv6 unfiltered: `fib daddr type local` in an `ip` table never sees `::1`, the host's link-local or ULA addresses, and the Tailscale IPv6 address, so a service bound to `[::]:54322` or `::1` stays reachable. The DNS exemption likewise only names an IPv4 stub. Pin `table inet` (and the `ip6 daddr ::1` exemption if resolved listens there) in D6, O4 and the spec scenario, and have the O4 probe loop include the host's IPv6 addresses from `hostname -I`.",
+      "resolution": "D6/O4: `table inet gx10 { chain output { type filter hook output priority 0; ... } }`; O4 probe list includes IPv6 addresses.",
+      "line_range": {
+        "start": 266,
+        "end": 266
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 5,
+      "type": "spec_gap",
+      "criticality": "low",
+      "severity": "nit",
+      "axis": "correctness",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/specs/ci-runner-infrastructure/spec.md",
+      "existing_code": "- **AND** `ExecStart` invokes `podman run` with `--rm`, `--pull=never`, `--env-file`, `--cap-drop ALL`, `--security-opt no-new-privileges` and `--network slirp4netns:allow_host_loopback=false`",
+      "description": "Three SHALL clauses still have no WHEN/THEN. (1) 'Runners Are Ephemeral Per Job' requires `--replace` and `ExecStopPost runs cleanup-runner.sh`, but the only unit scenario ('Unit runs a removable container with a single-use config') asserts neither; ledger #19/#34 were closed by adding the requirement text, while the scenario the ledger assumed already checked ExecStopPost does not. (2) The verify_run clause 'every manifest job missing from the run' has no scenario; task 4.1 tests it but the spec does not. Task 3.1 and 4.1 cover both, so this is spec-only drift.",
+      "resolution": "Add `--replace` and `ExecStopPost` invokes `cleanup-runner.sh` to the unit scenario's AND clauses; add a 'Manifest job absent from the run is a violation' scenario.",
+      "line_range": {
+        "start": 116,
+        "end": 116
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 6,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "severity": "nit",
+      "axis": "readability",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/specs/ci-runner-infrastructure/spec.md",
+      "existing_code": "- `median_wallclock(runs)` SHALL compute the median wall-clock seconds over successful runs only.",
+      "description": "Ledger #8 is recorded as addressed, but the spec still gives `median_wallclock(runs)` and positional `compare(baseline, candidate, threshold=0.85, min_n=5)` while D8 defines keyword-only signatures with a `conclusion=\"success\"` parameter on `median_wallclock`. Spec and design are both cited as contracts by task 4.1/4.2; the implementer has to pick one.",
+      "resolution": "Align the spec signatures with D8 (keyword-only `*, conclusion=\"success\"`, `*, threshold=0.85, min_n=5`, `*, expected_lane=\"self-hosted\"`).",
+      "line_range": {
+        "start": 189,
+        "end": 189
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 7,
+      "type": "spec_gap",
+      "criticality": "low",
+      "severity": "nit",
+      "axis": "correctness",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/tasks.md",
+      "existing_code": "    Test 2.4 asserts it for routed jobs.",
+      "description": "Task 2.8 says 'Test 2.4 asserts it [cache-local-path: /home/runner/.cache/uv] for routed jobs', but task 2.4's bullet list contains no such assertion and no spec scenario covers the setup-uv binding that the ledger #29 fix introduced in D6. Since 2.4 is written before 2.8 and is the RED test for it, the omission means the binding can be forgotten without any test failing, which is the exact failure mode #29 described.",
+      "resolution": "Add to 2.4: every routed job step using `astral-sh/setup-uv` sets `cache-local-path: /home/runner/.cache/uv`; add a matching scenario under 'Hosted-Pinned Jobs Are Explicit' or 'Runners Are Ephemeral Per Job'.",
+      "line_range": {
+        "start": 162,
+        "end": 162
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 8,
+      "type": "architecture",
+      "criticality": "low",
+      "severity": "optional",
+      "axis": "architecture",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/work-packages.yaml",
+      "existing_code": "    depends_on: [wp-contracts]\n    locks:\n      files:\n        - \"docs/guides/self-hosted-ci-runners.md\"",
+      "description": "wp-docs depends only on wp-contracts and runs in an isolated worktree in parallel with wp-runner-kit and wp-tooling, yet the runbook it writes is a contract over their outputs: script names, `GX10_RUNNER_CACHE_ARGS`, `GX10_MINT_MAX_ELAPSED`, the env/token paths, the ci_wallclock flags. test_runbook.py (task 5.1) checks only O1..O12 headings, fenced blocks and two literal commands, and wp-integration adds no cross-check, so a variable renamed during implementation (as happened in planning with GX10_RUNNER_UV_CACHE) ships with a stale runbook that passes every gate. Either sequence wp-docs after wp-runner-kit/wp-tooling, or add an integration assertion that every `GX10_*` variable and `deploy/gx10-runner/*.sh` path named in the runbook exists in the kit and env example.",
+      "resolution": "Add wp-runner-kit and wp-tooling to wp-docs depends_on, or add a task 6.1 bullet with a runbook-vs-kit consistency test.",
+      "line_range": {
+        "start": 335,
+        "end": 338
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 9,
+      "type": "performance",
+      "criticality": "low",
+      "severity": "fyi",
+      "axis": "performance",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/design.md",
+      "existing_code": "A run's lane is derived from where its routed jobs actually ran, using the runner labels in the",
+      "description": "Because `compare` derives each run's lane from its jobs' runner labels, the CLI must issue one `actions/runs/<id>/jobs` GET per candidate run on top of the paginated runs listing. With the default `--limit 200` on each side that is up to ~400 extra requests per comparison against a 5000/hour PAT budget, and the mixed-placement exclusion rule means it cannot sample. D8 should state this cost and either default `--limit` lower for `compare`, or add `--jobs-concurrency`/caching of per-run lane results, so the O8 measurement does not stall on rate limiting.",
+      "resolution": "D8: note the N+1 jobs fetch, lower the compare default limit (e.g. 50 per lane) or cache lane classification per run id across invocations.",
+      "line_range": {
+        "start": 433,
+        "end": 433
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 10,
+      "type": "observability",
+      "criticality": "low",
+      "severity": "fyi",
+      "axis": "observability",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-ledger/adjudication-pass3-round-1.json",
+      "existing_code": "\"pi\": \"classified auth_required (pi wrote findings to a file instead of stdout) - dropped from later rounds per policy\"",
+      "description": "Pass 3 records the pi lane as `auth_required` because pi wrote its findings to a file rather than stdout. That is pi's normal behaviour (it writes review_findings.json to the dispatcher's cwd), not an auth failure, so the lane's round-1 pass-3 findings were probably produced and discarded, and pi is now excluded from later rounds on a misclassification. Not a plan defect; the dispatcher's lane classifier should distinguish 'findings written to file' from auth failure, and the orchestrator may want to pick up the file before the next round.",
+      "line_range": {
+        "start": 96,
+        "end": 96
+      },
+      "line_resolution": "hunk_new"
+    }
+  ]
+}

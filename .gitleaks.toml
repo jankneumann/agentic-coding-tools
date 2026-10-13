@@ -47,4 +47,13 @@ commits = [
     # HEAD with a low-entropy fixture that still matches the sanitizer's
     # pattern without tripping gitleaks' entropy-based generic-api-key rule.
     "e1c52a58e791115023cabe01f1cd027669dba8a9",
+    # multiplayer-collaboration roadmap branch (PR #662): supervised-dispatch
+    # launch nonces (`secrets.token_urlsafe(24)`) committed raw as
+    # `"launch_token"` in openspec/roadmaps/multiplayer-collaboration/
+    # checkpoint.json. They are single-use, run-scoped nonces, not
+    # credentials. dispatch-contract (ri-21) stores only a digest from here
+    # on, so only these introducing commits are exempt.
+    "ddd2c4a8e3fea7cfa7589cb48a5fdfc2016cb281",
+    "c6424d74d6bca96cd632da8f888bf4c5dd512107",
+    "3c06430ace19444a9762ae01b2ff422f08e01ae7",
 ]

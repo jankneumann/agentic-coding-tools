@@ -22,9 +22,9 @@ def test_new_loop_state_default_phase_archetype_is_none() -> None:
     assert state.phase_archetype is None
 
 
-def test_new_loop_state_schema_version_is_5() -> None:
+def test_new_loop_state_schema_version_is_6() -> None:
     state = autopilot.LoopState()
-    assert state.schema_version == 5
+    assert state.schema_version == 6
 
 
 def test_phase_archetype_field_round_trips_through_save_load(tmp_path: Path) -> None:
@@ -34,7 +34,7 @@ def test_phase_archetype_field_round_trips_through_save_load(tmp_path: Path) -> 
 
     loaded = autopilot.load_state(state_path)
     assert loaded.phase_archetype == "architect"
-    assert loaded.schema_version == 5
+    assert loaded.schema_version == 6
 
 
 def test_load_v2_snapshot_migrates_to_v5_with_defaults(tmp_path: Path) -> None:
@@ -55,13 +55,13 @@ def test_load_v2_snapshot_migrates_to_v5_with_defaults(tmp_path: Path) -> None:
     assert state.gate_signals == {}
     assert state.gate_verdict is None
     # The migration is applied: schema_version is bumped on the loaded instance.
-    # (Actual file-on-disk gets schema_version=5 only after a save_state call.)
-    assert state.schema_version == 5
+    # (Actual file-on-disk gets schema_version=6 only after a save_state call.)
+    assert state.schema_version == 6
 
     # Saving rewrites the file with v5.
     autopilot.save_state(state, state_path)
     on_disk = json.loads(state_path.read_text())
-    assert on_disk["schema_version"] == 5
+    assert on_disk["schema_version"] == 6
     assert on_disk["phase_archetype"] is None
 
 
@@ -115,7 +115,7 @@ def test_v4_state_loads_as_v5_with_empty_gate_fields(tmp_path: Path) -> None:
 
     state = autopilot.load_state(state_path)
 
-    assert state.schema_version == 5
+    assert state.schema_version == 6
     assert state.gate_decisions == []
     assert state.pending_gate is None
     assert state.goal_gate is None

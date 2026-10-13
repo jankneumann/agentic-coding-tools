@@ -1,0 +1,257 @@
+{
+  "schema_version": 1,
+  "roadmap_id": "landable",
+  "current_item_id": "ri-01",
+  "phase": "planning",
+  "created_at": "2026-10-09T12:37:15.120683+00:00",
+  "updated_at": "2026-10-09T12:37:15.260451+00:00",
+  "gate_decisions": [
+    {
+      "gate": "roadmap_approval",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'roadmap_approval' approved by the operator \u2014 landable fixture",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "human",
+        "approval_ref": null
+      },
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-09T12:37:15.123492+00:00",
+      "decision_id": "9f4816ed-76d7-4615-8cda-50b298b27021",
+      "source": "supervise",
+      "verb": "cycle",
+      "roadmap_id": "landable",
+      "roadmap_fingerprint": "7d83991408f210335107b0f2b75b5326fb5014b4a3c165115f7d3636432b3be8",
+      "note": "landable fixture"
+    }
+  ],
+  "dispatch_attempts": [
+    {
+      "dispatch_id": "batch-b0a42c1b7b44281925653530:ri-01:attempt-1",
+      "item_id": "ri-01",
+      "change_id": "landable-alpha",
+      "phase": "autopilot",
+      "attempt": 1,
+      "status": "acknowledged",
+      "prepared_at": "2026-10-09T12:37:15.191780+00:00",
+      "launch_digest": "sha256:bb83178caed365f1bdb2665b0fc2b51dee65b2609fef4b73e8e79898d6bf3c70",
+      "launch_marker_path": ".supervised-dispatch/landable-alpha/ri-01-attempt-1.marker",
+      "lease_generation": 1,
+      "launch_history": [
+        {
+          "generation": 1,
+          "owner_nonce": "owner-nonce-fixture-0001",
+          "state": "claimed",
+          "marker_path": ".supervised-dispatch/landable-alpha/ri-01-attempt-1.marker",
+          "observed_at": "2026-10-09T12:00:00+00:00"
+        },
+        {
+          "generation": 1,
+          "owner_nonce": "owner-nonce-fixture-0001",
+          "state": "acknowledged",
+          "marker_path": ".supervised-dispatch/landable-alpha/ri-01-attempt-1.marker",
+          "observed_at": "2026-10-09T12:00:00+00:00",
+          "handle": "task-fixture-0001"
+        },
+        {
+          "generation": 1,
+          "owner_nonce": "owner-nonce-fixture-0001",
+          "state": "go_released",
+          "marker_path": ".supervised-dispatch/landable-alpha/ri-01-attempt-1.marker",
+          "observed_at": "2026-10-09T12:00:00+00:00",
+          "handle": "task-fixture-0001"
+        }
+      ],
+      "scope": {
+        "proof": "proven_disjoint",
+        "write_allow": [
+          "src/landable-alpha/**"
+        ],
+        "lock_keys": [
+          "feature:landable-alpha"
+        ]
+      },
+      "isolation": {
+        "mode": "managed_worktree",
+        "worktree_ref": "landable-alpha",
+        "branch": "openspec/landable-alpha",
+        "host_id": "host-fixture-a"
+      },
+      "context": {},
+      "execution_profile": {
+        "lanes": {
+          "review": [
+            "claude_code",
+            "codex"
+          ],
+          "alternative": [
+            "claude_code",
+            "codex"
+          ],
+          "quick": [
+            "claude_code",
+            "codex"
+          ]
+        },
+        "location": "local",
+        "isolation": "managed_worktree",
+        "probe_command": "python3 <skill-base-dir>/../parallel-infrastructure/scripts/review_dispatcher.py --check-vendors --json"
+      },
+      "review_requirements": {
+        "min_quorum": {
+          "PLAN_REVIEW": 2,
+          "IMPL_REVIEW": 2,
+          "VAL_REVIEW": 2
+        },
+        "counting_lanes": [
+          "claude_code",
+          "codex"
+        ],
+        "quorum_policy": {
+          "environment": "host",
+          "policy_id": null,
+          "sunset": null
+        }
+      },
+      "roadmap_approval_ref": "gate-decision:9f4816ed-76d7-4615-8cda-50b298b27021",
+      "lease": {
+        "generation": 1,
+        "owner_nonce": "owner-nonce-fixture-0001",
+        "state": "active",
+        "acquired_at": "2026-10-09T12:00:00+00:00",
+        "heartbeat_at": "2026-10-09T12:00:00+00:00",
+        "expires_at": "2026-10-09T12:01:00+00:00"
+      },
+      "launch_evidence": {
+        "kind": "host_ack",
+        "generation": 1,
+        "handle": "task-fixture-0001",
+        "observed_at": "2026-10-09T12:00:00+00:00"
+      },
+      "launch_gate": {
+        "generation": 1,
+        "state": "go_released",
+        "handle": "task-fixture-0001",
+        "go_released_at": "2026-10-09T12:00:00+00:00",
+        "entered_at": null
+      }
+    },
+    {
+      "dispatch_id": "batch-b0a42c1b7b44281925653530:ri-02:attempt-1",
+      "item_id": "ri-02",
+      "change_id": "landable-beta",
+      "phase": "autopilot",
+      "attempt": 1,
+      "status": "acknowledged",
+      "prepared_at": "2026-10-09T12:37:15.191893+00:00",
+      "launch_digest": "sha256:77ea9dfbca7eae57c4d2a8026ff47927a71de8142ef8c1bbe8a3cd874d0a509e",
+      "launch_marker_path": ".supervised-dispatch/landable-beta/ri-02-attempt-1.marker",
+      "lease_generation": 1,
+      "launch_history": [
+        {
+          "generation": 1,
+          "owner_nonce": "owner-nonce-fixture-0002",
+          "state": "claimed",
+          "marker_path": ".supervised-dispatch/landable-beta/ri-02-attempt-1.marker",
+          "observed_at": "2026-10-09T12:00:00+00:00"
+        },
+        {
+          "generation": 1,
+          "owner_nonce": "owner-nonce-fixture-0002",
+          "state": "acknowledged",
+          "marker_path": ".supervised-dispatch/landable-beta/ri-02-attempt-1.marker",
+          "observed_at": "2026-10-09T12:00:00+00:00",
+          "handle": "task-fixture-0002"
+        },
+        {
+          "generation": 1,
+          "owner_nonce": "owner-nonce-fixture-0002",
+          "state": "go_released",
+          "marker_path": ".supervised-dispatch/landable-beta/ri-02-attempt-1.marker",
+          "observed_at": "2026-10-09T12:00:00+00:00",
+          "handle": "task-fixture-0002"
+        }
+      ],
+      "scope": {
+        "proof": "proven_disjoint",
+        "write_allow": [
+          "src/landable-beta/**"
+        ],
+        "lock_keys": [
+          "feature:landable-beta"
+        ]
+      },
+      "isolation": {
+        "mode": "managed_worktree",
+        "worktree_ref": "landable-beta",
+        "branch": "openspec/landable-beta",
+        "host_id": "host-fixture-a"
+      },
+      "context": {},
+      "execution_profile": {
+        "lanes": {
+          "review": [
+            "claude_code",
+            "codex"
+          ],
+          "alternative": [
+            "claude_code",
+            "codex"
+          ],
+          "quick": [
+            "claude_code",
+            "codex"
+          ]
+        },
+        "location": "local",
+        "isolation": "managed_worktree",
+        "probe_command": "python3 <skill-base-dir>/../parallel-infrastructure/scripts/review_dispatcher.py --check-vendors --json"
+      },
+      "review_requirements": {
+        "min_quorum": {
+          "PLAN_REVIEW": 2,
+          "IMPL_REVIEW": 2,
+          "VAL_REVIEW": 2
+        },
+        "counting_lanes": [
+          "claude_code",
+          "codex"
+        ],
+        "quorum_policy": {
+          "environment": "host",
+          "policy_id": null,
+          "sunset": null
+        }
+      },
+      "roadmap_approval_ref": "gate-decision:9f4816ed-76d7-4615-8cda-50b298b27021",
+      "lease": {
+        "generation": 1,
+        "owner_nonce": "owner-nonce-fixture-0002",
+        "state": "active",
+        "acquired_at": "2026-10-09T12:00:00+00:00",
+        "heartbeat_at": "2026-10-09T12:00:00+00:00",
+        "expires_at": "2026-10-09T12:01:00+00:00"
+      },
+      "launch_evidence": {
+        "kind": "host_ack",
+        "generation": 1,
+        "handle": "task-fixture-0002",
+        "observed_at": "2026-10-09T12:00:00+00:00"
+      },
+      "launch_gate": {
+        "generation": 1,
+        "state": "go_released",
+        "handle": "task-fixture-0002",
+        "go_released_at": "2026-10-09T12:00:00+00:00",
+        "entered_at": null
+      }
+    }
+  ]
+}

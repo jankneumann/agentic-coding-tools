@@ -50,6 +50,19 @@ policies:
 
 credential_vendors: [anthropic, openai, openrouter, xai]
 
+# Human principals (ownership-map capability). Humans are principals, NOT agents:
+# nothing below is projected into agent_profiles, API-key identities, dispatch
+# configs or OpenBao AppRoles, and a human id may not equal an agent name.
+# `github` is required for any human who appears in an emitted CODEOWNERS owner
+# set; `email` is optional and consumed by nothing yet (omit it if you would
+# rather not publish it). `openspec/owners.yaml` assigns owners by these ids.
+humans:
+  jan:
+    display_name: "Jan Neumann"
+    github: jankneumann
+    domains: [agent-coordinator, skills]
+    description: "Repository maintainer"
+
 agents:
   # ---------------------------------------------------------------------------
   # Claude Code

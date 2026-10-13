@@ -150,6 +150,7 @@ Internal machinery used by workflow and methodology skills. Most are `user_invoc
 | ★ `session-bootstrap` | Cloud environment bootstrap (setup script + verify hook) and coordinator lifecycle hooks | `/session-bootstrap` |
 | ★ `session-log` | Structured decision records for session logs and merge logs at phase boundaries | `/session-log` |
 | ★ `roadmap-runtime` | Shared roadmap library: artifact models, checkpoint management, learning-log helpers, sanitization | `/roadmap-runtime` |
+| · `ownership-runtime` | Git-native ownership map resolver, check and `CODEOWNERS` projection (`openspec/owners.yaml`); infrastructure library, not user-invocable | Internal |
 
 ### Removed / deprecated skills
 

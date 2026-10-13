@@ -1,0 +1,389 @@
+schema_version: 1
+
+feature:
+  id: generate-coordinator-clients-from-contracts
+  title: "Generate stdlib bridge bindings from hand-authored contracts, gate contract breaks, pilot on feature registry"
+  plan_revision: 1
+  created_by: claude-code
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/generate-coordinator-clients-from-contracts/contracts/openapi/v1.yaml"
+    files:
+      - "openspec/changes/generate-coordinator-clients-from-contracts/contracts/openapi/v1.yaml"
+      - "openspec/changes/generate-coordinator-clients-from-contracts/contracts/generated/models.py"
+      - "openspec/changes/generate-coordinator-clients-from-contracts/contracts/README.md"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  # ── wp-contracts — validate, promote typed features.yaml, acknowledge its breaks (tasks 1.1–2.3)
+  - package_id: wp-contracts
+    title: "Contracts — validate typed features contract, promote it, acknowledge its breaking changes"
+    task_type: contracts
+    description: |
+      Tasks 1.1, 2.1–2.3: validate contracts/openapi/v1.yaml and the generated stub, promote the
+      typed revision over openspec/contracts/agent-coordinator/openapi/features.yaml keeping
+      x-traceability, write contracts/accepted-breaking-changes.yaml, confirm the traceability
+      sweep still passes. Design D1, D2, D4.
+    role: contracts-author
+    archetype: architect
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "openspec/contracts/agent-coordinator/openapi/features.yaml"
+      keys:
+        - "contract:openapi/v1.yaml"
+      ttl_minutes: 60
+      reason: "Promote typed feature-registry contract consumed by every downstream package"
+    scope:
+      write_allow:
+        - "openspec/changes/generate-coordinator-clients-from-contracts/contracts/**"
+        - "openspec/contracts/agent-coordinator/openapi/features.yaml"
+      read_allow:
+        - "**"
+    context_impact:
+      surfaces:
+        - "apis"
+        - "documentation"
+        # contracts/generated/models.py is generated Python, indexed as semantic_code.
+        - "semantic_code"
+    worktree:
+      name: gen-clients-wp-contracts
+      mode: isolated
+    timeout_minutes: 30
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: C
+      steps:
+        - name: "Typed contract validates; generated stub imports under bare python3"
+          kind: command
+          command: "uvx --from openapi-spec-validator openapi-spec-validator openspec/contracts/agent-coordinator/openapi/features.yaml && python3 -I openspec/changes/generate-coordinator-clients-from-contracts/contracts/generated/models.py"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "contracts_valid"
+        - name: "Traceability sweep passes"
+          kind: command
+          command: "skills/.venv/bin/python packages/gen-eval/scripts/check_traceability.py"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "traceability_passed"
+    metadata:
+      loc_estimate: 350
+      complexity: low
+      package_kind: config
+    inputs: {}
+    outputs:
+      result_keys:
+        - "contracts_valid"
+        - "traceability_passed"
+
+  # ── wp-api — conformance test, route-order fix (tasks 3.1–3.3)
+  - package_id: wp-api
+    title: "HTTP API — feature-registry response conformance test and /features/active route precedence"
+    task_type: backend
+    description: |
+      Tasks 3.1–3.3: write the contract conformance test (RED on route shadowing), move
+      GET /features/active above GET /features/{feature_id}, fix any further body drift the
+      test reports. Design D5, D6.
+    role: backend-implementer
+    archetype: implementer
+    priority: 2
+    depends_on:
+      - wp-contracts
+    locks:
+      files:
+        - "agent-coordinator/src/coordination_api.py"
+      keys:
+        - "api:GET /features/active"
+        - "api:GET /features/{feature_id}"
+      ttl_minutes: 120
+      reason: "Route order change and endpoint body fixes in the feature registry"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/tests/test_feature_registry_contract_conformance.py"
+      read_allow:
+        - "**"
+    context_impact:
+      surfaces:
+        - "semantic_code"
+    worktree:
+      name: gen-clients-wp-api
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Conformance and feature registry tests pass"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_feature_registry_contract_conformance.py agent-coordinator/tests/test_feature_registry.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "conformance_passed"
+    metadata:
+      loc_estimate: 250
+      complexity: medium
+      package_kind: crud
+    inputs: {}
+    outputs:
+      result_keys:
+        - "conformance_passed"
+
+  # ── wp-ci — oasdiff breaking-change gate (tasks 4.1–4.5)
+  - package_id: wp-ci
+    title: "CI — pinned, checksummed oasdiff breaking-change gate with acknowledgement files"
+    task_type: infrastructure
+    description: |
+      Tasks 4.1–4.5: wrapper tests on recorded oasdiff JSON, scripts/contract_gate/check_breaking.py,
+      checksum-verified fetch script, ci.yml job. Design D4.
+    role: infra-implementer
+    archetype: implementer
+    priority: 2
+    depends_on:
+      - wp-contracts
+    locks:
+      files:
+        - ".github/workflows/ci.yml"
+      keys: []
+      ttl_minutes: 120
+      reason: "New CI job; ci.yml is also edited by other in-flight changes"
+    scope:
+      write_allow:
+        - "scripts/contract_gate/**"
+        - ".github/workflows/ci.yml"
+      read_allow:
+        - "**"
+    context_impact:
+      surfaces:
+        - "semantic_code"
+    worktree:
+      name: gen-clients-wp-ci
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Gate wrapper tests pass"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest scripts/contract_gate/tests -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "gate_tests_passed"
+        - name: "Gate passes on this branch with its acknowledgement"
+          kind: command
+          command: "bash scripts/contract_gate/fetch_oasdiff.sh && skills/.venv/bin/python scripts/contract_gate/check_breaking.py --base origin/main"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "gate_passed"
+    metadata:
+      loc_estimate: 400
+      complexity: medium
+      package_kind: config
+    inputs: {}
+    outputs:
+      result_keys:
+        - "gate_tests_passed"
+        - "gate_passed"
+
+  # ── wp-bridge — generator, _generated bindings, feature helpers (tasks 5.1–5.9)
+  - package_id: wp-bridge
+    title: "Bridge — stdlib binding generator, generated feature bindings, five feature registry helpers"
+    task_type: backend
+    description: |
+      Tasks 5.1–5.9: generator tests and stdlib-only import test, generate_bindings.py with
+      --check, committed _generated/ modules, helper tests (fixing the /features/active 404
+      fixture), refactor register/deregister onto OPERATIONS, add get/list/conflicts helpers,
+      SKILL.md, install mirrors. Design D2, D3, D6.
+    role: backend-implementer
+    archetype: implementer
+    priority: 2
+    depends_on:
+      - wp-contracts
+    locks:
+      files:
+        - "skills/coordination-bridge/scripts/coordination_bridge.py"
+        - "skills/pyproject.toml"
+      keys: []
+      ttl_minutes: 120
+      reason: "Bridge feature helpers and generator dependency"
+    scope:
+      write_allow:
+        - "skills/coordination-bridge/**"
+        - "skills/pyproject.toml"
+        - "skills/uv.lock"
+        - ".claude/skills/coordination-bridge/**"
+        - ".agents/skills/coordination-bridge/**"
+      read_allow:
+        - "**"
+    context_impact:
+      surfaces:
+        - "semantic_code"
+        - "documentation"
+    worktree:
+      name: gen-clients-wp-bridge
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Bridge suite passes"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/coordination-bridge/scripts/tests -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "bridge_suite_passed"
+        - name: "Bindings are current"
+          kind: command
+          command: "skills/.venv/bin/python skills/coordination-bridge/scripts/generate_bindings.py --check"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "bindings_current"
+    metadata:
+      loc_estimate: 600
+      complexity: medium
+      package_kind: algorithm
+    inputs: {}
+    outputs:
+      result_keys:
+        - "bridge_suite_passed"
+        - "bindings_current"
+
+  # ── wp-integration — drift step in CI, full suites, gate replay, decision.md (tasks 6.1–6.4)
+  - package_id: wp-integration
+    title: "Integration — bindings drift CI step, full suites, gate replay, go/no-go decision"
+    task_type: integration
+    description: |
+      Tasks 6.1–6.4: add the bridge-bindings-drift step to ci.yml after wp-ci and wp-bridge
+      merge, run full suites and openspec validate, replay the gate over 20 historical
+      contract edits, write decision.md. Design D7.
+    role: integrator
+    archetype: architect
+    priority: 3
+    depends_on:
+      - wp-api
+      - wp-ci
+      - wp-bridge
+    locks:
+      files:
+        - ".github/workflows/ci.yml"
+      keys: []
+      ttl_minutes: 120
+      reason: "Final ci.yml step and integration verification"
+    scope:
+      write_allow:
+        - ".github/workflows/ci.yml"
+        # Only integration outputs; contracts/ and specs/ belong to wp-contracts.
+        - "openspec/changes/generate-coordinator-clients-from-contracts/decision.md"
+        - "openspec/changes/generate-coordinator-clients-from-contracts/tasks.md"
+        - "openspec/changes/generate-coordinator-clients-from-contracts/session-log.md"
+        - "openspec/changes/generate-coordinator-clients-from-contracts/handoffs/**"
+      read_allow:
+        - "**"
+    context_impact:
+      surfaces:
+        - "decisions"
+        - "documentation"
+    worktree:
+      name: gen-clients-wp-integration
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: A
+      steps:
+        - name: "Coordinator suite passes"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests -m 'not e2e and not integration' -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "coordinator_suite_passed"
+        - name: "Skills suite passes"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests skills/coordination-bridge/scripts/tests scripts/contract_gate/tests -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "skills_suite_passed"
+        - name: "OpenSpec validates strictly"
+          kind: command
+          command: "openspec validate generate-coordinator-clients-from-contracts --strict"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "openspec_valid"
+        - name: "Mirrors are in sync"
+          kind: command
+          command: "./install.sh --check"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "mirrors_in_sync"
+        - name: "Go/no-go decision recorded"
+          kind: command
+          command: "test -s openspec/changes/generate-coordinator-clients-from-contracts/decision.md"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts:
+              - "openspec/changes/generate-coordinator-clients-from-contracts/decision.md"
+            result_keys:
+              - "decision_recorded"
+    metadata:
+      loc_estimate: 150
+      complexity: low
+      package_kind: integration
+    inputs: {}
+    outputs:
+      result_keys:
+        - "coordinator_suite_passed"
+        - "skills_suite_passed"
+        - "openspec_valid"
+        - "mirrors_in_sync"
+        - "decision_recorded"
