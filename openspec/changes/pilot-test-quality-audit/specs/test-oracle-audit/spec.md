@@ -206,7 +206,7 @@ clone it SHALL record `degraded` with reason `shallow_history`.
 
 #### Scenario: Regression pin is detected
 
-- **WHEN** a test function was introduced in a commit whose subject begins `fix(`
+- **WHEN** a test function was introduced in a commit whose subject is a conventional `fix`, either unscoped (`fix: ...`) or scoped (`fix(<scope>): ...`), with or without a `!` breaking marker
 - **THEN** its record has `added_with_fix: true`
 
 ### Requirement: Explanations for Flagged Tests Only

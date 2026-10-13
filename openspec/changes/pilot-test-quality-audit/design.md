@@ -168,7 +168,9 @@ The vocabulary answers: *where do this test's expected values come from?*
   - The denominator must be at least 3, otherwise the result is `insufficient`.
   - A high ratio means the test is routinely rewritten to match the code.
 - **added_with_fix.** The commit that introduced the test function has a conventional-commit type
-  of `fix`. This marks a regression test added with the fix (the Prove-It pattern), a positive
+  of `fix`, matched as `^fix(\([^)]*\))?!?:`. That covers unscoped `fix:` and scoped
+  `fix(scope):`, with or without the `!` breaking marker, and excludes `fixup!` and every other
+  type. This marks a regression test added with the fix (the Prove-It pattern), a positive
   signal.
 
 ### D7: The judged stage is batched, blind, shadow-only, and takes thresholds from config
