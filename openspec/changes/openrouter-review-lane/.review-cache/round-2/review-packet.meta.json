@@ -3,8 +3,8 @@
   "change_id": "openrouter-review-lane",
   "round": 2,
   "body_path": "review-packet.md",
-  "sha256": "370a2fe9720f350d3b3fece920498ee6ba786c4a02cb6955229d75ab8e345fda",
-  "char_length": 54091,
+  "sha256": "92fd02d06a56a8bb56d048f2376928dd6e76386c6c64de2c1d29d47c3434cf3b",
+  "char_length": 50688,
   "budget_chars": 320000,
   "tools_overflow": false,
   "includes_ledger": true,
@@ -17,28 +17,21 @@
         "status": "modified",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 1332
+        "est_tokens": 3089
       },
       {
         "path": "openspec/changes/openrouter-review-lane/design.md",
         "status": "modified",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 1285
-      },
-      {
-        "path": "openspec/changes/openrouter-review-lane/specs/parallel-infrastructure/spec.md",
-        "status": "modified",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 640
+        "est_tokens": 586
       },
       {
         "path": "openspec/changes/openrouter-review-lane/tasks.md",
         "status": "modified",
         "reason": "none",
         "gate": "passed",
-        "est_tokens": 1663
+        "est_tokens": 1070
       }
     ],
     "excluded": [
@@ -47,7 +40,7 @@
         "status": "modified",
         "reason": "generated_path",
         "gate": "generated_path",
-        "est_tokens": 3519
+        "est_tokens": 2021
       },
       {
         "path": "openspec/changes/openrouter-review-lane/.review-cache/round-1/review-manifest.json",
@@ -61,14 +54,14 @@
         "status": "modified",
         "reason": "generated_path",
         "gate": "generated_path",
-        "est_tokens": 1165
+        "est_tokens": 1452
       },
       {
         "path": "openspec/changes/openrouter-review-lane/.review-cache/round-1/review-packet.meta.json",
         "status": "modified",
         "reason": "generated_path",
         "gate": "generated_path",
-        "est_tokens": 2835
+        "est_tokens": 1180
       }
     ],
     "truncated": []
@@ -82,14 +75,6 @@
         "openspec/changes/openrouter-review-lane/.review-ledger/ledger.json",
         "openspec/changes/openrouter-review-lane/design.md",
         "openspec/changes/openrouter-review-lane/tasks.md"
-      ]
-    },
-    {
-      "group_id": 2,
-      "source": "default",
-      "pattern": "openspec/changes/*/specs/**/spec.md",
-      "files": [
-        "openspec/changes/openrouter-review-lane/specs/parallel-infrastructure/spec.md"
       ]
     }
   ]

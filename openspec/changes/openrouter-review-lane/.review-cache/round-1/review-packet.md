@@ -5210,24 +5210,7 @@ index 00000000..85da1870
 +- Provision a second review vendor, or add a base_ref parameter to converge(), so later rounds can reach consensus
 +
 +### Relevant Files
-+- `openspec/changes/multiplayer-simulation-harness/.review-ledger/ledger.json` — Review ledger, 9 open items
-+- `openspec/changes/multiplayer-simulation-harness/.review-cache/round-1/findings-claude_code-plan.json` — Raw vendor findings
-+- `openspec/changes/multiplayer-simulation-harness/design.md` — Item 1 target (D5/D7 ref model)
-+
-+### Context
-+converge() ran 1 round of plan review. Only one vendor was available (claude_code), so quorum was lowered to 1. The loop stopped with reason=adjudication_required. One high-severity judgment finding is unconfirmed: the roadmap.yaml ref model is ambiguous. No ledger item is blocking under D3, the fix callback was never invoked, and no plan files were edited. Outcome: max_iter.
-+
-+---
-+
-+## Phase: Plan Fix (PLAN_REVIEW round-1 ledger) (2026-10-09)
-+
-+**Agent**: claude_code | **Session**: N/A
-+
-+### Decisions
-+1. **Readiness reads roadmap.yaml from origin/main via a status applier** `architectural: multiplayer-simulation` — Operator decision A1: mirrors the real supervisor/worker split; principals report transitions, sim-supervisor commits them to main.
-+2. **Error reports relax principals/timeline via if/then** `architectural: multiplayer-simulation` — Ledger item 3: a git failure before the world exists must still yield a schema-valid exit-1 report.
-+3. **New scenario IDs take the next free number** `architectural: skill-procedure-deviation` — Avoid renumbering existing task cross-references.
-+4. **Degradation: single_vendor_review (PLAN_REVIEW, vendor claude_code)** `arch
++- `openspec/changes/multi
 
 [diff truncated to fit packet budget; use Read/Grep for the remainder]
 
@@ -5583,8 +5566,9 @@ Same standard as scripts/tests/: verify the test would fail if the behavior it t
 (excerpt dropped — over packet budget; Read this path if needed)
 
 ### Open ledger items
-- [3] The mid-run mapping fires when 'every failed lane's error_class is UNAVAILABLE or AUTH'. A verified lane can also produce no ReviewResult at all: it is filtered at dispatch by the family or fill rule, not discovered in the worker environment, or dispatch_and_wait returns [] when job_count == 0. In that case the failed set is empty, the condition is vacuously true, and converge() returns capability_unavailable with missing_lanes == [].
-- [7] D4 checks the budget only in the probe, which the supervisor runs once per batch against a $1.00 reservation. A dispatched child can then run up to 3 rounds in each of 3 review phases with packets of roughly 80k tokens, and every concurrently dispatched child sees the same remaining budget. When the coordinator ceiling is the only source (key limit null), nothing stops an overrun, so 'bounded before dispatch' does not hold.
+- [19] Since commit 62590065 a metered lane is refused (spend_context_missing) unless dispatch_and_wait receives a SpendContext, and converge() builds one only when its caller passes the new optional `phase`. The only caller that passes `phase` is agent_lane.py (task 5.6). The host inline converge() call in skills/autopilot/SKILL.md (PLAN_REVIEW fallback, about line 567) and the other host review phases pass no phase, and task 6.4 edits only the cloud review-section text. On a host where D5 selects the metered lane (one non-metered lane), every host converge() round therefore refuses the openrouter lane and ends capability_unavailable. The 'A host-path metered review is recorded' scenario can only pass in a unit test that calls dispatch_and_wait directly. Fix: add a task (or extend 6.4) that makes every host converge() caller in skills/autopilot/SKILL.md pass phase=<PLAN_REVIEW|IMPL_REVIEW|VAL_REVIEW>, or have converge() derive a SpendContext from change_id plus review_type and round when phase is None (accepting the IMPL/VAL collision only for that fallback).
+- [20] Task 5.6 bullet 1 still says converge() 'passes work_unit_ref=<change_id>:<phase>:round-<n> to dispatch_and_wait (via _accepts_kwarg)'. After commit 62590065 the design's interface contract table, D4 and task 3.10 define the keyword as `spend_context: SpendContext(change_id, work_unit_ref)`. Groups 3 and 5 implement the two sides of this keyword in separate packages, so an implementer following 5.6 literally would pass a keyword that ReviewOrchestrator.dispatch_and_wait does not accept, and _accepts_kwarg would silently drop it, which leaves every metered dispatch spend_context_missing.
+- [21] The D4 per-round budget re-check reads metered_usd_used from GET /routing/usage, which counts only ledger rows. Rows that spooled because POST /routing/spend failed are invisible to it. D4 says 'the key's credit limit bounds spend while rows sit in the spool', but when the key limit is null and the coordinator ceiling is the only source, a worker whose GET succeeds while its POST fails (the partly-forbidden coordinator case D4 itself cites: coordinator_projection_forbidden) keeps passing the re-check while every round's spend spools. The bound then fails exactly in the degraded mode that motivated the spool. The Cost abuse bullet in Security and the Risks row on concurrent overspend do not cover it.
 
 Do not emit findings for issues already in the ledger except to re-verify the open items listed above.
 
