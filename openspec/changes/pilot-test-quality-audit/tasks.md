@@ -188,16 +188,16 @@
 
 ## 6. Labelling, analysis, report (wp-labels-analysis)
 
-- [ ] 6.1 Write failing labelling tests: every non-empty stratum is represented, the seed is
+- [x] 6.1 Write failing labelling tests: every non-empty stratum is represented, the seed is
   reproducible, cards contain no judged, static, mutation or history output, `label next` /
   `label record` are non-interactive, and `--dry-run` renders cards without touching the ledger. [S]
   **Spec scenarios**: test-oracle-audit.39, test-oracle-audit.40, test-oracle-audit.41
   **Contracts**: contracts/schemas/label-ledger.schema.json
   **Design decisions**: D9
   **Dependencies**: 1.3
-- [ ] 6.2 Implement `labelling.py`: `stratified_sample` and `render_card`. [S]
+- [x] 6.2 Implement `labelling.py`: `stratified_sample` and `render_card`. [S]
   **Dependencies**: 6.1
-- [ ] 6.3 Write failing analysis tests. [M]
+- [x] 6.3 Write failing analysis tests. [M]
   - Kappa is 1 on perfect agreement.
   - n < 20 gives `insufficient` with no value.
   - Binary kappa below 0.7 excludes the question.
@@ -210,10 +210,10 @@
   **Contracts**: contracts/schemas/analysis-report.schema.json
   **Design decisions**: D10
   **Dependencies**: 1.3
-- [ ] 6.4 Implement `analysis.py` with standard-library statistics only. [M]
+- [x] 6.4 Implement `analysis.py` with standard-library statistics only. [M]
   **Dependencies**: 6.3
-- [ ] Checkpoint: run the package tests, review the diff, verify scope.
-- [ ] 6.5 Write failing disagreement and report tests. [S]
+- [x] Checkpoint: run the package tests, review the diff, verify scope.
+- [x] 6.5 Write failing disagreement and report tests. [S]
   - `weak_assertions` and `static_blind_spot` are listed.
   - The first line says the report is advisory.
   - Degraded stages show as `not run` with counts.
@@ -223,9 +223,9 @@
   **Contracts**: contracts/schemas/analysis-report.schema.json
   **Design decisions**: D11, D13
   **Dependencies**: 6.4
-- [ ] 6.6 Implement `disagreement.py`. [S]
+- [x] 6.6 Implement `disagreement.py`. [S]
   **Dependencies**: 6.5
-- [ ] 6.7 Implement `report.py`. [S]
+- [x] 6.7 Implement `report.py`. [S]
   **Dependencies**: 6.6
 
 ## 7. Skill-audit test-policy lens (wp-skill-audit-lens)
