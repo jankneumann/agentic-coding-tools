@@ -96,21 +96,21 @@
 
 ## 3. Execution evidence (wp-execution)
 
-- [ ] 3.1 Spike: run mutmut 3.x mutant generation and one `MUTANT_UNDER_TEST` execution on an
+- [x] 3.1 Spike: run mutmut 3.x mutant generation and one `MUTANT_UNDER_TEST` execution on an
   isolated copy of each pilot suite through `uv run --project <copy> --with pytest-cov --with
   mutmut pytest` (D1), confirming the trampolines and `--cov-context=test` resolve there. Record
   the verdict (works / needs AST fallback) as a session-log decision and in a design D4 note. [S]
   **Design decisions**: D4
   **Dependencies**: 1.2
-- [ ] 3.2 Write failing isolation tests: the copy is removed after a stage raises, the original
+- [x] 3.2 Write failing isolation tests: the copy is removed after a stage raises, the original
   tree is untouched, and a test run inside the copy sees `HOME`, `TMPDIR` and pytest `--basetemp`
   under the scratch directory (D3). [XS]
   **Spec scenarios**: test-oracle-audit.7
   **Design decisions**: D3
   **Dependencies**: 1.2
-- [ ] 3.3 Implement `isolation.py`: a `git worktree add --detach` copy, with a `copytree` fallback. [S]
+- [x] 3.3 Implement `isolation.py`: a `git worktree add --detach` copy, with a `copytree` fallback. [S]
   **Dependencies**: 3.2
-- [ ] 3.4 Write failing mutation tests over a fixture mini-project. [M]
+- [x] 3.4 Write failing mutation tests over a fixture mini-project. [M]
   - Attribution goes only to the failing test.
   - Seeded sampling is reproducible and spread across modules.
   - The AST fallback is used when the probe fails, and the backend is recorded.
@@ -120,13 +120,13 @@
   **Contracts**: contracts/schemas/mutation-result.schema.json, contracts/schemas/stage-record.schema.json (MutationPayload)
   **Design decisions**: D4
   **Dependencies**: 3.3
-- [ ] 3.5 Implement `mutation.py`: the `MutationRunner` protocol, `AstMutantRunner`, and
+- [x] 3.5 Implement `mutation.py`: the `MutationRunner` protocol, `AstMutantRunner`, and
   `run_mutation` with stratified seeded sampling and coverage-context attribution. [M]
   **Dependencies**: 3.4
-- [ ] 3.6 Implement the `MutmutRunner` backend with its probe, following the 3.1 verdict. [M]
+- [x] 3.6 Implement the `MutmutRunner` backend with its probe, following the 3.1 verdict. [M]
   **Dependencies**: 3.1, 3.5
-- [ ] Checkpoint: run the package tests, review the diff, verify scope.
-- [ ] 3.7 Write failing rename-survival tests. [S]
+- [x] Checkpoint: run the package tests, review the diff, verify scope.
+- [x] 3.7 Write failing rename-survival tests. [S]
   - A test that imports or patches a private name breaks.
   - A public-only test survives.
   - A string-referenced name, an `__all__` entry, or a re-export is `unrenamable`.
@@ -137,9 +137,9 @@
   **Contracts**: contracts/schemas/stage-record.schema.json (RenamePayload)
   **Design decisions**: D5
   **Dependencies**: 3.3
-- [ ] 3.8 Implement `refactor.py`: a libcst rename across the source tree only, run in an isolated copy. [M]
+- [x] 3.8 Implement `refactor.py`: a libcst rename across the source tree only, run in an isolated copy. [M]
   **Dependencies**: 3.7
-- [ ] Checkpoint: run the package tests, review the diff, verify scope.
+- [x] Checkpoint: run the package tests, review the diff, verify scope.
 
 ## 4. History signals (wp-history)
 
