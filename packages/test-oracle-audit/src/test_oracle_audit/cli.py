@@ -296,6 +296,13 @@ def run_label(ctx: Context) -> int:
         seed=args.seed,
         dry_run=ctx.dry_run,
     )
+    # One review file with every sampled card, in sample order, beside the
+    # per-card files label_next writes under <out>/cards/.
+    card_files = sorted((ctx.out / "cards").glob("*.md"))
+    if card_files:
+        (ctx.out / "label-cards.md").write_text(
+            "\n\n---\n\n".join(p.read_text("utf-8") for p in card_files) + "\n", encoding="utf-8"
+        )
     print(card if card is not None else "all sampled tests are labelled")
     return 0
 

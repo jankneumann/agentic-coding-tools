@@ -21,8 +21,8 @@ import sys
 from pathlib import Path
 
 import pytest
-from test_oracle_audit.inventory import build_inventory
 
+from test_oracle_audit.inventory import build_inventory
 from test_oracle_audit.records import (
     SuiteSpec,
     TestId,

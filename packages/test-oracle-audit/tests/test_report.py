@@ -27,6 +27,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent / "fixtures" / "analysis"))
 
 import analysis_builders as b
+
 from test_oracle_audit.analysis import analyze
 from test_oracle_audit.report import render_report
 

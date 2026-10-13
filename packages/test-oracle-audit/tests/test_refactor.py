@@ -44,9 +44,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
-from test_oracle_audit.refactor import run_rename_survival
 
 from test_oracle_audit.records import StageRecord, SuiteSpec, TestEntry, TestId, content_hash
+from test_oracle_audit.refactor import run_rename_survival
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "execution"
 PROJECT = "rename_proj"
