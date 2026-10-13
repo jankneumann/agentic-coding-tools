@@ -48,7 +48,7 @@ neither `TYPESAFE_API_KEY` nor an LLM API key is present in the planning session
 | `vocabulary.py` | oracle-source vocabulary | `ORACLE_SOURCES`, `INTENT_DERIVED`, `IMPL_DERIVED` |
 | `thresholds.py` | config + shared cut-points (owned by wp-contracts) | `load_thresholds()`, `tercile_cutpoints(values) -> (t1, t2)`, `tercile_of(value, cuts)` |
 | `schemas/*.schema.json` | runtime copies of `contracts/schemas/` | loaded by `records.py` validation and `cli.py report --validate` |
-| `inventory.py` | inventory | `build_inventory(suite: SuiteSpec) -> list[TestEntry]`; `SuiteSpec(name, root, test_paths, python, pytest_args)` from `config/suites.json` |
+| `inventory.py` | inventory | `build_inventory(suite: SuiteSpec) -> list[TestEntry]`; `SuiteSpec(name, project_root, test_paths, source_roots, pytest_args)` from `config/suites.json` |
 | `static_checks.py` | static | `run_static(entries) -> list[StageRecord]`; the six rules are defined normatively in the spec's "Deterministic Static Test Checks" requirement |
 | `judged.py` | Jev | `run_judged(entries, *, dry_run) -> list[StageRecord]` |
 | `isolation.py` | sandbox copy | `isolated_copy(repo_root, paths) -> ContextManager[Path]` |
@@ -71,11 +71,16 @@ neither `TYPESAFE_API_KEY` nor an LLM API key is present in the planning session
   No stage raises on unavailable dependencies.
 - **Joining.** Stages are independent and can be re-run. `analysis.py` joins the stage records on
   `test_id`.
-- **Suite interpreter.** Collection (inventory) and every test execution (mutation, rename) run
-  as a subprocess of `SuiteSpec.python`, the suite's own venv interpreter, with
-  `SuiteSpec.pytest_args` (for the `skills/` suite: `--import-mode=importlib`). The package's own
-  interpreter never imports audited test modules. `config/suites.json` holds the two pilot
-  `SuiteSpec`s; the CLI's `--suite <name>` selects one.
+- **Suite environment.** Collection (inventory) and every test execution (mutation, rename) run
+  as a subprocess `uv run --project <SuiteSpec.project_root> --with pytest-cov --with
+  "mutmut>=3.8,<4" pytest <SuiteSpec.pytest_args> ...` (for the `skills/` suite:
+  `--import-mode=importlib`). `--with` overlays the audit's tools on the suite's own environment
+  without editing its `pyproject.toml` or lockfile, which neither suite declares `pytest-cov`,
+  `mutmut` or `libcst` in. Inside an isolated copy, `project_root` is the copy's project. The
+  package's own interpreter never imports audited test modules. `config/suites.json` holds the
+  two pilot `SuiteSpec`s (`test_evaluation`: project `agent-coordinator`, source root
+  `agent-coordinator/evaluation`; `parallel_infrastructure`: project `skills`, source root
+  `skills/parallel-infrastructure/scripts`); the CLI's `--suite <name>` selects one.
 - **Schema runtime copy.** `contracts/schemas/*.schema.json` is the source of truth while the
   change is active, but it moves on archive and is not importable by ri-07 or ri-08. The package
   therefore ships byte-identical copies under `src/test_oracle_audit/schemas/`, and a contract test
@@ -88,7 +93,8 @@ neither `TYPESAFE_API_KEY` nor an LLM API key is present in the planning session
   (`judged_impl_derived_p`, `co_change_high`) come from `config/thresholds.json` through
   `load_thresholds()`; no module holds a threshold literal.
 - **Test tree ownership.** `tests/conftest.py` belongs to wp-contracts and holds only
-  `schema_validator`, `fixture_project` and the `stub_decide` re-export. Stage packages keep their
+  `schema_validator` and `fixture_project` (judged tests import
+  `system_one_decisions.testing.stub_decide` directly). Stage packages keep their
   helpers inside their own `test_<stage>*.py` modules, so the five parallel packages never touch a
   shared test file.
 - **Reused code.** Inventory reuses the import-based test-to-module mapping from
@@ -143,7 +149,9 @@ The vocabulary answers: *where do this test's expected values come from?*
   - It uses mutmut 3.x to generate mutants and trampolines for the sampled source modules.
   - For each sampled mutant, it runs the tests that cover the mutated function with
     `MUTANT_UNDER_TEST=<id>` and reads per-test outcomes from JUnit XML.
-  - Covering tests come from one coverage run with dynamic contexts (`--cov-context=test`).
+  - Covering tests come from one coverage run with dynamic contexts (`--cov-context=test`),
+    executed in the suite environment (D1) so the coverage plugin and the trampolines resolve
+    there. The spike (3.1) confirms both resolve under `uv run --with`.
 - **Mutant record.** Each mutant becomes
   `MutantResult(mutant_id, module, function, operator, covered_by[], killed_by[], status)`.
 - **Per-test kill rate.**
@@ -304,6 +312,11 @@ delta and Youden's J are each a few lines. Seeded bootstrap with 2,000 resamples
 | Jev `P(intent-derived)` vs human label | AUC; threshold by Youden's J | threshold marked **provisional** |
 
 - Any cell with n < 20 is reported `insufficient` and given no point estimate.
+- Rename records with `low_confidence: true` (D5) are excluded from the Brier comparison and from
+  `coupled_spec_test` (D11); the excluded count is reported in the approach-coverage table.
+- Per-suite kill-rate tercile cut-points (D1, `thresholds.tercile_cutpoints`) are written to
+  `analysis.json` under `tercile_cutpoints` so the report and the explain stage cite the same
+  numbers.
 - The report's "linter candidates" list includes only rules and questions that pass their
   decision rule.
 
@@ -342,6 +355,12 @@ The disagreement report lists named classes of disagreement, each with its tests
   synced copy `openspec/schemas/skill-audit-findings.schema.json`. The change is append-only, so
   every existing ledger still validates. A test re-validates the committed ledgers under
   `docs/reports/skill-audit/` to prove it.
+- **Outputs.** The lens writes `docs/reports/skill-audit/<skill>-test-policy-findings.json` and
+  `<skill>-test-policy-<date>.md`. It never overwrites the rightsizing audit's
+  `<skill>-findings.json` or its dated report, and it does not count as that skill's freshness
+  report, so the `skill-audit-freshness` CI job is unaffected. The ledger-validation test
+  (scenario "Existing ledgers still validate") globs `*-findings.json`, which includes the lens
+  ledgers.
 - **Read-only** over audited skills, as before.
 - **Precondition.** `add-skill-audit` is merged to `main` (true as of 2026-10-13: 31/31 tasks,
   validation pass). Archival is preferred but not required: its capabilities

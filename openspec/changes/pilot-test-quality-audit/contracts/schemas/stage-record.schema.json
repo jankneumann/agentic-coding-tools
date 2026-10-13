@@ -399,7 +399,8 @@
       "required": [
         "survives",
         "renamed_symbols",
-        "unrenamable_symbols"
+        "unrenamable_symbols",
+        "low_confidence"
       ],
       "properties": {
         "survives": {
