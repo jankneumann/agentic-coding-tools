@@ -161,6 +161,9 @@ class SuiteSpec:
     test_paths: tuple[str, ...]
     source_roots: tuple[str, ...]
     pytest_args: tuple[str, ...] = ()
+    # Optional-dependency extras the suite's own project needs to run its tests
+    # (`uv run --project <root> --extra <x>`); spike 3.1, design D4.
+    uv_extras: tuple[str, ...] = ()
 
 
 def load_suites(path: Path | None = None) -> dict[str, SuiteSpec]:
@@ -177,6 +180,7 @@ def load_suites(path: Path | None = None) -> dict[str, SuiteSpec]:
             test_paths=tuple(spec["test_paths"]),
             source_roots=tuple(spec["source_roots"]),
             pytest_args=tuple(spec.get("pytest_args", ())),
+            uv_extras=tuple(spec.get("uv_extras", ())),
         )
         for name, spec in raw.items()
     }

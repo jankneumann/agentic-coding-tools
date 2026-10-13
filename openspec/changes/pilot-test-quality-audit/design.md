@@ -168,6 +168,23 @@ The vocabulary answers: *where do this test's expected values come from?*
   module, so one large module (e.g. the 3.6k-line `review_dispatcher.py`) cannot take the budget.
 - **Reuse by ri-07.** ri-07 imports `MutationRunner` and `run_mutation` and aggregates per-suite
   scores. The public signatures are a contract (`contracts/schemas/mutation-result.schema.json`).
+- **Spike verdict (task 3.1, 2026-10-13): AST runner is primary; mutmut stays as a probed
+  backend.** Run on an isolated worktree copy of `agent-coordinator` with `evaluation/config.py`:
+  - **Environment works, with extras.** `uv run --project <copy> --extra dev --with pytest-cov
+    --with "mutmut>=3.8,<4"` resolves mutmut 3.8.0 and pytest-cov 7.1.0 over the suite's own
+    lockfile. Without `--extra dev`, `tests/conftest.py` fails on `respx`. `SuiteSpec` therefore
+    gains `uv_extras` (`dev` for agent-coordinator, `test` for skills).
+  - **Generation works.** mutmut produced 285 trampolined mutants for the 201-line module.
+  - **Execution does not work for this suite.** mutmut relocates sources and tests into
+    `mutants/` and requires a green baseline there. 53/54 `test_evaluation` tests passed, but
+    `test_harness_migration.py::...::test_no_agent_invokes_gemini_or_jules_cli` reads repository
+    files outside the relocated tree and fails, so mutmut refuses to run (`failed to collect
+    stats`). Any test that reads repo-relative files hits the same wall. It is a property of the
+    relocation, not of this one test, and skipping or deselecting tests is not allowed.
+  - **Consequence.** `MutmutRunner.probe` is the baseline stats run. When it fails, the audit
+    uses `AstMutantRunner`, which mutates files inside the full isolated repo copy so tests run
+    in their normal layout. `AstMutantRunner` is the expected backend for both pilot suites; the
+    backend is recorded on every record.
 
 ### D5: Refactor survival means renaming private symbols
 
