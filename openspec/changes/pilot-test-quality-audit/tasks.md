@@ -38,7 +38,7 @@
 
 ## 1. Contracts and package skeleton (wp-contracts)
 
-- [ ] 1.1 Write failing contract tests. [S]
+- [x] 1.1 Write failing contract tests. [S]
   - Records serialize to JSON that validates against each `contracts/schemas/*.schema.json`.
   - The vocabulary has exactly seven values with the D2 binary partition.
   - The ledger records content hashes, marks stale entries, ignores whitespace-only edits, and
@@ -54,7 +54,7 @@
   **Contracts**: contracts/schemas/stage-record.schema.json, contracts/schemas/label-ledger.schema.json, contracts/schemas/mutation-result.schema.json, contracts/schemas/analysis-report.schema.json
   **Design decisions**: D1, D2, D9
   **Dependencies**: None
-- [ ] 1.2 Scaffold `packages/test-oracle-audit`. [S]
+- [x] 1.2 Scaffold `packages/test-oracle-audit`. [S]
   - `pyproject.toml`: depends on `libcst` and `system-one-decisions` (path dependency); extras
     `mutation` (`mutmut>=3.8,<4`, `pytest-cov`) and `dev`.
   - `records.py`, `vocabulary.py`, `thresholds.py` (config loader, tercile cut-points).
@@ -67,9 +67,9 @@
   - `tests/_shared/openspec_paths.py`.
 
   **Dependencies**: 1.1
-- [ ] 1.3 Implement `ledger.py`: load, add, save, and the content-hash staleness check. [S]
+- [x] 1.3 Implement `ledger.py`: load, add, save, and the content-hash staleness check. [S]
   **Dependencies**: 1.2
-- [ ] Checkpoint: run the package tests, review the diff, verify the write scope is limited to wp-contracts.
+- [x] Checkpoint: run the package tests, review the diff, verify the write scope is limited to wp-contracts.
 
 ## 2. Inventory and static checks (wp-inventory-static)
 
