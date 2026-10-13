@@ -28,6 +28,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent / "fixtures" / "analysis"))
 
 import analysis_builders as b
+
 from test_oracle_audit.disagreement import classify_disagreements
 
 CLASSES = {"weak_assertions", "static_blind_spot", "coupled_spec_test", "judge_vs_human", "rubber_stamp"}

@@ -265,7 +265,7 @@
 
 ## 8. Integration (wp-integration)
 
-- [ ] 8.1 Write a failing end-to-end dry-run test. [S]
+- [x] 8.1 Write a failing end-to-end dry-run test. [S]
   - The CLI runs every stage over the committed fixture repo with no keys.
   - Afterwards, `git status --porcelain` over the fixture's source and test dirs is empty, and no
     test, conftest or pyproject file is modified.
@@ -273,10 +273,10 @@
   **Spec scenarios**: test-oracle-audit.5, test-oracle-audit.6
   **Design decisions**: D3, D15
   **Dependencies**: 2.2, 2.4, 3.5, 3.8, 4.2, 5.2, 5.4, 6.2, 6.7
-- [ ] 8.2 Implement `cli.py` with the subcommands `inventory`, `static`, `judge`, `mutate`,
+- [x] 8.2 Implement `cli.py` with the subcommands `inventory`, `static`, `judge`, `mutate`,
   `refactor`, `history`, `explain`, `label`, `analyze`, `report` and `run-all`. [S]
   **Dependencies**: 8.1
-- [ ] 8.3 Add the `test-oracle-audit-tests` CI job, modeled on `system-one-decisions-tests`.
+- [x] 8.3 Add the `test-oracle-audit-tests` CI job, modeled on `system-one-decisions-tests`.
   Confirm `skills/tests/ci_coverage` still passes. [S]
   **Dependencies**: 8.2
 - [ ] 8.4 Write the package `README.md`: stages, run commands, environment prerequisites (D15), and

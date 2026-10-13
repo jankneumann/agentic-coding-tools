@@ -44,10 +44,10 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from test_oracle_audit.isolation import IsolatedCopy, isolated_copy
-from test_oracle_audit.mutation import AstMutantRunner, MutantResult, MutmutRunner, run_mutation
 
 from test_oracle_audit import mutation
+from test_oracle_audit.isolation import IsolatedCopy, isolated_copy
+from test_oracle_audit.mutation import AstMutantRunner, MutantResult, MutmutRunner, run_mutation
 from test_oracle_audit.records import StageRecord, SuiteSpec, TestEntry, TestId, content_hash
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "execution"

@@ -23,9 +23,9 @@ import sys
 from pathlib import Path
 
 import pytest
-from test_oracle_audit.static_checks import RULE_IDS, run_static
 
 from test_oracle_audit.records import TestEntry, TestId, content_hash, load_schema
+from test_oracle_audit.static_checks import RULE_IDS, run_static
 
 EXPECTED_RULES = {
     "assertion_free",

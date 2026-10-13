@@ -24,6 +24,7 @@ import tempfile
 from pathlib import Path
 
 import pytest
+
 from test_oracle_audit.isolation import IsolatedCopy, isolated_copy
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "execution"

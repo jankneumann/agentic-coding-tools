@@ -41,9 +41,9 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent / "fixtures" / "analysis"))
 
 import analysis_builders as b
+
 from test_oracle_audit.analysis import analyze
 from test_oracle_audit.disagreement import classify_disagreements
-
 from test_oracle_audit.records import StageRecord
 from test_oracle_audit.thresholds import load_thresholds, tercile_cutpoints
 
