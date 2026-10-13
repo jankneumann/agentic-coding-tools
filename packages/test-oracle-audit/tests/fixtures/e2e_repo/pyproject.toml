@@ -1,0 +1,5 @@
+[project]
+name = "mini"
+version = "0.0.0"
+description = "Tiny fixture project for the test-oracle-audit end-to-end dry-run."
+requires-python = ">=3.10"
