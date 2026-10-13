@@ -171,7 +171,13 @@ work_unit_ref)` and refuses to dispatch a metered lane without one (`spend_conte
 children, spend past the coordinator ceiling. So every time `ReviewOrchestrator.dispatch_and_wait`
 is about to dispatch a metered lane (once per round, on every path, including
 `CompositeOrchestrator`, which calls it), it re-runs the same budget check the probe uses
-(task 3.6) against the current `metered_usd_used`. The check lives in the dispatch layer, next to
+(task 3.6) against the current `metered_usd_used`. `GET /routing/usage` counts only ledger rows, so
+for the coordinator source the re-check also counts the `actual_usd` total of the change's
+unreplayed `reviews/spend-spool.jsonl` rows as used (remaining = `metered_ceiling_usd −
+metered_usd_used − spooled_usd`); the budget function takes the spooled total as an input, which
+the probe, having no change context, passes as 0. Without this, a worker whose usage read
+succeeds while its spend write fails (the partly-forbidden coordinator case below) would keep
+passing the re-check while every round's spend spools. The check lives in the dispatch layer, next to
 the probe code and the spend recording (task 3.10), not in `converge()`, which stays
 vendor-agnostic and knows nothing about which lanes are metered. A lane whose remaining budget is now below
 `review_reservation_usd` is not dispatched for that round; it is reported as a failed result with
@@ -391,6 +397,9 @@ re-evaluation is expected and is recorded in the session log.
 - **Concurrent overspend under the coordinator ceiling alone.** The per-round re-check (D4)
   narrows it to at most one `review_reservation_usd` per concurrently running child; a key
   credit limit removes it.
+- **Spooled spend in other workers.** The re-check counts only the current change's spool.
+  Rows spooled by other workers stay invisible to the coordinator ceiling until `apply` replays
+  them. A key credit limit bounds this; the cloud setup doc (task 7.1) recommends one.
 
 ## Open questions (for the operator, recorded as decisions with defaults)
 

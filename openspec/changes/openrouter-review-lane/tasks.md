@@ -167,8 +167,10 @@ dataclass fields and the shared ingest helper extracted in 1.7),
 - [ ] 3.11 Write failing tests, then implement the per-round budget re-check (design D4) in
   `ReviewOrchestrator.dispatch_and_wait`: before dispatching a metered lane it re-runs the
   probe's budget function (task 3.6); a lane below `review_reservation_usd` is not dispatched
-  and is returned `vendor_unavailable` (`spend_ceiling_exceeded`). Test: budget available at
-  probe, exhausted before the second dispatch → that dispatch skips the lane, records no spend.
+  and is returned `vendor_unavailable` (`spend_ceiling_exceeded`). For the coordinator source it
+  counts the change's unreplayed spool total as used (design D4). Tests: budget available at probe,
+  exhausted before the second dispatch → that dispatch skips the lane, records no spend; key limit
+  null, coordinator remaining 1.5, spool total 1.0, reservation 1.0 → the lane is skipped.
 
 ## 4. Spend recording route and client
 
@@ -230,7 +232,8 @@ parallel-infrastructure "Metered Review Lane Spend Accounting" (checkpoint part)
   does not call `spend_recorder.record()` itself. Update `_review_body` to list the lanes.
 - [ ] 5.6 Write failing tests, then implement:
   - `converge()` accepts an optional `phase` and, when it is set, passes
-    `work_unit_ref=<change_id>:<phase>:round-<n>` to `dispatch_and_wait` (via `_accepts_kwarg`);
+    `spend_context=SpendContext(change_id, "<change_id>:<phase>:round-<n>")` to `dispatch_and_wait`
+    (via `_accepts_kwarg`; the keyword and dataclass are the ones task 3.10 adds);
     `agent_lane.py` passes its `--phase`.
   - `converge()` builds the tool-less packet (task 3.8a) when the primary packet overflows, and
     passes the tool-less packet as `dispatch_and_wait(..., toolless_packet_path=...)` (design D6).
@@ -252,7 +255,8 @@ parallel-infrastructure "Metered Review Lane Spend Accounting" (checkpoint part)
 ## 6. Supervisor ranking, apply-time replay, and worker protocol
 
 **Files:** `skills/supervise/scripts/execution.py`, `skills/tests/supervise/test_execution_profile.py`,
-`skills/autopilot/SKILL.md` (the review-section protocol text only)
+`skills/autopilot/SKILL.md` (the review-section protocol text and the host-path `converge(...)`
+examples only)
 **Depends:** 3 (the `lane_kinds` shape), 4 (the replay CLI)
 **Specs:** supervise "Execution Profile and Review Requirements" (MODIFIED)
 
@@ -266,6 +270,11 @@ parallel-infrastructure "Metered Review Lane Spend Accounting" (checkpoint part)
   - In cloud, run `agent_lane.py converge --verified-lanes <each lane from execution_profile.lanes.review>`.
   - A `capability_unavailable` result maps to `runner.py park --kind capability_unavailable`.
   - Record the degradation `metered_spend_unrecorded` when the result reports it.
+  - Every host-path `converge(...)` example (the PLAN_REVIEW inline fallback and the IMPL_REVIEW
+    and VAL_REVIEW equivalents) passes `phase="<PLAN_REVIEW|IMPL_REVIEW|VAL_REVIEW>"`. Without it
+    `converge()` sends no `spend_context`, and a metered lane that D5 selects on a host is refused
+    with `spend_context_missing` (task 3.10). Extend the SKILL guard test to assert that each host
+    `converge(` example names `phase=`.
   
   Keep the env-probing guard test green.
 
@@ -306,7 +315,7 @@ parallel-infrastructure "Metered Review Lane Spend Accounting" (checkpoint part)
 |---|---|
 | parallel-infrastructure: OpenAI-Compatible Dispatcher Discovery | 2.1–2.3, 3.1–3.4, 3.9 |
 | parallel-infrastructure: Dispatchable Vendor Verification | 1.1–1.2, 3.5–3.7, 3.9 |
-| parallel-infrastructure: Metered Review Lane Spend Accounting | 1.3–1.4, 3.10–3.11, 4.3–4.4, 5.2, 5.5, 5.7 |
+| parallel-infrastructure: Metered Review Lane Spend Accounting | 1.3–1.4, 3.10–3.11, 4.3–4.4, 5.2, 5.5–5.7, 6.4 |
 | parallel-infrastructure: Tool-less Lane Packet Refusal | 1.5–1.7, 3.8, 3.8a, 5.6 |
 | skill-workflow: Honest Review Quorum | 5.1–5.3 |
 | skill-workflow: Composite Agent-Lane Review | 5.4–5.6, 6.4 |
