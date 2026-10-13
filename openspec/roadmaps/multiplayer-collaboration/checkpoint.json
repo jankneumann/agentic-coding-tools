@@ -4,7 +4,7 @@
   "current_item_id": "ri-01",
   "phase": "completed",
   "created_at": "2026-10-05T06:52:22.688525+00:00",
-  "updated_at": "2026-10-12T02:51:15.102825+00:00",
+  "updated_at": "2026-10-13T00:41:14.667400+00:00",
   "completed_items": [
     "ri-01",
     "ri-21",
@@ -1728,6 +1728,61 @@
       "item_id": "ri-22",
       "lease_generation": 3,
       "note": "Operator in the supervisor session at 2026-10-12: \"resume ri-22\". PLAN_REVIEW hit max_iter with 0 blocking findings left; re-enter PLAN_REVIEW for one more round (also address D9 wording, findings #3 missing_lanes and #7 probe-time spend)."
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "posture",
+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
+      },
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-13T00:41:12.613102+00:00",
+      "decision_id": "b8863ed2-c609-4c38-bf56-1f07930af887",
+      "source": "supervise",
+      "verb": "resume",
+      "roadmap_id": "multiplayer-collaboration",
+      "change_id": "openrouter-review-lane",
+      "dispatch_id": "batch-d8913c4d8e973cd7940e2d09:ri-22:attempt-1",
+      "item_id": "ri-22",
+      "lease_generation": 4
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' approved by the operator \u2014 Operator in the supervisor session (2026-10-13): \"Merge 688,689 and approving resume of ri-22. Fix review ledger tooling\". Ledger adjudication and plan fixes #16-#18 landed in 62590065; resume re-enters PLAN_REVIEW.",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "human",
+        "approval_ref": null
+      },
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-13T00:41:13.143010+00:00",
+      "decision_id": "529a0f1a-5b6e-4cb5-940c-ee0a519da077",
+      "source": "supervise",
+      "verb": "resume",
+      "roadmap_id": "multiplayer-collaboration",
+      "change_id": "openrouter-review-lane",
+      "dispatch_id": "batch-d8913c4d8e973cd7940e2d09:ri-22:attempt-1",
+      "item_id": "ri-22",
+      "lease_generation": 4,
+      "note": "Operator in the supervisor session (2026-10-13): \"Merge 688,689 and approving resume of ri-22. Fix review ledger tooling\". Ledger adjudication and plan fixes #16-#18 landed in 62590065; resume re-enters PLAN_REVIEW."
     }
   ],
   "dispatch_attempts": [
@@ -3321,11 +3376,11 @@
       "change_id": "openrouter-review-lane",
       "phase": "autopilot",
       "attempt": 1,
-      "status": "parked",
+      "status": "launched",
       "prepared_at": "2026-10-10T10:46:57.575028+00:00",
-      "launch_digest": "sha256:aede0bc763effdb0d47efb413e46faf7f5c75cf190a32e2553e7a42f39acbb09",
+      "launch_digest": "sha256:a96dfe17b4b6fe32033dfe6f763544cc037f739fef5450ed93bece6b99930a81",
       "launch_marker_path": ".supervised-dispatch/openrouter-review-lane/ri-22-attempt-1.marker",
-      "lease_generation": 4,
+      "lease_generation": 5,
       "launch_history": [
         {
           "generation": 1,
@@ -3450,6 +3505,37 @@
           "marker_path": ".supervised-dispatch/openrouter-review-lane/ri-22-attempt-1.marker",
           "observed_at": "2026-10-12T02:35:30.870115+00:00",
           "handle": "session_01WEjMymwXbwu2rAeaoMeEeU#g4"
+        },
+        {
+          "generation": 5,
+          "owner_nonce": "owner-nonce-1791852073522",
+          "state": "claimed",
+          "marker_path": ".supervised-dispatch/openrouter-review-lane/ri-22-attempt-1.marker",
+          "observed_at": "2026-10-13T00:41:14.094416+00:00"
+        },
+        {
+          "generation": 5,
+          "owner_nonce": "owner-nonce-1791852073522",
+          "state": "acknowledged",
+          "marker_path": ".supervised-dispatch/openrouter-review-lane/ri-22-attempt-1.marker",
+          "observed_at": "2026-10-13T00:41:14.400973+00:00",
+          "handle": "session_01WEjMymwXbwu2rAeaoMeEeU#g5"
+        },
+        {
+          "generation": 5,
+          "owner_nonce": "owner-nonce-1791852073522",
+          "state": "go_released",
+          "marker_path": ".supervised-dispatch/openrouter-review-lane/ri-22-attempt-1.marker",
+          "observed_at": "2026-10-13T00:41:14.400973+00:00",
+          "handle": "session_01WEjMymwXbwu2rAeaoMeEeU#g5"
+        },
+        {
+          "generation": 5,
+          "owner_nonce": "owner-nonce-1791852073522",
+          "state": "entered",
+          "marker_path": ".supervised-dispatch/openrouter-review-lane/ri-22-attempt-1.marker",
+          "observed_at": "2026-10-13T00:41:14.663813+00:00",
+          "handle": "session_01WEjMymwXbwu2rAeaoMeEeU#g5"
         }
       ],
       "scope": {
@@ -3538,105 +3624,30 @@
           "phase": "ESCALATE"
         }
       ],
+      "continuation": {
+        "kind": "pending_gate",
+        "approval_ref": "gate-decision:529a0f1a-5b6e-4cb5-940c-ee0a519da077"
+      },
       "lease": {
-        "generation": 4,
-        "owner_nonce": "owner-nonce-1791772529422",
-        "state": "released",
-        "acquired_at": "2026-10-12T02:35:30.012671+00:00",
-        "heartbeat_at": "2026-10-12T02:35:30.012671+00:00",
-        "expires_at": "2026-10-12T02:50:30.012671+00:00"
+        "generation": 5,
+        "owner_nonce": "owner-nonce-1791852073522",
+        "state": "active",
+        "acquired_at": "2026-10-13T00:41:14.094416+00:00",
+        "heartbeat_at": "2026-10-13T00:41:14.094416+00:00",
+        "expires_at": "2026-10-13T00:56:14.094416+00:00"
       },
       "launch_evidence": {
         "kind": "host_ack",
-        "generation": 4,
-        "handle": "session_01WEjMymwXbwu2rAeaoMeEeU#g4",
-        "observed_at": "2026-10-12T02:35:30.482643+00:00"
+        "generation": 5,
+        "handle": "session_01WEjMymwXbwu2rAeaoMeEeU#g5",
+        "observed_at": "2026-10-13T00:41:14.400973+00:00"
       },
       "launch_gate": {
-        "generation": 4,
+        "generation": 5,
         "state": "entered",
-        "handle": "session_01WEjMymwXbwu2rAeaoMeEeU#g4",
-        "go_released_at": "2026-10-12T02:35:30.482643+00:00",
-        "entered_at": "2026-10-12T02:35:30.870115+00:00"
-      },
-      "application_journal": {
-        "schema_version": 1,
-        "state": "effects_applied",
-        "result": {
-          "attempt": 1,
-          "branch": "openspec/openrouter-review-lane",
-          "change_id": "openrouter-review-lane",
-          "degradations": [
-            {
-              "code": "coordinator_projection_forbidden",
-              "detail": "project-state submit returned forbidden",
-              "phase": "INIT"
-            },
-            {
-              "code": "audit_sink_failed",
-              "detail": "audit sink reported failure for gate proposal_approval decision posture_block",
-              "phase": "PLAN"
-            },
-            {
-              "code": "audit_sink_failed",
-              "detail": "audit sink reported failure for gate proposal_approval decision auto (gen 3)",
-              "phase": "PLAN"
-            },
-            {
-              "code": "single_vendor_review",
-              "detail": "vendor=claude_code; cloud policy cloud-container-single-vendor-2026-10-09 min_quorum 1",
-              "phase": "PLAN_REVIEW"
-            },
-            {
-              "code": "audit_sink_failed",
-              "detail": "audit sink reported failure for gate escalate_resume decision posture_block",
-              "phase": "ESCALATE"
-            },
-            {
-              "code": "single_vendor_review",
-              "detail": "gen 4 re-entry: vendor=claude_code; cloud policy cloud-container-single-vendor-2026-10-09 min_quorum 1",
-              "phase": "PLAN_REVIEW"
-            },
-            {
-              "code": "audit_sink_failed",
-              "detail": "gen 4: audit sink reported failure for gate escalate_resume decision posture_block",
-              "phase": "ESCALATE"
-            }
-          ],
-          "dispatch_id": "batch-d8913c4d8e973cd7940e2d09:ri-22:attempt-1",
-          "evidence": {
-            "commit": "ab4178a85ee8d1cd029b4a7bbbb45248355beb6e",
-            "loop_state_digest": "fa4567f13aff4f45e69e47acb46e1154bd5f257abf50733838b9083444557b57",
-            "loop_state_path": "openspec/changes/openrouter-review-lane/loop-state.json"
-          },
-          "host_id": "machine-dc39bf1e25efdf45",
-          "lease_generation": 4,
-          "outcome": "parked",
-          "parked": {
-            "deadline": null,
-            "gate": "escalate_resume",
-            "kind": "pending_gate",
-            "reason": "Has this escalation been resolved? Resume the loop?",
-            "resume_hint": "answer gate escalate_resume through the resume request's gate_answer"
-          },
-          "schema_version": 2,
-          "worktree_ref": "openrouter-review-lane"
-        },
-        "result_digest": "24c77c23d80fe079ca414a95c05ff8bbe852db504a8e2e4f185607049016b068",
-        "bound_at": "2026-10-12T02:51:14.838778+00:00",
-        "callback_started_at": "2026-10-12T02:51:14.884651+00:00",
-        "callback_acknowledged_at": "2026-10-12T02:51:14.948818+00:00",
-        "terminal_persisted_at": "2026-10-12T02:51:14.998006+00:00",
-        "effects_applied_at": "2026-10-12T02:51:15.097104+00:00"
-      },
-      "outcome": "parked",
-      "resolved_at": "2026-10-12T02:51:14.997905+00:00",
-      "parked": {
-        "deadline": null,
-        "gate": "escalate_resume",
-        "kind": "pending_gate",
-        "reason": "Has this escalation been resolved? Resume the loop?",
-        "resume_hint": "answer gate escalate_resume through the resume request's gate_answer"
+        "handle": "session_01WEjMymwXbwu2rAeaoMeEeU#g5",
+        "go_released_at": "2026-10-13T00:41:14.400973+00:00",
+        "entered_at": "2026-10-13T00:41:14.663813+00:00"
       }
     }
   ]
