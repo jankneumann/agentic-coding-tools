@@ -1,0 +1,86 @@
+{
+  "schema_version": 5,
+  "change_id": "pilot-test-quality-audit",
+  "current_phase": "PLAN_ITERATE",
+  "iteration": 0,
+  "total_iterations": 3,
+  "max_phase_iterations": 3,
+  "findings_trend": [],
+  "blocking_findings": [],
+  "vendor_availability": {
+    "claude_code": true,
+    "codex": true
+  },
+  "packages_status": {},
+  "package_authors": {},
+  "implementation_strategy": {},
+  "memory_ids": [],
+  "handoff_ids": [
+    "gatekeeper-pilot-test-quality-audit-20261013"
+  ],
+  "phase_history": [
+    {
+      "at": "2026-10-13T00:57:06.699405+00:00",
+      "outcome": "proceed",
+      "phase": "GATEKEEPER"
+    }
+  ],
+  "last_handoff_id": "gatekeeper-pilot-test-quality-audit-20261013",
+  "started_at": "2026-10-13T00:55:05.701936+00:00",
+  "phase_started_at": "2026-10-13T01:04:59.646208+00:00",
+  "previous_phase": null,
+  "escalation_reason": null,
+  "val_review_enabled": false,
+  "cli_review_enabled": true,
+  "error": null,
+  "phase_archetype": "architect",
+  "force": false,
+  "gate_signals": {
+    "external_dep_count": 0,
+    "has_broad_write_scope": false,
+    "has_db_migration": false,
+    "has_proposal": true,
+    "has_security_signal": false,
+    "has_specs": true,
+    "has_tasks": true,
+    "has_work_packages": true,
+    "package_count": 8,
+    "total_loc_estimate": 4750
+  },
+  "gate_verdict": null,
+  "gate_decisions": [
+    {
+      "gate": "proposal_approval",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'proposal_approval' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "PLAN",
+      "recorded_at": "2026-10-13T00:57:15.614952+00:00"
+    },
+    {
+      "gate": "proposal_approval",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'proposal_approval' approved by the operator \u2014 Operator approved via console 2026-10-13 (also approved at plan-feature Gate 2)",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "PLAN",
+      "recorded_at": "2026-10-13T01:04:50.416604+00:00",
+      "note": "Operator approved via console 2026-10-13 (also approved at plan-feature Gate 2)"
+    }
+  ],
+  "pending_gate": null,
+  "goal_gate": null
+}
