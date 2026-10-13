@@ -73,26 +73,26 @@
 
 ## 2. Inventory and static checks (wp-inventory-static)
 
-- [ ] 2.1 Write failing inventory tests over a fixture mini-project: deterministic output,
+- [x] 2.1 Write failing inventory tests over a fixture mini-project: deterministic output,
   parametrized cases sharing one content hash, resolved fixtures, covered modules, and an
   uncollectable file yielding an `error` record without aborting. [S]
   **Spec scenarios**: test-oracle-audit.8, test-oracle-audit.9, test-oracle-audit.10
   **Contracts**: contracts/schemas/stage-record.schema.json (InventoryPayload)
   **Design decisions**: D1
   **Dependencies**: 1.2
-- [ ] 2.2 Implement `inventory.py`. Vendor the test-to-module mapping from `test_linker` with a
+- [x] 2.2 Implement `inventory.py`. Vendor the test-to-module mapping from `test_linker` with a
   provenance comment, and resolve fixtures through pytest's fixture manager. [M]
   **Dependencies**: 2.1
-- [ ] 2.3 Write failing static-check tests: one positive and one negative fixture per rule id, a
+- [x] 2.3 Write failing static-check tests: one positive and one negative fixture per rule id, a
   behaviour-only test that fires no rule, and a module that raises at import time and is still
   analysed. [S]
   **Spec scenarios**: test-oracle-audit.11, test-oracle-audit.12, test-oracle-audit.13, test-oracle-audit.14, test-oracle-audit.15, test-oracle-audit.16, test-oracle-audit.17, test-oracle-audit.18
   **Contracts**: contracts/schemas/stage-record.schema.json (StaticPayload)
   **Design decisions**: D1
   **Dependencies**: 1.2
-- [ ] 2.4 Implement `static_checks.py`. It is AST-only and never imports test modules. [M]
+- [x] 2.4 Implement `static_checks.py`. It is AST-only and never imports test modules. [M]
   **Dependencies**: 2.3
-- [ ] Checkpoint: run the package tests, review the diff, verify scope.
+- [x] Checkpoint: run the package tests, review the diff, verify scope.
 
 ## 3. Execution evidence (wp-execution)
 
