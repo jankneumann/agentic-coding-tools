@@ -267,7 +267,7 @@ def read_records(path: Path) -> list[StageRecord]:
 # --- schema validation ----------------------------------------------------
 
 
-@functools.lru_cache(maxsize=None)
+@functools.cache
 def load_schema(name: str) -> dict[str, Any]:
     """A runtime schema copy by short name, e.g. ``"stage-record"``."""
     filename = name if name.endswith(".json") else f"{name}.schema.json"
