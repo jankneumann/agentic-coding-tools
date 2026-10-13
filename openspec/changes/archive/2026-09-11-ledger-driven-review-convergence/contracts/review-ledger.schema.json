@@ -50,6 +50,9 @@
           "consensus_status": {
             "type": "string",
             "enum": ["confirmed", "unconfirmed", "disagreement"]
+          },
+          "fix_touched_file": {
+            "type": "boolean"
           }
         }
       }

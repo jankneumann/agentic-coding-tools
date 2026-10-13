@@ -1,0 +1,10 @@
+git
+curl
+jq
+make
+build-essential
+unzip
+xz-utils
+zstd
+ca-certificates
+python3

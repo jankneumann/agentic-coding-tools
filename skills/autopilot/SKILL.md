@@ -115,6 +115,15 @@ carries no token.
   marker's `gate_answer`: `runner.py gate-answer <change-id> --gate <gate>
   --decision <decision> --approval-ref <gate_answer.approval_ref>`. Never answer or
   re-evaluate a pending gate yourself; `gate-check` prints it unchanged.
+- **Cloud workers (no launch marker).** The supervisor relays its answer as a message
+  naming `gate-decision:<id>`. Apply it only with `runner.py relayed-gate-answer
+  <change-id> --gate <gate> --decision <decision> --approval-ref <ref>
+  [--resume-at VALIDATE]`. It fetches the roadmap branch and records the answer only if
+  that decision is committed there for this change and gate, is the latest one, and
+  its attempt is where that decision leaves it (relaunched after an approval, still
+  parked after a rejection); otherwise, or when the fetch fails, it exits 2 and
+  records nothing. Never use plain `gate-answer` for a relayed answer, and never push to
+  `openspec/roadmap-*`.
 - **Permission denials.** When the harness denies a tool call, do not retry or wait:
   `runner.py park <change-id> --kind permission_blocked --tool <tool> --rule "<matched
   rule>" --command "<command>" --reason "<classifier reason>"`, commit

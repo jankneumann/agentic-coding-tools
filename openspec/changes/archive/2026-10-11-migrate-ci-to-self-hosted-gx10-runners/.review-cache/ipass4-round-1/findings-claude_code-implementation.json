@@ -1,0 +1,119 @@
+{
+  "review_type": "implementation",
+  "target": "migrate-ci-to-self-hosted-gx10-runners",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "resilience",
+      "criticality": "medium",
+      "description": "mint-jitconfig.sh exits 1 immediately on any non-retryable HTTP status (401/403/404/422 \u2014 e.g. an expired or revoked 90-day PAT, a renamed repo, a deleted runner group). The unit runs with Restart=always, RestartSec=10 and StartLimitIntervalSec=0, so ExecStartPre is re-run every ~10 s on every instance indefinitely: with 8 instances that is ~48 generate-jitconfig POSTs per minute against the GitHub API with no back-off and no stopping condition. The unit comment promises 'back-off on persistent API failure', but the GX10_MINT_MAX_ELAPSED backoff only covers 5xx/429/000; the non-retryable branch is the one that will fire during a credential outage. Fix: on a non-retryable code, sleep for a long bounded interval (e.g. min(GX10_MINT_MAX_ELAPSED, 600)) before exiting, or write a sentinel the unit's ExecCondition honours, so a dead token degrades to a slow poll rather than a hot loop.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "critical",
+      "evidence_class": "judgment",
+      "file_path": "deploy/gx10-runner/mint-jitconfig.sh",
+      "existing_code": "log \"generate-jitconfig failed with non-retryable HTTP $code\"",
+      "resolution": "Add a bounded long sleep (or sentinel + ExecCondition) before `exit 1` in the non-retryable branch and add a unit test that asserts a 401 stub does not return within the retry window without sleeping.",
+      "line_range": {
+        "start": 143,
+        "end": 143
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Runbook O4 writes the nftables ruleset with `sudo tee /etc/nftables.d/gx10-runner.nft` and later includes it from /etc/nftables.conf. Neither Debian nor Ubuntu ships an /etc/nftables.d/ directory (the stock nftables.conf has no include line and no drop-in dir), so on a fresh GX10 host `tee` fails with 'No such file or directory' and the operator continues to the `nft -f` step with no file. The step needs `sudo mkdir -p /etc/nftables.d` first, and the test for the runbook should assert that mkdir precedes tee.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "evidence_class": "judgment",
+      "file_path": "docs/guides/self-hosted-ci-runners.md",
+      "existing_code": "sudo tee /etc/nftables.d/gx10-runner.nft >/dev/null <<'NFT'",
+      "resolution": "Insert `sudo mkdir -p /etc/nftables.d` before the tee heredoc in O4 and extend the runbook test to require it.",
+      "line_range": {
+        "start": 108,
+        "end": 108
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 3,
+      "type": "resilience",
+      "criticality": "medium",
+      "description": "Runbook O4 runs `sudo systemctl enable --now nftables` after loading the ruleset with `nft -f`. On Ubuntu the nftables service is installed but inactive by default; `--now` therefore starts it, which executes /etc/nftables.conf whose first statement in the stock file is `flush ruleset`. That wipes every table on the host \u2014 including podman's netavark/CNI tables and ufw's \u2014 and then reloads only what the conf includes. The runbook warns only against `systemctl restart nftables`; the `--now` on enable has the identical effect on a host where the service was not already running. Use `sudo systemctl enable nftables` (no --now) after the explicit `nft -f`, and tell the operator to verify `nft list ruleset | grep -c table` is unchanged afterwards.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "nit",
+      "evidence_class": "judgment",
+      "file_path": "docs/guides/self-hosted-ci-runners.md",
+      "existing_code": "sudo systemctl enable --now nftables",
+      "resolution": "Drop `--now`, add the post-check, and update the runbook test accordingly.",
+      "line_range": {
+        "start": 133,
+        "end": 133
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 4,
+      "type": "resilience",
+      "criticality": "medium",
+      "description": "gx10-runner@.service passes `--cpus ${GX10_RUNNER_CPUS}` to a rootless `podman run`. Rootless cgroup v2 limits require the `cpu` controller to be delegated to the user's `user@<uid>.service`; systemd's default delegation for user sessions is `memory pids` (plus `cpuset io cpu` only on newer distros when configured), so on a stock Ubuntu host every container start fails with 'requested cgroup controller `cpu` is not available' and, combined with Restart=always, the eight instances enter an infinite 10 s restart loop before a single job runs. The runbook O1 (ghrunner setup) must install a `/etc/systemd/system/user@.service.d/delegate.conf` drop-in with `[Service]\\nDelegate=cpu cpuset io memory pids`, run daemon-reload, and O4 should verify `cat /sys/fs/cgroup/user.slice/user-$(id -u ghrunner).slice/user@$(id -u ghrunner).service/cgroup.controllers` lists `cpu`.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "nit",
+      "evidence_class": "judgment",
+      "file_path": "deploy/gx10-runner/systemd/gx10-runner@.service",
+      "existing_code": "--cpus ${GX10_RUNNER_CPUS}",
+      "resolution": "Add the Delegate drop-in and verification step to the runbook and an install-kit test asserting the drop-in file is shipped.",
+      "line_resolution": "unresolved"
+    },
+    {
+      "id": 5,
+      "type": "style",
+      "criticality": "low",
+      "description": "tasks.md step O9 still instructs `journalctl --user -u gx10-runner@1 | grep -c 'Listening for Jobs'`. The runbook replaced this with `sudo journalctl _UID=$(id -u ghrunner) --user-unit gx10-runner@1.service` because the operator is not the ghrunner user and `--user` reads the caller's own journal; the runbook test forbids the old form. The task list and runbook now disagree on the verification command, so an operator following tasks.md gets an empty count and a false failure.",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "optional",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/tasks.md",
+      "existing_code": "journalctl --user -u gx10-runner@1 | grep -c 'Listening for Jobs'",
+      "resolution": "Align tasks.md O9 with the runbook's `sudo journalctl _UID=... --user-unit ...` form.",
+      "line_resolution": "unresolved"
+    },
+    {
+      "id": 6,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "gx10-runner@.service declares `After=network-online.target` / `Wants=network-online.target`. Inside the user manager (systemd --user) there is no network-online.target with system semantics; the user instance has no NetworkManager-wait-online / systemd-networkd-wait-online job, so the target activates immediately and the ordering is a no-op. The mint script's retry/backoff already absorbs a not-yet-routable boot window, so this is informational: either remove the lines or add a comment that the real boot gate is the mint backoff, so a future reader does not rely on the directive.",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "fyi",
+      "evidence_class": "judgment",
+      "file_path": "deploy/gx10-runner/systemd/gx10-runner@.service",
+      "existing_code": "After=network-online.target",
+      "resolution": "Comment or remove; no behaviour change required.",
+      "line_range": {
+        "start": 8,
+        "end": 8
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 7,
+      "type": "observability",
+      "criticality": "low",
+      "description": "In ci_wallclock.compare(), a run whose routed jobs executed on a non-GX10 self-hosted pool (job_lane returns OTHER_SELF_HOSTED) is silently dropped from both the hosted and the self-hosted sample: select() only records an exclusion when the lane is None or when the run belongs to the other side, and in the CLI path cmd_compare passes the same list as both sides, so the 'wrong lane' branch can never fire. An operator comparing during a partial cutover (or with a stray org-level runner picking up jobs) sees n shrink with nothing in excluded_runs to explain why, and can misread a thin sample as a scheduling problem. Record OTHER_SELF_HOSTED runs in excluded_runs with a reason.",
+      "disposition": "fix",
+      "axis": "observability",
+      "severity": "optional",
+      "evidence_class": "judgment",
+      "file_path": "scripts/ci/ci_wallclock.py",
+      "resolution": "Append `{run_id, reason: 'other-self-hosted'}` to excluded_runs in select() and cover it with a unit test."
+    }
+  ]
+}

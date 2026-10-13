@@ -1,0 +1,49 @@
+{
+  "phase": "PLAN_REVIEW",
+  "pass": 4,
+  "round": 1,
+  "adjudicator": "orchestrator (claude_code PLAN_REVIEW sub-agent)",
+  "at": "2026-10-11T02:45:05.375036+00:00",
+  "decisions": [
+    {
+      "id": 59,
+      "vendor": "codex",
+      "criticality": "critical",
+      "verdict": "valid",
+      "action": "fixed",
+      "rationale": "pull_request runs use the PR's own workflow YAML, so the routing expression and in-job guard are not an enforcement boundary against forks. Enforcement moved into the runner image: an ACTIONS_RUNNER_HOOK_JOB_STARTED hook refuses every event except push to main, workflow_dispatch and same-repo pull_request, judged from the GitHub-written payload; spec scenarios, tests (3.6), O11 negative test added. Same-repo PRs remain routable (trust scope of A10); the reviewer's 'push/dispatch only' baseline was not adopted because the hook closes the fork path without giving up same-repo PR routing."
+    },
+    {
+      "id": 60,
+      "vendor": "codex",
+      "criticality": "high",
+      "verdict": "valid (corroborated by claude_code #49)",
+      "action": "fixed",
+      "rationale": "nftables rules must be persistent (/etc/nftables.conf + nftables.service); O10 re-verifies isolation after reboot."
+    }
+  ],
+  "also_fixed": [
+    49,
+    50,
+    51,
+    52,
+    53,
+    54,
+    55,
+    56,
+    57,
+    61,
+    62,
+    63
+  ],
+  "parked": {
+    "58": "dispatcher lane classification (pi wrote findings to a file), not a plan defect"
+  },
+  "rounds_note": "third quorum review round; round budget (3) exhausted, these fixes are orchestrator-adjudicated and not re-reviewed by vendors in PLAN_REVIEW",
+  "lanes": {
+    "succeeded": [
+      "claude_code",
+      "codex"
+    ]
+  }
+}

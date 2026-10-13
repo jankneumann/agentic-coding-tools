@@ -1,0 +1,161 @@
+{
+  "review_type": "plan",
+  "target": "migrate-ci-to-self-hosted-gx10-runners",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "security",
+      "criticality": "high",
+      "severity": "critical",
+      "axis": "security",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/design.md",
+      "existing_code": "**Network is pinned explicitly, not inherited from the podman default.** Podman 4.9 (the GX10\ntoday) defaults rootless networking to `slirp4netns` with `allow_host_loopback=false`, which\nmakes host loopback services (coordinator API, Postgres on `:54322`) unreachable.",
+      "description": "D6 (and A11, the Risks table, and O4) treat `--network slirp4netns:allow_host_loopback=false` as proof that host services are unreachable from PR code. That option only disables the 10.0.2.2 -> 127.0.0.1 mapping. slirp4netns still NATs container traffic through the host stack, so any host service bound to 0.0.0.0 or to the host's LAN/Tailscale address (a compose-published Postgres `0.0.0.0:54322` is the common case, and the ri-08 dispatcher daemon may also listen non-loopback) remains reachable by connecting to the host's real IP. The O4 verification (`curl http://10.0.2.2:54322`) would pass while Postgres is reachable at `http://<host-lan-ip>:54322`, so the isolation claim is unverified by the test the runbook prescribes. Fix: (a) state the binding assumption explicitly in D6/A11 (host services must bind to 127.0.0.1 only, verified in O4 with `ss -ltnp` for :54322 and the coordinator port); (b) extend the O4 check to `curl` the host's primary address (`hostname -I | awk '{print $1}'`) from inside the container; (c) optionally add a host nftables/ufw rule in O1 that drops `owner uid ghrunner` OUTPUT traffic to the host's own addresses, which is the only control that holds regardless of how services are bound.",
+      "resolution": "Reword D6/A11 to scope the guarantee to loopback-bound services, add the binding assumption and LAN-IP probe to O4, and add the uid-scoped egress rule as an O1 sub-step with its own verification command.",
+      "line_resolution": "unresolved"
+    },
+    {
+      "id": 2,
+      "type": "security",
+      "criticality": "medium",
+      "severity": "optional",
+      "axis": "security",
+      "disposition": "escalate",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/proposal.md",
+      "existing_code": "- **A10. The shared uv cache volume is acceptable in solo mode.** Only same-repository branches\n  reach the runners, and pushing one requires write access, so every cache writer is already a\n  trusted principal.",
+      "description": "A10 and D6 argue that every same-repository branch author is a trusted human principal. This repository explicitly accepts PRs from automated authors with push access (Dependabot, Jules, Codex and other agent PRs, per the merge-pull-requests skill and the `dependency-update-remediation` job). Their branches satisfy `head.repo.full_name == github.repository`, so with `CI_RUNNER_LANE=self-hosted` unreviewed agent-generated code and freshly bumped third-party packages execute on the GX10 host (shared kernel, shared uv cache that later `main` jobs read) before any human has looked at the diff. The hardening in D6 is good, but the written trust argument is wrong as stated, and the acceptance of the cache-poisoning risk rests on it. This is a threat-model call for the owner: either extend A10 to name automated same-repo authors and accept it, or add `github.actor` / branch-prefix exclusions (e.g. `dependabot/*`, bot actors) to the D3 expression so those PRs stay on hosted runners.",
+      "resolution": "Owner decision. Minimum: rewrite A10 to acknowledge bot/agent-authored same-repo branches and record the acceptance explicitly; preferred: add an actor/branch exclusion to D3 with a reference-evaluator row.",
+      "line_resolution": "unresolved"
+    },
+    {
+      "id": 3,
+      "type": "spec_gap",
+      "criticality": "low",
+      "severity": "nit",
+      "axis": "correctness",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/specs/ci-runner-infrastructure/spec.md",
+      "existing_code": "The self-hosted label set inside the expression MUST equal the manifest's `routing.self_hosted_labels`.",
+      "description": "Two normative clauses in the spec have no WHEN/THEN scenario. (1) In 'Routed Jobs Default To The Hosted Lane', the MUST that the `fromJSON` label set equals `routing.self_hosted_labels` is asserted only in design D3 and task 2.1; no scenario covers it (the 'JIT labels match the routing labels' scenario is about `mint-jitconfig.sh`, not the expression). The same test should also tie `vars.CI_RUNNER_LANE` and `inputs.runner_lane` in the expression to `routing.repository_variable` / `routing.dispatch_input`, otherwise the manifest's routing block is partially decorative. (2) In 'CI Wall-Clock Measurement And Run Verification', 'The CLI SHALL select runs only through explicit filters ... and SHALL cap fetched runs with `--limit`' has no scenario, although task 4.1 tests it.",
+      "resolution": "Add scenarios 'Expression labels and names match the manifest routing block' and 'CLI run selection is explicit and bounded' with WHEN/THEN clauses mirroring tasks 2.1 and 4.1.",
+      "line_range": {
+        "start": 25,
+        "end": 25
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "medium",
+      "severity": "nit",
+      "axis": "correctness",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/tasks.md",
+      "existing_code": "  - Run `sudo useradd --system --create-home --shell /usr/sbin/nologin ghrunner` and\n    `sudo loginctl enable-linger ghrunner`.",
+      "description": "O1 creates `ghrunner` with `useradd --system`. On Ubuntu, system accounts receive no `/etc/subuid` / `/etc/subgid` range, and rootless podman cannot run an image whose process user is non-root (the actions-runner image runs as `runner`, uid 1001) without one: O3 (`podman build`) and O4 (`podman run`) fail with a 'no subuid ranges found' class error. Also, `--shell /usr/sbin/nologin` means the 'as `ghrunner`' instructions in O3/O4 cannot be followed via `su`/`machinectl shell`; the runbook should say `sudo -u ghrunner XDG_RUNTIME_DIR=/run/user/$(id -u ghrunner) ...` or `systemd-run --user --machine=ghrunner@`.",
+      "resolution": "Add to O1: `sudo usermod --add-subuids 200000-265535 --add-subgids 200000-265535 ghrunner` with verification `grep ghrunner /etc/subuid` and `sudo -u ghrunner podman unshare cat /proc/self/uid_map`; state how to run commands as a nologin user.",
+      "line_range": {
+        "start": 344,
+        "end": 345
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 5,
+      "type": "architecture",
+      "criticality": "low",
+      "severity": "nit",
+      "axis": "readability",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/design.md",
+      "existing_code": "- `--cpus` and `--memory`, from the env file (default 2 CPU / 8 GiB per instance)",
+      "description": "The design uses 'the env file' for two different files: the operator configuration (`gx10-runner.env.example`: repo slug, limits, image ref, labels, `GX10_MINT_MAX_ELAPSED`) and the per-instance container env file written by the mint script (`%t/gx10-runner/%i.env`, JIT config and runner id only). D7's property list never names the `EnvironmentFile=` line that must load the former, nor how the credential reaches the unit (`LoadCredential=github-token:<path>` vs `GX10_RUNNER_TOKEN_FILE`), and test 3.1 does not assert either. Relatedly, 'GX10_RUNNER_UV_CACHE=off drops the volume' is not expressible in a plain `ExecStart=` line; it needs an unquoted `$GX10_UV_CACHE_ARGS` word-split variable or a wrapper, and either choice interacts with the test that scans `ExecStart` for a literal volume flag.",
+      "resolution": "Name the two files distinctly (operator config vs container env), add `EnvironmentFile=` and `LoadCredential=` to the D7 property list and to test 3.1, and specify the `$GX10_UV_CACHE_ARGS` mechanism in D6 so the unit test knows what to assert.",
+      "line_range": {
+        "start": 196,
+        "end": 196
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 6,
+      "type": "resilience",
+      "criticality": "low",
+      "severity": "optional",
+      "axis": "resilience",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/design.md",
+      "existing_code": "- `--name gx10-runner-%i`",
+      "description": "`podman run --rm --name gx10-runner-%i` without `--replace` makes the restart loop wedge after any unclean stop: if conmon is left holding a container of that name (podman client killed by `TimeoutStopSec`, host crash before cleanup), every subsequent `ExecStart` fails on the name conflict, `Restart=always` retries every 10 s forever, and the instance silently drops out of the pool. Separately, `ExecStopPost` cleanup does not run on power loss or hard reboot (O10), so never-used JIT registrations accumulate as offline runners; the mint script or cleanup script should sweep offline runners matching `gx10-<hostname>-<instance>-*` before minting a new one.",
+      "resolution": "Add `--replace` to the D6 MUST-include list and the 3.1 assertions; add a stale-registration sweep to D5 step 1 (best-effort, read + delete of offline runners owned by this instance).",
+      "line_range": {
+        "start": 191,
+        "end": 191
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 7,
+      "type": "performance",
+      "criticality": "medium",
+      "severity": "optional",
+      "axis": "performance",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/design.md",
+      "existing_code": "- one named volume for the uv cache (`gx10-runner-uv-cache:/home/runner/.cache/uv`)",
+      "description": "The session log records the shared uv cache as 'the main source of speedup' for outcome 2, but nothing in D6/D10 ensures routed jobs actually use the mounted path. If the workflows use `astral-sh/setup-uv` with its default caching (the design does not say), the action exports `UV_CACHE_DIR` under `$RUNNER_TEMP` and round-trips the cache through GitHub's cache service, bypassing `/home/runner/.cache/uv` entirely; the volume would then be dead weight and the A6 threshold would be measured against a cold cache. The design should state the binding: set `UV_CACHE_DIR=/home/runner/.cache/uv` in the container image/env, and either set `cache-local-path` to it or `enable-cache: false` when `runner.environment == 'self-hosted'`.",
+      "resolution": "Add a D10 clause and a tool-parity assertion that routed jobs do not override `UV_CACHE_DIR` away from the volume on the self-hosted lane.",
+      "line_range": {
+        "start": 198,
+        "end": 198
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 8,
+      "type": "style",
+      "criticality": "low",
+      "severity": "nit",
+      "axis": "readability",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/design.md",
+      "existing_code": "The operator can disable the cache with `GX10_RUNNER_UV_CACHE=off`, which drops the volume. The\nsetup-* toolcache stays inside the container, because concurrent writers would race on a\nshared toolcache.",
+      "description": "Stale or duplicated text left by the iteration edits: (1) D6 repeats the 'operator can disable the cache with GX10_RUNNER_UV_CACHE=off' paragraph twice in succession; (2) session-log.md PLAN section still says 'assumptions A1-A9' and its trade-off entry still claims 'locked hash verification applies', which plan-findings #4 and A10 explicitly retract; (3) spec signatures `median_wallclock(runs)` / `compare(baseline, candidate, threshold=0.85, min_n=5)` differ from design D8's keyword-only forms with a `conclusion` parameter.",
+      "resolution": "Delete the duplicate paragraph, append a correction note under the PLAN trade-off in session-log.md (do not rewrite history), and align the spec signatures with D8.",
+      "line_range": {
+        "start": 232,
+        "end": 234
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 9,
+      "type": "security",
+      "criticality": "low",
+      "severity": "fyi",
+      "axis": "security",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/design.md",
+      "existing_code": "The container receives only the single-use encoded JIT config, through `--env-file`. A job that\nreads it gains nothing, because the config is consumed by the runner it already belongs to.",
+      "description": "'A job that reads it gains nothing' overstates the case. `ACTIONS_RUNNER_INPUT_JITCONFIG` is inherited by every job step's process environment and encodes the runner's RSA key and Actions-service credentials; while the job runs, PR code can use them to act as that runner against the Actions broker (read the job message, post telemetry). Ephemerality bounds the window to the job's lifetime, so this is an acceptable residual, but the design should say so rather than claim zero value. An entrypoint wrapper that reads the variable, `unset`s it and passes `--jitconfig` would narrow it further at the cost of the value appearing in `ps` briefly.",
+      "resolution": "Reword D5 to 'gains only the already-consumed runner identity for the duration of its own job' and record the entrypoint-wrapper option as a hardening follow-up.",
+      "line_range": {
+        "start": 168,
+        "end": 169
+      },
+      "line_resolution": "hunk_new"
+    }
+  ]
+}

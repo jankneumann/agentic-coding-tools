@@ -1,0 +1,2190 @@
+## Review Round 1
+
+The packet is complete; do not explore the repo for missing artifacts.
+
+Review the attached artifacts for correctness, completeness, and adherence to project standards.
+
+### Prompt contract
+REQUIRED on every finding — output is REJECTED if any is missing: id, type, criticality, description, disposition, axis, severity
+These fields use DIFFERENT vocabularies. Do not reuse one value for another:
+  criticality: low|medium|high|critical — how much it matters
+  severity: critical|nit|optional|fyi|none — review-gate grading (NOT the same scale as criticality)
+  axis: correctness|readability|architecture|security|performance|observability|resilience|compatibility
+  type: spec_gap|contract_mismatch|architecture|security|performance|style|correctness|observability|compatibility|resilience|behavioral_failure
+  disposition: fix|regenerate|accept|escalate
+Use exactly one value from each listed set; do not invent values.
+OPTIONAL: report which selected files you actually reviewed as a top-level `coverage` object: `{"reviewed": ["path", ...], "skipped": [{"path": "path", "reason": "why"}, ...]}`. Omitting `coverage` is treated as full coverage, never as a penalty.
+Output ONLY a JSON object with a top-level `findings` array.
+
+### Diff
+```diff
+diff --git a/TRUST_POSTURE.template.md b/TRUST_POSTURE.template.md
+index f90cdf33..1089c183 100644
+--- a/TRUST_POSTURE.template.md
++++ b/TRUST_POSTURE.template.md
+@@ -113,6 +113,47 @@ carries the posture's digest — a SHA-256 over the parsed `gates:` map, so pros
+ edits and key order never count as a posture change — and is re-evaluated when
+ that digest changes; a human answer is final.
+ 
++## Sync windows (optional)
++
++A *sync window* authorizes a sync-point skill to be started by a non-user trigger
++(a scheduler) instead of by a person. It is declared in the same front matter,
++as an optional top-level `sync_windows` list beside `gates`. This template
++declares none, so the commented-out example below is inert:
++
++```yaml
++# sync_windows:
++#   - id: nightly-drain
++#     cadence: "0 3 * * 1-5"
++#     skills: [merge-pull-requests, update-specs]
++#     allowed_sources: [openspec, dependabot]
++#     auto_merge_ceiling: plan
++```
++
++| field | rules |
++|---|---|
++| `id` | kebab-case (`^[a-z0-9]+(-[a-z0-9]+)*$`), unique within the list |
++| `cadence` | exactly five whitespace-separated fields of `[0-9*/,-]`, interpreted in **UTC**. Only the shape is validated here: `@daily`, `MON` and six-field forms are rejected, while `99 * * * *` passes and is refused by the scheduler that computes fire times |
++| `skills` | non-empty, no repeats, from `merge-pull-requests`, `update-specs`, `cleanup-feature` |
++| `allowed_sources` | non-empty, no repeats, PR origins from `openspec`, `sentinel`, `bolt`, `palette`, `jules`, `codex`, `dependabot`, `renovate`, `other` |
++| `auto_merge_ceiling` | `none` < `automation` < `plan` < `implementation`; a ceiling permits a PR kind only at or below it, and never an unknown kind |
++
++Rules:
++
++- **Fail closed.** `sync_windows` absent, `null` or `[]` declares no window, and
++  `authorize_sync_window` refuses every window id and skill. A present but
++  malformed window is a validation error; it is never silently dropped.
++- **Guards unchanged.** A window changes who may *start* a sync-point skill, not
++  what the skill checks once running; every guard and validation gate still applies.
++- **Necessary, never sufficient.** A window does not change any gate
++  disposition. A scheduled `/merge-pull-requests` run still evaluates the
++  `merge` gate (and any other gate that applies), and `block` stops it.
++- **Digest.** The posture digest covers declared windows (order-independent).
++  Declaring or editing a window therefore re-evaluates posture-derived gate
++  decisions, and in-flight supervised children whose worktree posture predates
++  the edit take no `auto` disposition until rebased. Declare windows while no
++  supervised run is in flight. A posture with no windows keeps the digest it
++  had before this field existed.
++
+ ## Worked example
+ 
+ A posture that auto-creates PRs, notifies-with-a-one-hour-timeout on merge
+diff --git a/docs/decisions/skill-workflow.md b/docs/decisions/skill-workflow.md
+index b89ff184..93e7981b 100644
+--- a/docs/decisions/skill-workflow.md
++++ b/docs/decisions/skill-workflow.md
+@@ -5,6 +5,39 @@
+ 
+ ---
+ 
++## 2026-10-11 — amend-skill-workflow-spec-for-policy-authorized-sync-windows
++
++### Phase: Plan Iteration 1
++
++**Also MODIFY 'Merge Conductor Invokes Iterate Skills'** — Its sentence 'The merge skill remains the user-invoked sync-point' would contradict the amended sync-point requirement once a scheduled merge exists
++
++- Status: `active`
++- Source: [openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md](/openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md) (D1)
++
++---
++
++## 2026-10-11 — amend-skill-workflow-spec-for-policy-authorized-sync-windows
++
++### Phase: Plan
++
++**Absent/empty sync_windows fails closed; scheduled runs never use the force escape hatch** — Mirrors absent-file all-block invariant; only an explicit operator may force past the active-agent guard
++
++- Status: `active`
++- Source: [openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md](/openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md) (D2)
++
++---
++
++## 2026-10-11 — amend-skill-workflow-spec-for-policy-authorized-sync-windows
++
++### Phase: Plan Iteration 1
++
++**Sync window is necessary, never sufficient (D8)** — A window authorizes starting a sync point unattended; it does not imply auto for any gate. Fail-closed reading; the alternative widens two controls with one edit
++
++- Status: `active`
++- Source: [openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md](/openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md) (D2)
++
++---
++
+ ## 2026-10-09 — 2026-10-10-dispatch-contract
+ 
+ ### Phase: Plan Review
+diff --git a/docs/decisions/trust-posture.md b/docs/decisions/trust-posture.md
+index 5f352415..5443782d 100644
+--- a/docs/decisions/trust-posture.md
++++ b/docs/decisions/trust-posture.md
+@@ -5,6 +5,72 @@
+ 
+ ---
+ 
++## 2026-10-11 — amend-skill-workflow-spec-for-policy-authorized-sync-windows
++
++### Phase: Plan
++
++**Declare sync windows in TRUST_POSTURE.md front matter (sync_windows)** — Single governance contract and single pinned digest, per the roadmap rationale that every unattended behavior reads authorization from the trust posture
++
++- Status: `active`
++- Source: [openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md](/openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md) (D1)
++
++---
++
++## 2026-10-11 — amend-skill-workflow-spec-for-policy-authorized-sync-windows
++
++### Phase: Implementation
++
++**Window-less posture keeps gates-only digest** — Live digest pinned to e8262346... so existing launch markers stay valid
++
++- Status: `active`
++- Source: [openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md](/openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md) (D1)
++
++---
++
++## 2026-10-11 — amend-skill-workflow-spec-for-policy-authorized-sync-windows
++
++### Phase: Plan
++
++**Posture digest unchanged when no windows are declared** — Avoids invalidating existing launch markers and recorded gate decisions while making any window edit re-trigger posture-derived decisions
++
++- Status: `active`
++- Source: [openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md](/openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md) (D3)
++
++---
++
++## 2026-10-11 — amend-skill-workflow-spec-for-policy-authorized-sync-windows
++
++### Phase: Plan Iteration 1
++
++**allowed_sources uses github_classifier's detailed origins; export PR_ORIGINS there** — discover_prs.py only passes origins through and no exported set existed, so the parity test had nothing to pin; detailed origins let a window admit sentinel without all Jules PRs
++
++- Status: `active`
++- Source: [openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md](/openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md) (D3)
++
++---
++
++## 2026-10-11 — amend-skill-workflow-spec-for-policy-authorized-sync-windows
++
++### Phase: Plan Iteration 1
++
++**Digest sorts windows by id** — Matches the existing invariant that front-matter ordering never changes the digest; ids are unique so order carries no meaning
++
++- Status: `active`
++- Source: [openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md](/openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md) (D4)
++
++---
++
++## 2026-10-11 — amend-skill-workflow-spec-for-policy-authorized-sync-windows
++
++### Phase: Plan Iteration 1
++
++**Keep windows inside the single posture digest and document the consequence** — A window edit re-evaluates posture_block reuse and drops auto for in-flight children until rebased; accepted as fail-closed over a separate digest that existing checks would ignore
++
++- Status: `active`
++- Source: [openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md](/openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md) (D5)
++
++---
++
+ ## 2026-10-06 — 2026-10-10-dispatch-contract
+ 
+ ### Phase: Plan Iteration 2
+diff --git a/openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/contracts/README.md b/openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/contracts/README.md
+new file mode 100644
+index 00000000..0eb70a78
+--- /dev/null
++++ b/openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/contracts/README.md
+@@ -0,0 +1,15 @@
++# Contracts
++
++Sub-types evaluated for this change:
++
++| Sub-type | Applies? | Why |
++|---|---|---|
++| OpenAPI | No | No HTTP endpoint is added or changed. |
++| Database | No | No schema or migration. |
++| Events | No | No event payload is added or changed. |
++| Type generation | No | No OpenAPI source to generate from. |
++
++The one machine-readable interface this change touches is the trust posture
++front-matter schema, `openspec/schemas/trust-posture.schema.json`. It is
++already the canonical contract for that file, so it is extended in place
++(`sync_windows`, task 2.3) rather than copied here.
+diff --git a/openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/design.md b/openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/design.md
+new file mode 100644
+index 00000000..46a6c140
+--- /dev/null
++++ b/openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/design.md
+@@ -0,0 +1,158 @@
++# Design: Policy-Authorized Sync Windows
++
++## Context
++
++`skill-workflow` requires every sync point that touches main to be explicitly
++user-invoked. Roadmap items `ri-12` (headless merge) and `ri-13` (quiet-window
++drain) need a scheduled sync point. The roadmap requires that every unattended
++behaviour read its authorization from the trust posture contract (`ri-04`,
++`skills/shared/trust_posture.py`). This change records that authorization
++surface and amends the spec. It runs nothing on a schedule.
++
++## Decisions
++
++### D1: Windows live in the trust posture front matter, not in a separate file
++
++`sync_windows` is an optional top-level key beside `gates`.
++
++- One contract file and one loader.
++- One digest that the supervisor already pins in launch markers.
++- Rejected: a separate `SYNC_WINDOWS.md` (Approach 3). It would split governance
++  and need a second digest.
++
++### D2: Fail closed, as gates do
++
++If `sync_windows` is absent, `null` or `[]`, the posture declares no windows,
++and `authorize_sync_window` fails for every id and skill. This mirrors the
++absent-file → all-`block` invariant for gates.
++
++A present but malformed window is a validation error. It is never silently
++dropped, because a dropped window would look declared to an operator who reads
++the file.
++
++### D3: Closed vocabularies reuse the merge skill's existing classifications
++
++- `skills`: `merge-pull-requests`, `update-specs`, `cleanup-feature`. These are
++  the three sync points that the amended requirement names.
++- `allowed_sources`: the detailed origins that
++  `skills/shared/github_classifier.classify_pr` emits (`discover_prs.py` only
++  passes them through). That module has no exported set today, so this change
++  adds `PR_ORIGINS` there, plus a test in
++  `skills/tests/merge-pull-requests/test_classify.py` that every origin
++  `classify_pr` returns is in `PR_ORIGINS` and that `to_pr_card_origin` folds
++  every member. The detailed origins are chosen over the folded PR-card origins
++  so a window can admit `sentinel` without admitting every Jules PR.
++- `auto_merge_ceiling`: `none` < `automation` < `plan` < `implementation`. The
++  last three are the kinds that `classify_kind.py` emits. `MergeCeiling.permits(kind)`
++  is a rank comparison, and an unknown kind is never permitted (fail-closed).
++
++The trust posture module defines its own frozen sets. It does not import from
++`merge-pull-requests` or `github_classifier`, so the posture contract stays a
++leaf module with no dependency on any skill. Parity tests pin
++`SYNC_SOURCES == github_classifier.PR_ORIGINS` and the ranked kinds equal to
++`set(classify_kind.KIND_TO_SKILL)`, and a schema test pins the JSON schema enums
++equal to the same Python sets, so the three copies cannot drift apart
++unnoticed.
++
++### D4: Cadence shape only
++
++`cadence` must be exactly five whitespace-separated fields, each matching
++`[0-9*/,-]+`. Named months and days, `@daily` macros and six-field forms are
++rejected. This is deliberately a cron-*shaped* string, not a full cron grammar:
++`99 * * * *` or `*/0 * * * *` pass the loader, and the spec requires the
++scheduler to refuse a window it cannot schedule.
++
++Computing the next fire time is the scheduler's job (`ri-13`), so this module
++does not depend on a cron library. Times are interpreted as UTC, and the
++template documents that.
++
++### D5: Digest stability
++
++`posture_digest` keeps hashing exactly the current canonical gates map when no
++windows are declared. When windows are declared, it hashes:
++
++```
++{"gates": <gates map>, "sync_windows": [<canonical window>, ...]}
++```
++
++Canonical windows are sorted by `id`, and list fields are sorted inside each
++window. This matches the existing invariant that front-matter key order does
++not change the digest: windows have unique ids, so declaration order carries no
++meaning. As a result:
++
++- The digest of this repository's live posture, which declares no windows, is
++  byte-identical to today's. Existing launch markers and recorded gate
++  decisions are not invalidated.
++- Any declared change to a window does change the digest. A widened window
++  therefore forces the posture-derived decisions that depend on it to be
++  re-evaluated.
++
++### D6: `authorize_sync_window(posture, window_id, skill)` is the single entry check
++
++- Returns the `SyncWindow` when the window is declared and lists the skill.
++- Otherwise raises `SyncWindowNotAuthorized`, whose message names either the
++  missing window or the missing skill.
++- An unknown skill name raises `ValueError`, because the skill set is closed.
++- It accepts the absent-posture value that `load_posture` returns when no
++  contract file exists (`present=False`, no windows), and also `None`, as
++  `posture_digest` does, and fails for both.
++
++This is the check that the amended `skill-workflow` scenarios require of any
++scheduled caller, **before any other work** (discovery, remediation, branch
++writes), not merely before touching main. No skill calls it yet; `ri-12` wires
++it in. The check does not consult `cadence`: observing the cadence is the
++trigger's obligation (the scheduler, `ri-13`), which the spec states and
++`ri-13` tests.
++
++**Verification boundary.** No scheduled caller exists in this change, so the
++`skill-workflow` scheduled-invocation scenarios cannot be exercised end to end
++here. This change verifies the part it owns: the authorization check and the
++ceiling ordering, through unit tests. The scenarios are the acceptance contract
++that `ri-12` (headless merge) and `ri-13` (drain) MUST test at their call sites.
++How a scheduled invocation names its window (for example a `--sync-window <id>`
++argument) is `ri-12`'s choice; the spec constrains only that a non-user trigger
++must name one and the skill must check it.
++
++### D7: The live posture is untouched
++
++`TRUST_POSTURE.md` effective settings are not edited. Windows are documented
++only in `TRUST_POSTURE.template.md`, as a commented-out example, so validating
++the template still declares no window.
++
++### D8: A window is necessary, never sufficient
++
++A sync window authorizes starting a sync-point skill without a user. It does
++not change any gate disposition. A scheduled `/merge-pull-requests` run still
++evaluates every gate that applies to the action it is about to take, and a
++`block` stops it.
++
++- Rejected: treating a window as an implicit `auto` for the `merge` gate. One
++  posture edit would then widen two independent controls at once, and an
++  operator reading `gates.merge: block` would be misled.
++- `authorize_sync_window` therefore returns the window and nothing else; it
++  does not consult or return gate dispositions.
++
++## Risks
++
++- **A future consumer forgets to call `authorize_sync_window`.**
++  - Mitigation: the spec requires the call, and `ri-12`'s acceptance tests
++    exercise refusal.
++  - This change cannot enforce the call, because no scheduled caller exists yet.
++- **The vocabularies drift from the merge skill.**
++  - Mitigation: the parity tests in D3.
++- **Declaring a window re-evaluates digest-pinned decisions.** Because the
++  digest covers windows (D5), declaring or editing one is, to the supervisor,
++  a posture change like any gate edit:
++  - recorded `posture_block` decisions are re-evaluated
++    (`skills/supervise/scripts/gate_router.py`);
++  - in-flight children whose worktree posture predates the edit no longer match
++    the supervisor's launch-marker digest, so they take no `auto` disposition
++    until rebased (`skills/supervise/scripts/execution.py`, D5 of the dispatch
++    contract).
++  - Accepted: this is the fail-closed direction. The alternative, a separate
++    window digest, would let a widened window go unnoticed by every existing
++    digest check. Operators should declare windows while no supervised run is
++    in flight; the template says so.
++- **`show` output grows.** `python -m shared.trust_posture show` gains a
++  `sync_windows:` section. It is printed after the gates, so existing readers
++  of the gate lines are unaffected; a test pins the format.
+diff --git a/openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/proposal.md b/openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/proposal.md
+new file mode 100644
+index 00000000..4adad16c
+--- /dev/null
++++ b/openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/proposal.md
+@@ -0,0 +1,173 @@
++# Proposal: Policy-Authorized Sync Windows
++
++Change ID: `amend-skill-workflow-spec-for-policy-authorized-sync-windows`
++Roadmap: `roadmap-always-on-agent-automation`, item `ri-11` (depends on `ri-04`, the trust posture contract)
++
++## Why
++
++The `skill-workflow` requirement "Main Receives Work Through PR Sync Points"
++says that any sync-point skill touching main (`/merge-pull-requests`,
++`/update-specs`, the main-touching part of `/cleanup-feature`) **MUST be
++explicitly user-invoked**. That rule is correct for an interactive repository.
++It also rules out the always-on roadmap's later items:
++
++- `ri-12` adds a headless mode to `/merge-pull-requests`.
++- `ri-13` adds a quiet-window drain protocol.
++
++Both need a scheduled sync point that runs with no prompt, and no spec text
++permits one.
++
++This change relaxes the rule on purpose, and only as far as the trust posture
++allows:
++
++- A sync-point skill MAY run on a schedule only under a **sync window** that the
++  repository's trust posture (`TRUST_POSTURE.md`) explicitly declares.
++- The window declares its cadence, the sync-point skills it covers, the PR
++  sources it may act on, and the highest kind of PR it may merge unattended
++  (its auto-merge ceiling).
++- Without such a declaration nothing changes: user invocation stays the only
++  path.
++- The clean-tree check, the active-agent guard and the validation gates stay
++  exactly as they are.
++
++## What Changes
++
++1. **Spec amendment (`skill-workflow`).** MODIFY "Main Receives Work Through PR
++   Sync Points":
++   - User invocation stays the documented default.
++   - A scheduled invocation is permitted only when it names a sync window that
++     the trust posture declares and that window lists the skill.
++   - New scenarios state that the active-agent guard, the clean-tree check and
++     the validation gates are unchanged.
++   - A scheduled run MUST NOT use the force escape hatch.
++   - A scheduled run acts only on PRs from the window's allowed sources and
++     never merges a PR above the window's auto-merge ceiling.
++   - A scheduled trigger must name a window and observe its cadence, and the
++     skill must pass the authorization check before any other work.
++   - A window is necessary but not sufficient: it never changes a trust
++     posture gate disposition. Which gates apply to a scheduled action is
++     defined by the change that adds the scheduled caller (`ri-12`, `ri-13`).
++   - Also MODIFY "Merge Conductor Invokes Iterate Skills", whose sentence "The
++     merge skill remains the user-invoked sync-point" would otherwise contradict
++     the amended requirement.
++2. **Spec addition (`trust-posture`).** ADD "Sync Window Declarations":
++   - The posture front matter gains an optional `sync_windows` list. Each entry
++     has `id`, `cadence`, `skills`, `allowed_sources` and `auto_merge_ceiling`.
++   - The list is closed-set validated and fails closed: if it is absent or
++     empty, no window exists.
++   - The posture digest covers the declared windows. A posture that declares
++     none hashes exactly as it does today.
++3. **Posture contract code.** Extend `skills/shared/trust_posture.py`:
++   - parse and validate `sync_windows`
++   - add a `SyncWindow` value type and a `MergeCeiling` ordering
++   - add an `authorize_sync_window(posture, window_id, skill)` check that later
++     scheduled callers (`ri-12`, `ri-13`) must pass before they run
++   - mirror the shape in `openspec/schemas/trust-posture.schema.json`
++4. **Origin vocabulary export.** Add an exported `PR_ORIGINS` frozenset to
++   `skills/shared/github_classifier.py`, the module that actually emits PR
++   origins. Today the set exists only as scattered string literals, so nothing
++   could pin the window vocabulary against it.
++5. **Template documentation.** Document the `sync_windows` block, commented
++   out, in `TRUST_POSTURE.template.md`.
++6. **Tests** in `skills/shared/tests/` for the parser, the validator, the
++   digest stability, the authorization check, the schema mirror, and the
++   vocabulary parity with `github_classifier` and `classify_kind`.
++
++### Out of scope
++
++- Any scheduler, cron job, or headless merge execution (`ri-12` and `ri-13`).
++- Any change to the effective settings of this repository's live
++  `TRUST_POSTURE.md`. No window is declared here, so this repository's
++  behaviour, and its posture digest, are unchanged.
++- Any change to the `merge` gate disposition. That gate still governs
++  autopilot's SUBMIT_PR → DONE edge.
++
++## Approaches Considered
++
++### Approach 1: Spec-only amendment
++
++- **What it is:** Amend the requirement text and describe the posture fields in
++  prose. Leave the schema and loader for `ri-12`.
++- **Pros:** smallest diff. No code.
++- **Cons:**
++  - "Requires an explicit posture declaration" cannot be checked, because
++    nothing parses the declaration.
++  - `ri-12` would have to invent the field names and validation under time
++    pressure.
++  - Today the loader silently ignores unknown top-level keys, so a mis-typed
++    window would look declared.
++- **Effort:** XS
++
++### Approach 2: Spec amendment plus posture-contract extension (Recommended)
++
++- **What it is:** Amend the spec and add a validated `sync_windows` section to
++  the trust posture contract (loader, schema, template, tests), along with a
++  pure `authorize_sync_window` check.
++- **Pros:**
++  - The acceptance outcome becomes machine-checkable.
++  - Field names are fixed once, in the `ri-04` contract that later items
++    already read.
++  - Fails closed, and the digest of every existing posture is unchanged.
++- **Cons:**
++  - Touches shared governance code.
++  - Adds a small amount of contract surface before any consumer uses it.
++- **Effort:** S
++
++### Approach 3: Separate `SYNC_WINDOWS.md` contract
++
++- **What it is:** Declare windows in their own file, with their own loader.
++- **Pros:** Keeps the gate contract narrow.
++- **Cons:**
++  - Contradicts the roadmap's decision that every unattended behaviour reads its
++    authorization from the trust posture.
++  - Creates two digests that the supervisor would have to pin.
++  - Splits governance across two files.
++- **Effort:** M
++
++### Selected Approach
++
++**Approach 2.** The recorded roadmap approval for `ri-11` authorized this
++direction (`gate-decision:2d683b7a-2f39-4b59-96d9-3abdf22f8a8f`), and the
++`proposal_approval` gate is `auto` under that scope. Approach 1 fails
++acceptance outcome 2 in practice, because no artifact enforces the
++declaration. Approach 3 contradicts the roadmap's single-contract rationale.
++
++## Assumptions (no interactive discovery: supervised child run)
++
++- **A1.** Window cadence is a five-field cron expression in UTC. Interpreting it
++  (next-fire computation) is left to the scheduler (`ri-13`). This change
++  validates only the expression's shape.
++- **A2.** `allowed_sources` uses the existing PR origin vocabulary that
++  `skills/shared/github_classifier.classify_pr` emits (and that
++  `discover_prs.py` passes through): `openspec`, `sentinel`, `bolt`, `palette`,
++  `jules`, `codex`, `dependabot`, `renovate`, `other`. The detailed origins are
++  used, not the folded PR-card origins, so a window can admit `sentinel`
++  without admitting every Jules PR.
++- **A3.** `auto_merge_ceiling` uses the PR kinds of
++  `skills/merge-pull-requests/scripts/classify_kind.py` (`automation` < `plan` <
++  `implementation`), plus `none`. A window with ceiling `none` may triage and
++  notify but never merges unattended.
++- **A4.** A scheduled run MUST NOT use the active-agent guard's force escape
++  hatch. Only a human may force.
++- **A5.** A sync window authorizes *starting* a sync point unattended; it does
++  not authorize any gated action. Gate dispositions (notably `merge`) still
++  apply. This is the fail-closed reading; the opposite reading (a window
++  implies `auto` for the actions it covers) would let one window silently widen
++  a gate, and is rejected.
++- **A6.** Declared windows are covered by the single posture digest. Declaring
++  or editing a window therefore re-evaluates digest-pinned decisions exactly as
++  any gate edit does today (see design Risks).
++
++## Impact
++
++- Specs: `skill-workflow` (two MODIFIED requirements: "Main Receives Work
++  Through PR Sync Points" and "Merge Conductor Invokes Iterate Skills"),
++  `trust-posture` (one ADDED requirement)
++- Code: `skills/shared/trust_posture.py`,
++  `skills/shared/github_classifier.py` (exported `PR_ORIGINS` only; no behaviour
++  change), `openspec/schemas/trust-posture.schema.json`
++- Docs: `TRUST_POSTURE.template.md`
++- Tests: `skills/shared/tests/test_trust_posture_sync_windows.py`,
++  `skills/tests/merge-pull-requests/test_classify.py` (origin-set coverage)
++- Runtime behaviour of this repository: unchanged. No window is declared, and
++  the posture digest is unchanged.
+diff --git a/openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/specs/skill-workflow/spec.md b/openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/specs/skill-workflow/spec.md
+new file mode 100644
+index 00000000..9810161d
+--- /dev/null
++++ b/openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/specs/skill-workflow/spec.md
+@@ -0,0 +1,140 @@
++## MODIFIED Requirements
++
++### Requirement: Main Receives Work Through PR Sync Points
++
++The system SHALL route completed local CLI work to main through PR sync points.
++In local CLI execution, completed planning, implementation, fix, validation, and
++artifact-generation work MUST reach main only through PR review followed by an
++explicit sync-point operation.
++
++A sync-point operation SHALL be explicitly user-invoked by default. A sync-point
++skill MAY instead run as a scheduled invocation only under a sync window that the
++repository's trust posture contract (`TRUST_POSTURE.md`, `sync_windows`) explicitly
++declares and that lists that skill. A scheduled invocation SHALL NOT relax the
++clean-tree check, the active-agent guard, or any validation gate.
++
++#### Scenario: Plan refinement completes
++
++- **WHEN** `/iterate-on-plan` updates proposal, design, task, contract, or spec
++  artifacts
++- **THEN** it MUST commit those updates on the feature branch in a worktree
++- **AND** it MUST NOT commit directly to local main
++
++#### Scenario: Sync-point skill touches main
++
++- **WHEN** `/merge-pull-requests`, `/update-specs`, or the main-touching portion
++  of `/cleanup-feature` modifies the shared checkout
++- **THEN** the skill MUST be explicitly user-invoked, or run as a scheduled
++  invocation authorized by a declared sync window
++- **AND** it MUST verify a clean working tree
++- **AND** it MUST verify that no active agents hold non-stale worktrees unless
++  the operator explicitly uses a force escape hatch
++
++#### Scenario: Scheduled invocation names a window and passes authorization first
++
++- **WHEN** a scheduler or any other non-user trigger starts a sync-point skill
++- **THEN** the trigger MUST name a sync window id, and MUST NOT start the skill
++  without one
++- **AND** the skill MUST call the trust posture sync-window authorization check
++  before any other work, including PR discovery, remediation, branch writes, or
++  any other externally visible side effect
++- **AND** when that check fails the skill MUST stop without performing any of
++  that work and without touching main
++- **AND** the trigger MUST start the skill only at times the window's declared
++  `cadence` permits; computing fire times and their tolerance is the
++  scheduler's responsibility
++
++#### Scenario: No sync window declared keeps the user-invoked default
++
++- **WHEN** the trust posture contract is absent, or declares no `sync_windows`
++- **AND** a scheduler or any other non-user trigger starts a sync-point skill
++- **THEN** the sync-window authorization check MUST fail for every window id
++- **AND** the skill MUST stop without touching main
++- **AND** user invocation MUST remain the only path by which the skill can
++  touch main
++
++#### Scenario: Scheduled invocation names an undeclared window or skill
++
++- **WHEN** a scheduled invocation names a sync window id that the trust posture
++  does not declare, or names a window that does not list the invoked skill
++- **THEN** the skill MUST refuse to touch main
++- **AND** it MUST report which declaration was missing
++
++#### Scenario: Scheduled invocation keeps the guards unchanged
++
++- **WHEN** a sync-point skill runs as a scheduled invocation under a declared
++  sync window
++- **THEN** it MUST run the same clean-tree check and active-agent guard as a
++  user-invoked run
++- **AND** it MUST NOT use the force escape hatch, which remains available only
++  to an explicit operator
++- **AND** when an active agent holds a non-stale worktree it MUST stop without
++  touching main
++
++#### Scenario: Scheduled invocation keeps validation gates unchanged
++
++- **WHEN** a sync-point skill runs as a scheduled invocation under a declared
++  sync window
++- **THEN** every validation gate, CI check, and readiness verdict that a
++  user-invoked run requires before merging MUST still be required
++- **AND** a PR that fails any of them MUST NOT be merged by the scheduled run
++
++#### Scenario: Scheduled invocation is bounded by the window's sources and ceiling
++
++- **WHEN** a sync-point skill runs as a scheduled invocation under a declared
++  sync window
++- **THEN** whenever it selects, remediates, or merges pull requests, it MUST
++  act only on pull requests whose origin is listed in the window's
++  `allowed_sources`
++- **AND** it MUST NOT merge unattended a pull request whose kind exceeds the
++  window's `auto_merge_ceiling`, or whose kind cannot be classified
++- **AND** a window whose `auto_merge_ceiling` is `none` MUST NOT merge any pull
++  request unattended
++
++#### Scenario: Sync window does not override gate dispositions
++
++- **WHEN** a sync-point skill runs as a scheduled invocation under a declared
++  sync window
++- **THEN** the window's authorization MUST be treated as necessary but not
++  sufficient
++- **AND** the window MUST NOT change any trust posture gate disposition; every
++  gate that applies to the scheduled action MUST be evaluated exactly as it
++  would be without the window
++- **AND** a gate that resolves to `block` MUST stop the scheduled run's action
++- **AND** which gates apply to a scheduled sync-point action is defined by the
++  change that adds that scheduled caller (`ri-12` headless merge, `ri-13`
++  drain); this requirement defines no new gate applicability
++
++### Requirement: Merge Conductor Invokes Iterate Skills
++
++`/merge-pull-requests` in its default plan-then-execute path SHALL be allowed to
++invoke `/iterate-on-plan` and `/iterate-on-implementation` as remediations for
++open pull requests. Those invocations SHALL run in the iterate skill's managed
++feature worktree and SHALL NOT write `main`. The merge skill remains the
++sync-point for merges into `main`: it is user-invoked by default, or runs as a
++scheduled invocation only under a declared sync window as defined by "Main
++Receives Work Through PR Sync Points".
++
++<!-- Scenario ID: skill-workflow.merge-invokes-iterate -->
++#### Scenario: Merge-triggered iterate writes the feature branch only
++
++- **WHEN** `/merge-pull-requests` invokes `/iterate-on-plan` or `/iterate-on-implementation` for a node
++- **THEN** iterate SHALL enter or create the change's managed worktree before any mutation
++- **AND** SHALL commit on the feature branch
++- **AND** SHALL NOT commit to local `main`
++
++<!-- Scenario ID: skill-workflow.merge-still-sync-point -->
++#### Scenario: Merge remains the only main writer in the loop
++
++- **WHEN** iterate returns and the node is mergeable
++- **THEN** only `/merge-pull-requests` SHALL merge into `main`
++- **AND** iterate SHALL NOT call `gh pr merge` or otherwise land the PR
++
++#### Scenario: Scheduled merge conductor keeps iterate on the feature branch
++
++- **WHEN** `/merge-pull-requests` runs as a scheduled invocation under a
++  declared sync window and invokes `/iterate-on-plan` or
++  `/iterate-on-implementation` for a node
++- **THEN** iterate SHALL still commit only on the feature branch
++- **AND** only the merge skill SHALL merge into `main`, subject to the window's
++  `allowed_sources` and `auto_merge_ceiling`
+diff --git a/openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/specs/trust-posture/spec.md b/openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/specs/trust-posture/spec.md
+new file mode 100644
+index 00000000..e1fe9f12
+--- /dev/null
++++ b/openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/specs/trust-posture/spec.md
+@@ -0,0 +1,99 @@
++## ADDED Requirements
++
++### Requirement: Sync Window Declarations
++
++The trust posture contract front matter SHALL accept an optional top-level
++`sync_windows` list. Each entry SHALL declare exactly these fields:
++
++- `id`: a kebab-case string matching `^[a-z0-9]+(-[a-z0-9]+)*$`, unique within
++  the list
++- `cadence`: a cron-shaped string of exactly five whitespace-separated fields,
++  each matching `[0-9*/,-]+`, interpreted in UTC. The loader validates only
++  this shape; named months and days, `@` macros, and six-field forms are
++  rejected, and value ranges (for example `99 * * * *`) are validated by the
++  scheduler that computes fire times, which SHALL refuse a window whose cadence
++  it cannot schedule
++- `skills`: a non-empty list drawn from `merge-pull-requests`, `update-specs`,
++  and `cleanup-feature`
++- `allowed_sources`: a non-empty list of PR origins drawn from `openspec`,
++  `sentinel`, `bolt`, `palette`, `jules`, `codex`, `dependabot`, `renovate`, and
++  `other` (the origins that `skills/shared/github_classifier.classify_pr`
++  emits)
++- `auto_merge_ceiling`: one of `none`, `automation`, `plan`, or
++  `implementation`, ordered from least to most permissive
++
++The loader SHALL reject, as a validation error, a `sync_windows` value that is
++neither `null` nor a list, an entry that is not a mapping, an unknown field, a missing field,
++an empty list field, a repeated value inside a list field, an unknown skill,
++source, or ceiling, an `id` that is not kebab-case, a malformed cadence, or a
++duplicate `id`. When
++`sync_windows` is absent, `null`, or an empty list, the posture SHALL declare no
++sync windows (fail-closed). The posture digest SHALL cover the declared sync
++windows independent of their declaration order, and a posture that declares
++none SHALL produce the same digest as it did before this field existed.
++
++A ceiling SHALL permit a PR kind only when the kind is one of `automation`,
++`plan`, or `implementation` and ranks at or below the ceiling; any other kind,
++including an unclassified one, SHALL NOT be permitted.
++
++The loader SHALL expose an authorization check that, given a window id and a
++sync-point skill, returns the declared window only when the window exists and
++lists that skill, and otherwise fails with a not-authorized error naming the
++missing declaration. The check SHALL accept the absent-posture value (no
++contract file) and fail for it. A skill name outside the closed sync-point
++skill set SHALL be rejected as a usage error, distinct from the not-authorized
++error.
++
++#### Scenario: Absent sync windows declare nothing
++
++- **WHEN** a trust posture is loaded whose front matter omits `sync_windows`,
++  sets it to `null` or `[]`, or no contract file exists
++- **THEN** the posture SHALL report no sync windows
++- **AND** the authorization check SHALL fail for every window id and skill
++
++#### Scenario: Declared window loads and authorizes its skills
++
++- **WHEN** a trust posture declares a valid sync window listing
++  `merge-pull-requests`
++- **THEN** the loader SHALL resolve the window with its cadence, skills,
++  allowed sources, and auto-merge ceiling
++- **AND** the authorization check SHALL return that window for
++  `merge-pull-requests`
++- **AND** the authorization check SHALL fail for a skill the window does not list
++- **AND** the authorization check SHALL reject a skill name outside the
++  sync-point skill set with a usage error, not a not-authorized error
++
++#### Scenario: Malformed window is rejected
++
++- **WHEN** a sync window has an unknown field, omits a required field, has an
++  empty or repeated-value list field, names an unknown skill, source, or
++  ceiling, has an `id` that is not kebab-case, has a cadence that is not five
++  fields of the permitted shape, or repeats another window's `id`
++- **THEN** validation SHALL fail with an error naming the window and the problem
++- **AND** the loader SHALL NOT return a posture that omits the malformed window
++
++#### Scenario: Malformed sync_windows container is rejected
++
++- **WHEN** `sync_windows` is present, not `null`, and not a list, or one of its entries is
++  not a mapping
++- **THEN** validation SHALL fail with an error naming `sync_windows` and the
++  offending entry index
++
++#### Scenario: Auto-merge ceiling orders PR kinds
++
++- **WHEN** a window's `auto_merge_ceiling` is compared with a PR kind
++- **THEN** `none` SHALL permit no kind
++- **AND** `automation` SHALL permit only `automation`
++- **AND** `plan` SHALL permit `automation` and `plan`
++- **AND** `implementation` SHALL permit `automation`, `plan`, and
++  `implementation`
++- **AND** no ceiling SHALL permit an unknown or unclassified kind
++
++#### Scenario: Digest is unchanged without windows and changes with them
++
++- **WHEN** the posture digest is computed for a posture that declares no sync
++  windows
++- **THEN** it SHALL equal the digest computed over the `gates` map alone
++- **AND** adding or editing a declared sync window SHALL change the digest
++- **AND** reordering declared windows, or reordering values inside a window's
++  list fields, SHALL NOT change the digest
+diff --git a/openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/tasks.md b/openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/tasks.md
+new file mode 100644
+index 00000000..eb883cc3
+--- /dev/null
++++ b/openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/tasks.md
+@@ -0,0 +1,98 @@
++# Tasks: amend-skill-workflow-spec-for-policy-authorized-sync-windows
++
++All tasks run in one package (`wp-main`) in order. 2.1 and 2.3 share the test
++file `skills/shared/tests/test_trust_posture_sync_windows.py`, and 2.2/2.3/3.1
++all depend on the `SyncWindow` shape fixed in 2.2, so parallel execution would
++only produce merge conflicts on a ~350 LOC change.
++
++## 1. Spec amendment
++
++- [x] 1.1 Confirm the spec deltas already authored in this change — the
++  `skill-workflow` MODIFIED requirements "Main Receives Work Through PR Sync
++  Points" and "Merge Conductor Invokes Iterate Skills", and the `trust-posture`
++  ADDED requirement "Sync Window Declarations" — still carry every scenario of
++  the base requirements in `openspec/specs/skill-workflow/spec.md`, and that
++  `openspec validate amend-skill-workflow-spec-for-policy-authorized-sync-windows --strict`
++  passes (XS)
++  **Spec scenarios**: skill-workflow "Scheduled invocation names a window and
++  passes authorization first", "No sync window declared keeps the
++  user-invoked default", "Scheduled invocation keeps the guards unchanged",
++  "Scheduled invocation keeps validation gates unchanged", "Scheduled
++  invocation is bounded by the window's sources and ceiling", "Sync window does
++  not override gate dispositions", "Scheduled merge conductor keeps iterate on
++  the feature branch". These are acceptance contracts for `ri-12`/`ri-13`
++  callers (design D6, verification boundary); this change verifies only the
++  authorization surface they call (2.1).
++  **Dependencies**: None
++
++## 2. Posture contract: sync windows
++
++- [x] 2.0 Add an exported `PR_ORIGINS` frozenset to
++  `skills/shared/github_classifier.py` (add to `__all__`; no behaviour change)
++  and a test in `skills/tests/merge-pull-requests/test_classify.py` that every
++  origin `classify_pr` returns for the existing fixtures is in `PR_ORIGINS` and
++  that `to_pr_card_origin` accepts every member (XS)
++  **Design decisions**: D3
++  **Dependencies**: None
++- [x] 2.1 Write failing tests in `skills/shared/tests/test_trust_posture_sync_windows.py`:
++  - absent, `null` and `[]` windows declare nothing, and authorization fails
++    for every id and skill (including with no contract file)
++  - a valid window round-trips through `load_posture`
++  - each malformed shape is rejected with the window (or entry index) named:
++    non-list `sync_windows`, non-mapping entry, unknown field, missing field,
++    empty list field, repeated list value, non-kebab `id`, unknown
++    skill/source/ceiling, bad cadence (four fields, six fields, `@daily`,
++    `MON`), duplicate id
++  - ceiling ordering, including that no ceiling permits an unknown kind
++  - vocabulary parity: `SYNC_SOURCES == github_classifier.PR_ORIGINS`, ranked
++    kinds `== set(classify_kind.KIND_TO_SKILL)`
++  - `authorize_sync_window` success, unknown-window and unlisted-skill
++    refusals (message names the missing declaration), unknown skill raises
++    `ValueError` (not `SyncWindowNotAuthorized`), and refusal for both the
++    absent-posture value and `None`
++  - digest byte-identical to the gates-only digest without windows (pinned
++    against a literal for the live `TRUST_POSTURE.md`), changed by a window
++    edit, unchanged by window or list-value reordering
++  - `show` prints a `sync_windows:` section after the gate lines
++  - the live `TRUST_POSTURE.md` and `TRUST_POSTURE.template.md` validate and
++    declare no window
++  (M)
++  **Spec scenarios**: trust-posture "Absent sync windows declare nothing",
++  "Declared window loads and authorizes its skills", "Malformed window is
++  rejected", "Malformed sync_windows container is rejected", "Auto-merge
++  ceiling orders PR kinds", "Digest is unchanged without windows and changes
++  with them"; skill-workflow "Scheduled invocation names an undeclared window
++  or skill"
++  **Design decisions**: D2, D3, D4, D5, D6, D7, D8
++  **Dependencies**: 1.1, 2.0
++- [x] 2.2 Implement `SyncWindow`, `MergeCeiling`, `SyncWindowNotAuthorized`,
++  `SYNC_SKILLS`/`SYNC_SOURCES` frozensets, `sync_windows` parsing/validation,
++  `TrustPosture.sync_windows` (defaulting to an empty tuple so existing
++  constructors are unaffected), `authorize_sync_window`, the digest extension
++  (windows sorted by id), and `show` output in `skills/shared/trust_posture.py` (S)
++  **Design decisions**: D2, D3, D4, D5, D6, D8
++  **Dependencies**: 2.1
++- [x] Checkpoint: run `skills/.venv/bin/python -m pytest skills/shared/tests skills/tests/merge-pull-requests -q`,
++  then `skills/.venv/bin/python -m pytest skills/tests/supervise skills/tests/autopilot skills/autopilot/tests -q`
++  (digest consumers), review diff, verify scope
++- [x] 2.3 Mirror `sync_windows` in `openspec/schemas/trust-posture.schema.json`
++  (`SyncWindow` `$def`, closed enums, `uniqueItems`, id and cadence patterns)
++  and add schema tests to `test_trust_posture_sync_windows.py`: the template and
++  a sample window validate, `sync_windows` absent, `null` and `[]` all validate,
++  a malformed window fails (including wrong field types and wrong list-member
++  types), and the schema enums equal the Python frozensets (S)
++  **Design decisions**: D1, D3, D4
++  **Dependencies**: 2.2
++
++## 3. Documentation
++
++- [x] 3.1 Document the `sync_windows` block in `TRUST_POSTURE.template.md`: a
++  commented-out example, a field table, the fail-closed rule, the
++  guards-unchanged rule, the necessary-not-sufficient rule (D8), and the
++  advice to declare windows while no supervised run is in flight (digest
++  re-evaluation). Do not change the effective front matter of
++  `TRUST_POSTURE.md` (XS)
++  **Design decisions**: D5, D7, D8
++  **Dependencies**: 2.2
++- [x] Checkpoint: run tests, `openspec validate --strict`, confirm
++  `git diff origin/main -- TRUST_POSTURE.md` is empty, review diff, verify scope
+diff --git a/openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/work-packages.yaml b/openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/work-packages.yaml
+new file mode 100644
+index 00000000..b970b77f
+--- /dev/null
++++ b/openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/work-packages.yaml
+@@ -0,0 +1,113 @@
++schema_version: 1
++
++feature:
++  id: amend-skill-workflow-spec-for-policy-authorized-sync-windows
++  title: "Amend skill-workflow spec for policy-authorized sync windows"
++  plan_revision: 2
++  created_by: claude-code
++
++contracts:
++  revision: 1
++  openapi:
++    primary: "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/contracts/README.md"
++    files:
++      - "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/contracts/README.md"
++
++defaults:
++  priority: 5
++  lock_ttl_minutes: 120
++  timeout_minutes: 60
++  retry_budget: 2
++  verification_tier_required: B
++  min_trust_level: 2
++
++# Small, single-boundary change: one sequential package with an explicit
++# (non-repo-wide) write scope.
++packages:
++  - package_id: wp-main
++    title: "Sync-window spec amendment + trust posture contract extension"
++    task_type: backend
++    description: |
++      Amends the skill-workflow sync-point requirement, adds the trust-posture
++      sync-window requirement, extends skills/shared/trust_posture.py and the
++      trust posture schema with a fail-closed sync_windows declaration and
++      authorization check, documents it in the template, and tests it.
++      Also exports PR_ORIGINS from skills/shared/github_classifier.py for the
++      vocabulary parity test. Implements tasks 1.1-3.1 (including 2.0).
++    role: implementer
++    priority: 1
++    depends_on: []
++    locks:
++      files:
++        - "skills/shared/trust_posture.py"
++        - "skills/shared/github_classifier.py"
++        - "openspec/schemas/trust-posture.schema.json"
++        - "TRUST_POSTURE.template.md"
++      keys:
++        - "contract:trust-posture-schema"
++      ttl_minutes: 120
++      reason: "Extends the trust posture contract with sync_windows"
++    scope:
++      write_allow:
++        - "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/**"
++        - "skills/shared/trust_posture.py"
++        - "skills/shared/tests/test_trust_posture_sync_windows.py"
++        - "skills/shared/github_classifier.py"
++        - "skills/tests/merge-pull-requests/test_classify.py"
++        - "openspec/schemas/trust-posture.schema.json"
++        - "TRUST_POSTURE.template.md"
++        - "docs/decisions/skill-workflow.md"
++        - "docs/decisions/trust-posture.md"
++      read_allow:
++        - "**"
++      deny:
++        - "TRUST_POSTURE.md"
++    worktree:
++      name: amend-skill-workflow-spec-for-policy-authorized-sync-windows
++      mode: shared
++    timeout_minutes: 90
++    retry_budget: 2
++    min_trust_level: 2
++    verification:
++      tier_required: B
++      steps:
++        - name: "trust posture tests"
++          kind: command
++          command: "skills/.venv/bin/python -m pytest skills/shared/tests skills/tests/merge-pull-requests -q"
++          cwd: "."
++          expect_exit_code: 0
++          evidence:
++            artifacts: []
++            result_keys: ["trust_posture_tests_pass"]
++        - name: "posture digest consumers"
++          kind: command
++          command: "skills/.venv/bin/python -m pytest skills/tests/supervise skills/tests/autopilot skills/autopilot/tests -q"
++          cwd: "."
++          expect_exit_code: 0
++          evidence:
++            artifacts: []
++            result_keys: ["digest_consumers_pass"]
++        - name: "openspec strict validation"
++          kind: command
++          command: "openspec validate amend-skill-workflow-spec-for-policy-authorized-sync-windows --strict"
++          cwd: "."
++          expect_exit_code: 0
++          evidence:
++            artifacts: []
++            result_keys: ["openspec_valid"]
++        - name: "live posture validates"
++          kind: command
++          command: ".venv/bin/python -m shared.trust_posture validate ../TRUST_POSTURE.md"
++          cwd: "skills"
++          expect_exit_code: 0
++          evidence:
++            artifacts: []
++            result_keys: ["live_posture_valid"]
++    metadata:
++      loc_estimate: 350
++      complexity: low
++      package_kind: config
++    inputs: {}
++    outputs:
++      result_keys: ["trust_posture_tests_pass", "digest_consumers_pass", "openspec_valid", "live_posture_valid"]
++      artifacts: []
+diff --git a/openspec/schemas/trust-posture.schema.json b/openspec/schemas/trust-posture.schema.json
+index 1aa25c96..5ed1ca7a 100644
+--- a/openspec/schemas/trust-posture.schema.json
++++ b/openspec/schemas/trust-posture.schema.json
+@@ -2,7 +2,7 @@
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "$id": "https://agentic-coding-tools.dev/schemas/trust-posture.schema.json",
+   "title": "Trust Posture Contract",
+-  "description": "Schema for the YAML front matter of the repo-owned trust posture contract (TRUST_POSTURE.md). Declared at repo root; resolved by skills/shared/trust_posture.py (which performs the authoritative runtime validation — this schema is the declarative mirror, following the flags.yaml / feature_flags.py pattern). When the contract file is absent, every gate resolves to 'block' (backward-compatible default); the loader also fails closed to 'block' for any gate omitted here.",
++  "description": "Schema for the YAML front matter of the repo-owned trust posture contract (TRUST_POSTURE.md). Declared at repo root; resolved by skills/shared/trust_posture.py (which performs the authoritative runtime validation \u2014 this schema is the declarative mirror, following the flags.yaml / feature_flags.py pattern). When the contract file is absent, every gate resolves to 'block' (backward-compatible default); the loader also fails closed to 'block' for any gate omitted here.",
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+@@ -48,6 +48,17 @@
+           "$ref": "#/$defs/GateConfig"
+         }
+       }
++    },
++    "sync_windows": {
++      "type": [
++        "array",
++        "null"
++      ],
++      "description": "Optional policy-authorized sync windows. Absent, null and [] all declare no window (fail-closed): no non-user trigger may start a sync-point skill. A window is necessary, never sufficient: it does not change any gate disposition. The Python loader performs the authoritative validation (including unique ids across entries).",
++      "items": {
++        "$ref": "#/$defs/SyncWindow"
++      },
++      "uniqueItems": true
+     }
+   },
+   "$defs": {
+@@ -245,6 +256,73 @@
+         }
+       ],
+       "description": "Fallback for a scoped gate evaluated without a roadmap approval. Same rules as a gate config, except auto is not allowed."
++    },
++    "SyncWindow": {
++      "type": "object",
++      "additionalProperties": false,
++      "required": [
++        "id",
++        "cadence",
++        "skills",
++        "allowed_sources",
++        "auto_merge_ceiling"
++      ],
++      "properties": {
++        "id": {
++          "type": "string",
++          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
++          "description": "Kebab-case window id, unique within sync_windows."
++        },
++        "cadence": {
++          "type": "string",
++          "pattern": "^[0-9*/,-]+( +[0-9*/,-]+){4}$",
++          "description": "Cron-shaped, exactly five space-separated fields, interpreted in UTC. Shape only; value ranges are validated by the scheduler."
++        },
++        "skills": {
++          "type": "array",
++          "minItems": 1,
++          "uniqueItems": true,
++          "items": {
++            "type": "string",
++            "enum": [
++              "merge-pull-requests",
++              "update-specs",
++              "cleanup-feature"
++            ]
++          },
++          "description": "Sync-point skills the window authorizes to start without a user."
++        },
++        "allowed_sources": {
++          "type": "array",
++          "minItems": 1,
++          "uniqueItems": true,
++          "items": {
++            "type": "string",
++            "enum": [
++              "openspec",
++              "sentinel",
++              "bolt",
++              "palette",
++              "jules",
++              "codex",
++              "dependabot",
++              "renovate",
++              "other"
++            ]
++          },
++          "description": "PR origins (github_classifier.classify_pr) the window admits."
++        },
++        "auto_merge_ceiling": {
++          "type": "string",
++          "enum": [
++            "none",
++            "automation",
++            "plan",
++            "implementation"
++          ],
++          "description": "Least to most permissive PR kind the window may auto-merge."
++        }
++      }
+     }
+   }
+ }
+diff --git a/skills/shared/github_classifier.py b/skills/shared/github_classifier.py
+index 11505952..d456dbd3 100644
+--- a/skills/shared/github_classifier.py
++++ b/skills/shared/github_classifier.py
+@@ -113,6 +113,22 @@ def from_rest_pr(rest_payload: dict[str, Any]) -> dict[str, Any]:
+     }
+ 
+ 
++#: Every detailed origin ``classify_pr`` can return. Consumers that need a closed
++#: vocabulary (for example trust-posture sync windows) pin to this set.
++PR_ORIGINS = frozenset(
++    {
++        "openspec",
++        "sentinel",
++        "bolt",
++        "palette",
++        "jules",
++        "codex",
++        "dependabot",
++        "renovate",
++        "other",
++    }
++)
++
+ _FOLD: dict[str, str] = {
+     "sentinel": "jules",
+     "bolt": "jules",
+@@ -136,6 +152,7 @@ def to_pr_card_origin(classifier_origin: str) -> str:
+ 
+ 
+ __all__ = [
++    "PR_ORIGINS",
+     "JULES_AUTHORS",
+     "JULES_PATTERNS",
+     "classify_pr",
+diff --git a/skills/shared/tests/test_trust_posture_sync_windows.py b/skills/shared/tests/test_trust_posture_sync_windows.py
+new file mode 100644
+index 00000000..1523b170
+--- /dev/null
++++ b/skills/shared/tests/test_trust_posture_sync_windows.py
+@@ -0,0 +1,380 @@
++"""Tests for the trust posture ``sync_windows`` declaration and authorization."""
++from __future__ import annotations
++
++import copy
++import hashlib
++import importlib.util
++import json
++import sys
++from pathlib import Path
++
++import pytest
++import yaml
++
++SKILLS_ROOT = Path(__file__).resolve().parents[2]
++REPO_ROOT = SKILLS_ROOT.parent
++sys.path.insert(0, str(SKILLS_ROOT))
++from shared import github_classifier  # noqa: E402
++from shared import trust_posture as tp  # noqa: E402
++
++LIVE_DIGEST = "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
++
++GATES_BLOCK = "gates:\n  merge:\n    disposition: block\n"
++
++WINDOW = {
++    "id": "nightly-drain",
++    "cadence": "0 3 * * 1-5",
++    "skills": ["merge-pull-requests", "update-specs"],
++    "allowed_sources": ["openspec", "dependabot"],
++    "auto_merge_ceiling": "plan",
++}
++
++
++def contract(tmp_path: Path, windows: object = ..., *, raw: str | None = None) -> Path:
++    """Write a contract; ``windows=...`` omits the key entirely."""
++    body = "schema_version: 1\n" + GATES_BLOCK
++    if raw is not None:
++        body += raw
++    elif windows is not ...:
++        body += yaml.safe_dump({"sync_windows": windows}, sort_keys=False)
++    path = tmp_path / "TRUST_POSTURE.md"
++    path.write_text(f"---\n{body}---\n\nprose\n", encoding="utf-8")
++    return path
++
++
++def load(tmp_path: Path, windows: object = ...) -> tp.TrustPosture:
++    return tp.load_posture(path=contract(tmp_path, windows))
++
++
++def window(**overrides: object) -> dict:
++    w = copy.deepcopy(WINDOW)
++    w.update(overrides)
++    return w
++
++
++# --------------------------------------------------------------------------- #
++# Absent windows
++# --------------------------------------------------------------------------- #
++
++@pytest.mark.parametrize("value", [..., None, []])
++def test_absent_null_empty_declare_nothing(tmp_path: Path, value: object) -> None:
++    posture = load(tmp_path, value)
++    assert posture.sync_windows == ()
++    for skill in tp.SYNC_SKILLS:
++        with pytest.raises(tp.SyncWindowNotAuthorized):
++            tp.authorize_sync_window(posture, "nightly-drain", skill)
++
++
++def test_no_contract_file_and_none_fail_closed(tmp_path: Path) -> None:
++    absent = tp.load_posture(path=tmp_path / "missing.md")
++    assert absent.present is False
++    for posture in (absent, None):
++        with pytest.raises(tp.SyncWindowNotAuthorized):
++            tp.authorize_sync_window(posture, "any", "merge-pull-requests")
++
++
++# --------------------------------------------------------------------------- #
++# Valid windows
++# --------------------------------------------------------------------------- #
++
++def test_valid_window_round_trips(tmp_path: Path) -> None:
++    posture = load(tmp_path, [WINDOW])
++    (w,) = posture.sync_windows
++    assert w.id == "nightly-drain"
++    assert w.cadence == "0 3 * * 1-5"
++    assert set(w.skills) == {"merge-pull-requests", "update-specs"}
++    assert set(w.allowed_sources) == {"openspec", "dependabot"}
++    assert w.auto_merge_ceiling is tp.MergeCeiling.PLAN
++
++
++def test_authorize_returns_window_and_refuses_unlisted(tmp_path: Path) -> None:
++    posture = load(tmp_path, [WINDOW])
++    got = tp.authorize_sync_window(posture, "nightly-drain", "merge-pull-requests")
++    assert got is posture.sync_windows[0]
++    with pytest.raises(tp.SyncWindowNotAuthorized, match="cleanup-feature"):
++        tp.authorize_sync_window(posture, "nightly-drain", "cleanup-feature")
++    with pytest.raises(tp.SyncWindowNotAuthorized, match="other-window"):
++        tp.authorize_sync_window(posture, "other-window", "merge-pull-requests")
++
++
++def test_unknown_skill_is_usage_error(tmp_path: Path) -> None:
++    posture = load(tmp_path, [WINDOW])
++    with pytest.raises(ValueError) as exc:
++        tp.authorize_sync_window(posture, "nightly-drain", "autopilot")
++    assert not isinstance(exc.value, tp.SyncWindowNotAuthorized)
++
++
++# --------------------------------------------------------------------------- #
++# Malformed windows
++# --------------------------------------------------------------------------- #
++
++def _bad(**overrides: object) -> dict:
++    return window(**overrides)
++
++
++def _without(key: str) -> dict:
++    w = window()
++    del w[key]
++    return w
++
++
++MALFORMED = {
++    "unknown field": (window(extra=1), "extra"),
++    "missing id": (_without("id"), "'id'"),
++    "missing cadence": (_without("cadence"), "'cadence'"),
++    "missing skills": (_without("skills"), "'skills'"),
++    "empty skills": (_bad(skills=[]), "skills"),
++    "empty sources": (_bad(allowed_sources=[]), "allowed_sources"),
++    "repeated skill": (_bad(skills=["update-specs", "update-specs"]), "repeats"),
++    "repeated source": (_bad(allowed_sources=["jules", "jules"]), "repeats"),
++    "unknown skill": (_bad(skills=["autopilot"]), "autopilot"),
++    "unknown source": (_bad(allowed_sources=["gitlab"]), "gitlab"),
++    "unknown ceiling": (_bad(auto_merge_ceiling="all"), "auto_merge_ceiling"),
++    "non-kebab id": (_bad(id="Nightly_Drain"), "kebab-case"),
++    "four-field cadence": (_bad(cadence="0 3 * *"), "cadence"),
++    "six-field cadence": (_bad(cadence="0 0 3 * * 1"), "cadence"),
++    "macro cadence": (_bad(cadence="@daily"), "cadence"),
++    "named day cadence": (_bad(cadence="0 3 * * MON"), "cadence"),
++    "non-string cadence": (_bad(cadence=5), "cadence"),
++    "scalar skills": (_bad(skills="update-specs"), "skills"),
++}
++
++
++@pytest.mark.parametrize("name", sorted(MALFORMED))
++def test_malformed_window_rejected_naming_window(tmp_path: Path, name: str) -> None:
++    entry, needle = MALFORMED[name]
++    path = contract(tmp_path, [entry])
++    with pytest.raises(tp.PostureValidationError) as exc:
++        tp.load_posture(path=path)
++    msg = str(exc.value)
++    assert "sync_windows[0]" in msg
++    assert needle in msg
++    assert tp.validate_posture_file(path)
++
++
++def test_duplicate_id_rejected(tmp_path: Path) -> None:
++    path = contract(tmp_path, [window(), window(cadence="5 4 * * *")])
++    with pytest.raises(tp.PostureValidationError, match=r"sync_windows\[1\].*duplicate"):
++        tp.load_posture(path=path)
++
++
++@pytest.mark.parametrize("value", ["daily", {"id": "x"}, 5, True])
++def test_non_list_container_rejected(tmp_path: Path, value: object) -> None:
++    with pytest.raises(tp.PostureValidationError, match="sync_windows"):
++        tp.load_posture(path=contract(tmp_path, value))
++
++
++def test_non_mapping_entry_rejected_with_index(tmp_path: Path) -> None:
++    path = contract(tmp_path, [WINDOW, "nightly"])
++    with pytest.raises(tp.PostureValidationError, match=r"sync_windows\[1\]"):
++        tp.load_posture(path=path)
++
++
++def test_malformed_window_not_silently_dropped(tmp_path: Path) -> None:
++    path = contract(tmp_path, [WINDOW, window(id="second", cadence="bad")])
++    with pytest.raises(tp.PostureValidationError):
++        tp.load_posture(path=path)
++
++
++# --------------------------------------------------------------------------- #
++# Ceiling
++# --------------------------------------------------------------------------- #
++
++@pytest.mark.parametrize(
++    "ceiling, permitted",
++    [
++        ("none", set()),
++        ("automation", {"automation"}),
++        ("plan", {"automation", "plan"}),
++        ("implementation", {"automation", "plan", "implementation"}),
++    ],
++)
++def test_ceiling_ordering(ceiling: str, permitted: set) -> None:
++    c = tp.MergeCeiling(ceiling)
++    for kind in ("automation", "plan", "implementation"):
++        assert c.permits(kind) is (kind in permitted)
++
++
++@pytest.mark.parametrize("ceiling", [c.value for c in tp.MergeCeiling])
++@pytest.mark.parametrize("kind", ["", "unknown", "none", None, 3, "PLAN"])
++def test_no_ceiling_permits_unknown_kind(ceiling: str, kind: object) -> None:
++    assert tp.MergeCeiling(ceiling).permits(kind) is False
++
++
++# --------------------------------------------------------------------------- #
++# Vocabulary parity
++# --------------------------------------------------------------------------- #
++
++def test_sources_match_classifier_origins() -> None:
++    assert tp.SYNC_SOURCES == github_classifier.PR_ORIGINS
++
++
++def test_ranked_kinds_match_classify_kind() -> None:
++    path = SKILLS_ROOT / "merge-pull-requests" / "scripts" / "classify_kind.py"
++    spec = importlib.util.spec_from_file_location("_classify_kind_parity", path)
++    assert spec is not None and spec.loader is not None
++    mod = importlib.util.module_from_spec(spec)
++    spec.loader.exec_module(mod)
++    assert set(tp._KIND_RANK) == set(mod.KIND_TO_SKILL)
++
++
++def test_ceiling_values_are_none_plus_kinds() -> None:
++    assert {c.value for c in tp.MergeCeiling} == {"none", *tp._KIND_RANK}
++
++
++# --------------------------------------------------------------------------- #
++# Digest
++# --------------------------------------------------------------------------- #
++
++def _gates_only_digest(posture: tp.TrustPosture) -> str:
++    canonical = {g.value: posture.disposition_for(g).to_canonical() for g in tp.Gate}
++    payload = json.dumps(canonical, sort_keys=True, separators=(",", ":")).encode()
++    return hashlib.sha256(payload).hexdigest()
++
++
++def test_digest_without_windows_is_gates_only(tmp_path: Path) -> None:
++    for value in (..., None, []):
++        posture = load(tmp_path, value)
++        assert tp.posture_digest(posture) == _gates_only_digest(posture)
++    assert tp.posture_digest(None) == _gates_only_digest(tp.TrustPosture(gates={}))
++
++
++def test_live_posture_digest_pinned() -> None:
++    posture = tp.load_posture(path=REPO_ROOT / "TRUST_POSTURE.md")
++    assert posture.sync_windows == ()
++    assert tp.posture_digest(posture) == LIVE_DIGEST
++
++
++def test_window_changes_digest(tmp_path: Path) -> None:
++    base = tp.posture_digest(load(tmp_path))
++    with_window = tp.posture_digest(load(tmp_path, [WINDOW]))
++    widened = tp.posture_digest(load(tmp_path, [window(auto_merge_ceiling="implementation")]))
++    assert len({base, with_window, widened}) == 3
++
++
++def test_digest_ignores_ordering(tmp_path: Path) -> None:
++    other = window(id="weekly", cadence="0 5 * * 0")
++    a = tp.posture_digest(load(tmp_path, [WINDOW, other]))
++    b = tp.posture_digest(load(tmp_path, [other, WINDOW]))
++    assert a == b
++    flipped = window(
++        skills=list(reversed(WINDOW["skills"])),
++        allowed_sources=list(reversed(WINDOW["allowed_sources"])),
++    )
++    assert tp.posture_digest(load(tmp_path, [WINDOW])) == tp.posture_digest(
++        load(tmp_path, [flipped])
++    )
++
++
++# --------------------------------------------------------------------------- #
++# show
++# --------------------------------------------------------------------------- #
++
++def test_show_prints_sync_windows_after_gates(
++    tmp_path: Path, capsys: pytest.CaptureFixture
++) -> None:
++    path = contract(tmp_path, [WINDOW])
++    assert tp._main(["show", str(path)]) == 0
++    lines = capsys.readouterr().out.splitlines()
++    idx = lines.index("sync_windows:")
++    assert all(g.value in " ".join(lines[:idx]) for g in tp.Gate)
++    assert "nightly-drain" in lines[idx + 1]
++    assert "ceiling=plan" in lines[idx + 1]
++
++
++def test_show_without_windows(tmp_path: Path, capsys: pytest.CaptureFixture) -> None:
++    assert tp._main(["show", str(contract(tmp_path))]) == 0
++    out = capsys.readouterr().out
++    assert "sync_windows:\n  (none declared)" in out
++
++
++# --------------------------------------------------------------------------- #
++# Live files
++# --------------------------------------------------------------------------- #
++
++@pytest.mark.parametrize("name", ["TRUST_POSTURE.md", "TRUST_POSTURE.template.md"])
++def test_live_and_template_validate_with_no_window(name: str) -> None:
++    path = REPO_ROOT / name
++    assert tp.validate_posture_file(path) == []
++    assert tp.load_posture(path=path).sync_windows == ()
++
++
++# --------------------------------------------------------------------------- #
++# JSON schema mirror
++# --------------------------------------------------------------------------- #
++
++try:
++    import jsonschema
++except ImportError:  # pragma: no cover - schema tests only
++    jsonschema = None
++needs_jsonschema = pytest.mark.skipif(jsonschema is None, reason="jsonschema not installed")
++SCHEMA = json.loads(
++    (REPO_ROOT / "openspec" / "schemas" / "trust-posture.schema.json").read_text()
++)
++
++
++def _front_matter(path: Path) -> dict:
++    return yaml.safe_load(path.read_text().split("---")[1])
++
++
++def _schema_errors(front: dict) -> list:
++    return list(jsonschema.Draft202012Validator(SCHEMA).iter_errors(front))
++
++
++def _front(windows: object = ...) -> dict:
++    front = _front_matter(REPO_ROOT / "TRUST_POSTURE.template.md")
++    if windows is not ...:
++        front["sync_windows"] = windows
++    return front
++
++
++@needs_jsonschema
++def test_schema_template_and_sample_window_validate() -> None:
++    assert _schema_errors(_front_matter(REPO_ROOT / "TRUST_POSTURE.template.md")) == []
++    assert _schema_errors(_front([WINDOW])) == []
++
++
++@pytest.mark.parametrize("value", [..., None, []])
++@needs_jsonschema
++def test_schema_absent_null_empty_validate(value: object) -> None:
++    assert _schema_errors(_front(value)) == []
++
++
++@pytest.mark.parametrize(
++    "bad",
++    [
++        window(extra=1),
++        _without("skills"),
++        window(skills=[]),
++        window(skills=["update-specs", "update-specs"]),
++        window(skills=[5]),
++        window(allowed_sources="jules"),
++        window(allowed_sources=[None]),
++        window(auto_merge_ceiling="all"),
++        window(auto_merge_ceiling=3),
++        window(id="Bad_Id"),
++        window(id=7),
++        window(cadence="@daily"),
++        window(cadence="0 3 * * MON"),
++        window(cadence="0 3 * *"),
++        window(cadence="0 0 3 * * 1"),
++        window(cadence=5),
++        "not-a-mapping",
++    ],
++)
++@needs_jsonschema
++def test_schema_rejects_malformed_window(bad: object) -> None:
++    assert _schema_errors(_front([bad]))
++
++
++@needs_jsonschema
++def test_schema_rejects_non_list_container() -> None:
++    assert _schema_errors(_front("daily"))
++
++
++@needs_jsonschema
++def test_schema_enums_equal_python_frozensets() -> None:
++    props = SCHEMA["$defs"]["SyncWindow"]["properties"]
++    assert set(props["skills"]["items"]["enum"]) == tp.SYNC_SKILLS
++    assert set(props["allowed_sources"]["items"]["enum"]) == tp.SYNC_SOURCES
++    assert set(props["auto_merge_ceiling"]["enum"]) == {c.value for c in tp.MergeCeiling}
+diff --git a/skills/shared/trust_posture.py b/skills/shared/trust_posture.py
+index 8b195c83..3980f5b4 100644
+--- a/skills/shared/trust_posture.py
++++ b/skills/shared/trust_posture.py
+@@ -49,6 +49,7 @@ from __future__ import annotations
+ import enum
+ import hashlib
+ import json
++import re
+ import sys
+ from dataclasses import dataclass
+ from pathlib import Path
+@@ -163,6 +164,9 @@ class TrustPosture:
+     gates: dict
+     present: bool = False
+     source_path: Optional[Path] = None
++    # Declared sync windows (empty == none declared, fail-closed). Defaults to an
++    # empty tuple so existing constructors are unaffected.
++    sync_windows: tuple = ()
+ 
+     def disposition_for(self, gate: Union[Gate, str]) -> GateDisposition:
+         """Return the resolved disposition for ``gate``.
+@@ -210,6 +214,199 @@ def _find_repo_root(start: Optional[Path] = None) -> Path:
+     return here
+ 
+ 
++# --------------------------------------------------------------------------- #
++# Sync windows
++# --------------------------------------------------------------------------- #
++
++#: The sync-point skills a window may authorize to start without a user.
++SYNC_SKILLS = frozenset({"merge-pull-requests", "update-specs", "cleanup-feature"})
++
++#: PR origins a window may admit. Mirrors ``github_classifier.PR_ORIGINS``; this
++#: module stays a leaf with no skill dependency, and a parity test pins the two.
++SYNC_SOURCES = frozenset(
++    {
++        "openspec", "sentinel", "bolt", "palette", "jules",
++        "codex", "dependabot", "renovate", "other",
++    }
++)
++
++_SYNC_WINDOW_FIELDS = (
++    "id", "cadence", "skills", "allowed_sources", "auto_merge_ceiling",
++)
++_SYNC_ID_RE = re.compile(r"[a-z0-9]+(-[a-z0-9]+)*")
++_CADENCE_FIELD_RE = re.compile(r"[0-9*/,-]+")
++
++
++class MergeCeiling(str, enum.Enum):
++    """How far a window may auto-merge, ordered least to most permissive."""
++
++    NONE = "none"
++    AUTOMATION = "automation"
++    PLAN = "plan"
++    IMPLEMENTATION = "implementation"
++
++    def permits(self, kind: object) -> bool:
++        """True only for a known PR kind ranked at or below this ceiling.
++
++        An unknown or unclassified kind is never permitted (fail-closed).
++        """
++        rank = _KIND_RANK.get(kind) if isinstance(kind, str) else None
++        return rank is not None and rank <= _CEILING_RANK[self]
++
++
++#: Rank of each PR kind ``classify_kind.KIND_TO_SKILL`` emits.
++_KIND_RANK = {"automation": 1, "plan": 2, "implementation": 3}
++_CEILING_RANK = {
++    MergeCeiling.NONE: 0,
++    MergeCeiling.AUTOMATION: 1,
++    MergeCeiling.PLAN: 2,
++    MergeCeiling.IMPLEMENTATION: 3,
++}
++
++
++class SyncWindowNotAuthorized(Exception):
++    """The named sync window, or its listing of the skill, is not declared."""
++
++
++@dataclass(frozen=True)
++class SyncWindow:
++    """A declared window authorizing sync-point skills to start without a user."""
++
++    id: str
++    cadence: str
++    skills: tuple
++    allowed_sources: tuple
++    auto_merge_ceiling: MergeCeiling
++
++    def to_canonical(self) -> dict:
++        """Order-independent JSON-ready form (list fields sorted)."""
++        return {
++            "id": self.id,
++            "cadence": self.cadence,
++            "skills": sorted(self.skills),
++            "allowed_sources": sorted(self.allowed_sources),
++            "auto_merge_ceiling": self.auto_merge_ceiling.value,
++        }
++
++
++def _check_list_field(
++    label: str, name: str, value: object, allowed: frozenset
++) -> tuple:
++    """Validate one closed-vocabulary list field; returns (values, errors)."""
++    if not isinstance(value, list) or not value:
++        return (), [f"{label}: '{name}' must be a non-empty list"]
++    errors: list = []
++    seen: set = set()
++    for item in value:
++        if not isinstance(item, str) or item not in allowed:
++            errors.append(
++                f"{label}: unknown {name} value {item!r} "
++                f"(expected one of: {', '.join(sorted(allowed))})"
++            )
++        elif item in seen:
++            errors.append(f"{label}: '{name}' repeats value {item!r}")
++        seen.add(item if isinstance(item, str) else repr(item))
++    return tuple(value), errors
++
++
++def _build_sync_window(
++    index: int, raw: object, seen_ids: set
++) -> tuple[Optional[SyncWindow], list]:
++    if not isinstance(raw, dict):
++        return None, [
++            f"sync_windows[{index}]: entry must be a mapping, got {type(raw).__name__}"
++        ]
++    wid = raw.get("id")
++    label = (
++        f"sync_windows[{index}] {wid!r}" if isinstance(wid, str) else f"sync_windows[{index}]"
++    )
++    errors: list = []
++    for key in raw:
++        if key not in _SYNC_WINDOW_FIELDS:
++            errors.append(f"{label}: unknown field {key!r}")
++    for key in _SYNC_WINDOW_FIELDS:
++        if key not in raw:
++            errors.append(f"{label}: missing required field {key!r}")
++    if errors:
++        return None, errors
++
++    if not isinstance(wid, str) or not _SYNC_ID_RE.fullmatch(wid):
++        errors.append(f"{label}: 'id' must be kebab-case, got {wid!r}")
++    elif wid in seen_ids:
++        errors.append(f"{label}: duplicate window id {wid!r}")
++
++    cadence = raw["cadence"]
++    fields = cadence.split() if isinstance(cadence, str) else []
++    if len(fields) != 5 or not all(_CADENCE_FIELD_RE.fullmatch(f) for f in fields):
++        errors.append(
++            f"{label}: 'cadence' must be five whitespace-separated fields of "
++            f"[0-9*/,-], got {cadence!r}"
++        )
++
++    skills, e = _check_list_field(label, "skills", raw["skills"], SYNC_SKILLS)
++    errors.extend(e)
++    sources, e = _check_list_field(
++        label, "allowed_sources", raw["allowed_sources"], SYNC_SOURCES
++    )
++    errors.extend(e)
++
++    ceiling_raw = raw["auto_merge_ceiling"]
++    ceiling: Optional[MergeCeiling] = None
++    try:
++        ceiling = MergeCeiling(ceiling_raw)
++    except ValueError:
++        known = ", ".join(c.value for c in MergeCeiling)
++        errors.append(
++            f"{label}: unknown auto_merge_ceiling {ceiling_raw!r} (expected one of: {known})"
++        )
++    if errors:
++        return None, errors
++    return SyncWindow(wid, cadence, skills, sources, ceiling), []
++
++
++def _build_sync_windows(raw: object) -> tuple[tuple, list]:
++    if raw is None:
++        return (), []
++    if not isinstance(raw, list):
++        return (), [f"sync_windows: must be a list, got {type(raw).__name__}"]
++    windows: list = []
++    errors: list = []
++    seen_ids: set = set()
++    for index, entry in enumerate(raw):
++        window, window_errors = _build_sync_window(index, entry, seen_ids)
++        errors.extend(window_errors)
++        if window is not None:
++            seen_ids.add(window.id)
++            windows.append(window)
++    return tuple(windows), errors
++
++
++def authorize_sync_window(
++    posture: Optional[TrustPosture], window_id: str, skill: str
++) -> SyncWindow:
++    """Return the declared window iff it exists and lists ``skill``.
++
++    Raises :class:`SyncWindowNotAuthorized` (naming the missing declaration)
++    otherwise, and ``ValueError`` for a skill outside :data:`SYNC_SKILLS`. A
++    window is necessary, never sufficient: gate dispositions are not consulted.
++    ``None`` and the absent-file posture declare no windows, so both fail.
++    """
++    if skill not in SYNC_SKILLS:
++        raise ValueError(
++            f"unknown sync-point skill {skill!r}; known skills: "
++            f"{', '.join(sorted(SYNC_SKILLS))}"
++        )
++    windows = posture.sync_windows if posture is not None else ()
++    for window in windows:
++        if window.id == window_id:
++            if skill in window.skills:
++                return window
++            raise SyncWindowNotAuthorized(
++                f"sync window {window_id!r} does not list skill {skill!r}"
++            )
++    raise SyncWindowNotAuthorized(f"sync window {window_id!r} is not declared")
++
++
+ # --------------------------------------------------------------------------- #
+ # Parsing + validation
+ # --------------------------------------------------------------------------- #
+@@ -356,9 +553,14 @@ def _build_posture(data: dict, source_path: Optional[Path]) -> TrustPosture:
+         if gd is not None:
+             resolved[gate] = gd
+ 
++    windows, window_errors = _build_sync_windows(data.get("sync_windows"))
++    errors.extend(window_errors)
++
+     if errors:
+         raise PostureValidationError(errors)
+-    return TrustPosture(gates=resolved, present=True, source_path=source_path)
++    return TrustPosture(
++        gates=resolved, present=True, source_path=source_path, sync_windows=windows
++    )
+ 
+ 
+ # --------------------------------------------------------------------------- #
+@@ -389,7 +591,7 @@ def load_posture(
+ 
+ 
+ def posture_digest(posture: Optional[TrustPosture]) -> str:
+-    """SHA-256 of the canonical JSON of the parsed ``gates`` map (D5).
++    """SHA-256 of the canonical JSON of the parsed ``gates`` map and sync windows (D5).
+ 
+     Every gate is resolved through :meth:`TrustPosture.disposition_for`, so an
+     absent posture, an omitted gate and an explicit ``block`` all hash alike, and
+@@ -397,7 +599,18 @@ def posture_digest(posture: Optional[TrustPosture]) -> str:
+     digest. ``None`` means the absent-posture (all-block) default.
+     """
+     resolved = posture if posture is not None else TrustPosture(gates={})
+-    canonical = {gate.value: resolved.disposition_for(gate).to_canonical() for gate in Gate}
++    canonical: dict = {
++        gate.value: resolved.disposition_for(gate).to_canonical() for gate in Gate
++    }
++    if resolved.sync_windows:
++        # Only when windows are declared, so a window-less posture keeps the
++        # exact gates-only digest it had before this field existed (D5).
++        canonical = {
++            "gates": canonical,
++            "sync_windows": sorted(
++                (w.to_canonical() for w in resolved.sync_windows), key=lambda w: w["id"]
++            ),
++        }
+     payload = json.dumps(canonical, sort_keys=True, separators=(",", ":")).encode("utf-8")
+     return hashlib.sha256(payload).hexdigest()
+ 
+@@ -447,6 +660,15 @@ def _main(argv: list) -> int:
+             if gd.disposition is Disposition.NOTIFY_WITH_TIMEOUT:
+                 extra = f" timeout={gd.timeout_seconds}s default={gd.default_action.value}"
+             print(f"  {gate.value}: {gd.disposition.value}{extra}")
++        print("sync_windows:")
++        if not posture.sync_windows:
++            print("  (none declared)")
++        for w in sorted(posture.sync_windows, key=lambda w: w.id):
++            print(
++                f"  {w.id}: cadence={w.cadence!r} skills={','.join(sorted(w.skills))}"
++                f" sources={','.join(sorted(w.allowed_sources))}"
++                f" ceiling={w.auto_merge_ceiling.value}"
++            )
+         return 0
+     print(f"unknown command {command!r}; use validate|show", file=sys.stderr)
+     return 1
+diff --git a/skills/tests/merge-pull-requests/test_classify.py b/skills/tests/merge-pull-requests/test_classify.py
+index 3d7bc54a..1f8c6bb1 100644
+--- a/skills/tests/merge-pull-requests/test_classify.py
++++ b/skills/tests/merge-pull-requests/test_classify.py
+@@ -141,3 +141,34 @@ class TestOtherOrigins:
+     def test_jules_branch(self) -> None:
+         result = classify_pr(_pr("sentinel/fix-xss"))
+         assert result["origin"] == "sentinel"
++
++
++class TestPrOriginsVocabulary:
++    """PR_ORIGINS is the closed vocabulary that sync windows pin to."""
++
++    FIXTURES = [
++        _pr("openspec/some-change"),
++        _pr("claude/session-1"),
++        _pr("feature/x", author="dependabot[bot]"),
++        _pr("feature/x", author="renovate[bot]"),
++        _pr("feature/x", author="google-labs-jules[bot]"),
++        _pr("sentinel-fix-1", author="google-labs-jules[bot]"),
++        _pr("bolt-fast-1", author="google-labs-jules[bot]"),
++        _pr("palette-ui-1", author="google-labs-jules[bot]"),
++        _pr("codex/task-1"),
++        _pr("feature/random"),
++    ]
++
++    def test_every_classified_origin_is_declared_and_folds(self) -> None:
++        if str(REPO_ROOT) not in sys.path:
++            sys.path.insert(0, str(REPO_ROOT))
++        from shared import github_classifier as gc
++
++        seen = set()
++        for payload in self.FIXTURES:
++            origin = classify_pr(payload)["origin"]
++            seen.add(origin)
++            assert origin in gc.PR_ORIGINS
++        assert seen  # fixtures produced origins
++        for origin in gc.PR_ORIGINS:
++            assert gc.to_pr_card_origin(origin)
+
+```
+
+### Rule groups
+
+#### Group 1 (default: `(default)`)
+Applies to:
+- TRUST_POSTURE.template.md
+- docs/decisions/skill-workflow.md
+- docs/decisions/trust-posture.md
+- openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/contracts/README.md
+- openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/design.md
+- openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/proposal.md
+- openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/tasks.md
+- openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/work-packages.yaml
+
+Review for correctness, security, and adherence to this repository's conventions.
+
+#### Group 2 (default: `openspec/changes/*/specs/**/spec.md`)
+Applies to:
+- openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/specs/skill-workflow/spec.md
+- openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/specs/trust-posture/spec.md
+
+Verify every SHALL/MUST has at least one Scenario with WHEN/THEN. Check that a MODIFIED requirement's unchanged scenarios were preserved, not silently dropped.
+
+#### Group 3 (default: `openspec/schemas/*.schema.json`)
+Applies to:
+- openspec/schemas/trust-posture.schema.json
+
+Verify the schema is valid Draft 2020-12, that required fields were not silently dropped, and that any mirrored copy (install_assets, sentinel-injected) is checked for the same change.
+
+#### Group 4 (default: `**/*.py`)
+Applies to:
+- skills/shared/github_classifier.py
+- skills/shared/tests/test_trust_posture_sync_windows.py
+- skills/shared/trust_posture.py
+
+Check for unhandled exceptions, resource leaks (files/sockets/locks not in a context manager), and mutable default arguments. Flag a docstring claim ("never raises", "pure function") the code does not actually satisfy.
+
+#### Group 5 (default: `skills/tests/**`)
+Applies to:
+- skills/tests/merge-pull-requests/test_classify.py
+
+Same standard as scripts/tests/: verify the test would fail if the behavior it targets were broken. Check that fixture paths use openspec_paths.change_dir rather than a literal openspec/changes/<id>/ path where the guide requires it.
+
+### Spec excerpts
+#### specs/skill-workflow/spec.md
+## MODIFIED Requirements
+
+### Requirement: Main Receives Work Through PR Sync Points
+
+The system SHALL route completed local CLI work to main through PR sync points.
+In local CLI execution, completed planning, implementation, fix, validation, and
+artifact-generation work MUST reach main only through PR review followed by an
+explicit sync-point operation.
+
+A sync-point operation SHALL be explicitly user-invoked by default. A sync-point
+skill MAY instead run as a scheduled invocation only under a sync window that the
+repository's trust posture contract (`TRUST_POSTURE.md`, `sync_windows`) explicitly
+declares and that lists that skill. A scheduled invocation SHALL NOT relax the
+clean-tree check, the active-agent guard, or any validation gate.
+
+#### Scenario: Plan refinement completes
+
+- **WHEN** `/iterate-on-plan` updates proposal, design, task, contract, or spec
+  artifacts
+- **THEN** it MUST commit those updates on the feature branch in a worktree
+- **AND** it MUST NOT commit directly to local main
+
+#### Scenario: Sync-point skill touches main
+
+- **WHEN** `/merge-pull-requests`, `/update-specs`, or the main-touching portion
+  of `/cleanup-feature` modifies the shared checkout
+- **THEN** the skill MUST be explicitly user-invoked, or run as a scheduled
+  invocation authorized by a declared sync window
+- **AND** it MUST verify a clean working tree
+- **AND** it MUST verify that no active agents hold non-stale worktrees unless
+  the operator explicitly uses a force escape hatch
+
+#### Scenario: Scheduled invocation names a window and passes authorization first
+
+- **WHEN** a scheduler or any other non-user trigger starts a sync-point skill
+- **THEN** the trigger MUST name a sync window id, and MUST NOT start the skill
+  without one
+- **AND** the skill MUST call the trust posture sync-window authorization check
+  before any other work, including PR discovery, remediation, branch writes, or
+  any other externally visible side effect
+- **AND** when that check fails the skill MUST stop without performing any of
+  that work and without touching main
+- **AND** the trigger MUST start the skill only at times the window's declared
+  `cadence` permits; computing fire times and their tolerance is the
+  scheduler's responsibility
+
+#### Scenario: No sync window declared keeps the user-invoked default
+
+- **WHEN** the trust posture contract is absent, or declares no `sync_windows`
+- **AND** a scheduler or any other non-user trigger starts a sync-point skill
+- **THEN** the sync-window authorization check MUST fail for every window id
+- **AND** the skill MUST stop without touching main
+- **AND** user invocation MUST remain the only path by which the skill can
+  touch main
+
+#### Scenario: Scheduled invocation names an undeclared window or skill
+
+- **WHEN** a scheduled invocation names a sync window id that the trust posture
+  does not declare, or names a window that does not list the invoked skill
+- **THEN** the skill MUST refuse to touch main
+- **AND** it MUST report which declaration was missing
+
+#### Scenario: Scheduled invocation keeps the guards unchanged
+
+- **WHEN** a sync-point skill runs as a scheduled invocation under a declared
+  sync window
+- **THEN** it MUST run the same clean-tree check and active-agent guard as a
+  user-invoked run
+- **AND** it MUST NOT use the force escape hatch, which remains available only
+  to an explicit operator
+- **AND** when an active agent holds a non-stale worktree it MUST stop without
+  touching main
+
+#### Scenario: Scheduled invocation keeps validation gates unchanged
+
+- **WHEN** a sync-point skill runs as a scheduled invocation under a declared
+  sync window
+- **THEN** every validation gate, CI check, and readiness verdict that a
+  user-invoked run requires before merging MUST still be required
+- **AND** a PR that fails any of them MUST NOT be merged by the scheduled run
+
+#### Scenario: Scheduled invocation is bounded by the window's sources and ceiling
+
+- **WHEN** a sync-point skill runs as a scheduled invocation under a declared
+  sync window
+- **THEN** whenever it selects, remediates, or merges pull requests, it MUST
+  act only on pull requests whose origin is listed in the window's
+  `allowed_sources`
+- **AND** it MUST NOT merge unattended a pull request whose kind exceeds the
+  window's `auto_merge_ceiling`, or whose kind cannot be classified
+- **AND** a window whose `auto_merge_ceiling` is `none` MUST NOT merge any pull
+  request unattended
+
+#### Scenario: Sync window does not override gate dispositions
+
+- **WHEN** a sync-point skill runs as a scheduled invocation under a declared
+  sync window
+- **THEN** the window's authorization MUST be treated as necessary but not
+  sufficient
+- **AND** the window MUST NOT change any trust posture gate disposition; every
+  gate that applies to the scheduled action MUST be evaluated exactly as it
+  would be without the window
+- **AND** a gate that resolves to `block` MUST stop the scheduled run's action
+- **AND** which gates apply to a scheduled sync-point action is defined by the
+  change that adds that scheduled caller (`ri-12` headless merge, `ri-13`
+  drain); this requirement defines no new gate applicability
+
+### Requirement: Merge Conductor Invokes Iterate Skills
+
+`/merge-pull-requests` in its default plan-then-execute path SHALL be allowed to
+invoke `/iterate-on-plan` and `/iterate-on-implementation` as remediations for
+open pull requests. Those invocations SHALL run in the iterate skill's managed
+feature worktree and SHALL NOT write `main`. The merge skill remains the
+sync-point for merges into `main`: it is user-invoked by default, or runs as a
+scheduled invocation only under a declared sync window as defined by "Main
+Receives Work Through PR Sync Points".
+
+<!-- Scenario ID: skill-workflow.merge-invokes-iterate -->
+#### Scenario: Merge-triggered iterate writes the feature branch only
+
+- **WHEN** `/merge-pull-requests` invokes `/iterate-on-plan` or `/iterate-on-implementation` for a node
+- **THEN** iterate SHALL enter or create the change's managed worktree before any mutation
+- **AND** SHALL commit on the feature branch
+- **AND** SHALL NOT commit to local `main`
+
+<!-- Scenario ID: skill-workflow.merge-still-sync-point -->
+#### Scenario: Merge remains the only main writer in the loop
+
+- **WHEN** iterate returns and the node is mergeable
+- **THEN** only `/merge-pull-requests` SHALL merge into `main`
+- **AND** iterate SHALL NOT call `gh pr merge` or otherwise land the PR
+
+#### Scenario: Scheduled merge conductor keeps iterate on the feature branch
+
+- **WHEN** `/merge-pull-requests` runs as a scheduled invocation under a
+  declared sync window and invokes `/iterate-on-plan` or
+  `/iterate-on-implementation` for a node
+- **THEN** iterate SHALL still commit only on the feature branch
+- **AND** only the merge skill SHALL merge into `main`, subject to the window's
+  `allowed_sources` and `auto_merge_ceiling`
+
+
+#### specs/trust-posture/spec.md
+## ADDED Requirements
+
+### Requirement: Sync Window Declarations
+
+The trust posture contract front matter SHALL accept an optional top-level
+`sync_windows` list. Each entry SHALL declare exactly these fields:
+
+- `id`: a kebab-case string matching `^[a-z0-9]+(-[a-z0-9]+)*$`, unique within
+  the list
+- `cadence`: a cron-shaped string of exactly five whitespace-separated fields,
+  each matching `[0-9*/,-]+`, interpreted in UTC. The loader validates only
+  this shape; named months and days, `@` macros, and six-field forms are
+  rejected, and value ranges (for example `99 * * * *`) are validated by the
+  scheduler that computes fire times, which SHALL refuse a window whose cadence
+  it cannot schedule
+- `skills`: a non-empty list drawn from `merge-pull-requests`, `update-specs`,
+  and `cleanup-feature`
+- `allowed_sources`: a non-empty list of PR origins drawn from `openspec`,
+  `sentinel`, `bolt`, `palette`, `jules`, `codex`, `dependabot`, `renovate`, and
+  `other` (the origins that `skills/shared/github_classifier.classify_pr`
+  emits)
+- `auto_merge_ceiling`: one of `none`, `automation`, `plan`, or
+  `implementation`, ordered from least to most permissive
+
+The loader SHALL reject, as a validation error, a `sync_windows` value that is
+neither `null` nor a list, an entry that is not a mapping, an unknown field, a missing field,
+an empty list field, a repeated value inside a list field, an unknown skill,
+source, or ceiling, an `id` that is not kebab-case, a malformed cadence, or a
+duplicate `id`. When
+`sync_windows` is absent, `null`, or an empty list, the posture SHALL declare no
+sync windows (fail-closed). The posture digest SHALL cover the declared sync
+windows independent of their declaration order, and a posture that declares
+none SHALL produce the same digest as it did before this field existed.
+
+A ceiling SHALL permit a PR kind only when the kind is one of `automation`,
+`plan`, or `implementation` and ranks at or below the ceiling; any other kind,
+including an unclassified one, SHALL NOT be permitted.
+
+The loader SHALL expose an authorization check that, given a window id and a
+sync-point skill, returns the declared window only when the window exists and
+lists that skill, and otherwise fails with a not-authorized error naming the
+missing declaration. The check SHALL accept the absent-posture value (no
+contract file) and fail for it. A skill name outside the closed sync-point
+skill set SHALL be rejected as a usage error, distinct from the not-authorized
+error.
+
+#### Scenario: Absent sync windows declare nothing
+
+- **WHEN** a trust posture is loaded whose front matter omits `sync_windows`,
+  sets it to `null` or `[]`, or no contract file exists
+- **THEN** the posture SHALL report no sync windows
+- **AND** the authorization check SHALL fail for every window id and skill
+
+#### Scenario: Declared window loads and authorizes its skills
+
+- **WHEN** a trust posture declares a valid sync window listing
+  `merge-pull-requests`
+- **THEN** the loader SHALL resolve the window with its cadence, skills,
+  allowed sources, and auto-merge ceiling
+- **AND** the authorization check SHALL return that window for
+  `merge-pull-requests`
+- **AND** the authorization check SHALL fail for a skill the window does not list
+- **AND** the authorization check SHALL reject a skill name outside the
+  sync-point skill set with a usage error, not a not-authorized error
+
+#### Scenario: Malformed window is rejected
+
+- **WHEN** a sync window has an unknown field, omits a required field, has an
+  empty or repeated-value list field, names an unknown skill, source, or
+  ceiling, has an `id` that is not kebab-case, has a cadence that is not five
+  fields of the permitted shape, or repeats another window's `id`
+- **THEN** validation SHALL fail with an error naming the window and the problem
+- **AND** the loader SHALL NOT return a posture that omits the malformed window
+
+#### Scenario: Malformed sync_windows container is rejected
+
+- **WHEN** `sync_windows` is present, not `null`, and not a list, or one of its entries is
+  not a mapping
+- **THEN** validation SHALL fail with an error naming `sync_windows` and the
+  offending entry index
+
+#### Scenario: Auto-merge ceiling orders PR kinds
+
+- **WHEN** a window's `auto_merge_ceiling` is compared with a PR kind
+- **THEN** `none` SHALL permit no kind
+- **AND** `automation` SHALL permit only `automation`
+- **AND** `plan` SHALL permit `automation` and `plan`
+- **AND** `implementation` SHALL permit `automation`, `plan`, and
+  `implementation`
+- **AND** no ceiling SHALL permit an unknown or unclassified kind
+
+#### Scenario: Digest is unchanged without windows and changes with them
+
+- **WHEN** the posture digest is computed for a posture that declares no sync
+  windows
+- **THEN** it SHALL equal the digest computed over the `gates` map alone
+- **AND** adding or editing a declared sync window SHALL change the digest
+- **AND** reordering declared windows, or reordering values inside a window's
+  list fields, SHALL NOT change the digest
+
+
+### Open ledger items
+- [1] Scenario 'No sync window declared keeps the user-invoked default' is internally inconsistent. Its WHEN is 'posture absent or declares no sync_windows', yet the first two THEN clauses describe the general scheduled path (trigger names a window id, skill calls the check) that is not conditional on that WHEN, and the final clause says user invocation 'MUST remain the only path by which the skill runs' even though the preceding clause allows the skill to be started by a trigger and then refuse. The obligations on the trigger and on the skill to call the authorization check are the core new contract and currently have no scenario of their own; they are only reachable through this no-window scenario. Split into (a) a general 'Scheduled invocation must name a window and call the authorization check' scenario and (b) a no-window scenario whose THEN is simply that the check fails and main is untouched.
+- [2] The scenario 'Sync window does not override gate dispositions' names the `merge` gate as applying to a scheduled sync-point action, but the proposal's own Out-of-scope section says the `merge` gate governs autopilot's SUBMIT_PR -> DONE edge, and the base trust-posture spec defines gates only for autopilot phases. No gate today is evaluated by `/merge-pull-requests`, `/update-specs` or `/cleanup-feature`, so 'as it would be for that action without a window' has no defined baseline. The D8 intent (window is necessary, not sufficient) is sound, but the spec should either state which gates a scheduled sync-point skill evaluates, or explicitly delegate that mapping to ri-12 and drop the parenthetical that implies the `merge` gate already applies.
+- [3] The package write scope omits `docs/decisions/skill-workflow.md` and `docs/decisions/trust-posture.md`, yet this very diff writes both via the session-log decision projection, and the implement/validate phases will append further phase records there. A scope check against `write_allow` will flag those writes as out-of-scope during implementation.
+- [4] The requirement says any `sync_windows` value that is not a list is a validation error, then two sentences later says `null` declares no windows. `null` is not a list, so the two sentences conflict as written; the 'Malformed sync_windows container is rejected' scenario inherits the ambiguity.
+- [5] Design D6 and task 2.1 specify that an unknown skill name raises `ValueError` (closed set), a different failure from `SyncWindowNotAuthorized`, but the spec text says the check 'otherwise fails with an error naming the missing declaration' and no scenario covers the closed-skill-set rejection. Also, scenario 'Absent sync windows declare nothing' covers 'no contract file exists', so the check must accept the `present=False` absent-posture object (or `None`, as `posture_digest` does); neither spec nor design says which.
+- [6] The contracts block files a Markdown README under the `openapi` sub-type while the README itself says OpenAPI does not apply. The validator accepts it, but the label is misleading for anyone reading the package for API surface.
+- [7] `allowed_sources` and `auto_merge_ceiling` are mandatory and non-empty for every window, including a window that lists only `update-specs` or `cleanup-feature`, which never select PRs. Operators will have to declare meaningless source lists for those windows. The skill-workflow scenario already bounds the fields to 'whenever it selects, remediates, or merges pull requests', so the inconsistency is only ergonomic.
+- [8] `gate_signals` still reflect the GATEKEEPER snapshot (no proposal, specs or tasks) although all three now exist, and `degradations` records an `audit_sink_failed` for the auto proposal_approval decision. Neither blocks review, but the gate decision for this change has no durable audit record outside loop-state.
+- [9] Task 1.1 description in tasks.md only references `openspec/specs/skill-workflow/spec.md` for base requirements verification, but the trust-posture ADDED requirement 'Sync Window Declarations' has no base scenarios to preserve (it's entirely new). The task description should clarify this distinction or reference both base spec files for completeness.
+- [10] Cadence validation in design.md (D4) is shape-only (five whitespace-separated fields matching `[0-9*/,-]+`). Invalid cron values like `99 * * * *` would pass schema validation but fail at scheduler runtime (ri-13). This is a known limitation explicitly accepted and deferred to ri-13.
+- [11] The cadence field rejects `@daily` macros and named months/days per D4. This is an open question deferred to ri-13 (noted in session-log and plan-findings iteration 2 finding #3). The schema validation will reject these forms.
+- [12] Work-packages.yaml defines only a single sequential package (wp-main) with max parallel width 1. The plan-findings iteration 2 finding #1 notes this is accepted because ~350 LOC with shared test file and shared SyncWindow shape make splitting a net loss. Documented at top of tasks.md.
+
+Do not emit findings for issues already in the ledger except to re-verify the open items listed above.
+
+### Instructions
+Return findings as JSON with a top-level `findings` array.
+
+This is round 1. Focus on remaining issues.

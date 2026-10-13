@@ -49,6 +49,7 @@ import phase_agent  # type: ignore[import-not-found]  # noqa: E402
 from shared import approval_gate as shared_approval_gate  # noqa: E402
 from shared import dispatch_contract  # noqa: E402
 from shared.approval_gate import ApprovalDecision  # noqa: E402
+from shared.mirror_freshness import stale_mirror  # noqa: E402
 from shared.trust_posture import SCOPED_GATES, Gate, load_posture, posture_digest  # noqa: E402
 
 logger = logging.getLogger("autopilot.runner")
@@ -573,6 +574,67 @@ def _cmd_gate_answer(args: argparse.Namespace) -> int:
         return 1
     autopilot.save_state(state, state_path)
     return 0
+
+
+def _cmd_relayed_gate_answer(args: argparse.Namespace) -> int:
+    """Apply a supervisor-relayed answer only after checking the committed ledger.
+
+    For a cloud worker (no launch marker): the answer is applied only when
+    ``dispatch_contract.read_committed_gate_answer`` finds the decision it names
+    on the fetched roadmap branch. This is the one form of ``gate-answer`` that
+    ``.claude/settings.json`` pre-approves, so it must never record an
+    unverified answer.
+    """
+    try:
+        phase_agent._validate_change_id(args.change_id)
+    except ValueError as exc:
+        sys.stderr.write(f"runner: {exc}\n")
+        return 2
+    if _launch_marker(args.change_id) is not None:
+        sys.stderr.write(
+            "runner: this worktree has a launch marker; use gate-answer, which checks "
+            "the marker's gate_answer. Nothing was recorded\n"
+        )
+        return 2
+    if not args.no_fetch:
+        # A stale remote-tracking ref could hide a newer, superseding decision,
+        # so a failed fetch refuses rather than verifying against old state.
+        for roadmap_id in dispatch_contract.committed_roadmap_ids(repo_root=Path.cwd()):
+            branch = f"openspec/roadmap-{roadmap_id}"
+            try:
+                done = subprocess.run(
+                    ["git", "fetch", "--quiet", "origin", f"+{branch}:refs/remotes/origin/{branch}"],
+                    capture_output=True, text=True, check=False, timeout=120,
+                )
+                failure = done.stderr.strip() if done.returncode != 0 else None
+            except (OSError, subprocess.SubprocessError) as exc:
+                failure = str(exc)
+            if failure is not None:
+                sys.stderr.write(
+                    f"runner: could not fetch {branch} ({failure or 'git fetch failed'}); "
+                    "nothing was recorded\n"
+                )
+                return 2
+    verified = dispatch_contract.read_committed_gate_answer(
+        args.change_id,
+        gate=args.gate,
+        decision=args.decision,
+        approval_ref=args.approval_ref,
+        resume_at=args.resume_at,
+        repo_root=Path.cwd(),
+    )
+    if verified is None:
+        sys.stderr.write(
+            "runner: no matching supervisor decision on the fetched roadmap branch "
+            f"({args.approval_ref}, {args.gate}, {args.decision}, resume_at={args.resume_at!r}); "
+            "nothing was recorded\n"
+        )
+        return 2
+    sys.stderr.write(
+        f"runner: verified {args.approval_ref} in {verified['checkpoint_path']} "
+        f"at {verified['checkpoint_commit'][:12]} (generation {verified['generation']})\n"
+    )
+    return _cmd_gate_answer(args)
 
 
 def _cmd_build_dispatch(args: argparse.Namespace) -> int:
@@ -1155,6 +1217,33 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     ga.set_defaults(func=_cmd_gate_answer)
 
+    rga = sub.add_parser(
+        "relayed-gate-answer",
+        help="Apply a supervisor-relayed gate answer after verifying it in the committed ledger.",
+        description=(
+            "For a cloud worker without a launch marker. Fetches the roadmap branch, "
+            "then applies the answer as gate-answer does only when the decision "
+            "--approval-ref names is committed there: a console decision for this "
+            "change, gate, decision and resume_at, the latest for its dispatch and "
+            "gate, whose attempt is at the generation that decision leaves it (an approval relaunches it, a rejection does not). A failed fetch refuses. "
+            "Exits 2 without recording anything otherwise."
+        ),
+    )
+    rga.add_argument("change_id", help="OpenSpec change identifier.")
+    rga.add_argument("--gate", required=True, choices=[g.value for g in Gate])
+    rga.add_argument("--decision", required=True, choices=["approved", "rejected"])
+    rga.add_argument(
+        "--approval-ref", required=True,
+        help="gate-decision:<id> the supervisor relayed; must be committed on the roadmap branch.",
+    )
+    rga.add_argument("--resume-at", default=None, choices=["VALIDATE"])
+    rga.add_argument("--note", default=None, help="Note recorded with the decision.")
+    rga.add_argument(
+        "--no-fetch", action="store_true",
+        help="Verify against the already-fetched roadmap branch (tests, offline).",
+    )
+    rga.set_defaults(func=_cmd_relayed_gate_answer)
+
     pk = sub.add_parser(
         "park",
         help="Record why the run stopped before a gate (permission or capability).",
@@ -1197,9 +1286,22 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _warn_if_stale_mirror() -> None:
+    # A runtime mirror that predates merged toolkit fixes runs the old logic
+    # silently; say so on every invocation until the mirror is resynced.
+    # The check is advisory: no failure in it may abort the subcommand.
+    try:
+        drift = stale_mirror(__file__)
+    except Exception:  # noqa: BLE001
+        return
+    if drift is not None:
+        print(f"autopilot: WARNING: {drift.message()}", file=sys.stderr)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
+    _warn_if_stale_mirror()
     func = args.func
     return int(func(args))
 
