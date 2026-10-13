@@ -178,6 +178,15 @@ updates:
       - "dependencies"
 
   - package-ecosystem: "uv"
+    directory: "/packages/test-oracle-audit"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+
+  - package-ecosystem: "uv"
     directory: "/packages/openbao-credentials"
     schedule:
       interval: "weekly"
