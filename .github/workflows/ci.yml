@@ -930,6 +930,34 @@ jobs:
       - name: Run pytest
         run: uv run pytest
 
+  # Package tests for packages/test-oracle-audit/ (OpenSpec pilot-test-quality-audit).
+  # Runs every stage in dry-run against committed fixture projects: no API keys,
+  # no network, and audited pytest runs use the current interpreter (--python).
+  test-oracle-audit-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: packages/test-oracle-audit
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install test-oracle-audit with dev extras
+        run: uv sync --extra dev
+
+      - name: Run pytest
+        run: uv run pytest -q
+
+      - name: Lint
+        run: uv run ruff check .
+
   # Package-level unit tests, lint and types for packages/agent-scenarios/.
   #
   # Added 2026-09-08 alongside code-search-tests, for the same reason: this tree
