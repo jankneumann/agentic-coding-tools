@@ -3,25 +3,25 @@
 > Change ID: `pilot-test-quality-audit`
 > Tier: coordinated (work packages in `work-packages.yaml`)
 >
-> **Scenario IDs.** `test-oracle-audit.1`–`.48` are the scenarios of `specs/test-oracle-audit/spec.md`, in
-> document order:
+> **Scenario IDs.** `test-oracle-audit.1`–`.55` are the scenarios of `specs/test-oracle-audit/spec.md`, in
+> document order (adding a scenario renumbers everything after it; re-derive this table from the spec):
 >
 > | Requirement | Scenarios |
 > |---|---|
 > | Ledger | .1–.5 |
 > | Read-only | .6–.7 |
-> | Inventory | .8–.9 |
-> | Static | .10–.13 |
-> | Judged | .14–.18 |
-> | Mutation | .19–.23 |
-> | Rename | .24–.26 |
-> | History | .27–.29 |
-> | Explain | .30–.32 |
-> | Labelling | .33–.34 |
-> | Analysis | .35–.39 |
-> | Disagreement | .40–.41 |
-> | Lens | .42–.45 |
-> | Report | .46–.48 |
+> | Inventory | .8–.10 |
+> | Static | .11–.18 |
+> | Judged | .19–.23 |
+> | Mutation | .24–.28 |
+> | Rename | .29–.32 |
+> | History | .33–.35 |
+> | Explain | .36–.38 |
+> | Labelling | .39–.41 |
+> | Analysis | .42–.46 |
+> | Disagreement | .47–.48 |
+> | Lens | .49–.52 |
+> | Report | .53–.55 |
 >
 > **Test-authoring rule (design D14).**
 > - Every *"Write failing tests"* task is done by a sub-agent whose context holds only the spec
@@ -30,6 +30,9 @@
 > - Each implementation task runs in a separate context afterwards.
 > - If a test task needs an unspecified detail, it records a `skill-procedure-deviation` decision
 >   instead of reading code.
+> - `tests/conftest.py` is owned by wp-contracts and holds only the shared fixtures listed in task
+>   1.2. Stage packages keep stage-specific helpers inside their own `test_<stage>*.py` modules and
+>   `tests/fixtures/<stage>/` trees; they never edit `conftest.py`.
 >
 > **Sizes.** XS ≤ 30 min, S ≤ 2 h, M ≤ 1 day. There are no L or XL tasks.
 
@@ -40,7 +43,12 @@
   - The vocabulary has exactly seven values with the D2 binary partition.
   - The ledger records content hashes, marks stale entries, ignores whitespace-only edits, and
     rejects unknown labels.
-  - Resolve contract paths with `change_dir()`.
+  - The runtime schema copies under `src/test_oracle_audit/schemas/` are byte-identical to
+    `contracts/schemas/` (D1 "Schema runtime copy").
+  - `thresholds.py` loads `config/thresholds.json`, rejects a missing key, and `tercile_cutpoints`
+    splits a known list into thirds.
+  - Resolve contract paths with `change_dir()` from `tests/_shared/openspec_paths.py` (copied from
+    `skills/tests/_shared/openspec_paths.py`, per the OpenSpec path-stability guide).
 
   **Spec scenarios**: test-oracle-audit.1, test-oracle-audit.2, test-oracle-audit.3, test-oracle-audit.4
   **Contracts**: contracts/schemas/stage-record.schema.json, contracts/schemas/label-ledger.schema.json, contracts/schemas/mutation-result.schema.json, contracts/schemas/analysis-report.schema.json
@@ -49,8 +57,14 @@
 - [ ] 1.2 Scaffold `packages/test-oracle-audit`. [S]
   - `pyproject.toml`: depends on `libcst` and `system-one-decisions` (path dependency); extras
     `mutation` (`mutmut>=3.8,<4`, `pytest-cov`) and `dev`.
-  - `records.py`, `vocabulary.py`.
-  - `config/thresholds.json` with display thresholds only.
+  - `records.py`, `vocabulary.py`, `thresholds.py` (config loader, tercile cut-points).
+  - `src/test_oracle_audit/schemas/`: runtime copies of the five contract schemas.
+  - `config/thresholds.json` with display thresholds only; `config/suites.json` with the two pilot
+    `SuiteSpec`s (root, test paths, interpreter, pytest args).
+  - `tests/conftest.py` with the shared fixtures only: `schema_validator(stage)`,
+    `fixture_project(name)` (copies `tests/fixtures/<name>` to a temp dir and runs `git init` +
+    one commit), and `stub_decide` re-exported from `system_one_decisions.testing`.
+  - `tests/_shared/openspec_paths.py`.
 
   **Dependencies**: 1.1
 - [ ] 1.3 Implement `ledger.py`: load, add, save, and the content-hash staleness check. [S]
@@ -60,17 +74,19 @@
 ## 2. Inventory and static checks (wp-inventory-static)
 
 - [ ] 2.1 Write failing inventory tests over a fixture mini-project: deterministic output,
-  parametrized cases sharing one content hash, resolved fixtures, covered modules. [S]
-  **Spec scenarios**: test-oracle-audit.8, test-oracle-audit.9
+  parametrized cases sharing one content hash, resolved fixtures, covered modules, and an
+  uncollectable file yielding an `error` record without aborting. [S]
+  **Spec scenarios**: test-oracle-audit.8, test-oracle-audit.9, test-oracle-audit.10
   **Contracts**: contracts/schemas/stage-record.schema.json (InventoryPayload)
   **Design decisions**: D1
   **Dependencies**: 1.2
 - [ ] 2.2 Implement `inventory.py`. Vendor the test-to-module mapping from `test_linker` with a
   provenance comment, and resolve fixtures through pytest's fixture manager. [M]
   **Dependencies**: 2.1
-- [ ] 2.3 Write failing static-check tests: one positive and one negative fixture per rule id, plus
-  a behaviour-only test that fires no rule. [S]
-  **Spec scenarios**: test-oracle-audit.10, test-oracle-audit.11, test-oracle-audit.12, test-oracle-audit.13
+- [ ] 2.3 Write failing static-check tests: one positive and one negative fixture per rule id, a
+  behaviour-only test that fires no rule, and a module that raises at import time and is still
+  analysed. [S]
+  **Spec scenarios**: test-oracle-audit.11, test-oracle-audit.12, test-oracle-audit.13, test-oracle-audit.14, test-oracle-audit.15, test-oracle-audit.16, test-oracle-audit.17, test-oracle-audit.18
   **Contracts**: contracts/schemas/stage-record.schema.json (StaticPayload)
   **Design decisions**: D1
   **Dependencies**: 1.2
@@ -85,8 +101,9 @@
   decision and in a design D4 note. [S]
   **Design decisions**: D4
   **Dependencies**: 1.2
-- [ ] 3.2 Write failing isolation tests: the copy is removed after a stage raises, and the
-  original tree is untouched. [XS]
+- [ ] 3.2 Write failing isolation tests: the copy is removed after a stage raises, the original
+  tree is untouched, and a test run inside the copy sees `HOME`, `TMPDIR` and pytest `--basetemp`
+  under the scratch directory (D3). [XS]
   **Spec scenarios**: test-oracle-audit.7
   **Design decisions**: D3
   **Dependencies**: 1.2
@@ -98,7 +115,7 @@
   - The AST fallback is used when the probe fails, and the backend is recorded.
   - Fewer than 5 covering mutants gives `insufficient`.
 
-  **Spec scenarios**: test-oracle-audit.19, test-oracle-audit.20, test-oracle-audit.21, test-oracle-audit.22, test-oracle-audit.23
+  **Spec scenarios**: test-oracle-audit.24, test-oracle-audit.25, test-oracle-audit.26, test-oracle-audit.27, test-oracle-audit.28
   **Contracts**: contracts/schemas/mutation-result.schema.json, contracts/schemas/stage-record.schema.json (MutationPayload)
   **Design decisions**: D4
   **Dependencies**: 3.3
@@ -112,8 +129,10 @@
   - A test that imports or patches a private name breaks.
   - A public-only test survives.
   - A string-referenced name, an `__all__` entry, or a re-export is `unrenamable`.
+  - A module with more than half of its eligible symbols `unrenamable` marks its tests
+    `low_confidence`.
 
-  **Spec scenarios**: test-oracle-audit.24, test-oracle-audit.25, test-oracle-audit.26
+  **Spec scenarios**: test-oracle-audit.29, test-oracle-audit.30, test-oracle-audit.31, test-oracle-audit.32
   **Contracts**: contracts/schemas/stage-record.schema.json (RenamePayload)
   **Design decisions**: D5
   **Dependencies**: 3.3
@@ -127,9 +146,11 @@
   - A shallow clone degrades, and no network command is run.
   - A denominator below 3 gives `insufficient`.
   - `fix:` and `fix(<scope>):` commits (with or without `!`) that introduce a test give `added_with_fix`; `fixup!` and `feat:` commits do not.
+  - A test function added to an existing file in a later commit is attributed to that commit, not
+    the file's first commit, and the attribution follows a file rename.
   - The co-change ratio is correct for a known commit sequence.
 
-  **Spec scenarios**: test-oracle-audit.27, test-oracle-audit.28, test-oracle-audit.29
+  **Spec scenarios**: test-oracle-audit.33, test-oracle-audit.34, test-oracle-audit.35
   **Contracts**: contracts/schemas/stage-record.schema.json (HistoryPayload)
   **Design decisions**: D6
   **Dependencies**: 1.2
@@ -146,16 +167,17 @@
   - Over-budget state gives `degraded: over_budget`.
   - A confident `current_impl_output` still exits 0.
 
-  **Spec scenarios**: test-oracle-audit.14, test-oracle-audit.15, test-oracle-audit.16, test-oracle-audit.17, test-oracle-audit.18
+  **Spec scenarios**: test-oracle-audit.19, test-oracle-audit.20, test-oracle-audit.21, test-oracle-audit.22, test-oracle-audit.23
   **Contracts**: contracts/schemas/stage-record.schema.json (JudgedPayload)
   **Design decisions**: D7
   **Dependencies**: 1.2
 - [ ] 5.2 Implement `judged.py`. It batches per file under budget, takes thresholds from config, and
   imports `system_one_decisions` as a module. [M]
   **Dependencies**: 5.1
-- [ ] 5.3 Write failing explanation tests: only flagged tests are sent, no backend degrades, and
-  prose is capped at 600 chars with an action from the enum. [S]
-  **Spec scenarios**: test-oracle-audit.30, test-oracle-audit.31
+- [ ] 5.3 Write failing explanation tests: only flagged tests are sent, no backend degrades,
+  prose is capped at 600 chars with an action from the enum, and the kill-rate tercile used for
+  flagging comes from `thresholds.tercile_cutpoints` over the mutation records, per suite. [S]
+  **Spec scenarios**: test-oracle-audit.36, test-oracle-audit.37
   **Contracts**: contracts/schemas/stage-record.schema.json (ExplainPayload)
   **Design decisions**: D8
   **Dependencies**: 1.2
@@ -166,8 +188,9 @@
 ## 6. Labelling, analysis, report (wp-labels-analysis)
 
 - [ ] 6.1 Write failing labelling tests: every non-empty stratum is represented, the seed is
-  reproducible, and cards contain no judged, static, mutation or history output. [S]
-  **Spec scenarios**: test-oracle-audit.33, test-oracle-audit.34
+  reproducible, cards contain no judged, static, mutation or history output, `label next` /
+  `label record` are non-interactive, and `--dry-run` renders cards without touching the ledger. [S]
+  **Spec scenarios**: test-oracle-audit.39, test-oracle-audit.40, test-oracle-audit.41
   **Contracts**: contracts/schemas/label-ledger.schema.json
   **Design decisions**: D9
   **Dependencies**: 1.3
@@ -182,7 +205,7 @@
   - Explanation actions are never read.
   - The output validates against `analysis-report.schema.json`.
 
-  **Spec scenarios**: test-oracle-audit.32, test-oracle-audit.35, test-oracle-audit.36, test-oracle-audit.37, test-oracle-audit.38, test-oracle-audit.39
+  **Spec scenarios**: test-oracle-audit.38, test-oracle-audit.42, test-oracle-audit.43, test-oracle-audit.44, test-oracle-audit.45, test-oracle-audit.46
   **Contracts**: contracts/schemas/analysis-report.schema.json
   **Design decisions**: D10
   **Dependencies**: 1.3
@@ -195,7 +218,7 @@
   - Degraded stages show as `not run` with counts.
   - The "Open decisions" section lists the coverage-ratchet options and the marker question.
 
-  **Spec scenarios**: test-oracle-audit.40, test-oracle-audit.41, test-oracle-audit.46, test-oracle-audit.47, test-oracle-audit.48
+  **Spec scenarios**: test-oracle-audit.47, test-oracle-audit.48, test-oracle-audit.53, test-oracle-audit.54, test-oracle-audit.55
   **Contracts**: contracts/schemas/analysis-report.schema.json
   **Design decisions**: D11, D13
   **Dependencies**: 6.4
@@ -206,8 +229,10 @@
 
 ## 7. Skill-audit test-policy lens (wp-skill-audit-lens)
 
-- [ ] 7.1 Confirm that `add-skill-audit` is archived. If it isn't, archive it with
-  `/cleanup-feature`, or wait. Record the outcome. [XS]
+- [ ] 7.1 Confirm that `add-skill-audit` is merged to `main` (it is, as of 2026-10-13: 31/31 tasks,
+  validation pass). If it is not yet archived, archive it with `/cleanup-feature` when the operator
+  allows; do not block on the archive, since the schema edit here is append-only over the merged
+  file (D12). Record the outcome. [XS]
   **Design decisions**: D12
   **Dependencies**: None
 - [ ] 7.2 Write failing lens tests in `skills/tests/skill-audit/`. [S]
@@ -216,7 +241,7 @@
   - Every committed ledger under `docs/reports/skill-audit/` validates against the extended schema.
   - No backend gives `unclassified` and no finding.
 
-  **Spec scenarios**: test-oracle-audit.42, test-oracle-audit.43, test-oracle-audit.44, test-oracle-audit.45
+  **Spec scenarios**: test-oracle-audit.49, test-oracle-audit.50, test-oracle-audit.51, test-oracle-audit.52
   **Contracts**: contracts/schemas/skill-audit-kinds.delta.json
   **Design decisions**: D12
   **Dependencies**: 7.1
@@ -228,6 +253,11 @@
 - [ ] 7.5 Document the lens in `skills/skill-audit/SKILL.md` (Arguments and Output only), then run
   `skills/install.sh` to sync the runtime copies. [XS]
   **Dependencies**: 7.4
+- [ ] 7.6 Run the lens over `test-driven-development`, `simplify`, `implement-feature`,
+  `validate-feature` and `iterate-on-implementation`. Commit the ledgers under
+  `docs/reports/skill-audit/`. [S]
+  **Design decisions**: D12
+  **Dependencies**: 7.5
 - [ ] Checkpoint: run `skills/tests/skill-audit`, review the diff, verify scope.
 
 ## 8. Integration (wp-integration)
@@ -260,15 +290,17 @@
   **Design decisions**: D6, D15
   **Dependencies**: 8.2
 - [ ] 9.2 Run the deterministic stages (inventory, static, mutation, rename, history) over both
-  pilot suites. Verify the read-only NFR and the mutation wall-clock budget. [M]
+  pilot suites. Verify the read-only NFR, the ≤ 2 min budget for inventory + static + history
+  (timed), and the mutation wall-clock budget. [M]
   **Design decisions**: D3, D4, D5, D6
   **Dependencies**: 9.1
 - [ ] 9.3 **[human]** Labelling session. Present the 40 seeded cards one at a time; the operator
   chooses each label. Commit the ledger. [M]
   **Design decisions**: D9
   **Dependencies**: 9.2
-- [ ] 9.4 **[operator-env]** Live judged run with `TYPESAFE_API_KEY`. Record Jev spend from the
-  `event_sink` telemetry against the ≤ $1.00 NFR. If no key is available, record `not run` and
+- [ ] 9.4 **[operator-env]** Live judged run with `TYPESAFE_API_KEY`. Record the summed
+  `usage_input_tokens` from the `event_sink` telemetry and the input-token price in effect, and
+  check the product against the ≤ $1.00 NFR. If no key is available, record `not run` and
   leave validation Gate 2 open (D15). [S]
   **Design decisions**: D7, D15
   **Dependencies**: 9.2
@@ -276,15 +308,13 @@
   **Design decisions**: D8
   **Dependencies**: 9.4
 - [ ] 9.6 Run the analysis, then render and commit the report and machine-readable analysis under
-  `docs/reports/test-oracle-audit/<date>/`. [S]
+  `docs/reports/test-oracle-audit/<date>/` (the newest dated directory is the current report; no
+  `latest` symlink). [S]
   **Design decisions**: D10, D11, D13
   **Dependencies**: 9.3, 9.5
-- [ ] 9.7 Run the skill-audit lens over `test-driven-development`, `simplify`, `implement-feature`,
-  `validate-feature` and `iterate-on-implementation`. Commit the ledgers. [S]
-  **Design decisions**: D12
-  **Dependencies**: 7.5
-- [ ] 9.8 Draft the follow-up linter proposal stub. List only the candidates that passed their
-  decision rules, and carry the open decisions forward. [S]
+- [ ] 9.7 Draft the follow-up linter proposal stub. List only the candidates that passed their
+  decision rules, carry the open decisions forward, and cite the lens ledgers from 7.6 when they
+  are committed (the stub does not wait for them). [S]
   **Design decisions**: D10, D13
-  **Dependencies**: 9.6, 9.7
+  **Dependencies**: 9.6
 - [ ] Checkpoint: confirm the report is committed, the NFR table is checked off with evidence, and every open decision is recorded.

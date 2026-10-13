@@ -111,8 +111,8 @@ promoting any judgment to an acting decision. The last belongs to `promote-shado
 |-----------|--------|--------|---------------------|
 | Read-only | `git diff` over audited test and source dirs after a full pilot run | empty | validate-feature (pilot-run task) |
 | Degradation | Full pipeline with no `TYPESAFE_API_KEY` and no LLM backend | completes; judged/explain stages report `degraded`, never crash | package CI job |
-| Cost | Jev spend for the full pilot (≈362 tests, batched) | ≤ $1.00 (est. ≈ $0.10) | pilot-run telemetry via `event_sink` |
-| Runtime | Static + inventory + history stages for both suites | ≤ 2 min | package CI job (timed) |
+| Cost | Jev spend for the full pilot (≈362 tests, batched): summed `usage_input_tokens` from `event_sink` × the recorded input-token price | ≤ $1.00 (est. ≈ $0.10) | pilot-run task 9.4 |
+| Runtime | Static + inventory + history stages for both suites | ≤ 2 min | pilot-run task 9.2 (timed); the CI job times only the fixture dry-run |
 | Runtime | Mutation sample run | ≤ 60 min wall-clock, bounded by `--max-mutants` | pilot-run task |
 | Statistical honesty | Every reported agreement or predictive metric | carries n and a 95% CI; metrics with n < 20 are marked "insufficient" | analysis-stage tests |
 
@@ -209,16 +209,19 @@ whose conclusions are unknown.
 
 - **New capability spec:** `test-oracle-audit`, which also holds the skill-audit lens requirement
   so the unarchived `add-skill-audit` deltas aren't touched.
-- **New code:** `packages/test-oracle-audit/**`, plus a lens plug-in under
-  `skills/skill-audit/scripts/`.
+- **New code:** `packages/test-oracle-audit/**` (including runtime copies of the contract schemas
+  under `src/test_oracle_audit/schemas/`), plus a lens plug-in under `skills/skill-audit/scripts/`.
 - **Modified:**
-  - `skills/skill-audit`: new finding `KINDS` and a schema enum extension;
+  - `skills/skill-audit`: new finding `KINDS`, a schema enum extension, and new lens ledgers
+    under `docs/reports/skill-audit/`;
   - `.github/workflows/ci.yml`: a new package test job.
 - **New report artifacts:** `docs/reports/test-oracle-audit/`.
 - **Roadmap notes:** `skill-rightsizing` ri-07 and ri-08 get a note recording that the runner and
   the ledger now exist.
 - **Dependencies:**
-  - `add-skill-audit` must be archived before the lens work package merges.
+  - `add-skill-audit` must be merged to `main` before the lens work package merges (it is, as of
+    2026-10-13); archiving it is preferred but not required, since the schema edit is append-only
+    over the merged file.
   - History mining needs an unshallowed clone. This one is shallow: 255 commits, back to
     2026-08-31.
   - The live judged stage needs `TYPESAFE_API_KEY`, and the explanation stage needs an LLM
