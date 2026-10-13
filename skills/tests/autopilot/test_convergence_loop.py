@@ -886,6 +886,53 @@ def test_spec_gap_payload_includes_derived_spec_file(tmp_path: Path) -> None:
     assert ledger["items"][0]["spec_file"] == str(spec)
 
 
+def test_spec_gap_fix_on_absolute_spec_path_is_in_scope(tmp_path: Path) -> None:
+    """An absolute artifacts_dir makes derive_spec_file return an absolute
+    spec path; git reports the edit repo-relative. The scope check must
+    still accept a fix that edits only that spec."""
+    _init_git_repo(tmp_path)
+    finding = _make_consensus_finding(1, status="confirmed", criticality="high")
+    finding.agreed_type = "spec_gap"
+    raw = {
+        "id": 1, "type": "spec_gap", "criticality": "high",
+        "description": "Test finding 1", "disposition": "fix",
+        "file_path": "src/api.py", "capability": "api",
+    }
+    ctx = _setup_converge(
+        [
+            [_make_review_result("vendor_a", findings=[raw]),
+             _make_review_result("vendor_b", findings=[raw])],
+            [_make_review_result("vendor_a", findings=[]),
+             _make_review_result("vendor_b", findings=[])],
+        ],
+        [_make_consensus_report(findings=[finding]), _make_consensus_report(findings=[])],
+        tmp_path,
+    )
+    assert ctx["artifacts_dir"].is_absolute()
+    spec = ctx["artifacts_dir"] / "specs" / "api" / "spec.md"
+    spec.parent.mkdir(parents=True)
+    spec.write_text("# API\nsrc/api.py\n")
+    subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "spec"], cwd=tmp_path, check=True, capture_output=True,
+    )
+
+    def edit_spec(_blocking: list, _worktree: Path) -> None:
+        spec.write_text("# API\nsrc/api.py\nNew requirement.\n")
+
+    with patch("convergence_loop.ConsensusSynthesizer", return_value=ctx["synthesizer"]):
+        converge(
+            change_id="test-change",
+            review_type="implementation",
+            artifacts_dir=ctx["artifacts_dir"],
+            worktree_path=tmp_path,
+            orchestrator=ctx["orchestrator"],
+            fix_callback=edit_spec,
+        )
+    ledger = load_or_create(ctx["artifacts_dir"], "test-change")
+    assert ledger["items"][0]["status"] in {"addressed", "retired"}
+
+
 def test_mixed_disposition_dispatches_only_fix_now(tmp_path: Path) -> None:
     """Only fix_now items are dispatched; other dispositions park via the
     existing park_item(..., reason=...) call (design D1-D4)."""
