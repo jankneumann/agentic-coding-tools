@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "review_type": "plan",
+  "target": "pilot-test-quality-audit",
+  "reviewers": [
+    {
+      "vendor": "review-findings-plan",
+      "agent_id": "review-findings-plan",
+      "success": true,
+      "findings_count": 2,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": false,
+  "quorum_requested": 1,
+  "quorum_received": 1,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "unconfirmed",
+      "primary_vendor": "review-findings-plan",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "style",
+      "agreed_axis": "readability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "tasks.md cites spec scenarios by document position (test-oracle-audit.1-.55); inserting a scenario renumbers every later citation. Mitigated by the regenerated table and a note; a slug-based scheme would remove the hazard but is a repo-wide convention change.",
+      "eligible_vendors": 1
+    },
+    {
+      "id": 2,
+      "status": "unconfirmed",
+      "primary_vendor": "review-findings-plan",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "With ~40 human labels over seven classes, the seven-class Cohen's kappa cell will almost always report `insufficient` under the n<20-per-cell rule; only the binary kappa can drive the 0.7 exclusion decision. D10 and the Risks section already say the pilot's value is in ruling rules out, but the report should state explicitly that the 7-class figure is descriptive.",
+      "eligible_vendors": 1
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 2,
+    "confirmed_count": 0,
+    "unconfirmed_count": 2,
+    "disagreement_count": 0,
+    "blocking_count": 0,
+    "advisory_count": 0
+  }
+}
