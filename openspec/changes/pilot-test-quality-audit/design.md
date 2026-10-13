@@ -46,8 +46,10 @@ neither `TYPESAFE_API_KEY` nor an LLM API key is present in the planning session
 |---|---|---|
 | `records.py` | identity + envelopes | `TestId(node_id, content_hash)`, `StageRecord`, `read_records`, `write_records` |
 | `vocabulary.py` | oracle-source vocabulary | `ORACLE_SOURCES`, `INTENT_DERIVED`, `IMPL_DERIVED` |
-| `inventory.py` | inventory | `build_inventory(suite: SuiteSpec) -> list[TestEntry]` |
-| `static_checks.py` | static | `run_static(entries) -> list[StageRecord]` |
+| `thresholds.py` | config + shared cut-points (owned by wp-contracts) | `load_thresholds()`, `tercile_cutpoints(values) -> (t1, t2)`, `tercile_of(value, cuts)` |
+| `schemas/*.schema.json` | runtime copies of `contracts/schemas/` | loaded by `records.py` validation and `cli.py report --validate` |
+| `inventory.py` | inventory | `build_inventory(suite: SuiteSpec) -> list[TestEntry]`; `SuiteSpec(name, root, test_paths, python, pytest_args)` from `config/suites.json` |
+| `static_checks.py` | static | `run_static(entries) -> list[StageRecord]`; the six rules are defined normatively in the spec's "Deterministic Static Test Checks" requirement |
 | `judged.py` | Jev | `run_judged(entries, *, dry_run) -> list[StageRecord]` |
 | `isolation.py` | sandbox copy | `isolated_copy(repo_root, paths) -> ContextManager[Path]` |
 | `mutation.py` | mutation | `MutationRunner` protocol, `MutmutRunner`, `AstMutantRunner`, `run_mutation(...)` |
@@ -69,6 +71,26 @@ neither `TYPESAFE_API_KEY` nor an LLM API key is present in the planning session
   No stage raises on unavailable dependencies.
 - **Joining.** Stages are independent and can be re-run. `analysis.py` joins the stage records on
   `test_id`.
+- **Suite interpreter.** Collection (inventory) and every test execution (mutation, rename) run
+  as a subprocess of `SuiteSpec.python`, the suite's own venv interpreter, with
+  `SuiteSpec.pytest_args` (for the `skills/` suite: `--import-mode=importlib`). The package's own
+  interpreter never imports audited test modules. `config/suites.json` holds the two pilot
+  `SuiteSpec`s; the CLI's `--suite <name>` selects one.
+- **Schema runtime copy.** `contracts/schemas/*.schema.json` is the source of truth while the
+  change is active, but it moves on archive and is not importable by ri-07 or ri-08. The package
+  therefore ships byte-identical copies under `src/test_oracle_audit/schemas/`, and a contract test
+  (task 1.1) asserts the parity, resolving the change directory with `change_dir()` so the test
+  survives archival. `report --validate` and `records.py` read only the runtime copies.
+- **Shared cut-points.** Explain (D8), labelling strata (D9), analysis (D10) and the disagreement
+  classes (D11) all need the same kill-rate terciles. `thresholds.tercile_cutpoints` computes them
+  once, per suite, over tests with a numeric kill rate (33.3rd and 66.7th percentiles, linear
+  interpolation); the cut-points are written into `analysis.json`. Display thresholds
+  (`judged_impl_derived_p`, `co_change_high`) come from `config/thresholds.json` through
+  `load_thresholds()`; no module holds a threshold literal.
+- **Test tree ownership.** `tests/conftest.py` belongs to wp-contracts and holds only
+  `schema_validator`, `fixture_project` and the `stub_decide` re-export. Stage packages keep their
+  helpers inside their own `test_<stage>*.py` modules, so the five parallel packages never touch a
+  shared test file.
 - **Reused code.** Inventory reuses the import-based test-to-module mapping from
   `skills/refresh-architecture/scripts/insights/test_linker.py`. History reuses the assertion-line
   diff scanner from `skills/simplify/scripts/check_test_contract.py`. Both are **vendored as small
@@ -102,6 +124,12 @@ The vocabulary answers: *where do this test's expected values come from?*
   `git worktree add --detach` of HEAD into a scratch directory when available, falling back to
   `shutil.copytree` of the suite's source and test roots. The copy is removed on exit.
 - The package writes only to `--out` and to the label ledger path.
+- Audited tests may have side effects of their own (temp files, caches, `~/.config`). Every test
+  run inside the copy sets `HOME`, `TMPDIR`, `XDG_CACHE_HOME` and `XDG_CONFIG_HOME` to a scratch
+  directory beside the copy, passes `--basetemp` under it and `-p no:cacheprovider`, and runs
+  with `cwd` set to the copy. The copy is a `git worktree` of HEAD, so uncommitted edits in the
+  real tree are not audited; the pilot run therefore starts from a clean, committed tree. On exit
+  the stage removes the worktree and runs `git worktree prune`.
 - An end-to-end test runs the full dry-run pipeline against a fixture repo and asserts
   `git status --porcelain` is empty over the fixture's source and test directories.
 
@@ -148,7 +176,8 @@ The vocabulary answers: *where do this test's expected values come from?*
     targets in source, registries);
   - names re-exported by a public module.
 - **Procedure.** One pass renames all eligible symbols, then the suite runs once. The result per
-  test is `survives: bool`.
+  test is `survives: bool`, plus `low_confidence: true` when more than half of the eligible
+  symbols in any module the test covers were `unrenamable` (the risk noted below).
 - **Why not more refactors.** Richer refactors (extract or inline function, reordering) were
   rejected: proving them behaviour-preserving would need a test oracle, which is what's being
   measured.
@@ -161,13 +190,16 @@ The vocabulary answers: *where do this test's expected values come from?*
   `git fetch --unshallow` explicitly.
 - **co_change_ratio.**
   - Look at commits that change any covered source module. Count those in which the same commit
-    also changed this test function's assertion lines. Lines are mapped by diff hunks over the
-    function's line range at that commit, and assertion lines are detected with the vendored
-    scanner.
+    also changed this test function's assertion lines. The function's line range at a commit
+    comes from parsing `git show <sha>:<path>` with `ast`; lines are mapped by diff hunks over
+    that range, and assertion lines are detected with the vendored scanner. A commit in which the
+    function cannot be found by name (not yet added, or renamed) is skipped for that test.
   - The ratio is that count divided by all such commits.
   - The denominator must be at least 3, otherwise the result is `insufficient`.
   - A high ratio means the test is routinely rewritten to match the code.
-- **added_with_fix.** The commit that introduced the test function has a conventional-commit type
+- **added_with_fix.** The commit that introduced the test function is the oldest commit, with
+  `--follow` for file renames, in which `def <test_name>(` is present in the test file (found with
+  `git log -S` and confirmed by parsing that revision). It has a conventional-commit type
   of `fix`, matched as `^fix(\([^)]*\))?!?:`. That covers unscoped `fix:` and scoped
   `fix(scope):`, with or without the `!` breaking marker, and excludes `fixup!` and every other
   type. This marks a regression test added with the fix (the Prove-It pattern), a positive
@@ -183,7 +215,12 @@ The vocabulary answers: *where do this test's expected values come from?*
   - `oracle_source`: a `choice` over the D2 vocabulary, with `none` as the no-match option.
   - `survives_refactor`: a `noul` question, "This test would still pass if every private helper in
     the code under test were renamed."
-  - `boundary`: a `choice` over `{pure_function, module_api, service_api, ui, mixed}`.
+  - `boundary`: a `choice` over `{pure_function, module_api, service_api, ui, mixed}`. This answer
+    is descriptive, never a decision input: the disagreement report (D11) prints each test's top
+    boundary label, and the report splits the `mock_assertion_dominant` vs kill-rate comparison by
+    boundary ∈ {`pure_function`, `module_api`} vs the rest, so a reviewer can tell mock-heavy
+    tests at a service boundary from mock-heavy tests of a pure function. Both splits obey the
+    n < 20 → `insufficient` rule.
 - **State.** The state holds:
   - the test function plus the fixtures it uses;
   - the bodies of the covered source functions, truncated;
@@ -208,7 +245,8 @@ The vocabulary answers: *where do this test's expected values come from?*
 - **Input.** Only tests flagged by at least one approach are sent:
   - any static rule fired;
   - Jev's `P(intent-derived)` is below the display threshold;
-  - kill rate is in the bottom tercile;
+  - kill rate is in the bottom tercile (cut-points from `thresholds.tercile_cutpoints` over the
+    suite's `mutation.jsonl`; a test with `insufficient` kill rate is not flagged by this rule);
   - the rename broke the test;
   - `co_change_ratio` is above the display threshold.
 - **Backend.** An `ExplainBackend` protocol with the shape of `gen_eval`'s backend (`run(prompt,
@@ -233,8 +271,16 @@ The vocabulary answers: *where do this test's expected values come from?*
   - any cited spec scenario.
 
   It never shows judged, static, mutation or history outputs (no anchoring).
-- **Recording.** In an agent session, cards are presented one at a time, the way
-  `cite-requirements` does. The operator picks a D2 value and may add a note.
+- **Recording.** The CLI is non-interactive, so an agent harness can drive it:
+  `label next --out <dir> [--seed N --n 40]` draws (or reloads) the sample, writes every card to
+  `<out>/cards/<index>-<slug>.md`, and prints the next unlabelled card; `label record <node_id>
+  <label> [--note ...]` hashes the current test source and appends one ledger entry;
+  `label --dry-run` renders cards and never writes the ledger. In an agent session the agent
+  relays each card to the operator and records the answer, the way `cite-requirements` does.
+- **One labeller.** The pilot assumes a single operator labels all 40 cards; the ledger's
+  `labeller` field already distinguishes labellers, and the analysis uses the first entry per
+  `test_id`. If a second labeller is added later, the analysis reports inter-rater kappa as one
+  more `human_label` metric; nothing else changes. Recorded as an open question below.
 - **Ledger.** `LabelLedger` (`ledger.py`) is a JSON file at
   `docs/reports/test-oracle-audit/labels.json` (`contracts/schemas/label-ledger.schema.json`). It
   stores `{test_id, label, labeller, labelled_at, note}`.
@@ -297,8 +343,11 @@ The disagreement report lists named classes of disagreement, each with its tests
   every existing ledger still validates. A test re-validates the committed ledgers under
   `docs/reports/skill-audit/` to prove it.
 - **Read-only** over audited skills, as before.
-- **Precondition.** `add-skill-audit` is archived before this package merges, so its spec deltas
-  and this change's schema edit don't race.
+- **Precondition.** `add-skill-audit` is merged to `main` (true as of 2026-10-13: 31/31 tasks,
+  validation pass). Archival is preferred but not required: its capabilities
+  (`agent-archetypes`, `harness-engineering`, `skill-workflow`) do not overlap `test-oracle-audit`,
+  and the schema edit here is append-only over the merged file, so the only race was with an
+  unmerged branch. Task 7.1 records whether the archive has happened.
 
 ### D13: Coverage ratchet is an open decision, not an action
 
@@ -335,6 +384,10 @@ the package follows that practice itself:
   - an LLM backend;
   - an unshallowed clone.
 
+  Jev spend is measured as the sum of `usage_input_tokens` from `decide()`'s `event_sink`
+  telemetry, multiplied by the input-token price in effect in the operator environment, which the
+  pilot run records beside the sum; the NFR holds at ≤ $1.00 of that product.
+
   The change is not complete until a live run's report is committed. If the key cannot be
   provided, the report is committed with the judged stage marked `not run`. Gate 2 of
   `validate-feature` then stays open, with the reason recorded, instead of reporting a pass.
@@ -356,6 +409,10 @@ the package follows that practice itself:
 - **Overlap with paused changes on `parallel-infrastructure` tests.** *Mitigation:* the pilot is
   read-only. A paused change that resumes and edits a test makes its label `stale` (content hash),
   so the result degrades instead of silently going wrong.
+- **Audited tests have side effects.** `parallel-infrastructure` tests spawn subprocesses and
+  write temp files; run inside the copy they could touch the real tree or the operator's home.
+  *Mitigation:* D3's environment redirection, and the pilot-run read-only gate over the audited
+  directories, which fails the package if anything escaped.
 - **Pilot results get used as a gate before the linter change.** *Mitigation:* the package has no
   exit-code path tied to findings, and the report's first line says it is advisory.
 
@@ -371,5 +428,8 @@ both directions.
   `patch` target strings, a real-world refactor that couples tests. The current answer is no,
   because proving behaviour preservation is harder. Revisit if `coupled_spec_test` turns out
   empty.
+- Should a second labeller label the same 40 cards so inter-rater kappa bounds what agreement
+  with Jev can mean? The pilot runs with one labeller (D9); ri-08's blind-judge rule may require
+  two.
 - Should ri-08 adopt the D2 vocabulary for replay outputs, or define its own? To be decided by
   ri-08's owner. The ledger supports either through its entry type.

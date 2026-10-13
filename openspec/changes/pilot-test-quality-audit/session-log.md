@@ -61,3 +61,40 @@ Plan a read-only pilot that audits two test suites with four independent approac
 ### Context
 First PLAN_ITERATE dispatch stalled ~1h50m in a main-rooted harness worktree; escalated, operator approved resume; re-dispatched without harness worktree isolation.
 
+---
+
+## Phase: Plan Iteration 1 (2026-10-13)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Ship runtime copies of the contract schemas inside the package** `architectural: test-oracle-audit` — openspec/changes/<id>/contracts moves on archive and is not importable; report --validate and ri-07/ri-08 need the schemas at runtime. A parity contract test via change_dir() keeps contracts/ as the editing source of truth.
+2. **Static rule definitions live in the spec requirement, not the design** — They are normative and testable (one scenario per rule); the design table only points at them.
+3. **Decouple wp-pilot-run from wp-skill-audit-lens; relax the add-skill-audit precondition to merged-on-main** — add-skill-audit is merged (31/31 tasks, validation pass) and its capabilities do not overlap test-oracle-audit; the schema edit is append-only, so only an unmerged branch could race. Blocking the pilot deliverable on a human-cadence archive was the critical-path risk.
+4. **thresholds.py in wp-contracts owns tercile cut-points and config loading** — Explain, labelling, analysis and disagreement all need the same per-suite terciles and explain runs before analysis; a root-package helper avoids four divergent implementations and keeps the no-threshold-literal rule.
+5. **Ran quality-axis analysis inline and recorded the single-labeller assumption instead of asking** `architectural: skill-procedure-deviation` — The autopilot sub-agent harness exposes no Agent/Task tool and no interactive user; AskUserQuestion is unavailable, so the assumption is documented in D9 with the multi-labeller rule and listed as an open question.
+
+### Alternatives Considered
+- Drop the boundary judged question (no consumer in D10/D11): rejected because Cheap to keep and useful as a descriptive split for mock-dominant tests; made descriptive-only instead of removed.
+- Keep contracts/ as the only schema location and resolve it at runtime via change_dir(): rejected because Runtime code resolving an OpenSpec change directory couples the package to the repo layout and breaks for ri-07/ri-08 consumers.
+- Keep the lens run in wp-pilot-run and make the lens dependency optional: rejected because work-packages.yaml has no optional dependency; moving the task to the package that owns the lens code is simpler and keeps write scopes disjoint.
+
+### Trade-offs
+- Accepted Positional scenario IDs (.1-.55) with a regenerated table over Stable per-scenario slugs because The repo's task convention cites positional IDs; a title-matching renumber script makes additions safe enough for a plan this size.
+- Accepted Syntactic, precision-first static rule definitions over Semantic rules that resolve object provenance because The rules are hypotheses to be measured; a cheap, deterministic definition is what the pilot can compare against mutation and labels.
+
+### Open Questions
+- [ ] Should a second labeller label the same 40 cards to bound Jev agreement with inter-rater kappa?
+
+### Completed Work
+- D1: schema runtime copy, SuiteSpec/config/suites.json, thresholds.py, conftest ownership
+- Spec: six static rules defined; scenarios .10, .15-.18, .32, .41 added; inventory failure path; rename low_confidence; added_with_fix definition; non-interactive labelling CLI
+- tasks.md: renumbered citations, 9.7 moved to 7.6, 7.1 relaxed, 1.1/1.2/2.1/2.3/3.2/3.7/4.1/5.3/6.1/9.2/9.4/9.6 updated
+- work-packages.yaml: wp-contracts scope + loc, lens owns docs/reports/skill-audit, pilot-run depends only on integration, validate step resolves newest dated report
+- contracts: RenamePayload.low_confidence; README names and runtime-copy section
+- proposal.md: NFR verification rows, add-skill-audit dependency wording, Impact additions
+- plan-findings.md created with 18 findings
+
+### Context
+Addressed 4 high and 11 medium findings across consistency, clarity, parallelizability, completeness and assumptions: contract schemas get a runtime copy in the package, all six static rules are defined with scenarios, the lens run moves into wp-skill-audit-lens so the pilot run no longer waits on archiving add-skill-audit, and a shared thresholds module owns the kill-rate terciles. Spec grew from 48 to 55 scenarios; tasks renumbered by title match; openspec validate --strict still passes.
+

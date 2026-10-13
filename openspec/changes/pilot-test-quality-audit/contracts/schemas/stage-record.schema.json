@@ -412,6 +412,10 @@
         "unrenamable_symbols": {
           "type": "integer",
           "minimum": 0
+        },
+        "low_confidence": {
+          "type": "boolean",
+          "description": "True when more than half of the eligible private symbols in any covered module were unrenamable (design D5)."
         }
       }
     },
