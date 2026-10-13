@@ -1,0 +1,273 @@
+{
+  "convention": "rightsizing",
+  "dispatch_profile": [],
+  "evidence": {
+    "reason": "not_applicable_test_policy_lens",
+    "status": "unavailable",
+    "tier_rows": []
+  },
+  "findings": [
+    {
+      "evidence": {},
+      "id": "F001",
+      "kind": "test_coverage_target",
+      "layer": "unclassified",
+      "rationale": "line coverage is used as a goal or gate (1 instruction(s)): \"This skill is **read → pin → edit**: it reviews first, applies a **coverage gate**, writes characterization tests when needed, gates each candidate against C...\"",
+      "remediation": "add_reason",
+      "section_id": "SKILL.md#01-simplify"
+    },
+    {
+      "evidence": {},
+      "id": "F002",
+      "kind": "test_coverage_target",
+      "layer": "unclassified",
+      "rationale": "line coverage is used as a goal or gate (1 instruction(s)): \"Production edits only after the coverage gate passes.\"",
+      "remediation": "add_reason",
+      "section_id": "SKILL.md#04-scope"
+    },
+    {
+      "evidence": {},
+      "id": "F003",
+      "kind": "test_coverage_target",
+      "layer": "unclassified",
+      "rationale": "line coverage is used as a goal or gate (1 instruction(s)): \"Production simplify commits without a coverage-gate decision (existing pins **or** new characterization tests).\"",
+      "remediation": "add_reason",
+      "section_id": "SKILL.md#27-red-flags"
+    },
+    {
+      "evidence": {},
+      "id": "F004",
+      "kind": "test_coverage_target",
+      "layer": "procedure",
+      "rationale": "line coverage is used as a goal or gate (1 instruction(s)): \"Confirm coverage gate: either list existing pinning tests **or** show the characterization commit (`test(...): pin behavior…`) that is green on baseline.\"",
+      "remediation": "add_reason",
+      "section_id": "SKILL.md#28-verification"
+    }
+  ],
+  "freshness": {
+    "archetypes_sha256": "5cfdd2f5e34d7ae83201695604a0382adcd9e2a2fe003b854959112e4800ed7a",
+    "evidence_window_days": 30,
+    "reviewed_dates": [
+      "2026-08-16"
+    ]
+  },
+  "generated_at": "2026-10-13T00:00:00+00:00",
+  "layers": [
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "frontmatter",
+      "layer": "contract",
+      "rule": "frontmatter",
+      "section_id": "SKILL.md#00-frontmatter"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Simplify",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#01-simplify"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "When to Use",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#02-when-to-use"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "When NOT to Use",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#03-when-not-to-use"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Scope",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#04-scope"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "1. Preserve behavior exactly",
+      "layer": "constraint",
+      "rule": "prohibition_without_reason",
+      "section_id": "SKILL.md#05-1-preserve-behavior-exactly"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "2. Tests are the isomorphism proof",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#06-2-tests-are-the-isomorphism-proof"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "3. Follow project conventions",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#07-3-follow-project-conventions"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "4. Clarity over cleverness and line count",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#08-4-clarity-over-cleverness-and-line-count"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "5. Scope to what you intended",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#09-5-scope-to-what-you-intended"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Chesterton's Fence — Pre-Simplification Check",
+      "layer": "constraint",
+      "rule": "prohibition_without_reason",
+      "section_id": "SKILL.md#10-chesterton-s-fence-pre-simplification-ch"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Coverage Gate (required)",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#11-coverage-gate-required"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Rule of 500",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#12-rule-of-500"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Local clarity (existing)",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#13-local-clarity-existing"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Isomorphic structure (added)",
+      "layer": "constraint",
+      "rule": "prohibition_without_reason",
+      "section_id": "SKILL.md#14-isomorphic-structure-added"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "0. Scope",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#15-0-scope"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "1. Understand (Chesterton's Fence)",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#16-1-understand-chesterton-s-fence"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "2. Coverage gate",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#17-2-coverage-gate"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "3. Candidate list",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#18-3-candidate-list"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "4. Rule of 500",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#19-4-rule-of-500"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "5. Apply incrementally",
+      "layer": "constraint",
+      "rule": "prohibition_without_reason",
+      "section_id": "SKILL.md#20-5-apply-incrementally"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "6. Dual-run verify",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#21-6-dual-run-verify"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "7. Report",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#22-7-report"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Script helpers",
+      "layer": "contract",
+      "rule": "contract_table",
+      "section_id": "SKILL.md#23-script-helpers"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Language sketches (clarity, not prescription)",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#24-language-sketches-clarity-not-prescripti"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Handoffs",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#25-handoffs"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Common Rationalizations",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#26-common-rationalizations"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Red Flags",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#27-red-flags"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Verification",
+      "layer": "procedure",
+      "rule": "procedure",
+      "section_id": "SKILL.md#28-verification"
+    }
+  ],
+  "schema_version": 1,
+  "skill": "simplify"
+}
