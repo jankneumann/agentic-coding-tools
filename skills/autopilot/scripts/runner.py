@@ -49,6 +49,7 @@ import phase_agent  # type: ignore[import-not-found]  # noqa: E402
 from shared import approval_gate as shared_approval_gate  # noqa: E402
 from shared import dispatch_contract  # noqa: E402
 from shared.approval_gate import ApprovalDecision  # noqa: E402
+from shared.mirror_freshness import stale_mirror  # noqa: E402
 from shared.trust_posture import SCOPED_GATES, Gate, load_posture, posture_digest  # noqa: E402
 
 logger = logging.getLogger("autopilot.runner")
@@ -1285,9 +1286,21 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _warn_if_stale_mirror() -> None:
+    # A runtime mirror that predates merged toolkit fixes runs the old logic
+    # silently; say so on every invocation until the mirror is resynced.
+    try:
+        drift = stale_mirror(__file__)
+    except OSError:
+        return
+    if drift is not None:
+        print(f"autopilot: WARNING: {drift.message()}", file=sys.stderr)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
+    _warn_if_stale_mirror()
     func = args.func
     return int(func(args))
 
