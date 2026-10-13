@@ -161,7 +161,7 @@
 
 ## 5. Judged and explanation stages (wp-judged-explain)
 
-- [ ] 5.1 Write failing judged-stage tests using `system_one_decisions.testing.stub_decide`. [S]
+- [x] 5.1 Write failing judged-stage tests using `system_one_decisions.testing.stub_decide`. [S]
   - Distributions are stored with `evidence_class: judgment`.
   - A missing key or `--dry-run` gives `degraded` and exit 0.
   - The state passed to `decide()` excludes other approaches' outputs and human labels.
@@ -172,19 +172,19 @@
   **Contracts**: contracts/schemas/stage-record.schema.json (JudgedPayload)
   **Design decisions**: D7
   **Dependencies**: 1.2
-- [ ] 5.2 Implement `judged.py`. It batches per file under budget, takes thresholds from config, and
+- [x] 5.2 Implement `judged.py`. It batches per file under budget, takes thresholds from config, and
   imports `system_one_decisions` as a module. [M]
   **Dependencies**: 5.1
-- [ ] 5.3 Write failing explanation tests: only flagged tests are sent, no backend degrades,
+- [x] 5.3 Write failing explanation tests: only flagged tests are sent, no backend degrades,
   prose is capped at 600 chars with an action from the enum, and the kill-rate tercile used for
   flagging comes from `thresholds.tercile_cutpoints` over the mutation records, per suite. [S]
   **Spec scenarios**: test-oracle-audit.36, test-oracle-audit.37
   **Contracts**: contracts/schemas/stage-record.schema.json (ExplainPayload)
   **Design decisions**: D8
   **Dependencies**: 1.2
-- [ ] 5.4 Implement `explain.py` with the `ExplainBackend` protocol and the flagging rule. [S]
+- [x] 5.4 Implement `explain.py` with the `ExplainBackend` protocol and the flagging rule. [S]
   **Dependencies**: 5.3
-- [ ] Checkpoint: run the package tests (including the system-one-decisions guard tests), review the diff, verify scope.
+- [x] Checkpoint: run the package tests (including the system-one-decisions guard tests), review the diff, verify scope.
 
 ## 6. Labelling, analysis, report (wp-labels-analysis)
 
