@@ -30,10 +30,10 @@ packages:
   title: Package skeleton, records, vocabulary, label ledger
   task_type: implementation
   description: 'Scaffolds packages/test-oracle-audit and owns the shared contract modules every stage imports: records.py
-    (StageRecord/TestId mirroring stage-record.schema.json), vocabulary.py (D2), ledger.py (label ledger, D9),
-    thresholds.py (config loader, tercile cut-points), the runtime schema copies, config/thresholds.json and
-    config/suites.json, and the shared tests/conftest.py. Contract tests validate dataclass output against
-    contracts/schemas and assert runtime-copy parity. Root of the DAG.'
+    (StageRecord/TestId mirroring stage-record.schema.json), vocabulary.py (D2), ledger.py (label ledger, D9), thresholds.py
+    (config loader, tercile cut-points), the runtime schema copies, config/thresholds.json and config/suites.json,
+    and the shared tests/conftest.py. Contract tests validate dataclass output against contracts/schemas and assert
+    runtime-copy parity. Root of the DAG.'
   role: implementation
   priority: 1
   depends_on: []
@@ -332,6 +332,7 @@ packages:
   context_impact:
     surfaces:
     - semantic_code
+    - documentation
   worktree:
     name: wp-judged-explain
     mode: isolated
@@ -439,9 +440,9 @@ packages:
   title: Skill-audit test-policy lens
   task_type: implementation
   description: 'Adds --lens test-policy to skill-audit: two-axis classification of test-prescribing instructions,
-    three append-only finding kinds, schema enum extension in both synced copies (D12), then runs the lens over the
-    five test-prescribing skills and commits the ledgers (task 7.6). Precondition: add-skill-audit merged to main
-    (task 7.1 records whether it is archived).'
+    three append-only finding kinds, schema enum extension in both synced copies (D12), then runs the lens over
+    the five test-prescribing skills and commits the ledgers (task 7.6). Precondition: add-skill-audit merged to
+    main (task 7.1 records whether it is archived).'
   role: implementation
   priority: 3
   depends_on: []
@@ -479,6 +480,7 @@ packages:
     surfaces:
     - semantic_code
     - documentation
+    - apis
   worktree:
     name: wp-skill-audit-lens
     mode: isolated
@@ -495,8 +497,8 @@ packages:
         - skill_audit_tests_pass
     - name: Lens ledgers committed and schema-valid
       kind: command
-      command: cd skills && test "$(ls ../docs/reports/skill-audit/*-test-policy-findings.json | wc -l)" -ge 5 && uv run pytest tests/skill-audit/test_test_policy_lens*.py
-        -q
+      command: cd skills && test "$(ls ../docs/reports/skill-audit/*-test-policy-findings.json | wc -l)" -ge 5 &&
+        uv run pytest tests/skill-audit/test_test_policy_lens*.py -q
       evidence:
         artifacts:
         - docs/reports/skill-audit
@@ -652,7 +654,8 @@ packages:
         - audited_dirs_unchanged
     - name: Report validates
       kind: command
-      command: cd packages/test-oracle-audit && uv run python -m test_oracle_audit report --validate "$(ls -d ../../docs/reports/test-oracle-audit/*/ | sort | tail -1)analysis.json"
+      command: cd packages/test-oracle-audit && uv run python -m test_oracle_audit report --validate "$(ls -d ../../docs/reports/test-oracle-audit/*/
+        | sort | tail -1)analysis.json"
       evidence:
         artifacts:
         - docs/reports/test-oracle-audit
