@@ -32,3 +32,18 @@ Baseline: `openspec validate --strict` passes; 14 requirements, 48 scenarios; 9 
 Parallelizability after iteration 1: wp-contracts (root) → {wp-inventory-static, wp-execution, wp-history, wp-judged-explain, wp-labels-analysis} ∥ wp-skill-audit-lens → wp-integration → wp-pilot-run. Independent: 1 root + 1 (lens) | Sequential chains: 3 (contracts→stages→integration→pilot; lens standalone) | Max parallel width: 6. File overlap: none between parallel packages (session-log.md and design.md are written only by wp-execution among the parallel set).
 
 Deferred / out of scope: a second labeller (open question, ri-08); moving a private helper between modules as a second refactor (open question).
+
+## Iteration 2 (2026-10-13)
+
+Re-analysis after iteration 1. `openspec validate --strict` passes; 55 scenarios all cited.
+
+| # | Type | Criticality | Description | Fix |
+|---|------|-------------|-------------|-----|
+| 19 | feasibility | high | "Run in the suite's interpreter" (iteration 1, D1) cannot work as written: neither `agent-coordinator` nor `skills` declares `pytest-cov`, `mutmut` or `libcst`, so coverage contexts and trampolines would not resolve. | D1 "Suite environment": `uv run --project <suite> --with pytest-cov --with mutmut pytest …`; `SuiteSpec(name, project_root, test_paths, source_roots, pytest_args)` with the two pilot specs named; spec Inventory wording updated; task 3.1 spike confirms resolution. |
+| 20 | feasibility | high | `wp-skill-audit-lens` verification step `skill_audit.py --all --check-freshness` exits 1 whenever any skill lacks a report (CI wraps it in `exit 0` for that reason), so the package could never verify. | Step replaced by "lens ledgers committed and schema-valid" (≥5 `*-test-policy-findings.json` + the lens tests); D12 defines lens output names that never overwrite rightsizing outputs or affect freshness. |
+| 21 | consistency | medium | `analysis.json` must carry the tercile cut-points (D1/D8) but `analysis-report.schema.json` has `additionalProperties: false` and no slot. | `tercile_cutpoints` property added; D10 states it. |
+| 22 | consistency | medium | `low_confidence` optional in `RenamePayload` while the spec says every covering test's record SHALL carry it; analysis use undefined. | Made required; D10 excludes low-confidence records from Brier and `coupled_spec_test` and reports the count. |
+| 23 | clarity | medium | `mirrored_test_file` used "reached", which needs coverage data the static stage does not have. | Defined as an AST `Call` to the function's imported/attribute name; public functions only. |
+| 24 | clarity | low | Task 1.2 listed `stub_decide` as a conftest re-export; it is a monkeypatch helper, not a fixture. | Removed from conftest list; judged tests import it from `system_one_decisions.testing` (task 5.1 already says so). |
+
+Residual (below threshold, not fixed): positional scenario IDs remain fragile (#18); 7-class kappa on ~40 labels will almost always be `insufficient` by construction (acknowledged in D10/Risks; the binary kappa is the decision metric).

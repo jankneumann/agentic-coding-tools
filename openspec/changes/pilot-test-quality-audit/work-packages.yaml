@@ -493,17 +493,18 @@ packages:
         - skills/tests/skill-audit
         result_keys:
         - skill_audit_tests_pass
-    - name: Skill-audit freshness
+    - name: Lens ledgers committed and schema-valid
       kind: command
-      command: cd skills && uv run python skill-audit/scripts/skill_audit.py --all --check-freshness
+      command: cd skills && test "$(ls ../docs/reports/skill-audit/*-test-policy-findings.json | wc -l)" -ge 5 && uv run pytest tests/skill-audit/test_test_policy_lens*.py
+        -q
       evidence:
         artifacts:
         - docs/reports/skill-audit
         result_keys:
-        - skill_audit_fresh
+        - lens_ledgers_valid
   outputs:
     result_keys:
-    - skill_audit_fresh
+    - lens_ledgers_valid
     - skill_audit_tests_pass
   metadata:
     loc_estimate: 450
