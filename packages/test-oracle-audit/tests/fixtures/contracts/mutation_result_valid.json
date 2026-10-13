@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "mutant_id": "evaluation.metrics.compute_score#comparison_flip#3",
+  "backend": "ast",
+  "module": "evaluation/metrics.py",
+  "function": "compute_score",
+  "operator": "comparison_flip",
+  "covered_by": ["tests/test_metrics.py::test_score", "tests/test_metrics.py::test_score_zero"],
+  "killed_by": ["tests/test_metrics.py::test_score"],
+  "status": "killed",
+  "seed": 7
+}
