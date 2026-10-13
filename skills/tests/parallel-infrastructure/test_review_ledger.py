@@ -460,3 +460,19 @@ def test_mark_addressed_without_touched_paths_keeps_the_old_behavior(tmp_path: P
     compact(ledger, tmp_path)
 
     assert ledger["items"][0]["status"] == "open"
+
+
+def test_fix_touched_file_survives_a_save_and_reload(tmp_path: Path) -> None:
+    # convergence_loop saves right after mark_addressed; a stripped flag made
+    # the next compact() reopen every additive docs fix.
+    ledger = _addressed_doc_finding(tmp_path, touched=["docs/report.md"])
+    artifacts = tmp_path / "change"
+    save(ledger, artifacts)
+    on_disk = json.loads((artifacts / ".review-ledger" / "ledger.json").read_text())
+    Draft202012Validator(LEDGER_SCHEMA).validate(on_disk)
+    assert on_disk["items"][0]["fix_touched_file"] is True
+
+    reloaded = load_or_create(artifacts, "demo")
+    compact(reloaded, tmp_path)
+
+    assert reloaded["items"][0]["status"] == "addressed"
