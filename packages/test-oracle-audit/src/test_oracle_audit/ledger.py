@@ -11,7 +11,7 @@ import enum
 import json
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -107,7 +107,7 @@ class LabelLedger:
             content_hash=content_hash,
             label=label,
             labeller=labeller,
-            labelled_at=labelled_at or datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            labelled_at=labelled_at or datetime.now(UTC).isoformat(timespec="seconds"),
             note=note,
         )
         self.entries.append(entry)
