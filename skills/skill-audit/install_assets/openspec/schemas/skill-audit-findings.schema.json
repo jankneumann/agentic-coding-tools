@@ -100,7 +100,7 @@
         "id": { "type": "string", "pattern": "^F[0-9]{3,}$" },
         "kind": {
           "type": "string",
-          "enum": ["teaching_inferable", "procedure_without_probe", "constraint_without_reason", "contract_unpinned", "missing_deviation_protocol", "tier_concentrated_failure", "convention_drift"]
+          "enum": ["teaching_inferable", "procedure_without_probe", "constraint_without_reason", "contract_unpinned", "missing_deviation_protocol", "tier_concentrated_failure", "convention_drift", "test_oracle_impl_derived", "test_same_context_authorship", "test_coverage_target"]
         },
         "layer": { "$ref": "#/$defs/layer" },
         "section_id": { "type": "string" },

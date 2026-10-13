@@ -230,13 +230,13 @@
 
 ## 7. Skill-audit test-policy lens (wp-skill-audit-lens)
 
-- [ ] 7.1 Confirm that `add-skill-audit` is merged to `main` (it is, as of 2026-10-13: 31/31 tasks,
+- [x] 7.1 Confirm that `add-skill-audit` is merged to `main` (it is, as of 2026-10-13: 31/31 tasks,
   validation pass). If it is not yet archived, archive it with `/cleanup-feature` when the operator
   allows; do not block on the archive, since the schema edit here is append-only over the merged
   file (D12). Record the outcome. [XS]
   **Design decisions**: D12
   **Dependencies**: None
-- [ ] 7.2 Write failing lens tests in `skills/tests/skill-audit/`. [S]
+- [x] 7.2 Write failing lens tests in `skills/tests/skill-audit/`. [S]
   - A coverage-gate instruction gives `test_coverage_target`.
   - Same-context red/green gives `test_same_context_authorship`.
   - Every committed ledger under `docs/reports/skill-audit/` validates against the extended schema.
@@ -246,22 +246,22 @@
   **Contracts**: contracts/schemas/skill-audit-kinds.delta.json
   **Design decisions**: D12
   **Dependencies**: 7.1
-- [ ] 7.3 Append the three kinds to `KINDS` and to the schema enum in both
+- [x] 7.3 Append the three kinds to `KINDS` and to the schema enum in both
   `skills/skill-audit/install_assets/...` and `openspec/schemas/...`. [XS]
   **Dependencies**: 7.2
-- [ ] 7.4 Implement `test_policy_lens.py` and the `--lens test-policy` flag in `skill_audit.py`,
+- [x] 7.4 Implement `test_policy_lens.py` and the `--lens test-policy` flag in `skill_audit.py`,
   writing `<skill>-test-policy-findings.json` and `<skill>-test-policy-<date>.md` beside, never
   over, the rightsizing outputs (D12). [M]
   **Dependencies**: 7.3
-- [ ] 7.5 Document the lens in `skills/skill-audit/SKILL.md` (Arguments and Output only), then run
+- [x] 7.5 Document the lens in `skills/skill-audit/SKILL.md` (Arguments and Output only), then run
   `skills/install.sh` to sync the runtime copies. [XS]
   **Dependencies**: 7.4
-- [ ] 7.6 Run the lens over `test-driven-development`, `simplify`, `implement-feature`,
+- [x] 7.6 Run the lens over `test-driven-development`, `simplify`, `implement-feature`,
   `validate-feature` and `iterate-on-implementation`. Commit the ledgers under
   `docs/reports/skill-audit/`. [S]
   **Design decisions**: D12
   **Dependencies**: 7.5
-- [ ] Checkpoint: run `skills/tests/skill-audit`, review the diff, verify scope.
+- [x] Checkpoint: run `skills/tests/skill-audit`, review the diff, verify scope.
 
 ## 8. Integration (wp-integration)
 
