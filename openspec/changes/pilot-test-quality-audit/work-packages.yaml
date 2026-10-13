@@ -30,8 +30,10 @@ packages:
   title: Package skeleton, records, vocabulary, label ledger
   task_type: implementation
   description: 'Scaffolds packages/test-oracle-audit and owns the shared contract modules every stage imports: records.py
-    (StageRecord/TestId mirroring stage-record.schema.json), vocabulary.py (D2), ledger.py (label ledger, D9) and
-    config/thresholds.json. Contract tests validate dataclass output against contracts/schemas. Root of the DAG.'
+    (StageRecord/TestId mirroring stage-record.schema.json), vocabulary.py (D2), ledger.py (label ledger, D9),
+    thresholds.py (config loader, tercile cut-points), the runtime schema copies, config/thresholds.json and
+    config/suites.json, and the shared tests/conftest.py. Contract tests validate dataclass output against
+    contracts/schemas and assert runtime-copy parity. Root of the DAG.'
   role: implementation
   priority: 1
   depends_on: []
@@ -57,8 +59,11 @@ packages:
     - packages/test-oracle-audit/src/test_oracle_audit/records.py
     - packages/test-oracle-audit/src/test_oracle_audit/vocabulary.py
     - packages/test-oracle-audit/src/test_oracle_audit/ledger.py
+    - packages/test-oracle-audit/src/test_oracle_audit/thresholds.py
+    - packages/test-oracle-audit/src/test_oracle_audit/schemas/**
     - packages/test-oracle-audit/src/test_oracle_audit/config/**
     - packages/test-oracle-audit/tests/conftest.py
+    - packages/test-oracle-audit/tests/_shared/**
     - packages/test-oracle-audit/tests/test_contracts*.py
     - packages/test-oracle-audit/tests/test_ledger*.py
     - packages/test-oracle-audit/tests/fixtures/contracts/**
@@ -100,7 +105,7 @@ packages:
     - contract_tests_pass
     - ruff_clean
   metadata:
-    loc_estimate: 350
+    loc_estimate: 450
   inputs:
     tasks:
     - '1.1'
@@ -434,8 +439,9 @@ packages:
   title: Skill-audit test-policy lens
   task_type: implementation
   description: 'Adds --lens test-policy to skill-audit: two-axis classification of test-prescribing instructions,
-    three append-only finding kinds, schema enum extension in both synced copies (D12). Precondition: add-skill-audit
-    archived (task 7.1).'
+    three append-only finding kinds, schema enum extension in both synced copies (D12), then runs the lens over the
+    five test-prescribing skills and commits the ledgers (task 7.6). Precondition: add-skill-audit merged to main
+    (task 7.1 records whether it is archived).'
   role: implementation
   priority: 3
   depends_on: []
@@ -463,6 +469,7 @@ packages:
     - skills/tests/skill-audit/test_test_policy_lens*.py
     - .claude/skills/skill-audit/**
     - .agents/skills/skill-audit/**
+    - docs/reports/skill-audit/**
     read_allow:
     - '**'
     deny:
@@ -507,6 +514,7 @@ packages:
     - '7.3'
     - '7.4'
     - '7.5'
+    - '7.6'
 - package_id: wp-integration
   title: CLI, end-to-end dry-run, CI job, docs, roadmap notes
   task_type: implementation
@@ -598,13 +606,12 @@ packages:
   task_type: pilot-run
   description: 'Runs the audit for real: unshallow, deterministic stages over agent-coordinator/tests/test_evaluation
     and skills/tests/parallel-infrastructure, 40-card human labelling session, live Jev run (operator env, TYPESAFE_API_KEY),
-    explanations, analysis and stamped report, skill-audit lens over five skills, follow-up linter proposal stub.
-    Read-only over audited dirs.'
+    explanations, analysis and stamped report, follow-up linter proposal stub (cites the wp-skill-audit-lens ledgers
+    when present). Read-only over audited dirs.'
   role: pilot-run
   priority: 5
   depends_on:
   - wp-integration
-  - wp-skill-audit-lens
   timeout_minutes: 480
   retry_budget: 1
   min_trust_level: 2
@@ -617,7 +624,6 @@ packages:
   scope:
     write_allow:
     - docs/reports/test-oracle-audit/**
-    - docs/reports/skill-audit/**
     - openspec/changes/pilot-test-quality-audit/session-log.md
     - openspec/changes/pilot-test-quality-audit/followup-linter-stub.md
     read_allow:
@@ -645,7 +651,7 @@ packages:
         - audited_dirs_unchanged
     - name: Report validates
       kind: command
-      command: cd packages/test-oracle-audit && uv run python -m test_oracle_audit report --validate ../../docs/reports/test-oracle-audit/latest/analysis.json
+      command: cd packages/test-oracle-audit && uv run python -m test_oracle_audit report --validate "$(ls -d ../../docs/reports/test-oracle-audit/*/ | sort | tail -1)analysis.json"
       evidence:
         artifacts:
         - docs/reports/test-oracle-audit
@@ -676,4 +682,3 @@ packages:
     - '9.5'
     - '9.6'
     - '9.7'
-    - '9.8'

@@ -57,7 +57,10 @@ exits. The audit SHALL write only to its `--out` directory and the label ledger 
 
 The system SHALL enumerate the tests of a named suite as entries carrying the pytest node id, content
 hash, file path, line range, the fixtures the test uses, and the source modules the test reaches by
-import. The ordering SHALL be deterministic for identical inputs.
+import. Collection SHALL run in the suite's configured interpreter (the `SuiteSpec.python` of the
+suite's own virtual environment), so fixture resolution sees the suite's installed dependencies.
+The ordering SHALL be deterministic for identical inputs. A test file that fails to collect SHALL
+yield an `error` record for that file and SHALL NOT abort the stage.
 
 #### Scenario: Inventory is deterministic
 
@@ -69,11 +72,36 @@ import. The ordering SHALL be deterministic for identical inputs.
 - **WHEN** a test is parametrized with three cases
 - **THEN** the inventory has three node ids that all carry the same content hash
 
+#### Scenario: Uncollectable test file does not abort the inventory
+
+- **WHEN** one test file in the suite raises at import time during collection
+- **THEN** the inventory contains an `error` record for that file with reason `collection_error`
+- **AND** every other test file's entries are present and the command exits 0
+
 ### Requirement: Deterministic Static Test Checks
 
-The system SHALL run AST-only checks per test and record each fired rule by stable rule id:
-`assertion_free`, `mock_assertion_dominant`, `private_attribute_assert`, `private_import`,
-`mirrored_test_file`, `unscoped_patch`. Static checks SHALL NOT execute test code.
+The system SHALL run AST-only checks per test and record each fired rule by stable rule id.
+Static checks SHALL NOT execute or import test code. The six rules are defined as follows; each is
+a hypothesis to be measured, so precision is preferred over recall and each definition is purely
+syntactic:
+
+- `assertion_free`: the test function body contains no `assert` statement, no `pytest.raises` /
+  `pytest.warns` / `pytest.deprecated_call` context manager, and no call to a method whose name
+  starts with `assert`.
+- `mock_assertion_dominant`: the count of mock-interaction assertions (calls to methods named
+  `assert_called*`, `assert_not_called`, `assert_any_call`, `assert_has_calls`, `assert_awaited*`,
+  and `assert` statements whose expression reads `call_count`, `call_args`, `call_args_list`,
+  `mock_calls` or `called`) is greater than the count of all other assertions.
+- `private_attribute_assert`: an `assert` statement, or the argument of an `assert*` method call,
+  contains an attribute access whose attribute name matches `^_[^_]` on any value other than
+  `self`.
+- `private_import`: the test module imports a name matching `^_[^_]` from a non-test module
+  (`from m import _x`), or accesses `m._x` where `m` is an imported non-test module.
+- `mirrored_test_file`: the test file's path, with the `test_` prefix and `tests/` segment removed,
+  resolves to exactly one source module among the covered modules, and every function in that
+  module is reached by exactly one test in the file. The rule fires for every test in such a file.
+- `unscoped_patch`: a `patch` / `patch.object` / `monkeypatch.setattr` target names a module that
+  is not among the test's covered modules, or patches a builtin or standard-library name.
 
 #### Scenario: Assertion-free test is flagged
 
@@ -95,12 +123,34 @@ The system SHALL run AST-only checks per test and record each fired rule by stab
 - **WHEN** a test calls only public functions and asserts on their return values
 - **THEN** its static record has an empty rule list and status `ok`
 
+#### Scenario: Private import is flagged
+
+- **WHEN** a test module contains `from pkg.mod import _helper` and a test calls `_helper`
+- **THEN** that test's static record contains rule `private_import`
+
+#### Scenario: Mirrored test file is flagged
+
+- **WHEN** `tests/test_mod.py` covers only `pkg/mod.py` and each of its tests reaches exactly one function of `pkg/mod.py`
+- **THEN** every test in that file has rule `mirrored_test_file` in its static record
+
+#### Scenario: Unscoped patch is flagged
+
+- **WHEN** a test patches `os.path.exists` while its covered modules are only `pkg.mod`
+- **THEN** its static record contains rule `unscoped_patch`
+
+#### Scenario: Static checks never import test modules
+
+- **WHEN** a test module raises `RuntimeError` at import time
+- **THEN** the static stage still records every test function in that module and exits 0
+
 ### Requirement: Judged Oracle Assessment in Shadow Mode
 
 The system SHALL ask, per test, an `oracle_source` choice over the vocabulary, a
 `survives_refactor` noul, and a `boundary` choice, through `system_one_decisions.decide()` with site
 `test-oracle-audit.judge`. Judged answers SHALL be stored as probabilities with
-`evidence_class: judgment` and SHALL NOT affect any exit code or gate. The judged state MUST NOT
+`evidence_class: judgment` and SHALL NOT affect any exit code or gate. The `boundary` answer is
+descriptive only: it is carried into the disagreement report and the per-rule breakdowns and is
+never a decision input. The judged state MUST NOT
 include static, mutation, rename, history or human-label outputs. Display thresholds SHALL be read
 from the package configuration file, not from literals.
 
@@ -169,7 +219,9 @@ in functions the test covers.
 The system SHALL apply a behaviour-preserving rename of eligible private symbols (`^_[^_]`) across the
 source tree of an isolated copy, never in tests, and record per test whether it still passes. Names
 listed in `__all__`, appearing as string literals in the source tree, or re-exported by a public
-module SHALL be excluded and counted as `unrenamable`.
+module SHALL be excluded and counted as `unrenamable`. A module in which more than half of the
+eligible private symbols are `unrenamable` SHALL have `low_confidence: true` on the records of
+every test that covers it.
 
 #### Scenario: Test reaching a private helper breaks
 
@@ -186,11 +238,17 @@ module SHALL be excluded and counted as `unrenamable`.
 - **WHEN** a private name also appears as a string literal in the source tree
 - **THEN** it is not renamed and is counted under `unrenamable` for its module
 
+#### Scenario: Mostly-unrenamable module is low confidence
+
+- **WHEN** four of a module's six eligible private symbols are `unrenamable`
+- **THEN** every test covering that module has `low_confidence: true` in its rename record
+
 ### Requirement: Git History Signals
 
 The system SHALL compute, per test, a `co_change_ratio` (the fraction of commits changing a covered
 source module that also changed the test's assertion lines) and `added_with_fix` (the commit adding
-the test is a conventional `fix`). The history stage SHALL NOT fetch or unshallow. On a shallow
+the test is a conventional `fix`). The commit that adds a test function is the oldest commit,
+following file renames, in which the function's `def` line is present in the test file. The history stage SHALL NOT fetch or unshallow. On a shallow
 clone it SHALL record `degraded` with reason `shallow_history`.
 
 #### Scenario: Shallow clone degrades
@@ -236,7 +294,10 @@ Explanation output MUST NOT be used as ground truth or as a measured approach.
 The system SHALL draw a seeded labelling sample stratified by static-flag presence and mutation
 kill-rate tercile (plus an `insufficient` stratum), render one card per test showing only the test,
 the covered functions' signatures and docstrings, and any cited spec scenario, and record one
-operator decision per card in the label ledger.
+operator decision per card in the label ledger. The labelling command SHALL be non-interactive:
+one invocation emits the next unlabelled card, and a separate invocation records one label, so an
+agent harness can relay each card to the operator. In dry-run mode it SHALL render cards and
+SHALL NOT write the ledger.
 
 #### Scenario: Sample covers every non-empty stratum
 
@@ -247,6 +308,12 @@ operator decision per card in the label ledger.
 
 - **WHEN** a card is rendered for a test that has judged, static, mutation and history records
 - **THEN** the card text contains none of those outputs
+
+#### Scenario: Dry-run labelling writes no ledger entry
+
+- **WHEN** the labelling command runs with `--dry-run` over a sample
+- **THEN** every card is rendered to the output directory
+- **AND** the label ledger file is not created or modified
 
 ### Requirement: Agreement and Predictive Analysis
 
@@ -352,7 +419,7 @@ its first line that it is advisory. The report SHALL contain:
 - per-approach coverage counts, including `degraded` and `insufficient` counts;
 - the analysis tables;
 - the linter-candidate and excluded lists;
-- the disagreement report;
+- the disagreement report, each listed test carrying its judged top `boundary` label when one exists;
 - an "Open decisions" section that records the coverage-ratchet options and the in-file-marker
   question.
 
