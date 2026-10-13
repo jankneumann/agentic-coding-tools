@@ -98,3 +98,31 @@ First PLAN_ITERATE dispatch stalled ~1h50m in a main-rooted harness worktree; es
 ### Context
 Addressed 4 high and 11 medium findings across consistency, clarity, parallelizability, completeness and assumptions: contract schemas get a runtime copy in the package, all six static rules are defined with scenarios, the lens run moves into wp-skill-audit-lens so the pilot run no longer waits on archiving add-skill-audit, and a shared thresholds module owns the kill-rate terciles. Spec grew from 48 to 55 scenarios; tasks renumbered by title match; openspec validate --strict still passes.
 
+---
+
+## Phase: Plan Iteration 2 (2026-10-13)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Overlay audit tools on the suite environment with uv run --with instead of editing suite manifests** `architectural: test-oracle-audit` — pytest-cov and mutmut must import inside the audited suite's environment; --with keeps the suites' pyproject/lock untouched, which the read-only NFR and the ri-20 skills/pyproject.toml conflict both require.
+2. **Lens outputs are separate files and never the skill's freshness report** — skill_audit.py writes <skill>-findings.json and a dated report whose roster hash drives freshness; a lens ledger under a distinct name keeps the rightsizing audit and the CI freshness job unaffected.
+3. **Stop iterating after iteration 2** — All remaining findings are low (positional scenario IDs; 7-class kappa insufficient by construction, already acknowledged); threshold is medium.
+
+### Alternatives Considered
+- Add pytest-cov/mutmut to agent-coordinator and skills dev extras: rejected because Edits audited suites' manifests for a pilot and collides with ri-20's skills/pyproject.toml rework.
+- Keep --check-freshness in the lens verification but wrap it in exit 0 like CI: rejected because A step that cannot fail is not verification; the lens ledger check is what the package actually guarantees.
+
+### Trade-offs
+- Accepted Per-run uv overlay resolution cost for every pytest invocation inside the copy over A pre-built scratch venv per suite because uv caches wheels so the overhead is seconds, and no new venv needs ownership or cleanup.
+
+### Completed Work
+- D1 Suite environment (uv run --with), SuiteSpec fields, pilot SuiteSpecs named
+- wp-skill-audit-lens verification step replaced; D12 lens output naming; task 7.4
+- analysis-report schema: tercile_cutpoints; stage-record: low_confidence required; D10 exclusions
+- spec: mirrored_test_file AST-only definition; inventory wording
+- plan-findings.md iteration 2 table
+
+### Context
+Fixed two high feasibility findings introduced or exposed by iteration 1: audited suites run through `uv run --project <suite> --with pytest-cov --with mutmut` because neither suite declares the audit's tools, and the lens package's freshness verification step (which exits 1 for the whole corpus) is replaced by a lens-ledger check. Four medium/low consistency fixes: tercile_cutpoints slot in analysis schema, low_confidence required and excluded from Brier/coupled_spec_test, AST-only meaning of mirrored_test_file, conftest list corrected. Remaining findings are low; loop converges.
+

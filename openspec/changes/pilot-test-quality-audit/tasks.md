@@ -60,10 +60,10 @@
   - `records.py`, `vocabulary.py`, `thresholds.py` (config loader, tercile cut-points).
   - `src/test_oracle_audit/schemas/`: runtime copies of the five contract schemas.
   - `config/thresholds.json` with display thresholds only; `config/suites.json` with the two pilot
-    `SuiteSpec`s (root, test paths, interpreter, pytest args).
-  - `tests/conftest.py` with the shared fixtures only: `schema_validator(stage)`,
+    `SuiteSpec`s (project root, test paths, source roots, pytest args).
+  - `tests/conftest.py` with the shared fixtures only: `schema_validator(stage)` and
     `fixture_project(name)` (copies `tests/fixtures/<name>` to a temp dir and runs `git init` +
-    one commit), and `stub_decide` re-exported from `system_one_decisions.testing`.
+    one commit).
   - `tests/_shared/openspec_paths.py`.
 
   **Dependencies**: 1.1
@@ -97,8 +97,9 @@
 ## 3. Execution evidence (wp-execution)
 
 - [ ] 3.1 Spike: run mutmut 3.x mutant generation and one `MUTANT_UNDER_TEST` execution on an
-  isolated copy of each pilot suite. Record the verdict (works / needs AST fallback) as a session-log
-  decision and in a design D4 note. [S]
+  isolated copy of each pilot suite through `uv run --project <copy> --with pytest-cov --with
+  mutmut pytest` (D1), confirming the trampolines and `--cov-context=test` resolve there. Record
+  the verdict (works / needs AST fallback) as a session-log decision and in a design D4 note. [S]
   **Design decisions**: D4
   **Dependencies**: 1.2
 - [ ] 3.2 Write failing isolation tests: the copy is removed after a stage raises, the original
@@ -248,7 +249,9 @@
 - [ ] 7.3 Append the three kinds to `KINDS` and to the schema enum in both
   `skills/skill-audit/install_assets/...` and `openspec/schemas/...`. [XS]
   **Dependencies**: 7.2
-- [ ] 7.4 Implement `test_policy_lens.py` and the `--lens test-policy` flag in `skill_audit.py`. [M]
+- [ ] 7.4 Implement `test_policy_lens.py` and the `--lens test-policy` flag in `skill_audit.py`,
+  writing `<skill>-test-policy-findings.json` and `<skill>-test-policy-<date>.md` beside, never
+  over, the rightsizing outputs (D12). [M]
   **Dependencies**: 7.3
 - [ ] 7.5 Document the lens in `skills/skill-audit/SKILL.md` (Arguments and Output only), then run
   `skills/install.sh` to sync the runtime copies. [XS]

@@ -57,8 +57,8 @@ exits. The audit SHALL write only to its `--out` directory and the label ledger 
 
 The system SHALL enumerate the tests of a named suite as entries carrying the pytest node id, content
 hash, file path, line range, the fixtures the test uses, and the source modules the test reaches by
-import. Collection SHALL run in the suite's configured interpreter (the `SuiteSpec.python` of the
-suite's own virtual environment), so fixture resolution sees the suite's installed dependencies.
+import. Collection SHALL run in the suite's own project environment (`uv run --project
+<SuiteSpec.project_root>`), so fixture resolution sees the suite's installed dependencies.
 The ordering SHALL be deterministic for identical inputs. A test file that fails to collect SHALL
 yield an `error` record for that file and SHALL NOT abort the stage.
 
@@ -98,8 +98,9 @@ syntactic:
 - `private_import`: the test module imports a name matching `^_[^_]` from a non-test module
   (`from m import _x`), or accesses `m._x` where `m` is an imported non-test module.
 - `mirrored_test_file`: the test file's path, with the `test_` prefix and `tests/` segment removed,
-  resolves to exactly one source module among the covered modules, and every function in that
-  module is reached by exactly one test in the file. The rule fires for every test in such a file.
+  resolves to exactly one source module among the covered modules, and every public function of
+  that module is called by name (an AST `Call` whose callee is that function's imported or
+  attribute name) in exactly one test of the file. The rule fires for every test in such a file.
 - `unscoped_patch`: a `patch` / `patch.object` / `monkeypatch.setattr` target names a module that
   is not among the test's covered modules, or patches a builtin or standard-library name.
 
