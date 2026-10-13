@@ -1,0 +1,47 @@
+[project]
+name = "test-oracle-audit"
+version = "0.1.0"
+description = "Read-only, multi-approach test-quality audit: static checks, shadow Jev judgments, mutation/rename/history evidence and human oracle-source labels."
+requires-python = ">=3.12"
+
+# Read-only over the suites it audits (design D3). Audited suites run in their
+# own project environment via `uv run --project <suite> --with ...` (design D1),
+# so mutmut/pytest-cov are overlaid at run time rather than required here.
+dependencies = [
+    "jsonschema>=4.20",
+    "libcst>=1.1",
+    "system-one-decisions",
+]
+
+[project.optional-dependencies]
+mutation = [
+    "mutmut>=3.8,<4",
+    "pytest-cov>=5",
+]
+dev = [
+    "pytest>=7.0.0",
+    "ruff>=0.6",
+]
+
+[project.scripts]
+test-oracle-audit = "test_oracle_audit.cli:main"
+
+[tool.uv.sources]
+system-one-decisions = { path = "../system-one-decisions" }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/test_oracle_audit"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["tests/_shared"]
+# Fixture trees are input data for the stages under test, never collected.
+norecursedirs = ["fixtures"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
