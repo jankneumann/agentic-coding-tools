@@ -130,8 +130,13 @@ items:
   effort: M
   depends_on:
   - ri-05
-  description: Score the test suites produced during a replay by mutation, so a run
+  description: 'Score the test suites produced during a replay by mutation, so a run
     that raises its pass rate by writing weaker tests is detected rather than rewarded.
+    Reuse note (2026-10-13): packages/test-oracle-audit (pilot-test-quality-audit)
+    ships a public MutationRunner protocol, run_mutation() and MutantResult (contract:
+    mutation-result.schema.json) with per-test kill attribution; spike 3.1 found mutmut
+    3.8''s relocated mutants/ tree breaks repo-relative tests, so AstMutantRunner
+    is the working backend.'
   rationale: A model-written test suite is only a valid grader if it is not vacuous,
     and vacuity is objectively measurable. This closes the one gaming path the acceptance-rate
     metric cannot see.
@@ -147,9 +152,13 @@ items:
   effort: M
   depends_on:
   - ri-05
-  description: Human-label 40 stratified replay outputs, measure agreement between
-    those labels and the LLM judge with Cohen's kappa, and publish the judge's error
-    rate with every subsequent result that uses it.
+  description: 'Human-label 40 stratified replay outputs, measure agreement between
+    those labels and the LLM judge with Cohen''s kappa, and publish the judge''s error
+    rate with every subsequent result that uses it. Reuse note (2026-10-13): packages/test-oracle-audit
+    (pilot-test-quality-audit) ships LabelLedger (label-ledger.schema.json, content-hash
+    staleness, entry_type for non-test entries), stratified seeded sampling, blind
+    card rendering and stdlib cohen_kappa/bootstrap_ci/brier with the 0.7 binary-kappa
+    floor.'
   rationale: "Where LLM judgment is unavoidable, calibration converts \"the model\
     \ grades itself\" into \"the model grades itself and we know how often it is wrong\"\
     \ \u2014 a defensible position rather than a fatal one."
@@ -490,4 +499,14 @@ refinements:
   operations:
   - add:ri-21
   - edit:ri-16
-updated_at: '2026-09-15T14:42:02.491978+00:00'
+- timestamp: '2026-10-13T12:56:10.584382+00:00'
+  actor: claude_code (autopilot IMPLEMENT, pilot-test-quality-audit)
+  source: 'openspec change pilot-test-quality-audit, PR #695, task 8.5'
+  rationale: pilot-test-quality-audit built reusable modules that ri-07 and ri-08
+    planned to build; record where they live so those items reuse rather than rebuild
+    them (pilot design D4, D9, D10; task 8.5).
+  base_sha256: 2cd09fc1e2d0af4829c6be8f239e9e66cc1cea7e45fc53909fe48622255689bc
+  operations:
+  - edit:ri-07
+  - edit:ri-08
+updated_at: '2026-10-13T12:56:10.584382+00:00'
