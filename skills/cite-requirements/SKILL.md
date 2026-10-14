@@ -1,3 +1,19 @@
+---
+name: cite-requirements
+description: Walk the operator one decision card at a time through requirement-traceability calls — cite requirements on contract flags, or exclude flags and requirements with a reason — then transcribe each decision into the contract YAML, the exclusions file, and an append-only decisions journal
+category: Testing
+tags: [openspec, gen-eval, traceability, contracts, requirements, human-in-the-loop]
+triggers:
+  - "cite requirements"
+  - "requirement traceability"
+  - "trace requirements to contracts"
+  - "exclude requirement"
+user_invocable: true
+related:
+  - gen-eval
+  - validate-feature
+---
+
 # Cite Requirements
 
 Walk the operator through requirement-traceability judgement calls one at a
