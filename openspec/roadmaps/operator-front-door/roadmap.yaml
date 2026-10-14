@@ -1,0 +1,393 @@
+schema_version: 1
+roadmap_id: operator-front-door
+source_proposal: openspec/roadmaps/operator-front-door/proposal.md
+status: planning
+policy:
+  default_action: wait_if_budget_exceeded
+  max_switch_attempts_per_item: 2
+items:
+- item_id: ri-01
+  title: Add runner-computed gate tiers to autopilot gates
+  status: approved
+  priority: 1
+  effort: M
+  depends_on: []
+  description: 'Every gate raised by autopilot and autopilot-roadmap gets a tier (auto,
+    batched, interrupt) computed by the runner from gate kind, trust posture, and
+    attached evidence, recorded in loop-state and the dispatch result. Ships the operator''s
+    auto-merge rule for this repository: auto only when CI is green on head, reviews
+    converged, and no security finding; other repositories default to block.'
+  rationale: Phase 1 contract that every later item keys on (delivery routes by tier,
+    the ladder and promotion resolve rungs by tier). Extends the approval-gate service
+    and encoded gates from always-on-agent-automation ri-05/ri-06 rather than forking
+    them, and keeps the autopilot phase machine unchanged per Out of Scope.
+  change_id: add-runner-computed-gate-tiers-to-autopilot-gates
+  acceptance_outcomes:
+  - Every gate raised by autopilot and autopilot-roadmap carries a runner-computed
+    tier, and the tier appears in loop-state and the dispatch result in tests covering
+    each gate kind.
+  - Under the operator posture, auto-merge of an agent PR in this repository resolves
+    as tier auto when CI is green on head, reviews have converged, and there is no
+    security finding.
+  - A table-driven test shows that failing any one of the three auto-merge conditions
+    raises tier interrupt, and that a repository other than this one resolves the
+    merge gate as block.
+  - Tier computation is deterministic for a given gate kind, posture, and evidence
+    set, and the supervisor has no code path that sets or overrides a tier.
+- item_id: ri-02
+  title: Define the decision-card schema and markdown renderer
+  status: approved
+  priority: 1
+  effort: M
+  depends_on: []
+  description: A versioned JSON schema for decision cards (breadcrumb project > roadmap
+    > item, since-last-seen summary, decision and evidence, 2-4 numbered options with
+    a recommendation, default action, deadline) plus a deterministic markdown renderer
+    and an option-token parser for answers such as 2 or 1a.
+  rationale: Cards are the unit the inbox stores, delivery pushes, the governor and
+    ladder raise, and promotion learns from, so the schema must exist before any of
+    them. Kept separate from gate tiering because it is independently shippable data
+    plus a pure renderer, consumable by any surface (thread, PR comment, digest).
+  change_id: define-the-decision-card-schema-and-markdown-renderer
+  acceptance_outcomes:
+  - The decision-card JSON schema carries a schema version and validates every card
+    emitted in tests; a card missing a breadcrumb, since-last-seen summary, numbered
+    options, recommendation, default, or deadline is rejected.
+  - Rendering the same card twice yields byte-identical markdown, and the rendered
+    canonical merge and escalate-resume cards each fit within 1,200 characters.
+  - The token parser maps option tokens (2, 1a) to the matching option and returns
+    an explicit no-match for tokens that name no option, covered by unit tests.
+  - A rendered card contains no repository-relative paths that require opening the
+    repo to understand the decision (self-contained constraint), checked by a fixture
+    test.
+- item_id: ri-03
+  title: Add escalation_request to the dispatch-result envelope
+  status: approved
+  priority: 2
+  effort: S
+  depends_on: []
+  description: Extend the dispatch-result summary envelope from multiplayer-collaboration
+    ri-21 with an optional escalation_request field carrying a target (model tier,
+    vendor, or human), a reason, and evidence refs.
+  rationale: Gives workers a structured way to ask for more capability instead of
+    failing or silently looping; the escalation ladder and the coordinator queue consume
+    it. Extends the existing ri-21 schema rather than forking it, as the constraints
+    require.
+  change_id: add-escalation-request-to-the-dispatch-result-envelope
+  acceptance_outcomes:
+  - The dispatch-result schema accepts an escalation_request with a target tier or
+    vendor or human, a reason, and evidence refs.
+  - Schema tests reject escalation requests that lack a reason, name an unknown target,
+    or carry malformed evidence refs.
+  - Existing dispatch results without escalation_request still validate, so ri-21
+    producers need no change.
+- item_id: ri-04
+  title: Add a Stop-hook turn-end guard for worker sessions
+  status: approved
+  priority: 2
+  effort: S
+  depends_on:
+  - ri-02
+  description: A Stop hook installed in worker sessions blocks a turn from ending
+    unless work is still in flight, a pending gate is recorded as a decision card,
+    or loop-state is terminal; a blocked turn must report what it is waiting on.
+  rationale: Long-lived Remote Control workers that end turns silently strand the
+    operator with no card and no progress; this guard makes every pause legible. Depends
+    on the card schema to recognise a recorded pending card.
+  change_id: add-a-stop-hook-turn-end-guard-for-worker-sessions
+  acceptance_outcomes:
+  - A hook test shows a worker turn ending with no in-flight work, no pending decision
+    card, and no terminal loop-state is blocked with a message asking the worker to
+    state what it is waiting on.
+  - Hook tests show turns ending with in-flight work, with a schema-valid pending
+    card, or with terminal loop-state are allowed through.
+  - The guard is installed into worker sessions only and does not fire in the Supervisor
+    session or ordinary interactive sessions.
+- item_id: ri-05
+  title: Add a minimal GX10 Remote Control launcher and prove it on a reference run
+  status: approved
+  priority: 1
+  effort: M
+  depends_on:
+  - ri-01
+  - ri-02
+  description: A minimal, operator-invoked launcher slice on the GX10 that, for an
+    allowlisted repository, creates a managed worktree via the worktree skill, starts
+    a top-level claude remote-control session in a herdr pane with the archetype's
+    fixed permission mode, and resumes or starts autopilot. Its reference run is evidence-grounded-debugging
+    ri-02, run end-to-end through the launcher with cross-vendor review and ending
+    at a tiered decision rendered as a decision card.
+  rationale: 'Top-level sessions keep the Agent tool so phases dispatch to archetypes
+    instead of running inline; that needs neither the coordinator queue nor the governor.
+    A thin slice proves Remote Control workers end-to-end before the queue-backed
+    launcher (ri-09) is built on it. Operator decision: PR #690 (evidence-grounded-debugging
+    ri-01) is decoupled from this item and is revalidated by a manual Remote Control
+    pilot instead. Supersedes the headless-session spawn of always-on-agent-automation
+    ri-08 for Claude archetypes.'
+  change_id: add-a-minimal-gx10-remote-control-launcher-and-prove-it-on-a
+  acceptance_outcomes:
+  - Launching a dispatch starts a claude remote-control session in a fresh managed
+    worktree (never the shared checkout) in a herdr pane, and the session appears
+    in the operator's Claude app session list.
+  - The reference run (evidence-grounded-debugging ri-02) records sub-agent phase
+    dispatch for its phases and zero phase_fallback_inline entries in loop-state.
+  - The reference run's review phase records findings from at least two vendors, and
+    its gates are raised with a runner-computed tier and a schema-valid decision card
+    visible in the session and on its PR.
+  - Invoking the launcher for a repository not on the allowlist, or with a permission
+    mode wider than the archetype declares, is refused and logged and no process is
+    started.
+- item_id: ri-06
+  title: Add a signed coordinator dispatch queue with leases
+  status: approved
+  priority: 2
+  effort: L
+  depends_on:
+  - ri-03
+  description: A postgres-backed dispatch queue in the coordinator holding coordinator-signed
+    dispatch requests that workers claim exactly once, with leases, heartbeats, and
+    requeue on lease expiry, reusing the ri-21 dispatch-request and dispatch-result
+    schemas. The always-on-agent-automation ri-07 tracker adapter becomes one producer
+    into it.
+  rationale: 'Phase 2 spine: the launcher, cloud overflow, and project index all need
+    a single claimable source of work. Reuses ri-21 schemas and the ri-07 adapter
+    rather than a parallel dispatch path; ordered after ri-03 because both touch the
+    dispatch-result contract.'
+  change_id: add-a-signed-coordinator-dispatch-queue-with-leases
+  acceptance_outcomes:
+  - A concurrency test with two workers claiming simultaneously never hands the same
+    dispatch to both.
+  - A concurrency test shows a lease that expires without a heartbeat returns the
+    dispatch to the queue and it is claimable again.
+  - Dispatch requests without a valid coordinator signature are rejected at claim
+    time.
+  - Queue rows store dispatch requests and results that validate against the unmodified
+    ri-21 schemas, and the ri-07 tracker adapter enqueues through the same API as
+    any other producer.
+- item_id: ri-07
+  title: Add the cross-project decision inbox and project index
+  status: approved
+  priority: 2
+  effort: L
+  depends_on:
+  - ri-02
+  - ri-06
+  description: Coordinator tables and endpoints for a decision inbox holding cards
+    from every project and roadmap with states open, answered, applied, or expired-to-default
+    and idempotent answers, plus a project index listing each registered repository
+    with its active roadmaps, in-flight items, and open-card count from one call.
+  rationale: Lets the Supervisor thread answer what needs the operator across everything
+    from one query instead of rehydrating each repo. Builds on the approval-gate service
+    from always-on-agent-automation ri-05 rather than forking it; needs the card schema
+    and reads in-flight items from the dispatch queue.
+  change_id: add-the-cross-project-decision-inbox-and-project-index
+  acceptance_outcomes:
+  - A decision card posted by a worker in project A is returned by an inbox query
+    spanning all registered projects.
+  - Answering the same card twice applies exactly once, proven by a test asserting
+    a single applied transition.
+  - An unanswered card past its deadline resolves to its declared default and is logged
+    as an expiry, not as a human decision.
+  - A single coordinator call returns every registered repository with its active
+    roadmaps, in-flight items, and open-card count.
+- item_id: ri-08
+  title: Build the account-wide usage governor
+  status: approved
+  priority: 2
+  effort: L
+  depends_on:
+  - ri-02
+  description: A single view and routing policy over Claude Max, Codex, Gemini AI
+    Pro, Grok, OpenRouter, and GX10 local models that, before each dispatch, picks
+    the source for the archetype from a configurable routing table and checks headroom,
+    queueing or raising a decision card instead of silently downgrading.
+  rationale: 'Capacity across six sources is currently spent by accident; this makes
+    it deliberate and visible and enforces the no-silent-downgrade and OpenRouter-budget
+    constraints. Builds on the model usage ledger, multi-model usage stats, coordinator
+    LLM gateway, and always-on-agent-automation ri-10 rate-limit accounting rather
+    than a parallel ledger; can proceed in parallel with the queue. Operator decision:
+    no hard dependency on always-on-agent-automation ri-10; the governor keeps its
+    own headroom estimate and consumes ri-10''s cost/quota signals when they exist,
+    behind a source interface so ri-10 plugs in without a governor change.'
+  change_id: build-the-account-wide-usage-governor
+  acceptance_outcomes:
+  - A single governor query returns the current headroom estimate and observed consumption
+    for each of the six capacity sources.
+  - A dispatch whose preferred source lacks headroom is queued or raises a decision
+    card, and a test proves no dispatch executes on a lower tier or different vendor
+    without a recorded decision.
+  - OpenRouter spend stops at the operator-set budget; a dispatch that would exceed
+    it is refused with a card and not executed.
+  - Changing an archetype's primary implementer from Claude to Codex in the routing
+    configuration changes routing with no code change.
+  - The governor reports usage under a single Claude account and has no configuration
+    path for pooling multiple seats of one vendor.
+  - When always-on-agent-automation ri-10 signals are absent the governor reports
+    its own estimate and names the missing signal source; when present they are used
+    without a governor code change.
+- item_id: ri-09
+  title: Build the queue-backed GX10 launcher for Claude, Codex, and Gemini workers
+  status: approved
+  priority: 2
+  effort: L
+  depends_on:
+  - ri-05
+  - ri-06
+  - ri-08
+  description: Grow the pilot launcher into a service that claims signed dispatches
+    from the coordinator queue, asks the governor for placement, and starts claude
+    remote-control, codex exec, or Gemini workers by archetype in managed worktrees
+    under herdr, with restart re-adoption and GX10 local models writing card prose
+    and digests.
+  rationale: Makes Remote Control and vendor workers the default execution path, so
+    autopilot workers are always top-level sessions with archetype routing and Codex
+    can act as primary implementer. Supersedes always-on-agent-automation ri-08 where
+    they conflict; the ri-09 heartbeat and worktree-registry hardening remains an
+    external prerequisite.
+  change_id: build-the-queue-backed-gx10-launcher-for-claude-codex-and-ge
+  acceptance_outcomes:
+  - Claiming a Claude-archetype dispatch from the queue starts a claude remote-control
+    session in a fresh managed worktree that appears in the Claude app session list
+    and records sub-agent phase dispatch rather than phase_fallback_inline.
+  - Claiming a dispatch whose archetype names Codex as primary implementer starts
+    a codex exec worker in a managed worktree that returns a schema-valid dispatch
+    result.
+  - A dispatch with an invalid signature or for a repository not on the allowlist
+    is refused and logged with no process started, and no worker receives a permission
+    mode beyond its archetype's declared mode.
+  - After a launcher restart, in-flight workers are re-adopted or their dispatches
+    requeued using only coordinator, worktree, and loop-state records.
+  - Decision cards and digests produced for launcher-run dispatches are written by
+    a GX10 local model, and the usage ledger shows zero subscription tokens spent
+    on them.
+  external_depends_on:
+  - roadmap-always-on-agent-automation:ri-09
+- item_id: ri-10
+  title: Deliver interrupt cards to the Supervisor thread and pull requests
+  status: approved
+  priority: 1
+  effort: M
+  depends_on:
+  - ri-07
+  description: Continuous, unbatched delivery of interrupt cards from the inbox to
+    the long-lived Supervisor thread in the Claude app and, for PR-scoped cards, as
+    one PR comment; answers given by option token or free text are written back to
+    the inbox and resume the raising worker, while batched cards appear on thread
+    open or in the digest.
+  rationale: 'Realises the single conversational front door: the operator answers
+    any decision from any device without reloading context. Follows the operator decisions
+    for continuous interrupt delivery and Claude-app-plus-PR-only notifications; phone
+    push stays deferred per Out of Scope, and the Supervisor stays read-and-adjudicate
+    only.'
+  change_id: deliver-interrupt-cards-to-the-supervisor-thread-and-pull-re
+  acceptance_outcomes:
+  - An interrupt card is visible in the Supervisor thread within one coordinator poll
+    interval of being opened.
+  - An answer given as an option token (2, 1a) or as free text in the Supervisor thread
+    is recorded against the right card, and the worker that raised it resumes using
+    that answer.
+  - A PR-scoped card appears as exactly one PR comment ending with the attribution
+    footer and is not re-posted on retry.
+  - Opening the Supervisor thread lists every open card across all projects, oldest
+    deadline first, without the operator naming a project.
+  - The Supervisor session's configuration grants no write access to implementation
+    source, and a delivery-channel fallback is named in the digest.
+- item_id: ri-11
+  title: Implement the evidence-backed escalation ladder
+  status: approved
+  priority: 3
+  effort: M
+  depends_on:
+  - ri-01
+  - ri-03
+  - ri-07
+  - ri-08
+  description: Escalation requests and repeated phase failures climb a fixed ladder
+    (more thinking, premium tier, frontier tier, cross-vendor, human), each rung auto-approved
+    by gate-tier policy or raised as a decision card, with evidence carried forward
+    from the evidence-grounded-debugging ri-01 ledger.
+  rationale: Lets workers get more capability without a human for routine climbs and
+    gives the human at the top a card summarising the whole climb. Consumes the evidence
+    ledger (out of scope here) and the governor's cross-vendor headroom rather than
+    building either.
+  change_id: implement-the-evidence-backed-escalation-ladder
+  acceptance_outcomes:
+  - An escalation_request moves exactly one rung up the ladder and records the rung,
+    reason, and ledger refs in the dispatch result.
+  - A rung that policy auto-approves runs without a human decision, and a rung policy
+    does not cover raises a decision card in the inbox.
+  - The human-rung decision card links the evidence ledger entries accumulated across
+    all previous rungs.
+  - The ladder never skips the cross-vendor rung before the human rung unless the
+    governor reports no cross-vendor headroom, and that skip is recorded.
+  external_depends_on:
+  - evidence-grounded-debugging:ri-01
+- item_id: ri-12
+  title: Add cloud overflow placement for dispatches
+  status: approved
+  priority: 4
+  effort: M
+  depends_on:
+  - ri-09
+  description: When the GX10 launcher is saturated or unreachable past a threshold,
+    place a dispatch on a cloud Claude Code session using the same dispatch contract,
+    decision cards, and inbox, recorded as a degradation and visible in the governor.
+  rationale: Keeps work flowing when the GX10 is full or down without making cloud
+    the default; honours the visible-degradation constraint. Phase 4, after the queue-backed
+    launcher whose saturation signal it reads.
+  change_id: add-cloud-overflow-placement-for-dispatches
+  acceptance_outcomes:
+  - When the launcher reports saturation or is unreachable past the threshold, a dispatch
+    is placed on a cloud session and its result returns through the same inbox and
+    dispatch-result schema.
+  - A placement test proves no dispatch is placed on cloud while the GX10 has free
+    capacity.
+  - Every cloud placement is recorded in the dispatch result's degradations[] and
+    appears as cloud consumption in the governor.
+- item_id: ri-13
+  title: Report human decisions per merged change
+  status: approved
+  priority: 3
+  effort: S
+  depends_on:
+  - ri-07
+  description: A report of human decisions per merged change by project and roadmap
+    over a time window, counting only human answers from the inbox and excluding auto-resolved
+    gates and deadline expiries.
+  rationale: The epic's headline metric must be measured release over release, so
+    it ships as soon as the inbox records decisions, giving a baseline before the
+    ladder and promotion start reducing it.
+  change_id: report-human-decisions-per-merged-change
+  acceptance_outcomes:
+  - The report returns human decisions per merged change for each project and roadmap
+    over a caller-specified time window.
+  - Tier-auto resolutions and expired-to-default cards are excluded from the human
+    count, verified by a fixture test.
+  - The report runs from coordinator records alone without checking out any repository.
+- item_id: ri-14
+  title: Promote repeated gate resolutions to auto policy rules
+  status: approved
+  priority: 3
+  effort: M
+  depends_on:
+  - ri-01
+  - ri-07
+  description: Log every resolved card with gate kind, context features, and answer;
+    after a configurable number of identical resolutions under matching features,
+    raise one promotion card, and once the operator approves, resolve later matching
+    gates as tier auto with the rule ID recorded.
+  rationale: Drives mechanical gates out of the human path so the headline metric
+    falls. Reuses the decision-point playbook from evidence-grounded-debugging ri-14
+    and ri-15 rather than a second policy store, and plugs approved rules into the
+    runner's tiering.
+  change_id: promote-repeated-gate-resolutions-to-auto-policy-rules
+  acceptance_outcomes:
+  - After the configured number of identical resolutions of a gate kind under matching
+    features, a promotion card is raised once and not raised again while it is pending.
+  - After the promotion is approved, the next matching gate resolves as tier auto
+    with the rule ID recorded in loop-state and the dispatch result.
+  - Approved rules are stored as decision-point playbook entries, and a rejected promotion
+    raises no further card for that pattern until new resolutions accumulate.
+  external_depends_on:
+  - evidence-grounded-debugging:ri-14
+updated_at: '2026-10-14T11:11:39.593688+00:00'
