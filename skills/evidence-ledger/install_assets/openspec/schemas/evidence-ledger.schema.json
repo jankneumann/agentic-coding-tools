@@ -1,0 +1,211 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools/openspec/schemas/evidence-ledger.schema.json",
+  "title": "Evidence ledger",
+  "description": "Two-tier debugging record: immutable gathered facts (factual tier) and the signals and hypotheses derived from them (derivative tier). Facts are never edited in place; a disputed fact gets a reverify_request and a newly gathered replacement fact. Referential integrity and cross-revision immutability are enforced by skills/evidence-ledger/scripts/evidence_ledger.py, not by this schema alone.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "ledger_id", "facts"],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "ledger_id": {
+      "$ref": "#/$defs/id"
+    },
+    "subject": {
+      "type": "string",
+      "minLength": 1,
+      "description": "What is being investigated, e.g. a bug title or issue reference."
+    },
+    "created_at": {
+      "$ref": "#/$defs/timestamp"
+    },
+    "facts": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/fact"
+      }
+    },
+    "signals": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/signal"
+      }
+    },
+    "hypotheses": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/hypothesis"
+      }
+    },
+    "reverify_requests": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/reverify_request"
+      }
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_.:-]*$",
+      "maxLength": 128
+    },
+    "nonempty": {
+      "type": "string",
+      "minLength": 1
+    },
+    "timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "format": "date-time",
+      "description": "ISO-8601 timestamp; parseability and ordering are checked by the validator."
+    },
+    "fact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "source",
+        "gathered_by",
+        "host",
+        "time_window",
+        "tool_version",
+        "role",
+        "observation"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "kind": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "description": "Open-ended snake_case kind (e.g. log, trace, profile, config, dns, kernel_state). 'source_unavailable' is reserved for a source that could not be read."
+        },
+        "source": {
+          "$ref": "#/$defs/nonempty"
+        },
+        "gathered_by": {
+          "$ref": "#/$defs/nonempty"
+        },
+        "host": {
+          "$ref": "#/$defs/nonempty"
+        },
+        "time_window": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["start", "end"],
+          "properties": {
+            "start": {
+              "$ref": "#/$defs/timestamp"
+            },
+            "end": {
+              "$ref": "#/$defs/timestamp"
+            }
+          }
+        },
+        "tool_version": {
+          "$ref": "#/$defs/nonempty"
+        },
+        "role": {
+          "enum": ["variable", "control"]
+        },
+        "observation": {
+          "$ref": "#/$defs/nonempty"
+        },
+        "trace_id": {
+          "$ref": "#/$defs/nonempty"
+        },
+        "data": {
+          "type": "object",
+          "description": "Free-form structured payload of the observation."
+        }
+      }
+    },
+    "signal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "variable_fact", "control_fact", "classification"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "variable_fact": {
+          "$ref": "#/$defs/id"
+        },
+        "control_fact": {
+          "$ref": "#/$defs/id"
+        },
+        "classification": {
+          "enum": ["signal", "noise"]
+        },
+        "metric": {
+          "$ref": "#/$defs/nonempty"
+        },
+        "description": {
+          "$ref": "#/$defs/nonempty"
+        }
+      }
+    },
+    "hypothesis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "statement", "cites", "status"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "statement": {
+          "$ref": "#/$defs/nonempty"
+        },
+        "cites": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/id"
+          }
+        },
+        "components": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 2,
+          "items": {
+            "$ref": "#/$defs/id"
+          },
+          "description": "Ids of other hypotheses in this ledger that jointly form this multi-cause hypothesis."
+        },
+        "status": {
+          "enum": ["open", "supported", "rejected", "root_cause"]
+        },
+        "notes": {
+          "$ref": "#/$defs/nonempty"
+        }
+      }
+    },
+    "reverify_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "fact_id", "reason", "requested_by"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "fact_id": {
+          "$ref": "#/$defs/id"
+        },
+        "reason": {
+          "$ref": "#/$defs/nonempty"
+        },
+        "requested_by": {
+          "$ref": "#/$defs/nonempty"
+        },
+        "replacement_fact": {
+          "$ref": "#/$defs/id"
+        }
+      }
+    }
+  }
+}
