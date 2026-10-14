@@ -1,0 +1,7 @@
+[project]
+name = "inv-broken"
+version = "0.0.0"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

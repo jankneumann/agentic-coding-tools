@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "advisory": true,
+  "generated_at": "2026-01-01T00:00:00Z",
+  "suites": ["test_evaluation"],
+  "seed": 0,
+  "approach_coverage": {
+    "static": {"ok": 10, "degraded": 0, "insufficient": 0, "not_run": false},
+    "mutation": {"ok": 6, "degraded": 2, "insufficient": 2, "not_run": false}
+  },
+  "metrics": [
+    {
+      "subject": "oracle_source",
+      "comparison": "human_label",
+      "metric": "kappa_binary",
+      "n": 40,
+      "status": "ok",
+      "value": 0.62,
+      "ci95": [0.4, 0.8]
+    },
+    {
+      "subject": "survives_refactor",
+      "comparison": "rename_survival",
+      "metric": "auc",
+      "n": 3,
+      "status": "insufficient"
+    }
+  ],
+  "linter_candidates": [
+    {"subject": "assertion_free", "kind": "static_rule", "reason": "precision 0.9"}
+  ],
+  "excluded": [
+    {"subject": "oracle_source", "kind": "judged_question", "reason": "kappa_binary 0.62 < 0.7 floor"}
+  ],
+  "disagreements": {
+    "weak_assertions": [],
+    "static_blind_spot": ["tests/test_a.py::test_one"],
+    "coupled_spec_test": [],
+    "judge_vs_human": [],
+    "rubber_stamp": []
+  },
+  "open_decisions": [
+    {
+      "id": "OD-1",
+      "question": "Adopt the vocabulary in ri-08?",
+      "options": ["adopt", "define own"],
+      "evidence": "pilot labels"
+    },
+    {
+      "id": "OD-2",
+      "question": "Second labeller?",
+      "options": ["yes", "no"],
+      "evidence": "single operator"
+    }
+  ]
+}
