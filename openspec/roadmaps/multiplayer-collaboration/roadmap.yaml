@@ -133,6 +133,37 @@ items:
   - The "Review quorum in cloud containers (temporary)" section of TRUST_POSTURE.md
     is removed once the lane passes in cloud, restoring quorum 2 everywhere, and review_requirements
     expresses any remaining per-environment exception as data with a sunset.
+- item_id: ri-23
+  title: Coordinator-brokered vendor credentials for cloud review lanes
+  change_id: coordinator-brokered-vendor-credentials
+  description: Let cloud workers obtain metered vendor credentials (first OpenRouter)
+    from the coordinator instead of a per-environment variable. The coordinator reads
+    the credential from OpenBao and serves it on an authenticated, principal-scoped,
+    audited route; ApiKeyResolver gains a coordinator mode alongside the environment
+    and OpenBao modes. A later step may have the coordinator mint short-lived, spend-capped
+    OpenRouter sub-keys per session from a provisioning key held in OpenBao, and revoke
+    them when the session ends.
+  rationale: Removes long-lived vendor secrets from cloud environments, centralises
+    rotation and audit in OpenBao, and lets the per-session spend cap be enforced
+    by the key itself. Revisits ri-22 design decision that the lane never calls the
+    coordinator under its own identity, so it needs its own trust-posture review.
+  effort: M
+  priority: 3
+  depends_on:
+  - ri-22
+  acceptance_outcomes:
+  - In a cloud container with no OpenRouter variable set, the review lane obtains
+    its key from the coordinator, and the lane's dry invocation passes; the key is
+    never written to disk, logs, or the dispatch result.
+  - The coordinator route authenticates the caller, authorizes the vendor against
+    the principal's configured scope, reads OpenBao afresh on each call, and records
+    an audit entry without the secret value.
+  - When the coordinator or OpenBao is unreachable or refuses, the lane reports capability_unavailable
+    rather than falling back to an environment key silently; an explicit environment
+    key remains a supported, reported fallback.
+  - The ri-22 design decision about the lane's coordinator identity is revised in
+    a reviewed trust-posture change before the route ships.
+  status: candidate
 - item_id: ri-03
   title: Add on-behalf-of chains and causal trace IDs to coordinator records
   status: approved
@@ -569,7 +600,7 @@ items:
     copy.
   - Repository-scoped learnings are opt-in and never include private transcript content.
   - Installed payloads contain no references to private coordinator source.
-updated_at: '2026-10-12T02:51:15.065057+00:00'
+updated_at: '2026-10-14T11:09:35.684761+00:00'
 refinements:
 - timestamp: '2026-10-06T08:36:39.023367+00:00'
   actor: operator (jankneumann) via supervisor session session_01J39bSygVy2r68wyPyHN5VA
@@ -611,3 +642,15 @@ refinements:
   base_sha256: 7b774483ca37d4afa397d819f78a288f76d5aaf414566e662b09759af6def7f8
   operations:
   - add:ri-22
+- timestamp: '2026-10-14T11:09:35.684761+00:00'
+  actor: operator (jankneumann) via supervisor session session_01J39bSygVy2r68wyPyHN5VA
+  source: operator decision 2026-10-14 ("Add option c") on the ri-22 credential design
+    discussion
+  rationale: ri-22 ships the OpenRouter lane with its key as a per-environment cloud
+    variable, while every other vendor credential lives in OpenBao. A long-lived vendor
+    key in each cloud environment must be rotated by hand, and the lane's availability
+    check should not depend on how the key was delivered. Having the coordinator hand
+    out the key from OpenBao keeps vendor secrets out of cloud containers.
+  base_sha256: e4c4349a9cc3de6839f411cbb2c7cae18f0c0d09bd50ed8ade8b8e3b6b3c440e
+  operations:
+  - add:ri-23
