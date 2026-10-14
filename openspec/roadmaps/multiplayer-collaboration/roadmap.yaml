@@ -275,7 +275,7 @@ items:
     match the pre-change behavior in the existing work-queue tests.
   external_depends_on:
   - roadmap-always-on-agent-automation:ri-07
-  - roadmap-always-on-agent-automation:ri-08
+  - operator-front-door:ri-09
 - item_id: ri-09
   title: Route approvals and escalations to resolved owners
   status: approved
@@ -569,7 +569,7 @@ items:
     copy.
   - Repository-scoped learnings are opt-in and never include private transcript content.
   - Installed payloads contain no references to private coordinator source.
-updated_at: '2026-10-10T13:09:35.808218+00:00'
+updated_at: '2026-10-14T22:40:11.950985+00:00'
 refinements:
 - timestamp: '2026-10-06T08:36:39.023367+00:00'
   actor: operator (jankneumann) via supervisor session session_01J39bSygVy2r68wyPyHN5VA
@@ -611,3 +611,13 @@ refinements:
   base_sha256: 7b774483ca37d4afa397d819f78a288f76d5aaf414566e662b09759af6def7f8
   operations:
   - add:ri-22
+- timestamp: '2026-10-14T22:40:11.950985+00:00'
+  actor: jan
+  source: operator-request
+  rationale: 'Operator decision 2026-10-14 (3a, A-prime): always-on-agent-automation
+    ri-08 (dispatcher daemon) is superseded by operator-front-door ri-09 (queue-backed
+    GX10 launcher); repoint the external prerequisite so this item does not wait on
+    a superseded item forever.'
+  base_sha256: 9c38476e05b13b1cb7534c09a4ab689395b0f9a81e1da24f38f4573624407cfb
+  operations:
+  - edit:ri-08

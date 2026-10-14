@@ -76,7 +76,7 @@ items:
   - after_run failures do not block forward progress
   - Path containment violations fail closed before agent launch
   external_depends_on:
-  - roadmap-always-on-agent-automation:ri-08
+  - operator-front-door:ri-09
 - item_id: retry-queue-backoff
   title: Centralized retry queue with exponential backoff
   status: approved
@@ -91,7 +91,7 @@ items:
   - Backoff schedule is deterministic and bounded
   - Retry re-check prevents dispatch of now-ineligible issues
   external_depends_on:
-  - roadmap-always-on-agent-automation:ri-08
+  - operator-front-door:ri-09
 - item_id: agent-runner-port
   title: Agent-runner port with vendor adapters
   status: approved
@@ -110,7 +110,7 @@ items:
   - Normalized event schema covers all Symphony SPEC agent events
   - user_input_requested terminates the session to prevent hangs
   external_depends_on:
-  - roadmap-always-on-agent-automation:ri-08
+  - operator-front-door:ri-09
 - item_id: turn-based-continuation
   title: Turn-based session continuation with tracker re-check
   status: approved
@@ -126,7 +126,7 @@ items:
   - Same thread/workspace survives across up to max_turns
   - Mid-run state transition preserves workspace and emits run_aborted
   external_depends_on:
-  - roadmap-always-on-agent-automation:ri-08
+  - operator-front-door:ri-09
 - item_id: reconciliation-stall-detection
   title: Tracker-state reconciliation and stall detection
   status: superseded
@@ -233,7 +233,7 @@ items:
   - End-to-end audit traceability from dispatch to merge
   - Degrades gracefully when coordinator is unreachable
   external_depends_on:
-  - roadmap-always-on-agent-automation:ri-08
+  - operator-front-door:ri-09
 - item_id: github-tracker-adapter
   title: GitHub Issues external projection (optional)
   status: superseded
@@ -280,4 +280,19 @@ items:
   - Report flags at least the five prerequisite categories with actionable hints
   - Integrates with existing bug-scrub report format
 created_at: '2026-04-24T06:24:27.457690+00:00'
-updated_at: '2026-08-13T08:27:19.152627+00:00'
+updated_at: '2026-10-14T22:40:13.695893+00:00'
+refinements:
+- timestamp: '2026-10-14T22:40:13.695893+00:00'
+  actor: jan
+  source: operator-request
+  rationale: 'Operator decision 2026-10-14 (3a, A-prime): always-on-agent-automation
+    ri-08 (dispatcher daemon) is superseded by operator-front-door ri-09 (queue-backed
+    GX10 launcher); repoint the external prerequisite so this item does not wait on
+    a superseded item forever.'
+  base_sha256: 07cf7ac149d36f7aa5c563f697fa48880243d1bfb28a362c1e1f99f9fae9692f
+  operations:
+  - edit:workspace-manager-hooks
+  - edit:retry-queue-backoff
+  - edit:agent-runner-port
+  - edit:turn-based-continuation
+  - edit:coordinator-integration

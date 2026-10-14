@@ -238,12 +238,15 @@ items:
     from the coordinator queue, asks the governor for placement, and starts claude
     remote-control, codex exec, or Gemini workers by archetype in managed worktrees
     under herdr, with restart re-adoption and GX10 local models writing card prose
-    and digests.
-  rationale: Makes Remote Control and vendor workers the default execution path, so
-    autopilot workers are always top-level sessions with archetype routing and Codex
-    can act as primary implementer. Supersedes always-on-agent-automation ri-08 where
-    they conflict; the ri-09 heartbeat and worktree-registry hardening remains an
-    external prerequisite.
+    and digests. It also owns the scheduled supervisor discovery cycle, enqueuing
+    a weekday supervisor dispatch from the GX10 rather than the cloud harness.
+  rationale: 'Makes Remote Control and vendor workers the default execution path,
+    so autopilot workers are always top-level sessions with archetype routing and
+    Codex can act as primary implementer. Operator decision 2026-10-14 (3a): supersedes
+    always-on-agent-automation ri-08 (dispatcher daemon) and inherits its unattended-soak,
+    agent-identity, and scheduled-supervisor-cycle outcomes. always-on-agent-automation
+    ri-09 (heartbeat and worktree-registry hardening) follows this item rather than
+    preceding it, since it hardens the running launcher.'
   change_id: build-the-queue-backed-gx10-launcher-for-claude-codex-and-ge
   acceptance_outcomes:
   - Claiming a Claude-archetype dispatch from the queue starts a claude remote-control
@@ -260,8 +263,16 @@ items:
   - Decision cards and digests produced for launcher-run dispatches are written by
     a GX10 local model, and the usage ledger shows zero subscription tokens spent
     on them.
-  external_depends_on:
-  - roadmap-always-on-agent-automation:ri-09
+  - 24 hours unattended processes at least 50 queued dispatches with no duplicate
+    dispatch and no leaked worktrees, and a kill -9 of the launcher followed by restart
+    resumes every in-flight dispatch from its checkpoint without re-dispatch.
+  - Every launched worker has a unique agent identity visible in discover_agents,
+    and handoff reads use explicit agent names.
+  - A scheduled supervisor discovery cycle fires from the GX10 on the configured weekday
+    cadence as a queued dispatch, delivers a ranked digest to the Supervisor thread,
+    and stops at the approval gate without creating roadmaps, dispatching implementers,
+    or pushing.
+  external_depends_on: []
 - item_id: ri-10
   title: Deliver interrupt cards to the Supervisor thread and pull requests
   status: approved
@@ -390,4 +401,14 @@ items:
     raises no further card for that pattern until new resolutions accumulate.
   external_depends_on:
   - evidence-grounded-debugging:ri-14
-updated_at: '2026-10-14T11:11:39.593688+00:00'
+updated_at: '2026-10-14T22:39:59.929414+00:00'
+refinements:
+- timestamp: '2026-10-14T22:39:59.929414+00:00'
+  actor: jan
+  source: operator-request
+  rationale: 'Operator decision 2026-10-14 (3a, A-prime): ri-09 absorbs the outcomes
+    of always-on-agent-automation ri-08 before that item is superseded, and drops
+    its prerequisite edge on always-on ri-09 to avoid a cross-roadmap cycle.'
+  base_sha256: 411059ae796379933cd077a7253679b0a8dac360d4861ed3fc7d56206e983c54
+  operations:
+  - edit:ri-09

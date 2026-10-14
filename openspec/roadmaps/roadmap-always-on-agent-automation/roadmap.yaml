@@ -159,7 +159,7 @@ items:
     in an integration test.
 - item_id: ri-08
   title: Build dispatcher daemon on the always-on host
-  status: candidate
+  status: superseded
   priority: 2
   effort: L
   depends_on:
@@ -190,13 +190,14 @@ items:
   - A scheduled supervisor discovery cycle fires on the configured weekday cadence,
     delivers a ranked digest through the notification channel, and stops at the approval
     gate without creating roadmaps, dispatching implementers, or pushing.
+  superseded_by:
+  - operator-front-door:ri-09
 - item_id: ri-09
   title: Harden heartbeats and worktree registry for daemon operation
   status: candidate
   priority: 2
   effort: L
-  depends_on:
-  - ri-08
+  depends_on: []
   description: Wall-clock heartbeating of every active session's worktree by the daemon,
     scheduled worktree.py gc, flock-based locking or per-entry files for the registry,
     and documented reconciliation of the four staleness clocks (15 min, 1 h, 2 h,
@@ -211,13 +212,14 @@ items:
   - 20 concurrent setup/heartbeat/teardown operations lose zero registry updates.
   - Stale worktree count on the daemon host is bounded over a 7-day soak.
   - The four staleness clocks are documented with their reconciled values.
+  external_depends_on:
+  - operator-front-door:ri-09
 - item_id: ri-10
   title: Land rate-limit accounting and vendor arbitrage signals
   status: candidate
   priority: 3
   effort: L
-  depends_on:
-  - ri-08
+  depends_on: []
   description: Implement the existing cross-vendor-arbitrage-instrument proposal,
     a durable cost/quota/ToS signal layer feeding the roadmap policy engine, replacing
     the hardcoded cost tiers in policy.py and the placeholder vendor list in orchestrator.py,
@@ -231,6 +233,8 @@ items:
     stubs.
   - cost_observed_usd and latency_observed_seconds learning-log fields populate on
     every daemon-dispatched item.
+  external_depends_on:
+  - operator-front-door:ri-09
 - item_id: ri-11
   title: Amend skill-workflow spec for policy-authorized sync windows
   status: candidate
@@ -278,7 +282,6 @@ items:
   priority: 2
   effort: M
   depends_on:
-  - ri-08
   - ri-09
   - ri-12
   description: "The dispatcher coordinates each sync window \u2014 stop dispatching,\
@@ -294,6 +297,8 @@ items:
     no guard --force overrides and no orphaned rebases.
   - Dispatch throughput before and after windows shows drain-and-resume works with
     no starved queue.
+  external_depends_on:
+  - operator-front-door:ri-09
 - item_id: ri-14
   title: Promote behavioral validation gates to blocking
   status: candidate
@@ -379,7 +384,6 @@ items:
   effort: M
   depends_on:
   - ri-05
-  - ri-08
   description: Implement symphony's operator-http-status-surface (/api/v1/state, /healthz,
     /metrics sidecar) or extend kanban-viz with a live view of daemon queue depth,
     in-flight sessions and phases, gate decisions awaiting approval, next sync window,
@@ -392,13 +396,14 @@ items:
   acceptance_outcomes:
   - One URL answers what the daemon is doing right now and what it is waiting on.
   - Pending gate decisions and the next sync window are visible on the surface.
+  external_depends_on:
+  - operator-front-door:ri-09
 - item_id: ri-19
   title: Schedule learning and metrics loops
   status: candidate
   priority: 5
   effort: M
-  depends_on:
-  - ri-08
+  depends_on: []
   description: Put agent-metrics, collect-transcripts triage, ai_dora_snapshot.py,
     and the usage-stats-multi-model proposal on timers, and adopt the ambient-review-ledger
     proposal as the continuous commit-granular review sensor feeding sync-point gates.
@@ -407,6 +412,8 @@ items:
   acceptance_outcomes:
   - A weekly automated harness-health digest is delivered via the notification service.
   - Ambient review ledger findings are available to sync-point gates.
+  external_depends_on:
+  - operator-front-door:ri-09
 - item_id: ri-20
   title: Migrate CI to self-hosted GX10 runners
   status: candidate
@@ -433,7 +440,6 @@ items:
   effort: L
   depends_on:
   - ri-07
-  - ri-08
   description: 'Elevate the symphony github-tracker-adapter from one-way projection
     to bidirectional sync: GitHub Issues as human-facing system of record, coordinator
     issue tracker as the claim ledger, labels carrying ready/claimed/blocked/needs-human
@@ -447,13 +453,14 @@ items:
   - Concurrent dispatcher polls never claim the same GitHub issue twice.
   - Human edits on GitHub (close, re-label, comment commands) reach the coordinator
     within one sync interval.
+  external_depends_on:
+  - operator-front-door:ri-09
 - item_id: ri-22
   title: Schedule daily discovery refresh
   status: candidate
   priority: 3
   effort: M
-  depends_on:
-  - ri-08
+  depends_on: []
   description: Run refresh-architecture, tech-debt-analysis, and bug-scrub daily on
     the daemon schedule (staggered, posture-gated), keeping architecture artifacts
     under 24 h old and producing dated machine-readable findings.
@@ -467,6 +474,8 @@ items:
   - A failed refresh emits a notification rather than silently serving stale artifacts.
   - fix-scrub auto-fix lane runs against fresh findings under the posture auto ceiling
     only.
+  external_depends_on:
+  - operator-front-door:ri-09
 - item_id: ri-23
   title: Add findings-to-issues pipeline
   status: candidate
@@ -494,7 +503,6 @@ items:
   effort: L
   depends_on:
   - ri-05
-  - ri-08
   - ri-22
   description: 'Extend prioritize-proposals into a scheduled decision layer: daily
     scoring of proposals, roadmap items, and open issues on dependency-readiness,
@@ -514,4 +522,17 @@ items:
     a 7-day soak.
   - When no ready work exists, an explore-feature run proposes candidates as draft
     issues.
-updated_at: '2026-09-03T03:06:14.456974+00:00'
+  external_depends_on:
+  - operator-front-door:ri-09
+updated_at: '2026-10-14T22:40:23.053292+00:00'
+refinements:
+- timestamp: '2026-10-14T22:40:23.053292+00:00'
+  actor: jan
+  source: operator-request
+  rationale: 'Operator decision 2026-10-14 (3a, A-prime): the operator-front-door
+    roadmap replaces the headless dispatcher daemon with a queue-backed Remote Control
+    launcher on the GX10 (operator-front-door ri-09), which inherits all of ri-08
+    acceptance outcomes including the scheduled supervisor cycle.'
+  base_sha256: 3b8f524e943d99b89e1aa863255bbd078c260da0f7a3c90c367252b49d245236
+  operations:
+  - supersede:ri-08->operator-front-door:ri-09

@@ -49,3 +49,30 @@ The system SHALL ensure that decision cards and digests produced for launcher-ru
 
 WHEN `build-the-queue-backed-gx10-launcher-for-claude-codex-and-ge` is implemented
 THEN Decision cards and digests produced for launcher-run dispatches are written by a GX10 local model, and the usage ledger shows zero subscription tokens spent on them.
+
+### Requirement: 24 hours unattended processes at least 50 queued dispatches with no duplicate...
+
+The system SHALL ensure that 24 hours unattended processes at least 50 queued dispatches with no duplicate dispatch and no leaked worktrees, and a kill -9 of the launcher followed by restart resumes every in-flight dispatch from its checkpoint without re-dispatch.
+
+#### Scenario: 24 hours unattended processes at least 50 queued dispatches with no duplicate...
+
+WHEN `build-the-queue-backed-gx10-launcher-for-claude-codex-and-ge` is implemented
+THEN 24 hours unattended processes at least 50 queued dispatches with no duplicate dispatch and no leaked worktrees, and a kill -9 of the launcher followed by restart resumes every in-flight dispatch from its checkpoint without re-dispatch.
+
+### Requirement: Every launched worker has a unique agent identity visible in discover_agents,...
+
+The system SHALL ensure that every launched worker has a unique agent identity visible in discover_agents, and handoff reads use explicit agent names.
+
+#### Scenario: Every launched worker has a unique agent identity visible in discover_agents,...
+
+WHEN `build-the-queue-backed-gx10-launcher-for-claude-codex-and-ge` is implemented
+THEN Every launched worker has a unique agent identity visible in discover_agents, and handoff reads use explicit agent names.
+
+### Requirement: A scheduled supervisor discovery cycle fires from the GX10 on the configured...
+
+The system SHALL ensure that a scheduled supervisor discovery cycle fires from the GX10 on the configured weekday cadence as a queued dispatch, delivers a ranked digest to the Supervisor thread, and stops at the approval gate without creating roadmaps, dispatching implementers, or pushing.
+
+#### Scenario: A scheduled supervisor discovery cycle fires from the GX10 on the configured...
+
+WHEN `build-the-queue-backed-gx10-launcher-for-claude-codex-and-ge` is implemented
+THEN A scheduled supervisor discovery cycle fires from the GX10 on the configured weekday cadence as a queued dispatch, delivers a ranked digest to the Supervisor thread, and stops at the approval gate without creating roadmaps, dispatching implementers, or pushing.
