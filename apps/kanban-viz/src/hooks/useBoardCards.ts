@@ -23,6 +23,7 @@ import type {
   SourceWarning,
 } from "../lib/coordinator-types";
 import { getClusterKey, deriveIssueRepo } from "../lib/coordinator-types";
+import { authHeaders, endpoint } from "../lib/coordinatorAuth";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Pure utility: cluster computation
@@ -177,10 +178,10 @@ export interface UseBoardCardsResult {
 }
 
 async function fetchPRs(apiUrl: string, apiKey: string, bust = false): Promise<PRCard[]> {
-  const url = new URL(`${apiUrl}/github/prs`);
+  const url = endpoint(apiUrl, "/github/prs");
   if (bust) url.searchParams.set("refresh", "true");
   const res = await fetch(url.toString(), {
-    headers: { Authorization: `Bearer ${apiKey}` },
+    headers: { ...authHeaders(apiKey) },
   });
   if (!res.ok) throw new Error(`GET /github/prs: ${res.status}`);
   const data = (await res.json()) as PRListResponse;
@@ -192,10 +193,10 @@ async function fetchProposals(
   apiKey: string,
   bust = false,
 ): Promise<{ proposals: ProposalCard[]; warnings: readonly SourceWarning[] }> {
-  const url = new URL(`${apiUrl}/openspec/proposals`);
+  const url = endpoint(apiUrl, "/openspec/proposals");
   if (bust) url.searchParams.set("refresh", "true");
   const res = await fetch(url.toString(), {
-    headers: { Authorization: `Bearer ${apiKey}` },
+    headers: { ...authHeaders(apiKey) },
   });
   if (!res.ok) throw new Error(`GET /openspec/proposals: ${res.status}`);
   // Cast to MultiSourceProposalListResponse so _warnings are preserved.

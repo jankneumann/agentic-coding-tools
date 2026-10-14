@@ -3,6 +3,7 @@ import { SaveViewButton } from "./components/SaveViewButton";
 import { SourceSwimlanes } from "./components/SourceSwimlanes";
 import { SyncPointBanner } from "./components/SyncPointBanner";
 import { useBoardCards } from "./hooks/useBoardCards";
+import { authHeaders } from "./lib/coordinatorAuth";
 
 const API_URL = import.meta.env["VITE_COORDINATOR_URL"] ?? "http://localhost:8081";
 const API_KEY = import.meta.env["VITE_COORDINATOR_API_KEY"] ?? "";
@@ -42,7 +43,7 @@ export default function App() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${API_KEY}`,
+          ...authHeaders(API_KEY),
         },
         body: JSON.stringify({ run_id: runId, event: eventData }),
       }).catch(() => {
