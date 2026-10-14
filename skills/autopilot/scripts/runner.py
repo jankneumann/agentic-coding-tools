@@ -576,6 +576,22 @@ def _cmd_gate_answer(args: argparse.Namespace) -> int:
     return 0
 
 
+def _remote_branch_absent(branch: str) -> bool:
+    """True only when origin answers that ``branch`` does not exist.
+
+    ``git ls-remote --exit-code`` exits 2 for "reached the remote, no matching
+    ref"; any other failure (no remote, network, auth) is not proof of absence.
+    """
+    try:
+        done = subprocess.run(
+            ["git", "ls-remote", "--exit-code", "--heads", "origin", branch],
+            capture_output=True, text=True, check=False, timeout=120,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return done.returncode == 2
+
+
 def _cmd_relayed_gate_answer(args: argparse.Namespace) -> int:
     """Apply a supervisor-relayed answer only after checking the committed ledger.
 
@@ -609,6 +625,15 @@ def _cmd_relayed_gate_answer(args: argparse.Namespace) -> int:
                 failure = done.stderr.strip() if done.returncode != 0 else None
             except (OSError, subprocess.SubprocessError) as exc:
                 failure = str(exc)
+            if failure is not None and _remote_branch_absent(branch):
+                # The remote answered that the branch does not exist (e.g. a
+                # roadmap recovered onto a differently named branch). Drop the
+                # tracking ref so a stale copy cannot verify, and keep going.
+                subprocess.run(
+                    ["git", "update-ref", "-d", f"refs/remotes/origin/{branch}"],
+                    capture_output=True, text=True, check=False, timeout=30,
+                )
+                continue
             if failure is not None:
                 sys.stderr.write(
                     f"runner: could not fetch {branch} ({failure or 'git fetch failed'}); "
