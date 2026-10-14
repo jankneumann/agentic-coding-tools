@@ -135,7 +135,11 @@ items:
     expresses any remaining per-environment exception as data with a sunset.
 - item_id: ri-23
   title: Coordinator-brokered vendor credentials for cloud review lanes
-  change_id: coordinator-brokered-vendor-credentials
+  status: candidate
+  priority: 3
+  effort: M
+  depends_on:
+  - ri-22
   description: Let cloud workers obtain metered vendor credentials (first OpenRouter)
     from the coordinator instead of a per-environment variable. The coordinator reads
     the credential from OpenBao and serves it on an authenticated, principal-scoped,
@@ -147,10 +151,7 @@ items:
     rotation and audit in OpenBao, and lets the per-session spend cap be enforced
     by the key itself. Revisits ri-22 design decision that the lane never calls the
     coordinator under its own identity, so it needs its own trust-posture review.
-  effort: M
-  priority: 3
-  depends_on:
-  - ri-22
+  change_id: coordinator-brokered-vendor-credentials
   acceptance_outcomes:
   - In a cloud container with no OpenRouter variable set, the review lane obtains
     its key from the coordinator, and the lane's dry invocation passes; the key is
@@ -163,7 +164,6 @@ items:
     key remains a supported, reported fallback.
   - The ri-22 design decision about the lane's coordinator identity is revised in
     a reviewed trust-posture change before the route ships.
-  status: candidate
 - item_id: ri-03
   title: Add on-behalf-of chains and causal trace IDs to coordinator records
   status: approved
@@ -600,7 +600,7 @@ items:
     copy.
   - Repository-scoped learnings are opt-in and never include private transcript content.
   - Installed payloads contain no references to private coordinator source.
-updated_at: '2026-10-14T11:09:35.684761+00:00'
+updated_at: '2026-10-14T22:53:42.022457+00:00'
 refinements:
 - timestamp: '2026-10-06T08:36:39.023367+00:00'
   actor: operator (jankneumann) via supervisor session session_01J39bSygVy2r68wyPyHN5VA

@@ -4,7 +4,7 @@
   "current_item_id": "ri-01",
   "phase": "completed",
   "created_at": "2026-10-05T06:52:22.688525+00:00",
-  "updated_at": "2026-10-13T00:41:14.667400+00:00",
+  "updated_at": "2026-10-14T22:54:08.297299+00:00",
   "completed_items": [
     "ri-01",
     "ri-21",
@@ -1783,6 +1783,61 @@
       "item_id": "ri-22",
       "lease_generation": 4,
       "note": "Operator in the supervisor session (2026-10-13): \"Merge 688,689 and approving resume of ri-22. Fix review ledger tooling\". Ledger adjudication and plan fixes #16-#18 landed in 62590065; resume re-enters PLAN_REVIEW."
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "posture",
+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
+      },
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-14T22:53:46.732501+00:00",
+      "decision_id": "155b354f-541c-4388-b1dd-e09c5de48f66",
+      "source": "supervise",
+      "verb": "resume",
+      "roadmap_id": "multiplayer-collaboration",
+      "change_id": "openrouter-review-lane",
+      "dispatch_id": "batch-d8913c4d8e973cd7940e2d09:ri-22:attempt-1",
+      "item_id": "ri-22",
+      "lease_generation": 5
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' approved by the operator \u2014 Operator in supervisor session 2026-10-14: 'Merged 697 now restart ri-22 in anew session' / 'openrouter.ai is in Allowed domains. Approach 1'; restart in a new session to pick up OPENROUTER_API_KEY; openrouter.ai egress confirmed by operator.",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "human",
+        "approval_ref": null
+      },
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-14T22:53:53.174671+00:00",
+      "decision_id": "666c85e5-7ab8-4df2-b225-ed944cadbad7",
+      "source": "supervise",
+      "verb": "resume",
+      "roadmap_id": "multiplayer-collaboration",
+      "change_id": "openrouter-review-lane",
+      "dispatch_id": "batch-d8913c4d8e973cd7940e2d09:ri-22:attempt-1",
+      "item_id": "ri-22",
+      "lease_generation": 5,
+      "note": "Operator in supervisor session 2026-10-14: 'Merged 697 now restart ri-22 in anew session' / 'openrouter.ai is in Allowed domains. Approach 1'; restart in a new session to pick up OPENROUTER_API_KEY; openrouter.ai egress confirmed by operator."
     }
   ],
   "dispatch_attempts": [
@@ -3378,9 +3433,9 @@
       "attempt": 1,
       "status": "launched",
       "prepared_at": "2026-10-10T10:46:57.575028+00:00",
-      "launch_digest": "sha256:a96dfe17b4b6fe32033dfe6f763544cc037f739fef5450ed93bece6b99930a81",
+      "launch_digest": "sha256:0713dc75720c667b3a94a402bfe620da92cd779791b1e203f6f0acb017d7dbb9",
       "launch_marker_path": ".supervised-dispatch/openrouter-review-lane/ri-22-attempt-1.marker",
-      "lease_generation": 5,
+      "lease_generation": 6,
       "launch_history": [
         {
           "generation": 1,
@@ -3536,6 +3591,37 @@
           "marker_path": ".supervised-dispatch/openrouter-review-lane/ri-22-attempt-1.marker",
           "observed_at": "2026-10-13T00:41:14.663813+00:00",
           "handle": "session_01WEjMymwXbwu2rAeaoMeEeU#g5"
+        },
+        {
+          "generation": 6,
+          "owner_nonce": "owner-nonce-1792018447622",
+          "state": "claimed",
+          "marker_path": ".supervised-dispatch/openrouter-review-lane/ri-22-attempt-1.marker",
+          "observed_at": "2026-10-14T22:54:07.473826+00:00"
+        },
+        {
+          "generation": 6,
+          "owner_nonce": "owner-nonce-1792018447622",
+          "state": "acknowledged",
+          "marker_path": ".supervised-dispatch/openrouter-review-lane/ri-22-attempt-1.marker",
+          "observed_at": "2026-10-14T22:54:07.832366+00:00",
+          "handle": "session_01AUJ94uZNHHU96GAvXpTPeH#g6"
+        },
+        {
+          "generation": 6,
+          "owner_nonce": "owner-nonce-1792018447622",
+          "state": "go_released",
+          "marker_path": ".supervised-dispatch/openrouter-review-lane/ri-22-attempt-1.marker",
+          "observed_at": "2026-10-14T22:54:07.832366+00:00",
+          "handle": "session_01AUJ94uZNHHU96GAvXpTPeH#g6"
+        },
+        {
+          "generation": 6,
+          "owner_nonce": "owner-nonce-1792018447622",
+          "state": "entered",
+          "marker_path": ".supervised-dispatch/openrouter-review-lane/ri-22-attempt-1.marker",
+          "observed_at": "2026-10-14T22:54:08.292630+00:00",
+          "handle": "session_01AUJ94uZNHHU96GAvXpTPeH#g6"
         }
       ],
       "scope": {
@@ -3622,32 +3708,42 @@
           "code": "audit_sink_failed",
           "detail": "gen 4: audit sink reported failure for gate escalate_resume decision posture_block",
           "phase": "ESCALATE"
+        },
+        {
+          "code": "single_vendor_review",
+          "detail": "re-entry after ledger adjudication: vendor=claude_code; cloud policy min_quorum 1",
+          "phase": "PLAN_REVIEW"
+        },
+        {
+          "code": "audit_sink_failed",
+          "detail": "audit sink reported failure for gate escalate_resume decision posture_block (2026-10-13)",
+          "phase": "ESCALATE"
         }
       ],
       "continuation": {
         "kind": "pending_gate",
-        "approval_ref": "gate-decision:529a0f1a-5b6e-4cb5-940c-ee0a519da077"
+        "approval_ref": "gate-decision:666c85e5-7ab8-4df2-b225-ed944cadbad7"
       },
       "lease": {
-        "generation": 5,
-        "owner_nonce": "owner-nonce-1791852073522",
+        "generation": 6,
+        "owner_nonce": "owner-nonce-1792018447622",
         "state": "active",
-        "acquired_at": "2026-10-13T00:41:14.094416+00:00",
-        "heartbeat_at": "2026-10-13T00:41:14.094416+00:00",
-        "expires_at": "2026-10-13T00:56:14.094416+00:00"
+        "acquired_at": "2026-10-14T22:54:07.473826+00:00",
+        "heartbeat_at": "2026-10-14T22:54:07.473826+00:00",
+        "expires_at": "2026-10-14T23:09:07.473826+00:00"
       },
       "launch_evidence": {
         "kind": "host_ack",
-        "generation": 5,
-        "handle": "session_01WEjMymwXbwu2rAeaoMeEeU#g5",
-        "observed_at": "2026-10-13T00:41:14.400973+00:00"
+        "generation": 6,
+        "handle": "session_01AUJ94uZNHHU96GAvXpTPeH#g6",
+        "observed_at": "2026-10-14T22:54:07.832366+00:00"
       },
       "launch_gate": {
-        "generation": 5,
+        "generation": 6,
         "state": "entered",
-        "handle": "session_01WEjMymwXbwu2rAeaoMeEeU#g5",
-        "go_released_at": "2026-10-13T00:41:14.400973+00:00",
-        "entered_at": "2026-10-13T00:41:14.663813+00:00"
+        "handle": "session_01AUJ94uZNHHU96GAvXpTPeH#g6",
+        "go_released_at": "2026-10-14T22:54:07.832366+00:00",
+        "entered_at": "2026-10-14T22:54:08.292630+00:00"
       }
     }
   ]
