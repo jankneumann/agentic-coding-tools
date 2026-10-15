@@ -197,8 +197,8 @@
         "approval_ref": {"$ref": "#/$defs/ApprovalRef"},
         "provenance": {"$ref": "#/$defs/Provenance"},
         "resume_at": {
-          "enum": ["VALIDATE"],
-          "description": "Operator-approved escalate_resume target: re-run VALIDATE instead of resuming the parked phase."
+          "enum": ["VALIDATE", "IMPLEMENT"],
+          "description": "Operator-approved escalate_resume target instead of resuming the parked phase: VALIDATE re-runs validation; IMPLEMENT accepts a reviewed plan from PLAN_REVIEW without quorum convergence (outcome operator_accept)."
         }
       }
     },
