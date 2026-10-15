@@ -390,3 +390,121 @@ def test_resume_at_is_refused_outside_an_approved_escalate_resume(
 
     assert runner.main(["gate-answer", "demo", *argv]) == 2
     assert state_path.read_bytes() == before
+
+
+# ---------------------------------------------------------------------------
+# escalate_resume --resume-at IMPLEMENT (operator accepts an unconverged plan)
+# ---------------------------------------------------------------------------
+
+_PLAN_REVIEW_PARK = {
+    "kind": "capability_unavailable",
+    "phase": "PLAN_REVIEW",
+    "missing_lanes": ["openrouter"],
+}
+
+
+def test_resume_at_implement_on_a_plan_review_park_records_operator_accept(
+    workspace: Path,
+) -> None:
+    state_path = seed(workspace, current_phase="PLAN_REVIEW", park=dict(_PLAN_REVIEW_PARK))
+
+    rc = runner.main([
+        "gate-answer", "demo", "--gate", "escalate_resume", "--decision", "approved",
+        "--resume-at", "IMPLEMENT", "--note", "accept the reviewed plan",
+    ])
+
+    assert rc == 0
+    state = read_state(state_path)
+    assert state["park"] is None
+    assert state["current_phase"] == "IMPLEMENT"
+    assert state["gate_decisions"][-1]["resolution"] == "console_approved"
+    # The audit trail names the operator's acceptance, never a claimed convergence.
+    outcomes = [entry.get("outcome") for entry in state["phase_history"]]
+    assert outcomes[-1] == "operator_accept"
+    assert state["phase_history"][-1]["phase"] == "PLAN_REVIEW"
+    assert "converged" not in outcomes
+
+
+def test_a_park_answer_without_resume_at_stays_in_plan_review(workspace: Path) -> None:
+    state_path = seed(workspace, current_phase="PLAN_REVIEW", park=dict(_PLAN_REVIEW_PARK))
+
+    rc = runner.main([
+        "gate-answer", "demo", "--gate", "escalate_resume", "--decision", "approved",
+    ])
+
+    assert rc == 0
+    state = read_state(state_path)
+    assert state["park"] is None
+    assert state["current_phase"] == "PLAN_REVIEW"
+
+
+def test_resume_at_implement_is_refused_for_a_park_outside_plan_review(
+    workspace: Path,
+) -> None:
+    park = {"kind": "capability_unavailable", "phase": "IMPL_REVIEW", "missing_lanes": ["codex"]}
+    state_path = seed(workspace, current_phase="IMPL_REVIEW", park=park)
+    before = state_path.read_bytes()
+
+    rc = runner.main([
+        "gate-answer", "demo", "--gate", "escalate_resume", "--decision", "approved",
+        "--resume-at", "IMPLEMENT",
+    ])
+
+    assert rc == 2
+    assert state_path.read_bytes() == before
+
+
+def test_resume_at_implement_from_an_escalated_plan_review(workspace: Path) -> None:
+    state_path = seed(
+        workspace,
+        pending=pending_request(
+            Gate.ESCALATE_RESUME,
+            phase="ESCALATE",
+            edge={"outcome": "resolved", "target": "PLAN_REVIEW"},
+            context={"escalation_reason": "max_iter", "previous_phase": "PLAN_REVIEW"},
+        ),
+        current_phase="ESCALATE",
+        previous_phase="PLAN_REVIEW",
+    )
+
+    rc = runner.main([
+        "gate-answer", "demo", "--gate", "escalate_resume", "--decision", "approved",
+        "--resume-at", "IMPLEMENT",
+    ])
+
+    assert rc == 0
+    assert read_state(state_path)["current_phase"] == "IMPLEMENT"
+
+
+def test_resume_at_implement_is_refused_when_the_escalation_left_another_phase(
+    workspace: Path,
+) -> None:
+    state_path = _escalated_after_goal_gate(workspace)
+    before = state_path.read_bytes()
+
+    rc = runner.main([
+        "gate-answer", "demo", "--gate", "escalate_resume", "--decision", "approved",
+        "--resume-at", "IMPLEMENT",
+    ])
+
+    assert rc != 0
+    assert state_path.read_bytes() == before
+
+
+def test_transition_subcommand_refuses_operator_accept(workspace: Path) -> None:
+    state_path = seed(workspace, current_phase="PLAN_REVIEW")
+    before = state_path.read_bytes()
+
+    assert runner.main(["transition", "--change-id", "demo", "--outcome", "operator_accept"]) == 2
+    assert state_path.read_bytes() == before
+
+
+def test_apply_transition_refuses_operator_accept_without_operator_authority() -> None:
+    state = autopilot.LoopState(change_id="demo", current_phase="PLAN_REVIEW")
+
+    with pytest.raises(ValueError, match="operator_accept"):
+        autopilot._apply_transition(state, autopilot.OPERATOR_ACCEPT)
+    assert state.current_phase == "PLAN_REVIEW"
+
+    autopilot._apply_transition(state, autopilot.OPERATOR_ACCEPT, operator_authorized=True)
+    assert state.current_phase == "IMPLEMENT"
