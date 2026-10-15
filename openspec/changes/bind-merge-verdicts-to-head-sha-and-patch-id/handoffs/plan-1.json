@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-10-15T20:43:53.379600+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "rpc_failed: ForeignKeyViolationError: insert or update on table \"handoff_documents\" violates foreign key constraint \"handoff_documents_session_id_fkey\"\nDETAIL:  Key (session_id)=(session_017qfSLYuSiyd2b5URwLucoq) is not present in table \"agent_sessions\". (HTTP 200)",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": "session_017qfSLYuSiyd2b5URwLucoq",
+    "summary": "Planned roadmap item ri-01 of verification-enforcement-discipline: bind every stored merge verdict to head SHA and git patch-id, make the vendor-review predicate total, record waivers explicitly, check reviewer independence, and pin gh pr merge to the reviewed head.",
+    "completed_work": [
+      "proposal.md, design.md (D1-D9), specs/merge-pull-requests/spec.md, tasks.md, contracts/README.md, work-packages.yaml (6 packages); strict openspec, work-packages and parallel-zones validators pass.",
+      "Planning lock claims registered for all six package keys."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Approach A: shared verdict_binding module plus total predicate",
+        "rationale": "Selected at Gate 1. One currency rule (current/rebased/stale) closes the unbound-verdict, dead-skip, absence-as-pass and self-review gaps, and adjudication can reuse it.",
+        "capability": "merge-pull-requests",
+        "supersedes": null
+      },
+      {
+        "title": "Review waivers live in state, recorded at execute time",
+        "rationale": "Correction found during planning: eligibility is computed live by check_review_eligibility, so build_plan cannot write definition.review_waiver. execute_plan records policy waivers from a closed set.",
+        "capability": "merge-pull-requests",
+        "supersedes": null
+      },
+      {
+        "title": "Widen review_dispatcher exclude_vendor to accept a collection",
+        "rationale": "dispatch_and_wait re-runs discover_reviewers internally, so author-vendor exclusion cannot be done in vendor_review alone. Shared parallel-infrastructure file; string form unchanged.",
+        "capability": "merge-pull-requests",
+        "supersedes": null
+      },
+      {
+        "title": "Use same_family, not same_family_as_author",
+        "rationale": "Matches the field name in add-orchestrator-adjudication-review-gate so both changes share one binding shape.",
+        "capability": "merge-pull-requests",
+        "supersedes": null
+      },
+      {
+        "title": "Operator waiver does not override changes_requested",
+        "rationale": "changes_requested is a human reviewer's state, not the merge tool's to waive.",
+        "capability": "merge-pull-requests",
+        "supersedes": null
+      },
+      {
+        "title": "Plan schema 1.1 is rejected, not migrated",
+        "rationale": "Plans are short-lived analysis artifacts rebuilt every round; a migration path buys nothing.",
+        "capability": "merge-pull-requests",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Gate 2 approval",
+      "seed_tasks_from_md.py",
+      "/implement-feature after ri-02 or in parallel (disjoint scope)"
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/bind-merge-verdicts-to-head-sha-and-patch-id/design.md",
+        "description": "decisions D1-D9"
+      }
+    ]
+  }
+}
