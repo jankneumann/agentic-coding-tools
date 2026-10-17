@@ -388,7 +388,7 @@ jobs:
       # site (scripts/setup-cli.sh, the session-bootstrap scripts,
       # skills/install.sh) reads it too, so local and CI cannot disagree.
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           # The hosted image preinstalls node/npm; the self-hosted runner image does not (D10).
           node-version: '22'
