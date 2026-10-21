@@ -132,7 +132,8 @@ carries no token.
   variables or credentials to discover capabilities.
 - **Review in cloud.** Run each review phase through `agent_lane.py converge
   --phase <phase>` with one `--verified-lanes <lane>` per entry of the marker's
-  `execution_profile.lanes.review` (see *Cloud review lanes* under Detect CLI mode).
+  `execution_profile.lanes.review` and one `--counting-lanes <lane>` per entry of
+  `review_requirements.counting_lanes` (see *Cloud review lanes* under Detect CLI mode).
   A `capability_unavailable` result maps to `runner.py park --kind capability_unavailable`
   with its `missing_lanes`; record `metered_spend_unrecorded` when the result reports it.
 - **Degradations.** Record every degraded path with `runner.py record-degradation`
@@ -225,14 +226,17 @@ python3 "<skill-base-dir>/scripts/runner.py" record-degradation <change-id> \
 *Cloud review lanes (dispatched child in a cloud container).* The running agent
 serves the `claude_code` lane; any other verified lane (for example `openrouter`)
 is dispatched beside it by the composite agent lane. Pass every lane in the
-marker's `execution_profile.lanes.review`, one `--verified-lanes` per lane — never
-add a lane the marker does not list, and never probe for one:
+marker's `execution_profile.lanes.review`, one `--verified-lanes` per lane, and every
+lane in `review_requirements.counting_lanes`, one `--counting-lanes` per lane — so a
+counting lane that did not verify shows up in `missing_lanes`. Never add a lane the
+marker does not list, and never probe for one:
 
 ```bash
 python3 "<skill-base-dir>/scripts/agent_lane.py" converge \
   --change-id <change-id> --phase <PLAN_REVIEW|IMPL_REVIEW|VAL_REVIEW> \
   --proto-dir <protocol dir> --base-ref origin/<pr-base> --model <model id> \
-  --verified-lanes <lane> [--verified-lanes <lane> ...]
+  --verified-lanes <lane> [--verified-lanes <lane> ...] \
+  --counting-lanes <lane> [--counting-lanes <lane> ...]
 ```
 
 Then read the protocol directory's `result.json`:

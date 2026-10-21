@@ -289,7 +289,14 @@ def test_cloud_review_protocol_runs_the_composite_agent_lane() -> None:
     text = (_SKILLS / "autopilot" / "SKILL.md").read_text(encoding="utf-8")
     assert "agent_lane.py\" converge" in text
     assert "--verified-lanes" in text
+    assert "--counting-lanes" in text
     assert "execution_profile.lanes.review" in text
+    assert "review_requirements.counting_lanes" in text
+    # Every flag the documented invocation passes must exist in agent_lane's parser.
+    block = text.split('agent_lane.py" converge', 1)[1].split("```", 1)[0]
+    source = (_SKILLS / "autopilot" / "scripts" / "agent_lane.py").read_text(encoding="utf-8")
+    for flag in set(re.findall(r"--[a-z][a-z-]+", block)):
+        assert f'"{flag}"' in source, flag
     # agent_lane's capability_unavailable result parks; unrecorded spend is recorded.
     assert "capability_unavailable` result maps to `runner.py park --kind capability_unavailable`" in text
     assert "--code metered_spend_unrecorded" in text
