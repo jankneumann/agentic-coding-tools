@@ -859,9 +859,12 @@ class CliVendorAdapter:
     def can_dispatch(self, mode: str) -> bool:
         """Check if this adapter can dispatch the given mode.
 
-        A binary on PATH is not enough when the config declares a required
-        credential env var: pi with OPENROUTER_API_KEY unset cannot serve a
-        single request, so it must not count as available (issue #383).
+        Availability is a capability question only: the mode is configured
+        and the binary is on PATH. A declared credential env var is *not*
+        consulted here (openrouter-review-lane D1 supersedes the issue-#383
+        presence check): lane availability comes from the dry probe, and a
+        missing key surfaces as an honest dispatch-time auth failure rather
+        than a silently hidden lane.
 
         The ocr vendor is a further special case: its configured
         ``command`` is ``python3`` (the wrapper script's interpreter,
@@ -872,8 +875,6 @@ class CliVendorAdapter:
         if mode not in self.cli_config.dispatch_modes:
             return False
         if shutil.which(self.cli_config.command) is None:
-            return False
-        if self.cli_config.api_key_env and not os.environ.get(self.cli_config.api_key_env):
             return False
         if self.vendor == "ocr" and not _ocr_adapter_can_dispatch():
             return False
@@ -2906,9 +2907,9 @@ class ReviewOrchestrator:
         reviewers: list[ReviewerInfo] = []
 
         for vendor in sorted(all_vendors):
-            # Tier 1: Local CLI. can_dispatch() checks mode + PATH + declared
-            # credential env — a pi binary without OPENROUTER_API_KEY must not
-            # be reported available (issue #383).
+            # Tier 1: Local CLI. can_dispatch() checks mode + PATH only; no
+            # env var is read for credential presence (a missing key is an
+            # honest dispatch-time auth failure, not a hidden lane).
             if vendor in cli_by_vendor:
                 agent_id, cli_adapter = cli_by_vendor[vendor]
                 if cli_adapter.can_dispatch(dispatch_mode):

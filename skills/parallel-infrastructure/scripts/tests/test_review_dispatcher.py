@@ -432,14 +432,17 @@ class TestCanDispatch:
         assert adapter.can_dispatch("nonexistent_mode") is False
 
     @patch("shutil.which", return_value="/usr/bin/pi")
-    def test_declared_credential_unset_fails_closed(
+    def test_declared_credential_unset_still_discoverable(
         self, _mock: MagicMock, monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """A binary on PATH whose declared credential env var is unset cannot
-        serve a request and must not count as available (issue #383)."""
+        """Lane availability is a capability question, not an env-var one
+        (openrouter-review-lane D1, superseding the issue-#383 presence
+        check): a binary on PATH stays dispatchable when its declared
+        credential env var is unset, and a missing key surfaces as an honest
+        dispatch-time auth failure instead of a hidden lane."""
         monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
         adapter = _adapter(api_key_env="OPENROUTER_API_KEY")
-        assert adapter.can_dispatch("review") is False
+        assert adapter.can_dispatch("review") is True
 
     @patch("shutil.which", return_value="/usr/bin/pi")
     def test_declared_credential_set_is_available(
@@ -1547,12 +1550,13 @@ class TestThreeTierSelection:
         assert reviewers[0].dispatch_tier == "sdk"
         assert reviewers[0].agent_id == "codex-remote"
 
-    def test_cli_skipped_when_declared_credential_unset(
+    def test_cli_discovered_when_declared_credential_unset(
         self, monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """Tier-1 selection must not report a vendor whose CLI is on PATH but
-        whose declared credential is unset (issue #383: 5/5 available while pi
-        could not serve a single request)."""
+        """Tier-1 selection is driven by capability, not env-var presence:
+        a CLI on PATH whose declared credential is unset is still discovered
+        (issue #383 is now answered by the dry probe and the dispatch-time
+        auth failure, not by hiding the lane)."""
         monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
         cli_adapters = {
             "pi-local": _adapter(
@@ -1563,7 +1567,77 @@ class TestThreeTierSelection:
         orch = ReviewOrchestrator(cli_adapters, {})
         with patch("shutil.which", return_value="/usr/bin/pi"):
             reviewers = orch.discover_reviewers()
-        assert reviewers == []
+        assert [r.agent_id for r in reviewers] == ["pi-local"]
+
+    def test_missing_credential_surfaces_as_dispatch_auth_failure(
+        self, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """The discovered lane with no key reports its failure honestly at
+        dispatch time: the CLI's auth error is classified, not swallowed."""
+        monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+        adapter = _adapter(
+            "pi-local", "pi", command="pi", api_key_env="OPENROUTER_API_KEY",
+        )
+        with patch("shutil.which", return_value="/usr/bin/pi"), patch(
+            "review_dispatcher.subprocess.run",
+            return_value=subprocess.CompletedProcess(
+                args=[], returncode=1, stdout="",
+                stderr="401 Unauthorized: No auth credentials found",
+            ),
+        ):
+            assert adapter.can_dispatch("review") is True
+            result = adapter.dispatch("review", "prompt", "/tmp")
+        assert result.success is False
+        assert result.error_class is not None
+
+    def test_discovery_does_not_read_credential_env_vars(
+        self, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Guard: lane discovery never consults os.environ for credential
+        presence. Every env read during discover_reviewers is recorded and
+        none may name a declared credential variable."""
+        import os as _os
+
+        class _RecordingEnviron(dict):
+            def __init__(self, base: dict[str, str]) -> None:
+                super().__init__(base)
+                self.reads: list[str] = []
+
+            def get(self, key, default=None):  # type: ignore[override]
+                self.reads.append(key)
+                return super().get(key, default)
+
+            def __getitem__(self, key):  # type: ignore[override]
+                self.reads.append(key)
+                return super().__getitem__(key)
+
+            def __contains__(self, key):  # type: ignore[override]
+                self.reads.append(key)
+                return super().__contains__(key)
+
+        recorder = _RecordingEnviron(dict(_os.environ))
+        monkeypatch.setattr(_os, "environ", recorder)
+        cli_adapters = {
+            "pi-local": _adapter(
+                "pi-local", "pi", command="pi",
+                api_key_env="OPENROUTER_API_KEY",
+            ),
+            "codex-local": _adapter(
+                "codex-local", "codex", command="codex",
+                api_key_env="OPENAI_API_KEY",
+            ),
+        }
+        orch = ReviewOrchestrator(
+            cli_adapters, {},
+            openai_key_envs={"openrouter-review": "OPENROUTER_API_KEY"},
+        )
+        with patch("shutil.which", return_value="/usr/bin/x"):
+            orch.discover_reviewers()
+        credential_reads = [
+            k for k in recorder.reads
+            if isinstance(k, str) and (k.endswith("_API_KEY") or "TOKEN" in k)
+        ]
+        assert credential_reads == []
 
     def test_skip_when_nothing_available(self) -> None:
         """When neither CLI nor SDK is available, vendor is skipped."""
