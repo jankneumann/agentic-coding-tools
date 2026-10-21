@@ -479,7 +479,9 @@
         "claude_code"
       ],
       "description": "LedgerService.find_by_generation_id has no callers now that POST /routing/spend uses record_once, which calls the atomic record_spend_once RPC from migration 046. It is dead code, and it invites a reintroduction of the non-atomic read-then-insert dedupe.",
-      "consensus_status": "unconfirmed"
+      "resolution": "compact: claimed fix did not take",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": false
     },
     {
       "id": 27,
@@ -533,5 +535,5 @@
       "consensus_status": "unconfirmed"
     }
   ],
-  "compacted_at": "2026-10-13T00:47:58Z"
+  "compacted_at": "2026-10-21T16:36:58Z"
 }

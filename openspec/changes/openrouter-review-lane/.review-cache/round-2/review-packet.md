@@ -18,258 +18,50 @@ Output ONLY a JSON object with a top-level `findings` array.
 
 ### Diff
 ```diff
-diff --git a/openspec/changes/openrouter-review-lane/.review-ledger/ledger.json b/openspec/changes/openrouter-review-lane/.review-ledger/ledger.json
-index c598cfba..45c02ae4 100644
---- a/openspec/changes/openrouter-review-lane/.review-ledger/ledger.json
-+++ b/openspec/changes/openrouter-review-lane/.review-ledger/ledger.json
-@@ -53,8 +53,8 @@
-         "claude_code"
-       ],
-       "description": "The mid-run mapping fires when 'every failed lane's error_class is UNAVAILABLE or AUTH'. A verified lane can also produce no ReviewResult at all: it is filtered at dispatch by the family or fill rule, not discovered in the worker environment, or dispatch_and_wait returns [] when job_count == 0. In that case the failed set is empty, the condition is vacuously true, and converge() returns capability_unavailable with missing_lanes == [].",
--      "consensus_status": "unconfirmed",
--      "resolution": "operator adjudication 2026-10-12: resolved by ba681f63 (missing_lanes = verified - succeeded)"
-+      "resolution": "operator adjudication 2026-10-12: resolved by ba681f63 (missing_lanes = verified - succeeded)",
-+      "consensus_status": "unconfirmed"
-     },
-     {
-       "id": 4,
-@@ -125,8 +125,8 @@
-         "claude_code"
-       ],
-       "description": "D4 checks the budget only in the probe, which the supervisor runs once per batch against a $1.00 reservation. A dispatched child can then run up to 3 rounds in each of 3 review phases with packets of roughly 80k tokens, and every concurrently dispatched child sees the same remaining budget. When the coordinator ceiling is the only source (key limit null), nothing stops an overrun, so 'bounded before dispatch' does not hold.",
--      "consensus_status": "unconfirmed",
--      "resolution": "operator adjudication 2026-10-12: resolved by ba681f63, then moved to the dispatch layer (task 3.11)"
-+      "resolution": "operator adjudication 2026-10-12: resolved by ba681f63, then moved to the dispatch layer (task 3.11)",
-+      "consensus_status": "unconfirmed"
-     },
-     {
-       "id": 8,
-@@ -235,9 +235,8 @@
-         "claude_code"
-       ],
-       "description": "D6 and tasks 3.8a/5.6 have converge() build a second, tool-less packet and 'pass both paths to dispatch_and_wait', and have dispatch_and_wait hand the tool-less body and its tools_overflow flag to OpenAI-compatible adapters. That needs a new optional dispatch_and_wait parameter (for both ReviewOrchestrator and the CompositeOrchestrator that converge() calls through _accepts_kwarg) and a new tools_overflow keyword on OpenAICompatAdapter.dispatch. Neither is named anywhere, and the cross-cutting interface contract table lists only include_lanes for dispatch_and_wait. Groups 3 and 5 implement the two sides of this interface in separate packages.",
--      "consensus_status": "unconfirmed",
--      "fix_touched_file": true,
--      "resolution": " | fix commit 3f9651df touched the cited file (verified on disk 2026-10-12)"
-+      "resolution": " | fix commit 3f9651df touched the cited file (verified on disk 2026-10-12)",
-+      "consensus_status": "unconfirmed"
-     },
-     {
-       "id": 14,
-@@ -255,9 +254,8 @@
-         "claude_code"
-       ],
-       "description": "The Metered Review Lane Spend Accounting requirement says every review an openrouter lane dispatches is recorded with spend_recorder.record(), and acceptance outcome 3 says every OpenRouter review is recorded against the ceiling. The only task that calls record() is 5.5, inside agent_lane's CompositeOrchestrator. D5 also selects the metered lane on a host with fewer than fill_target non-metered lanes (for example one CLI vendor and OPENROUTER_API_KEY in non-OpenBao mode). That review runs through ReviewOrchestrator.dispatch_and_wait from converge() or /parallel-review-*, never through agent_lane, so its spend is neither recorded nor spooled and no metered_spend_unrecorded degradation is raised.",
--      "consensus_status": "unconfirmed",
--      "fix_touched_file": true,
--      "resolution": " | fix commit 3f9651df touched the cited file (verified on disk 2026-10-12)"
-+      "resolution": " | fix commit 3f9651df touched the cited file (verified on disk 2026-10-12)",
-+      "consensus_status": "unconfirmed"
-     },
-     {
-       "id": 15,
-@@ -274,9 +272,8 @@
-         "claude_code"
-       ],
-       "description": "The spec fixes work_unit_ref as '<change_id>:<review_type>:round-<n>'. IMPL_REVIEW and VAL_REVIEW both run with review_type 'implementation', so their rows get the same work_unit_ref and spend cannot be split by phase. This is the collision the round-2 fix already removed for the consensus files. Design D4 allows '<phase|review_type>'.",
--      "consensus_status": "unconfirmed",
--      "fix_touched_file": true,
--      "resolution": " | fix commit 3f9651df touched the cited file (verified on disk 2026-10-12)"
-+      "resolution": " | fix commit 3f9651df touched the cited file (verified on disk 2026-10-12)",
-+      "consensus_status": "unconfirmed"
-     },
-     {
-       "id": 16,
-@@ -293,9 +290,8 @@
-         "claude_code"
-       ],
-       "description": "D4 and task 5.7 put the per-round budget re-check in converge(). converge() is vendor-agnostic: it receives only verified_lanes and an orchestrator, does not know which lanes are metered, has no coordinator-usage client, and has no way to keep one lane out of a dispatch except through orchestrator-specific kwargs. CompositeOrchestrator already knows the metered lanes and builds include_lanes, so the check fits there, or in ReviewOrchestrator.dispatch_and_wait next to the probe code. Keeping it in converge() widens the converge() signature with routing concerns.",
--      "consensus_status": "unconfirmed",
--      "fix_touched_file": true,
--      "resolution": "escalation fix 2026-10-12 (operator-directed): spend_context + dispatch-layer budget re-check (tasks 3.10, 3.11, 5.7; design D4 and interface row)"
-+      "resolution": "escalation fix 2026-10-12 (operator-directed): spend_context + dispatch-layer budget re-check (tasks 3.10, 3.11, 5.7; design D4 and interface row)",
-+      "consensus_status": "unconfirmed"
-     },
-     {
-       "id": 17,
-@@ -313,9 +309,8 @@
-         "claude_code"
-       ],
-       "description": "The round-1 fix moved spend_recorder.record() into ReviewOrchestrator.dispatch_and_wait, which gets only an optional work_unit_ref and no change id. When the write fails, the spec spools to 'openspec/changes/<change-id>/reviews/spend-spool.jsonl' (spec line 173) and replay runs per change id. A dispatch_and_wait call with work_unit_ref None, such as a one-shot /parallel-review-* run or any caller not yet updated, has no change id, so the failed row has nowhere to go. That metered spend is then neither recorded nor spooled, which is the gap the fix was meant to close.",
--      "consensus_status": "unconfirmed",
--      "fix_touched_file": true,
--      "resolution": "escalation fix 2026-10-12 (operator-directed): spend_context + dispatch-layer budget re-check (tasks 3.10, 3.11, 5.7; design D4 and interface row)"
-+      "resolution": "escalation fix 2026-10-12 (operator-directed): spend_context + dispatch-layer budget re-check (tasks 3.10, 3.11, 5.7; design D4 and interface row)",
-+      "consensus_status": "unconfirmed"
-     },
-     {
-       "id": 18,
-@@ -332,9 +327,61 @@
-         "claude_code"
-       ],
-       "description": "The new 'spend context' row in the interface contract table says dispatch_and_wait adds 'work_unit_ref: str | None' and that a missing value only drops the field from the row. It does not carry the change id that the D4 spool path (openspec/changes/<id>/reviews/spend-spool.jsonl) needs, and it does not say what happens to a metered lane when no context is given.",
--      "consensus_status": "unconfirmed",
--      "fix_touched_file": true,
--      "resolution": "escalation fix 2026-10-12 (operator-directed): spend_context + dispatch-layer budget re-check (tasks 3.10, 3.11, 5.7; design D4 and interface row)"
-+      "resolution": "escalation fix 2026-10-12 (operator-directed): spend_context + dispatch-layer budget re-check (tasks 3.10, 3.11, 5.7; design D4 and interface row)",
-+      "consensus_status": "unconfirmed"
-+    },
-+    {
-+      "id": 19,
-+      "status": "open",
-+      "axis": "correctness",
-+      "type": "spec_gap",
-+      "criticality": "medium",
-+      "evidence_class": "deterministic",
-+      "file_path": "openspec/changes/openrouter-review-lane/tasks.md",
-+      "spec_file": "/home/user/agentic-coding-tools/openspec/changes/openrouter-review-lane/specs/parallel-infrastructure/spec.md",
-+      "fingerprint": "da65bbb77b41c13f",
-+      "first_seen_round": 1,
-+      "last_seen_round": 1,
-+      "vendor_hits": [
-+        "claude_code"
-+      ],
-+      "description": "Since commit 62590065 a metered lane is refused (spend_context_missing) unless dispatch_and_wait receives a SpendContext, and converge() builds one only when its caller passes the new optional `phase`. The only caller that passes `phase` is agent_lane.py (task 5.6). The host inline converge() call in skills/autopilot/SKILL.md (PLAN_REVIEW fallback, about line 567) and the other host review phases pass no phase, and task 6.4 edits only the cloud review-section text. On a host where D5 selects the metered lane (one non-metered lane), every host converge() round therefore refuses the openrouter lane and ends capability_unavailable. The 'A host-path metered review is recorded' scenario can only pass in a unit test that calls dispatch_and_wait directly. Fix: add a task (or extend 6.4) that makes every host converge() caller in skills/autopilot/SKILL.md pass phase=<PLAN_REVIEW|IMPL_REVIEW|VAL_REVIEW>, or have converge() derive a SpendContext from change_id plus review_type and round when phase is None (accepting the IMPL/VAL collision only for that fallback).",
-+      "consensus_status": "unconfirmed"
-+    },
-+    {
-+      "id": 20,
-+      "status": "open",
-+      "axis": "correctness",
-+      "type": "contract_mismatch",
-+      "criticality": "low",
-+      "evidence_class": "deterministic",
-+      "file_path": "openspec/changes/openrouter-review-lane/tasks.md",
-+      "fingerprint": "f1c36ed5f4930b58",
-+      "first_seen_round": 1,
-+      "last_seen_round": 1,
-+      "vendor_hits": [
-+        "claude_code"
-+      ],
-+      "description": "Task 5.6 bullet 1 still says converge() 'passes work_unit_ref=<change_id>:<phase>:round-<n> to dispatch_and_wait (via _accepts_kwarg)'. After commit 62590065 the design's interface contract table, D4 and task 3.10 define the keyword as `spend_context: SpendContext(change_id, work_unit_ref)`. Groups 3 and 5 implement the two sides of this keyword in separate packages, so an implementer following 5.6 literally would pass a keyword that ReviewOrchestrator.dispatch_and_wait does not accept, and _accepts_kwarg would silently drop it, which leaves every metered dispatch spend_context_missing.",
-+      "consensus_status": "unconfirmed"
-+    },
-+    {
-+      "id": 21,
-+      "status": "open",
-+      "axis": "resilience",
-+      "type": "spec_gap",
-+      "criticality": "medium",
-+      "evidence_class": "deterministic",
-+      "file_path": "openspec/changes/openrouter-review-lane/design.md",
-+      "spec_file": "/home/user/agentic-coding-tools/openspec/changes/openrouter-review-lane/specs/parallel-infrastructure/spec.md",
-+      "fingerprint": "089d8c3780a945cc",
-+      "first_seen_round": 1,
-+      "last_seen_round": 1,
-+      "vendor_hits": [
-+        "claude_code"
-+      ],
-+      "description": "The D4 per-round budget re-check reads metered_usd_used from GET /routing/usage, which counts only ledger rows. Rows that spooled because POST /routing/spend failed are invisible to it. D4 says 'the key's credit limit bounds spend while rows sit in the spool', but when the key limit is null and the coordinator ceiling is the only source, a worker whose GET succeeds while its POST fails (the partly-forbidden coordinator case D4 itself cites: coordinator_projection_forbidden) keeps passing the re-check while every round's spend spools. The bound then fails exactly in the degraded mode that motivated the spool. The Cost abuse bullet in Security and the Risks row on concurrent overspend do not cover it.",
-+      "consensus_status": "unconfirmed"
-     }
-   ],
-   "compacted_at": "2026-10-12T02:46:45Z"
-diff --git a/openspec/changes/openrouter-review-lane/design.md b/openspec/changes/openrouter-review-lane/design.md
-index c4805534..e202146e 100644
---- a/openspec/changes/openrouter-review-lane/design.md
-+++ b/openspec/changes/openrouter-review-lane/design.md
-@@ -171,7 +171,13 @@ work_unit_ref)` and refuses to dispatch a metered lane without one (`spend_conte
- children, spend past the coordinator ceiling. So every time `ReviewOrchestrator.dispatch_and_wait`
- is about to dispatch a metered lane (once per round, on every path, including
- `CompositeOrchestrator`, which calls it), it re-runs the same budget check the probe uses
--(task 3.6) against the current `metered_usd_used`. The check lives in the dispatch layer, next to
-+(task 3.6) against the current `metered_usd_used`. `GET /routing/usage` counts only ledger rows, so
-+for the coordinator source the re-check also counts the `actual_usd` total of the change's
-+unreplayed `reviews/spend-spool.jsonl` rows as used (remaining = `metered_ceiling_usd −
-+metered_usd_used − spooled_usd`); the budget function takes the spooled total as an input, which
-+the probe, having no change context, passes as 0. Without this, a worker whose usage read
-+succeeds while its spend write fails (the partly-forbidden coordinator case below) would keep
-+passing the re-check while every round's spend spools. The check lives in the dispatch layer, next to
- the probe code and the spend recording (task 3.10), not in `converge()`, which stays
- vendor-agnostic and knows nothing about which lanes are metered. A lane whose remaining budget is now below
- `review_reservation_usd` is not dispatched for that round; it is reported as a failed result with
-@@ -391,6 +397,9 @@ re-evaluation is expected and is recorded in the session log.
- - **Concurrent overspend under the coordinator ceiling alone.** The per-round re-check (D4)
-   narrows it to at most one `review_reservation_usd` per concurrently running child; a key
-   credit limit removes it.
-+- **Spooled spend in other workers.** The re-check counts only the current change's spool.
-+  Rows spooled by other workers stay invisible to the coordinator ceiling until `apply` replays
-+  them. A key credit limit bounds this; the cloud setup doc (task 7.1) recommends one.
- 
- ## Open questions (for the operator, recorded as decisions with defaults)
- 
-diff --git a/openspec/changes/openrouter-review-lane/tasks.md b/openspec/changes/openrouter-review-lane/tasks.md
-index 1aafb548..bcbaa420 100644
---- a/openspec/changes/openrouter-review-lane/tasks.md
-+++ b/openspec/changes/openrouter-review-lane/tasks.md
-@@ -167,8 +167,10 @@ dataclass fields and the shared ingest helper extracted in 1.7),
- - [ ] 3.11 Write failing tests, then implement the per-round budget re-check (design D4) in
-   `ReviewOrchestrator.dispatch_and_wait`: before dispatching a metered lane it re-runs the
-   probe's budget function (task 3.6); a lane below `review_reservation_usd` is not dispatched
--  and is returned `vendor_unavailable` (`spend_ceiling_exceeded`). Test: budget available at
--  probe, exhausted before the second dispatch → that dispatch skips the lane, records no spend.
-+  and is returned `vendor_unavailable` (`spend_ceiling_exceeded`). For the coordinator source it
-+  counts the change's unreplayed spool total as used (design D4). Tests: budget available at probe,
-+  exhausted before the second dispatch → that dispatch skips the lane, records no spend; key limit
-+  null, coordinator remaining 1.5, spool total 1.0, reservation 1.0 → the lane is skipped.
- 
- ## 4. Spend recording route and client
- 
-@@ -230,7 +232,8 @@ parallel-infrastructure "Metered Review Lane Spend Accounting" (checkpoint part)
-   does not call `spend_recorder.record()` itself. Update `_review_body` to list the lanes.
- - [ ] 5.6 Write failing tests, then implement:
-   - `converge()` accepts an optional `phase` and, when it is set, passes
--    `work_unit_ref=<change_id>:<phase>:round-<n>` to `dispatch_and_wait` (via `_accepts_kwarg`);
-+    `spend_context=SpendContext(change_id, "<change_id>:<phase>:round-<n>")` to `dispatch_and_wait`
-+    (via `_accepts_kwarg`; the keyword and dataclass are the ones task 3.10 adds);
-     `agent_lane.py` passes its `--phase`.
-   - `converge()` builds the tool-less packet (task 3.8a) when the primary packet overflows, and
-     passes the tool-less packet as `dispatch_and_wait(..., toolless_packet_path=...)` (design D6).
-@@ -252,7 +255,8 @@ parallel-infrastructure "Metered Review Lane Spend Accounting" (checkpoint part)
- ## 6. Supervisor ranking, apply-time replay, and worker protocol
- 
- **Files:** `skills/supervise/scripts/execution.py`, `skills/tests/supervise/test_execution_profile.py`,
--`skills/autopilot/SKILL.md` (the review-section protocol text only)
-+`skills/autopilot/SKILL.md` (the review-section protocol text and the host-path `converge(...)`
-+examples only)
- **Depends:** 3 (the `lane_kinds` shape), 4 (the replay CLI)
- **Specs:** supervise "Execution Profile and Review Requirements" (MODIFIED)
- 
-@@ -266,6 +270,11 @@ parallel-infrastructure "Metered Review Lane Spend Accounting" (checkpoint part)
-   - In cloud, run `agent_lane.py converge --verified-lanes <each lane from execution_profile.lanes.review>`.
-   - A `capability_unavailable` result maps to `runner.py park --kind capability_unavailable`.
-   - Record the degradation `metered_spend_unrecorded` when the result reports it.
-+  - Every host-path `converge(...)` example (the PLAN_REVIEW inline fallback and the IMPL_REVIEW
-+    and VAL_REVIEW equivalents) passes `phase="<PLAN_REVIEW|IMPL_REVIEW|VAL_REVIEW>"`. Without it
-+    `converge()` sends no `spend_context`, and a metered lane that D5 selects on a host is refused
-+    with `spend_context_missing` (task 3.10). Extend the SKILL guard test to assert that each host
-+    `converge(` example names `phase=`.
-   
-   Keep the env-probing guard test green.
- 
-@@ -306,7 +315,7 @@ parallel-infrastructure "Metered Review Lane Spend Accounting" (checkpoint part)
- |---|---|
- | parallel-infrastructure: OpenAI-Compatible Dispatcher Discovery | 2.1–2.3, 3.1–3.4, 3.9 |
- | parallel-infrastructure: Dispatchable Vendor Verification | 1.1–1.2, 3.5–3.7, 3.9 |
--| parallel-infrastructure: Metered Review Lane Spend Accounting | 1.3–1.4, 3.10–3.11, 4.3–4.4, 5.2, 5.5, 5.7 |
-+| parallel-infrastructure: Metered Review Lane Spend Accounting | 1.3–1.4, 3.10–3.11, 4.3–4.4, 5.2, 5.5–5.7, 6.4 |
- | parallel-infrastructure: Tool-less Lane Packet Refusal | 1.5–1.7, 3.8, 3.8a, 5.6 |
- | skill-workflow: Honest Review Quorum | 5.1–5.3 |
- | skill-workflow: Composite Agent-Lane Review | 5.4–5.6, 6.4 |
-
+(empty-diff)
 ```
 
-### Rule groups
-
-#### Group 1 (default: `(default)`)
-Applies to:
-- openspec/changes/openrouter-review-lane/.review-ledger/ledger.json
-- openspec/changes/openrouter-review-lane/design.md
-- openspec/changes/openrouter-review-lane/tasks.md
-
-Review for correctness, security, and adherence to this repository's conventions.
-
 ### Spec excerpts
+#### specs/configuration/spec.md
+## MODIFIED Requirements
+
+### Requirement: Provider Model Mapping Configuration
+
+Provider dispatch configuration SHALL define model mappings for Claude Code, Codex, antigravity, grok, and pi so logical archetypes can resolve to provider-specific model IDs.
+
+The model mapping SHALL conform to `openspec/schemas/provider-model-map.schema.json` (schema_version 2). The provider key set SHALL be closed to the five roster keys, all five required, plus two optional keys: `local` and `openrouter`. `openrouter` holds the model aliases of the endpoint-only `openrouter-review` lane, and is not a roster vendor.
+
+The `pi` provider SHALL resolve to OpenRouter model slugs, and its default model SHALL be `qwen/qwen3-coder`, selected so the roster reaches models outside the subscription harnesses.
+
+#### Scenario: Provider map includes all first-class providers
+
+- **WHEN** the default provider model map is loaded
+- **THEN** it SHALL include entries for `claude_code`, `codex`, `antigravity`, `grok`, and `pi`
+- **AND** each entry SHALL define `premium`, `standard`, and `economy` model IDs
+- **AND** it SHALL NOT include an entry for `gemini`
+
+#### Scenario: Optional provider keys are allowed but not required
+
+- **WHEN** a provider model map carries an `openrouter` entry or a `local` entry
+- **THEN** it SHALL validate, provided the entry defines `premium`, `standard`, and `economy`
+- **AND** a map without either entry SHALL also validate
+- **AND** a map with any other provider key SHALL fail validation
+
+#### Scenario: pi maps to OpenRouter slugs
+
+- **WHEN** the `pi` provider entry is loaded
+- **THEN** every tier value SHALL be an OpenRouter model slug in `<publisher>/<model>` form
+- **AND** the `standard` tier SHALL be `qwen/qwen3-coder`
+
+#### Scenario: Non-Claude provider rejects unmapped Claude alias
+
+- **GIVEN** provider `codex`
+- **AND** an archetype resolves to legacy alias `opus`
+- **WHEN** no Codex mapping exists for that alias or tier
+- **THEN** dispatch resolution SHALL fail with a structured configuration error before invoking Codex
+- **AND** the error SHALL identify the missing provider model mapping
+
+
 #### specs/model-routing/spec.md
 ## ADDED Requirements
 
@@ -758,12 +550,14 @@ summary without failing the apply.
 
 
 ### Open ledger items
-- [13] D6 and tasks 3.8a/5.6 have converge() build a second, tool-less packet and 'pass both paths to dispatch_and_wait', and have dispatch_and_wait hand the tool-less body and its tools_overflow flag to OpenAI-compatible adapters. That needs a new optional dispatch_and_wait parameter (for both ReviewOrchestrator and the CompositeOrchestrator that converge() calls through _accepts_kwarg) and a new tools_overflow keyword on OpenAICompatAdapter.dispatch. Neither is named anywhere, and the cross-cutting interface contract table lists only include_lanes for dispatch_and_wait. Groups 3 and 5 implement the two sides of this interface in separate packages.
-- [14] The Metered Review Lane Spend Accounting requirement says every review an openrouter lane dispatches is recorded with spend_recorder.record(), and acceptance outcome 3 says every OpenRouter review is recorded against the ceiling. The only task that calls record() is 5.5, inside agent_lane's CompositeOrchestrator. D5 also selects the metered lane on a host with fewer than fill_target non-metered lanes (for example one CLI vendor and OPENROUTER_API_KEY in non-OpenBao mode). That review runs through ReviewOrchestrator.dispatch_and_wait from converge() or /parallel-review-*, never through agent_lane, so its spend is neither recorded nor spooled and no metered_spend_unrecorded degradation is raised.
-- [15] The spec fixes work_unit_ref as '<change_id>:<review_type>:round-<n>'. IMPL_REVIEW and VAL_REVIEW both run with review_type 'implementation', so their rows get the same work_unit_ref and spend cannot be split by phase. This is the collision the round-2 fix already removed for the consensus files. Design D4 allows '<phase|review_type>'.
-- [16] D4 and task 5.7 put the per-round budget re-check in converge(). converge() is vendor-agnostic: it receives only verified_lanes and an orchestrator, does not know which lanes are metered, has no coordinator-usage client, and has no way to keep one lane out of a dispatch except through orchestrator-specific kwargs. CompositeOrchestrator already knows the metered lanes and builds include_lanes, so the check fits there, or in ReviewOrchestrator.dispatch_and_wait next to the probe code. Keeping it in converge() widens the converge() signature with routing concerns.
-- [17] The round-1 fix moved spend_recorder.record() into ReviewOrchestrator.dispatch_and_wait, which gets only an optional work_unit_ref and no change id. When the write fails, the spec spools to 'openspec/changes/<change-id>/reviews/spend-spool.jsonl' (spec line 173) and replay runs per change id. A dispatch_and_wait call with work_unit_ref None, such as a one-shot /parallel-review-* run or any caller not yet updated, has no change id, so the failed row has nowhere to go. That metered spend is then neither recorded nor spooled, which is the gap the fix was meant to close.
-- [18] The new 'spend context' row in the interface contract table says dispatch_and_wait adds 'work_unit_ref: str | None' and that a missing value only drops the field from the row. It does not carry the change id that the D4 spool path (openspec/changes/<id>/reviews/spend-spool.jsonl) needs, and it does not say what happens to a metered lane when no context is given.
+- [22] A metered request that OpenRouter accepted but that then failed client-side (read timeout, connection reset, or a 'timed out' error that classifies as UNKNOWN) comes back with models_attempted set and no generation_id. _dispatch_metered then skips recording and leaves spend_recorded=None. The result is no ledger row, no spool entry, and no metered_spend_unrecorded degradation. Spend that may have been billed goes uncounted silently, and later budget rechecks use a total that is too low. The same gap applies to TRANSIENT 500/503 falls-through to the fallback model within one round.
+- [23] When the response has no usage.cost, row_from_review_result sends actual_usd=None (dropped by exclude_none). The server's LedgerService._ledger_row then computes _token_cost with no rates and gets 0.0 (float(rate or 0.0)). The stored row says tokens_estimated=true and actual_usd=0, so the coordinator ceiling, metered_usd_used and spooled_total_usd all count that call as free.
+- [24] The _oneshot_spend_context docstring says archived changes are included, but an output dir of openspec/changes/archive/2026-10-21-<id>/reviews gives change_id='2026-10-21-<id>'. The consequences are a wrong work_unit_ref, and spend_recorder's _change_dir finding neither a live nor an archive (*-<id>) match. Spooling would then create a stray openspec/changes/2026-10-21-<id>/reviews/spend-spool.jsonl tree.
+- [25] _extract_content calls choices[0].get(...) without checking that choices[0] is a dict. A malformed or proxy-mangled 200 response, such as choices: ["..."] or [null], raises AttributeError. The exception escapes dispatch instead of becoming a classified ReviewResult failure, so the lane crashes rather than degrading cleanly.
+- [26] LedgerService.find_by_generation_id has no callers now that POST /routing/spend uses record_once, which calls the atomic record_spend_once RPC from migration 046. It is dead code, and it invites a reintroduction of the non-atomic read-then-insert dedupe.
+- [27] The duplicate_model_family check in select_reviewers looks only at the primary adapter.model. Fallback models go through the anthropic-family rejection in from_config_dict but not through the duplicate-family check. A fallback from a family already served (for example openai/...) could therefore be dispatched after a CAPACITY fallback, which would defeat D2 independence. The current archetypes.yaml fallbacks are all qwen, so this does not happen today.
+- [28] can_dispatch no longer checks for api_key_env. A pi/CLI lane with OPENROUTER_API_KEY unset is now counted as available, and passes --check-vendors through 'pi --version'. It can therefore fill a fill_target slot and then fail with AUTH at dispatch time. This matches design D1 (honest dispatch-time auth failure, classified as capability_unavailable), so it is not a defect; it is noted here as a behaviour change.
+- [29] CompositeOrchestrator gives the inner ReviewOrchestrator include_lanes=others and caller_vendors=(LANE,) but no exclude_vendor. Inner selection can count the claude_code CLI toward fill_target before include_lanes filters it out. On the intended cloud path (claude_code is the only CLI) countable stays at 1, so the metered lane is still selected and the behaviour is correct. Passing exclude_vendor=LANE would make this explicit.
 
 Do not emit findings for issues already in the ledger except to re-verify the open items listed above.
 

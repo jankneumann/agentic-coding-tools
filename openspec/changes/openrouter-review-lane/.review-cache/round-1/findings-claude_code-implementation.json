@@ -57,19 +57,6 @@
     },
     {
       "id": 5,
-      "type": "style",
-      "criticality": "low",
-      "axis": "readability",
-      "severity": "nit",
-      "disposition": "fix",
-      "evidence_class": "deterministic",
-      "file_path": "agent-coordinator/src/model_routing/ledger.py",
-      "line_range": "106-120",
-      "description": "LedgerService.find_by_generation_id has no callers now that POST /routing/spend uses record_once, which calls the atomic record_spend_once RPC from migration 046. It is dead code, and it invites a reintroduction of the non-atomic read-then-insert dedupe.",
-      "resolution": "Remove find_by_generation_id (and any test that only exercises it), or document it as a read-only lookup if intentionally kept."
-    },
-    {
-      "id": 6,
       "type": "architecture",
       "criticality": "low",
       "axis": "architecture",
@@ -82,7 +69,7 @@
       "resolution": "Accept for now; consider checking every model in the fallback chain against selected families when configs grow."
     },
     {
-      "id": 7,
+      "id": 6,
       "type": "compatibility",
       "criticality": "low",
       "axis": "compatibility",
@@ -93,7 +80,7 @@
       "description": "can_dispatch no longer checks for api_key_env. A pi/CLI lane with OPENROUTER_API_KEY unset is now counted as available, and passes --check-vendors through 'pi --version'. It can therefore fill a fill_target slot and then fail with AUTH at dispatch time. This matches design D1 (honest dispatch-time auth failure, classified as capability_unavailable), so it is not a defect; it is noted here as a behaviour change."
     },
     {
-      "id": 8,
+      "id": 7,
       "type": "architecture",
       "criticality": "low",
       "axis": "architecture",

@@ -3,79 +3,32 @@
   "change_id": "openrouter-review-lane",
   "round": 2,
   "body_path": "review-packet.md",
-  "sha256": "92fd02d06a56a8bb56d048f2376928dd6e76386c6c64de2c1d29d47c3434cf3b",
-  "char_length": 50688,
+  "sha256": "b7d34b275d8603f23ee56f3a273a54a052e339cf14528452a7cb969c920b7dd4",
+  "char_length": 33634,
   "budget_chars": 320000,
   "tools_overflow": false,
   "includes_ledger": true,
   "diff_kind": "last_fix",
   "selection": {
     "per_file_token_ceiling": 64000,
-    "selected": [
-      {
-        "path": "openspec/changes/openrouter-review-lane/.review-ledger/ledger.json",
-        "status": "modified",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 3089
-      },
-      {
-        "path": "openspec/changes/openrouter-review-lane/design.md",
-        "status": "modified",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 586
-      },
-      {
-        "path": "openspec/changes/openrouter-review-lane/tasks.md",
-        "status": "modified",
-        "reason": "none",
-        "gate": "passed",
-        "est_tokens": 1070
-      }
-    ],
+    "selected": [],
     "excluded": [
       {
-        "path": "openspec/changes/openrouter-review-lane/.review-cache/round-1/findings-claude_code-plan.json",
+        "path": "openspec/changes/openrouter-review-lane/.review-cache/round-1/findings-claude_code-implementation.json",
         "status": "modified",
         "reason": "generated_path",
         "gate": "generated_path",
-        "est_tokens": 2021
+        "est_tokens": 561
       },
       {
         "path": "openspec/changes/openrouter-review-lane/.review-cache/round-1/review-manifest.json",
         "status": "modified",
         "reason": "generated_path",
         "gate": "generated_path",
-        "est_tokens": 285
-      },
-      {
-        "path": "openspec/changes/openrouter-review-lane/.review-cache/round-1/review-packet.md",
-        "status": "modified",
-        "reason": "generated_path",
-        "gate": "generated_path",
-        "est_tokens": 1452
-      },
-      {
-        "path": "openspec/changes/openrouter-review-lane/.review-cache/round-1/review-packet.meta.json",
-        "status": "modified",
-        "reason": "generated_path",
-        "gate": "generated_path",
-        "est_tokens": 1180
+        "est_tokens": 290
       }
     ],
     "truncated": []
   },
-  "rule_groups": [
-    {
-      "group_id": 1,
-      "source": "default",
-      "pattern": "(default)",
-      "files": [
-        "openspec/changes/openrouter-review-lane/.review-ledger/ledger.json",
-        "openspec/changes/openrouter-review-lane/design.md",
-        "openspec/changes/openrouter-review-lane/tasks.md"
-      ]
-    }
-  ]
+  "rule_groups": []
 }

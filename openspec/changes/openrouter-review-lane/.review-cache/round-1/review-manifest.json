@@ -2,7 +2,7 @@
   "schema_version": 1,
   "change_id": "openrouter-review-lane",
   "review_type": "implementation",
-  "created_at": "2026-10-21T16:33:51Z",
+  "created_at": "2026-10-21T16:36:36Z",
   "target": "openrouter-review-lane",
   "dispatches": [
     {
@@ -12,7 +12,7 @@
       "models_attempted": [
         "agent-lane"
       ],
-      "elapsed_seconds": 248.04106227899956,
+      "elapsed_seconds": 34.00573667200024,
       "error": null,
       "error_class": null
     }
@@ -23,7 +23,7 @@
     {
       "name": "claude_code",
       "findings_path": "findings-claude_code-implementation.json",
-      "finding_count": 8,
+      "finding_count": 7,
       "unanchored_findings": 0,
       "model_used": "agent-lane",
       "generation_id": null,
