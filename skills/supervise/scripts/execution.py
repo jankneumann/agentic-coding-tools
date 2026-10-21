@@ -65,11 +65,15 @@ ProfileProbe = Callable[[Path], tuple[int, str]]
 AncestryCheck = Callable[[Path, str], bool]
 #: ``(repo_root, managed_root, change_id, branch) -> Path``: create a managed worktree.
 WorktreeCreator = Callable[[Path, Path, str, str], Path]
+#: ``(change_id, repo_root) -> outcome``: replay a change's spooled metered spend.
+SpendReplayer = Callable[[str, Path], Mapping[str, Any]]
 
 _REVIEW_PHASES = ("PLAN_REVIEW", "IMPL_REVIEW", "VAL_REVIEW")
 _PROFILE_MODES = ("review", "alternative", "quick")
 _REVIEW_DISPATCHER = _SKILLS_ROOT / "parallel-infrastructure" / "scripts" / "review_dispatcher.py"
 _ROUTING_YAML = _SKILLS_ROOT.parent / "agent-coordinator" / "routing.yaml"
+_SPEND_RECORDER = _SKILLS_ROOT / "parallel-infrastructure" / "scripts" / "spend_recorder.py"
+_UNRECORDED_SPEND = "metered_spend_unrecorded"
 
 
 def _run_profile_probe(repo_root: Path) -> tuple[int, str]:
@@ -84,6 +88,39 @@ def _run_profile_probe(repo_root: Path) -> tuple[int, str]:
         check=False,
     )
     return completed.returncode, completed.stdout
+
+
+def _run_spend_replay(change_id: str, repo_root: Path) -> dict[str, Any]:
+    """Run ``spend_recorder.py replay`` once and return its JSON outcome (D4).
+
+    Exit 1 (rows remain in the spool) is an outcome, not an error; a run that
+    does not print the outcome object raises.
+    """
+    import subprocess
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            str(_SPEND_RECORDER),
+            "replay",
+            "--change-id",
+            change_id,
+            "--repo-root",
+            str(repo_root),
+            "--json",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=False,
+    )
+    try:
+        outcome = json.loads((completed.stdout or "").strip().splitlines()[-1])
+    except (ValueError, IndexError):
+        outcome = None
+    if completed.returncode not in (0, 1) or not isinstance(outcome, dict):
+        raise RuntimeError(f"spend replay failed (exit {completed.returncode})")
+    return outcome
 
 
 def _git_is_ancestor(worktree: Path, commit: str) -> bool:
@@ -506,6 +543,7 @@ class ExecutionAdapter:
         profile_probe: ProfileProbe | None = None,
         ancestry_check: AncestryCheck | None = None,
         worktree_creator: WorktreeCreator | None = None,
+        spend_replayer: SpendReplayer | None = None,
     ) -> None:
         self.managed_worktree_root = managed_worktree_root.resolve()
         # The supervisor's repo root: the base of harness_provided worktree refs
@@ -515,6 +553,7 @@ class ExecutionAdapter:
         self.profile_probe = profile_probe or _run_profile_probe
         self.ancestry_check = ancestry_check or _git_is_ancestor
         self.worktree_creator = worktree_creator or _git_worktree_add
+        self.spend_replayer = spend_replayer or _run_spend_replay
         self.clock = clock
         self.branch_resolver = branch_resolver
         self.commit_resolver = commit_resolver
@@ -1285,6 +1324,9 @@ class ExecutionAdapter:
                 host_id=self.host_id,
                 parked_route=gate_router.has_answer_path,
             )
+            applied["spend_replay"] = self._replay_unrecorded_spend(
+                validated, attempts, repo_root=Path(repo_root)
+            )
             applied["escalation_route"] = self.route_parked_escalations(
                 workspace, batch_id=batch_id, repo_root=repo_root
             )
@@ -1292,6 +1334,39 @@ class ExecutionAdapter:
         finally:
             if temporary_path is not None:
                 temporary_path.unlink(missing_ok=True)
+
+    def _replay_unrecorded_spend(
+        self,
+        results: Sequence[Mapping[str, Any]],
+        attempts: Mapping[str, Mapping[str, Any]],
+        *,
+        repo_root: Path,
+    ) -> dict[str, Any]:
+        """Replay spooled metered spend once per result that reports it (D4).
+
+        The spool lives in the child's worktree. A replay error is reported in
+        the summary and never fails the apply: the degradation stays on the
+        attempt, and a later apply or an operator can replay again.
+        """
+        outcomes: dict[str, Any] = {}
+        for result in results:
+            if not any(
+                isinstance(item, Mapping) and item.get("code") == _UNRECORDED_SPEND
+                for item in result.get("degradations") or []
+            ):
+                continue
+            dispatch_id = str(result["dispatch_id"])
+            change_id = str(result["change_id"])
+            summary: dict[str, Any] = {"change_id": change_id}
+            try:
+                worktree = self._worktree(attempts[dispatch_id]) or repo_root
+                outcome = self.spend_replayer(change_id, worktree)
+                for key in ("replayed", "already_recorded", "remaining", "malformed"):
+                    summary[key] = int(outcome.get(key) or 0)
+            except Exception as exc:  # noqa: BLE001 - replay never fails the apply
+                summary["error"] = f"{type(exc).__name__}: {exc}"[:512]
+            outcomes[dispatch_id] = summary
+        return outcomes
 
     def route_parked_escalations(
         self,

@@ -263,7 +263,7 @@ examples only)
 - [x] 6.1 Write failing tests: `lane_kinds` ranks `openrouter` after `vendor-cli`; a missing
   `lane_kinds` falls back to the old inference.
 - [x] 6.2 Implement the `rank()` change in `resolve_execution_profile` (design D8).
-- [ ] 6.3 Write failing tests, then implement: `ExecutionAdapter.apply` runs
+- [x] 6.3 Write failing tests, then implement: `ExecutionAdapter.apply` runs
   `spend_recorder.py replay` once when a `metered_spend_unrecorded` degradation is present,
   reports the replayed count, and never fails the apply on a replay error.
 - [ ] 6.4 Update the autopilot `SKILL.md` review section with these rules:
