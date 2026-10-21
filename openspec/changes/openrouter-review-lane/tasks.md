@@ -188,13 +188,13 @@ Review Lane Spend Accounting" (record, spool and replay part)
 - [x] 4.2 Implement the `SpendRecordRequest` Pydantic model (`extra="forbid"`), the
   `POST /routing/spend` route, and `LedgerService.find_by_generation_id`. No database
   migration is needed because `generation_id` already exists.
-- [ ] 4.3 Write failing client tests:
+- [x] 4.3 Write failing client tests:
   - `record()` posts the row.
   - On a connection error or 403 it appends to `reviews/spend-spool.jsonl` and returns
     `recorded=False`.
   - `replay --change-id` is idempotent and empties the spool.
   - No API key value appears in the spool.
-- [ ] 4.4 Implement `spend_recorder.py`: `record()`, `replay()`, and a CLI. It authenticates
+- [x] 4.4 Implement `spend_recorder.py`: `record()`, `replay()`, and a CLI. It authenticates
   with the existing coordination-bridge credentials (`COORDINATION_API_URL`/`COORDINATION_API_KEY`,
   read only inside the bridge's credential path).
 
