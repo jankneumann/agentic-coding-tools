@@ -814,6 +814,10 @@ CLOUD_ROSTER_PROVIDER_KEYS = frozenset(
     {"claude_code", "codex", "antigravity", "grok", "pi"}
 )
 ROSTER_PROVIDER_KEYS = CLOUD_ROSTER_PROVIDER_KEYS | {"local"}
+# Endpoint-only review-lane providers (openrouter-review-lane D1). They live
+# in archetypes.yaml model_aliases but are not first-class harness providers,
+# so DEFAULT_PROVIDER_MODEL_MAP does not carry them.
+REVIEW_LANE_PROVIDER_KEYS = frozenset({"openrouter"})
 BASE_MODEL_TIERS = frozenset({"premium", "standard", "economy"})
 
 
@@ -1413,7 +1417,9 @@ class TestExistingProvidersAreByteIdentical:
         existing_providers = sorted(
             p for p in raw["model_aliases"] if p != LOCAL_PROVIDER
         )
-        assert set(existing_providers) == set(CLOUD_ROSTER_PROVIDER_KEYS)
+        assert set(existing_providers) == set(
+            CLOUD_ROSTER_PROVIDER_KEYS | REVIEW_LANE_PROVIDER_KEYS
+        )
 
         # "Before": the same config with the local roster + host class removed.
         del raw["model_aliases"][LOCAL_PROVIDER]
@@ -1705,7 +1711,11 @@ class TestOpenRouterReviewLane:
         assert lane.cli is None
         assert lane.sdk is None
         assert lane.archetypes == ["reviewer"]
-        assert lane.vendor_credentials == ("openrouter",)
+        # Keyless: the OpenBao topology projection rejects a keyless agent
+        # that declares vendor_credentials (no principal can hold them). The
+        # dispatcher reads credential scopes only for agents with a
+        # principal, and falls back to OPENROUTER_API_KEY for this lane.
+        assert lane.vendor_credentials == ()
         assert lane.location == "cloud"
         assert lane.transport == "http"
 
@@ -1728,7 +1738,7 @@ class TestOpenRouterReviewLane:
         assert lane["base_url"] == "https://openrouter.ai/api/v1"
         assert lane["cli"] is None
         assert lane["sdk"] is None
-        assert lane["vendor_credentials"] == ["openrouter"]
+        assert not lane.get("vendor_credentials")
         assert lane["principal_id"] is None
 
 
@@ -1774,3 +1784,35 @@ class TestMeteredCloudCostTier:
         path.write_text(yaml.safe_dump(raw))
         with pytest.raises(ValueError, match="cost tiers must follow"):
             load_routing_policy(path)
+
+    def test_provenance_response_admits_every_cost_tier_id(self) -> None:
+        # Every id the policy can return must survive the API response model.
+        import typing
+
+        from src.model_routing.api import RoutingProvenanceResponse
+        from src.model_routing.routing_policy import load_routing_policy
+
+        annotation = RoutingProvenanceResponse.model_fields["cost_tier"].annotation
+        literal = next(a for a in typing.get_args(annotation) if a is not type(None))
+        allowed = set(typing.get_args(literal))
+        ids = {tier.id for tier in load_routing_policy().document.cost_policy.tiers}
+        assert ids <= allowed
+
+
+class TestCatalogVendorStaysUnambiguous:
+    """The lane shares catalog vendor `openrouter` with pi-local (design D1).
+
+    A routed selection naming catalog vendor `openrouter` must still map to
+    the pi harness: the endpoint-only lane has no CLI/SDK to dispatch a
+    routed task to, so it does not make the vendor ambiguous.
+    """
+
+    def test_openrouter_catalog_vendor_maps_to_pi(self) -> None:
+        from src.agents_config import _provider_for_catalog_vendor
+
+        assert _provider_for_catalog_vendor("openrouter") == "pi"
+
+    def test_pi_catalog_vendor_is_still_openrouter(self) -> None:
+        from src.agents_config import _catalog_vendor_for_provider
+
+        assert _catalog_vendor_for_provider("pi") == "openrouter"

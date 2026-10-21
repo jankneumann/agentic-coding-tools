@@ -15,6 +15,11 @@ cost_policy:
     - id: metered-api
       location: local
       endpoint_kinds: [openrouter]
+    # Cloud OpenRouter lanes (openrouter-review-lane, design D1). Last rung:
+    # it never outranks a subscription tier.
+    - id: metered-api-cloud
+      location: cloud
+      endpoint_kinds: [openrouter]
 
 defaults:
   dispatch_mode: quick

@@ -82,7 +82,7 @@ dataclass fields and the shared ingest helper extracted in 1.7),
     publisher `anthropic`.
   - `RoutingPolicy.cost_tier("cloud", "openrouter")` is not `None` (design D1), and
     `cost_tier("local", "openrouter")` still returns `metered-api`.
-- [ ] 2.2 Add the agent entry (design D1), the `openrouter` provider tier map, and the
+- [x] 2.2 Add the agent entry (design D1), the `openrouter` provider tier map, and the
   `metered-api-cloud` tier (`location: cloud`, `endpoint_kinds: [openrouter]`), appended last to
   `routing.yaml` `cost_policy.tiers`. Choose the
   premium slug from the live OpenRouter model catalog: it must be non-Anthropic and preferably

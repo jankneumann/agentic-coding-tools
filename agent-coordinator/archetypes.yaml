@@ -66,6 +66,20 @@ model_aliases:
     premium: nvidia/nemotron-3-ultra-550b-a55b
     standard: qwen/qwen3-coder
     economy: qwen/qwen3-coder-flash
+  openrouter:
+    # Endpoint-only review lane `openrouter-review` (agents.yaml; OpenSpec
+    # change openrouter-review-lane, design D1/D2). premium is the review
+    # model; standard/economy are its fallbacks (_derived_tier_fallbacks).
+    # Rule: no `anthropic/` publisher, and preferably a family no host CLI
+    # serves (not openai/codex, google/antigravity, xai/grok).
+    # Catalog: GET https://openrouter.ai/api/v1/models (public, no key),
+    # consulted 2026-10-21. The live fetch was unreachable from the
+    # implementing sandbox (DNS), so these slugs are carried from the pi
+    # roster above, last verified against that catalog on 2026-09-13.
+    # Re-verify before relying on them.
+    premium: nvidia/nemotron-3-ultra-550b-a55b
+    standard: qwen/qwen3-coder
+    economy: qwen/qwen3-coder-flash
   # Always-on local host (see local_host_class above). Entries use the extended
   # form {model, total_params_b, active_params_b, reviewed} so the MoE-first
   # rule is validated, not merely documented; `reviewed` is the operator's

@@ -95,7 +95,7 @@ class FallbackOrder(_StrictModel):
 
 
 class CostTier(_StrictModel):
-    id: Literal["subscription-local", "subscription-cloud", "metered-api"]
+    id: Literal["subscription-local", "subscription-cloud", "metered-api", "metered-api-cloud"]
     location: Location
     endpoint_kinds: list[Literal["vendor-cli", "vendor-sdk", "openrouter", "local"]] = Field(
         min_length=1
@@ -109,11 +109,16 @@ class CostTier(_StrictModel):
 
 
 class CostPolicy(_StrictModel):
-    tiers: list[CostTier] = Field(min_length=3, max_length=3)
+    tiers: list[CostTier] = Field(min_length=3, max_length=4)
 
     @model_validator(mode="after")
     def validate_ladder(self) -> CostPolicy:
+        # The three-rung ladder is fixed; the optional fourth rung
+        # metered-api-cloud (cloud OpenRouter lanes, openrouter-review-lane D1)
+        # may only be appended last, so it never outranks a subscription tier.
         expected = ["subscription-local", "subscription-cloud", "metered-api"]
+        if len(self.tiers) == 4:
+            expected = [*expected, "metered-api-cloud"]
         if [tier.id for tier in self.tiers] != expected:
             raise ValueError("cost tiers must follow the declared subscription and metered ladder")
         if len(

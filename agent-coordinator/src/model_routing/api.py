@@ -177,7 +177,10 @@ class RoutingProvenanceResponse(BaseModel):
     persisted: bool
     durable_audit: bool
     catalog_key: tuple[str, str, str, str | None] | None
-    cost_tier: Literal["subscription-local", "subscription-cloud", "metered-api"] | None = None
+    cost_tier: (
+        Literal["subscription-local", "subscription-cloud", "metered-api", "metered-api-cloud"]
+        | None
+    ) = None
 
 
 class CandidateResponse(BaseModel):

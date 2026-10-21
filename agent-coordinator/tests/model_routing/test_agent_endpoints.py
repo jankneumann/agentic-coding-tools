@@ -111,5 +111,7 @@ def test_bundled_registry_declares_lane_identity_and_reporter_capability() -> No
         assert loaded[name].location == raw["location"]
         assert loaded[name].policy_vendor == raw["policy_vendor"]
         assert loaded[name].catalog_vendor == raw["catalog_vendor"]
-        if loaded[name].trust_level < 3 and name != "ocr-local":
+        # Keyless agents (ocr-local, the openrouter-review lane) hold no
+        # coordinator identity, so they cannot call report_vendor_rate_limit.
+        if loaded[name].trust_level < 3 and loaded[name].api_key is not None:
             assert "vendor_limit_reporter" in loaded[name].capabilities, name
