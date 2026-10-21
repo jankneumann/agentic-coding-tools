@@ -208,11 +208,11 @@ value), `skills/tests/autopilot/test_agent_lane.py`, `skills/tests/autopilot/tes
 **Specs:** skill-workflow "Honest Review Quorum" (MODIFIED), "Composite Agent-Lane Review";
 parallel-infrastructure "Metered Review Lane Spend Accounting" (checkpoint part)
 
-- [ ] 5.1 Write failing tests: in round 2 the OpenRouter lane fails `vendor_unavailable` →
+- [x] 5.1 Write failing tests: in round 2 the OpenRouter lane fails `vendor_unavailable` →
   `capability_unavailable` with `missing_lanes == ["openrouter"]`; an `unknown` failure →
   `quorum_lost`; a verified lane with no result and no recorded failure → `quorum_lost`
   (`missing_lanes` = verified − succeeded, never vacuous).
-- [ ] 5.2 Implement the mid-run capability mapping in `converge()` (design D7). Write
+- [x] 5.2 Implement the mid-run capability mapping in `converge()` (design D7). Write
   `generation_id`, `prompt_tokens`, `completion_tokens`, `cost_usd` and `cost_source` into the
   round checkpoint's vendor index.
 - [ ] 5.3 Add `metered_spend_unrecorded` to the `Degradation.code` enum in
