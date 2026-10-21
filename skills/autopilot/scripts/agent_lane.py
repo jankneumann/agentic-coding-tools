@@ -237,6 +237,9 @@ class CompositeOrchestrator:
                     include_lanes=self.include_lanes,
                     toolless_packet_path=toolless_packet_path,
                     spend_context=spend_context,
+                    # the handshake lane reviews this round too, so the
+                    # dispatcher's subset is not a single-vendor review
+                    caller_vendors=(LANE,),
                 ))
             except BaseException as exc:  # noqa: BLE001 - re-raised in the caller's thread
                 review_errors.append(exc)
