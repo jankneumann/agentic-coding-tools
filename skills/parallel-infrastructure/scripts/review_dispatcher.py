@@ -2532,6 +2532,28 @@ def _dispatch_with_snapshot_fallback(
             destroy_review_snapshot(snapshot, cwd)
 
 
+def _packet_sidecar_path(body_path: Path) -> Path:
+    """``review-packet[.toolless].md`` -> ``review-packet[.toolless].meta.json``."""
+    name = body_path.name
+    stem = name[: -len(".md")] if name.endswith(".md") else body_path.stem
+    return body_path.with_name(f"{stem}.meta.json")
+
+
+def _packet_tools_overflow(body_path: Path | None) -> bool:
+    """The ``tools_overflow`` flag of a packet's sidecar (design D6).
+
+    A packet without a readable sidecar is treated as not overflowing, which
+    keeps callers that pass a bare prompt (no packet) unchanged.
+    """
+    if body_path is None:
+        return False
+    try:
+        data = json.loads(_packet_sidecar_path(body_path).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    return bool(isinstance(data, dict) and data.get("tools_overflow"))
+
+
 # ---------------------------------------------------------------------------
 # Lane policy: model families and metered fill (openrouter-review-lane D2/D5)
 # ---------------------------------------------------------------------------
@@ -3317,6 +3339,7 @@ class ReviewOrchestrator:
         result_callback: Callable[[ReviewResult, int], None] | None = None,
         *,
         include_lanes: list[str] | tuple[str, ...] | set[str] | None = None,
+        toolless_packet_path: Path | str | None = None,
     ) -> list[ReviewResult]:
         """Dispatch reviews to available vendors concurrently and collect results.
 
@@ -3329,6 +3352,14 @@ class ReviewOrchestrator:
         ``include_lanes`` (agent ids or vendor names) restricts dispatch to
         those selected lanes; selection itself (family and fill rules) runs
         first over the whole roster.
+
+        OpenAI-compatible (HTTP) lanes cannot read files (design D6). They
+        receive ``toolless_packet_path``'s body when given, else ``prompt``,
+        together with the ``tools_overflow`` flag from the sidecar of the
+        packet they receive (``review-packet.toolless.meta.json`` /
+        ``review-packet.meta.json`` next to the body); an overflowing packet
+        is refused by the adapter without a request. CLI and SDK lanes always
+        receive ``prompt``.
         """
         reviewers = self.discover_reviewers(
             exclude_vendor=exclude_vendor,
@@ -3363,6 +3394,17 @@ class ReviewOrchestrator:
         if packet is not None:
             logger.info("Review packet path: %s", packet)
         round_id = _round_id_from_packet(packet)
+        http_prompt, http_tools_overflow = prompt, _packet_tools_overflow(packet)
+        if toolless_packet_path is not None:
+            toolless = Path(toolless_packet_path)
+            try:
+                http_prompt = toolless.read_text(encoding="utf-8")
+                http_tools_overflow = _packet_tools_overflow(toolless)
+            except OSError as exc:
+                logger.warning(
+                    "Tool-less packet unreadable (%s); HTTP lanes get the primary packet",
+                    type(exc).__name__,
+                )
 
         from review_findings_schema import timeout_for_vendor
 
@@ -3509,10 +3551,12 @@ class ReviewOrchestrator:
                     partial(
                         openai_adapter.dispatch,
                         dispatch_mode,
-                        prompt,
+                        http_prompt,
                         cwd,
                         vendor_timeout,
                         api_key,
+                        transport=self.openai_transport,
+                        tools_overflow=http_tools_overflow,
                     ),
                 ))
 

@@ -3499,3 +3499,148 @@ class TestOpenRouterCredentialSentinel:
             assert {"vendor": "openrouter", "reason": "auth_failed"} in (
                 report["modes"]["review"]["unverified"]
             )
+
+
+
+# ---------------------------------------------------------------------------
+# openrouter-review-lane: packet sidecars reach HTTP lanes (design D6, 3.8/3.8a)
+# ---------------------------------------------------------------------------
+
+
+def _write_packet(directory: Path, body: str, *, tools_overflow: bool, toolless: bool = False):
+    directory.mkdir(parents=True, exist_ok=True)
+    stem = "review-packet.toolless" if toolless else "review-packet"
+    body_path = directory / f"{stem}.md"
+    body_path.write_text(body, encoding="utf-8")
+    (directory / f"{stem}.meta.json").write_text(
+        json.dumps({"tools_overflow": tools_overflow}), encoding="utf-8",
+    )
+    return body_path
+
+
+class _ChatTransport:
+    """Chat-completions stand-in: records requests, returns a valid review."""
+
+    def __init__(self) -> None:
+        self.prompts: list[str] = []
+
+    def __call__(self, url: str, headers: dict[str, str], payload: dict, timeout: float):
+        self.prompts.append(payload["messages"][-1]["content"])
+        return {
+            "id": "gen-test-1",
+            "choices": [{"message": {"content": json.dumps({"findings": []})}}],
+            "usage": {"prompt_tokens": 1, "completion_tokens": 1},
+        }
+
+
+class TestPacketSidecarToHttpLanes:
+    def _local_orch(self, lane_models) -> ReviewOrchestrator:
+        lane_models["gx10"] = ("meta/llama-4", [])
+        orch = ReviewOrchestrator.from_config_dict(
+            {"agents": [_local_agent("gx10-local", "gx10")]}, lane_policy=_POLICY,
+        )
+        adapter = orch.openai_adapters["gx10-local"]
+        adapter.dispatch = MagicMock(return_value=ReviewResult(vendor="gx10", success=True))
+        return orch
+
+    def test_primary_sidecar_overflow_flag_is_passed_to_openai_adapter(
+        self, lane_models, tmp_path: Path,
+    ) -> None:
+        orch = self._local_orch(lane_models)
+        packet = _write_packet(tmp_path / "r1", "PRIMARY", tools_overflow=True)
+        orch.dispatch_and_wait("plan", "review", "PRIMARY", tmp_path, packet_path=packet)
+        call = orch.openai_adapters["gx10-local"].dispatch.call_args
+        assert call.kwargs["tools_overflow"] is True
+        assert call.args[1] == "PRIMARY"
+
+    def test_missing_sidecar_means_no_overflow(self, lane_models, tmp_path: Path) -> None:
+        orch = self._local_orch(lane_models)
+        orch.dispatch_and_wait("plan", "review", "PRIMARY", tmp_path)
+        call = orch.openai_adapters["gx10-local"].dispatch.call_args
+        assert call.kwargs["tools_overflow"] is False
+
+    def test_overflowing_packet_is_refused_without_a_request(
+        self, lane_models, tmp_path: Path, no_chat_calls,
+    ) -> None:
+        lane_models["gx10"] = ("meta/llama-4", [])
+        transport = _ChatTransport()
+        orch = ReviewOrchestrator.from_config_dict(
+            {"agents": [_local_agent("gx10-local", "gx10")]},
+            lane_policy=_POLICY, openai_transport=transport,
+        )
+        packet = _write_packet(tmp_path / "r1", "PRIMARY", tools_overflow=True)
+        [result] = orch.dispatch_and_wait(
+            "plan", "review", "PRIMARY", tmp_path, packet_path=packet,
+        )
+        assert result.success is False
+        assert result.error == "packet_requires_tools"
+        assert transport.prompts == []
+
+    def test_toolless_packet_goes_to_http_lanes_and_primary_to_cli(
+        self, lane_models, tmp_path: Path,
+    ) -> None:
+        lane_models["gx10"] = ("meta/llama-4", [])
+        orch = ReviewOrchestrator.from_config_dict(
+            {"agents": [_cli_agent("codex-local", "codex"), _local_agent("gx10-local", "gx10")]},
+            lane_policy=_POLICY,
+        )
+        orch.adapters["codex-local"].dispatch = MagicMock(
+            return_value=ReviewResult(vendor="codex", success=True),
+        )
+        orch.openai_adapters["gx10-local"].dispatch = MagicMock(
+            return_value=ReviewResult(vendor="gx10", success=True),
+        )
+        round_dir = tmp_path / "r1"
+        primary = _write_packet(round_dir, "PRIMARY", tools_overflow=True)
+        toolless = _write_packet(round_dir, "TOOLLESS", tools_overflow=False, toolless=True)
+
+        with _on_path("codex"):
+            results = orch.dispatch_and_wait(
+                "plan", "review", "PRIMARY", tmp_path,
+                packet_path=primary, toolless_packet_path=toolless,
+            )
+
+        assert sorted(r.vendor for r in results) == ["codex", "gx10"]
+        assert orch.adapters["codex-local"].dispatch.call_args.args[1] == "PRIMARY"
+        http_call = orch.openai_adapters["gx10-local"].dispatch.call_args
+        assert http_call.args[1] == "TOOLLESS"
+        assert http_call.kwargs["tools_overflow"] is False
+
+    def test_toolless_packet_that_overflows_is_still_refused(
+        self, lane_models, tmp_path: Path, no_chat_calls,
+    ) -> None:
+        lane_models["gx10"] = ("meta/llama-4", [])
+        transport = _ChatTransport()
+        orch = ReviewOrchestrator.from_config_dict(
+            {"agents": [_local_agent("gx10-local", "gx10")]},
+            lane_policy=_POLICY, openai_transport=transport,
+        )
+        round_dir = tmp_path / "r1"
+        primary = _write_packet(round_dir, "PRIMARY", tools_overflow=True)
+        toolless = _write_packet(round_dir, "TOOLLESS", tools_overflow=True, toolless=True)
+        [result] = orch.dispatch_and_wait(
+            "plan", "review", "PRIMARY", tmp_path,
+            packet_path=primary, toolless_packet_path=toolless,
+        )
+        assert result.error == "packet_requires_tools"
+        assert transport.prompts == []
+
+    def test_toolless_packet_body_reaches_the_http_transport(
+        self, lane_models, tmp_path: Path, no_chat_calls,
+    ) -> None:
+        lane_models["gx10"] = ("meta/llama-4", [])
+        transport = _ChatTransport()
+        orch = ReviewOrchestrator.from_config_dict(
+            {"agents": [_local_agent("gx10-local", "gx10")]},
+            lane_policy=_POLICY, openai_transport=transport,
+        )
+        round_dir = tmp_path / "r1"
+        primary = _write_packet(round_dir, "PRIMARY", tools_overflow=True)
+        toolless = _write_packet(round_dir, "TOOLLESS-BODY", tools_overflow=False, toolless=True)
+        orch.dispatch_and_wait(
+            "plan", "review", "PRIMARY", tmp_path,
+            packet_path=primary, toolless_packet_path=toolless,
+        )
+        assert len(transport.prompts) == 1
+        assert "TOOLLESS-BODY" in transport.prompts[0]
+        assert "PRIMARY" not in transport.prompts[0]

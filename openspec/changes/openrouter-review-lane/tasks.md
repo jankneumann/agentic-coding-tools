@@ -137,9 +137,9 @@ dataclass fields and the shared ingest helper extracted in 1.7),
   `probe_unsupported` for SDK lanes.
 - [x] 3.7 Extend the existing credential-sentinel test to cover `OPENROUTER_API_KEY` and an
   OpenRouter lane with an echoing transport.
-- [ ] 3.8 Write a failing test, then implement: `dispatch_and_wait` reads `tools_overflow` from
+- [x] 3.8 Write a failing test, then implement: `dispatch_and_wait` reads `tools_overflow` from
   the packet sidecar next to `packet_path` and passes it to OpenAI-compatible adapters.
-- [ ] 3.8a Write failing tests, then implement in `review_packet.py`: a `build_toolless_packet`
+- [x] 3.8a Write failing tests, then implement in `review_packet.py`: a `build_toolless_packet`
   (design D6) and its `review-packet.toolless.meta.json` sidecar. Tests:
   - For `review_type="plan"`, a branch whose full diff overflows `BUDGET_CHARS` yields a tool-less
     packet with `tools_overflow: false` that contains the full `proposal.md`, `design.md`,
