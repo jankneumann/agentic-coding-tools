@@ -317,8 +317,8 @@ examples only)
   provider model map, with a schema test.
 - [ ] 8.3 Make the `generation_id` dedupe in `POST /routing/spend` atomic (unique constraint plus
   `ON CONFLICT DO NOTHING`) and add a concurrent-duplicate test.
-- [ ] 8.4 Suppress the misleading "Cross-vendor review NOT CHECKED" stderr inside the composite lane.
-- [ ] 8.5 Find and fix the shared-state leak behind the order-dependent
+- [x] 8.4 Suppress the misleading "Cross-vendor review NOT CHECKED" stderr inside the composite lane.
+- [x] 8.5 Find and fix the shared-state leak behind the order-dependent
   `test_relayed_gate_answer` stale-ref test.
 - [x] 8.6 Record the as-built notes in `design.md` (D1 credentials, D5 fill rule, spend on empty
   findings, null `phase_archetype`).
