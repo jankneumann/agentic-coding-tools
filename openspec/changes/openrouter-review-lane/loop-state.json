@@ -1,9 +1,9 @@
 {
   "schema_version": 6,
   "change_id": "openrouter-review-lane",
-  "current_phase": "PLAN_REVIEW",
+  "current_phase": "IMPLEMENT",
   "iteration": 0,
-  "total_iterations": 10,
+  "total_iterations": 11,
   "max_phase_iterations": 3,
   "findings_trend": [],
   "blocking_findings": [],
@@ -44,11 +44,16 @@
       "at": "2026-10-13T00:52:14.849282+00:00",
       "outcome": "max_iter",
       "phase": "PLAN_REVIEW"
+    },
+    {
+      "phase": "PLAN_REVIEW",
+      "outcome": "operator_accept",
+      "at": "2026-10-21T14:35:56.595019+00:00"
     }
   ],
   "last_handoff_id": "local:plan-review-openrouter-review-lane-20261013T0048Z",
   "started_at": "2026-10-10T10:48:36.099038+00:00",
-  "phase_started_at": "2026-10-15T11:13:56.724731+00:00",
+  "phase_started_at": "2026-10-21T14:35:56.595027+00:00",
   "previous_phase": "PLAN_REVIEW",
   "escalation_reason": "PLAN_REVIEW transitioned to ESCALATE via outcome 'max_iter'",
   "val_review_enabled": true,
@@ -235,18 +240,31 @@
       "phase": "ESCALATE",
       "recorded_at": "2026-10-15T11:13:56.724300+00:00",
       "note": null
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' approved by the operator",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "human",
+        "approval_ref": "gate-decision:ad5b460d-fdc9-4f7a-a15d-3be473dbcb29"
+      },
+      "disposition": "block",
+      "phase": "PLAN_REVIEW",
+      "recorded_at": "2026-10-21T14:35:56.594832+00:00",
+      "note": null
     }
   ],
   "pending_gate": null,
   "goal_gate": null,
-  "park": {
-    "kind": "capability_unavailable",
-    "phase": "PLAN_REVIEW",
-    "missing_lanes": [
-      "openrouter"
-    ],
-    "reason": "check-vendors verifies only claude_code; no OpenRouter HTTP review lane exists yet (openrouter-review agent, adapter probe and CompositeOrchestrator are this change's unimplemented tasks 1-6). OPENROUTER_API_KEY present and openrouter.ai allow-listed, but no dispatcher path consumes them. Quorum 2 requested by supervisor; refusing to review below it."
-  },
+  "park": null,
   "degradations": [
     {
       "code": "coordinator_projection_forbidden",
