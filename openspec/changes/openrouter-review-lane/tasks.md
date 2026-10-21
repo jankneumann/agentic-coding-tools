@@ -147,7 +147,7 @@ dataclass fields and the shared ingest helper extracted in 1.7),
   - For `implementation`, the dropped files appear in `coverage.skipped`.
   - `dispatch_and_wait` passes the tool-less body and flag to OpenAI-compatible adapters, and the
     primary body to CLI lanes.
-- [ ] 3.9 Integration test: with the repository's `agents.yaml`, an injected transport and no
+- [x] 3.9 Integration test: with the repository's `agents.yaml`, an injected transport and no
   `pi`/`codex` binaries on `PATH`, `--check-vendors --json` lists `openrouter` as verified and
   maps it to `openrouter` in `lane_kinds`.
 - [ ] 3.10 Write failing tests, then implement: `ReviewOrchestrator.dispatch_and_wait` calls
