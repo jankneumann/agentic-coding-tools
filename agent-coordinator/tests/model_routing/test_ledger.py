@@ -42,6 +42,37 @@ async def test_record_computes_actual_and_metered_counterfactual() -> None:
 
 
 @pytest.mark.asyncio
+async def test_record_once_sends_the_computed_row_to_the_atomic_rpc() -> None:
+    db = _db()
+    db.rpc = AsyncMock(
+        side_effect=lambda _fn, params: {"created": False, "row": {"id": 7, **params["p_row"]}}
+    )
+    ledger = LedgerService(db)
+
+    row, created = await ledger.record_once(
+        UsageRecord(
+            vendor="openrouter",
+            model="review-model",
+            endpoint_kind="openrouter",
+            prompt_tokens=1_000_000,
+            actual_prompt_usd_per_mtok=2.0,
+            generation_id="gen-1",
+            occurred_at=datetime(2026, 10, 1, tzinfo=UTC),
+        )
+    )
+
+    db.rpc.assert_awaited_once()
+    function_name, params = db.rpc.await_args.args
+    assert function_name == "record_spend_once"
+    assert params["p_row"]["generation_id"] == "gen-1"
+    assert params["p_row"]["actual_usd"] == pytest.approx(2.0)
+    assert params["p_row"]["occurred_at"] == "2026-10-01T00:00:00+00:00"
+    assert "actual_prompt_usd_per_mtok" not in params["p_row"]
+    db.insert.assert_not_awaited()
+    assert (row["id"], created) == (7, False)
+
+
+@pytest.mark.asyncio
 async def test_usage_summary_can_exclude_estimated_entries() -> None:
     db = _db(
         [

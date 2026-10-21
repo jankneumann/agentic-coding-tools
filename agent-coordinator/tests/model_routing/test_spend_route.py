@@ -6,12 +6,14 @@ The route writes one ``routing_spend_ledger`` row per metered review through
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Iterator
 from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import AsyncMock, patch
 from urllib.parse import unquote
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 
@@ -23,8 +25,20 @@ from src.model_routing.ledger import LedgerService
 _TEST_KEY = "spend-route-test-key"
 
 
+class UniqueViolationError(Exception):
+    """What the fake raises where PostgreSQL would raise ``23505``."""
+
+
 class _MemoryDb:
-    """In-memory ``routing_spend_ledger`` honouring the ``generation_id=eq.`` filter."""
+    """In-memory ``routing_spend_ledger`` mirroring migration 046.
+
+    It honours the ``generation_id=eq.`` filter, enforces the partial unique
+    index on ``generation_id`` (a plain ``insert`` of a duplicate raises, as
+    PostgreSQL would), and implements ``record_spend_once`` as one atomic step,
+    like its ``INSERT ... ON CONFLICT DO NOTHING``. ``query`` yields to the
+    event loop so concurrent callers interleave the way they would over a real
+    connection; a lookup-then-insert therefore races here exactly as in prod.
+    """
 
     def __init__(self) -> None:
         self.rows: list[dict[str, Any]] = []
@@ -33,6 +47,7 @@ class _MemoryDb:
         self, table: str, query_params: str | None = None, select: str = "*"
     ) -> list[dict[str, Any]]:
         assert table == "routing_spend_ledger"
+        await asyncio.sleep(0)
         rows = list(self.rows)
         for clause in (query_params or "").split("&"):
             key, _, expr = clause.partition("=")
@@ -41,14 +56,36 @@ class _MemoryDb:
                 rows = [row for row in rows if row.get("generation_id") == wanted]
         return rows
 
-    async def insert(
-        self, table: str, data: dict[str, Any], return_data: bool = True
-    ) -> dict[str, Any]:
-        assert table == "routing_spend_ledger"
+    def _existing(self, generation_id: Any) -> dict[str, Any] | None:
+        if generation_id is None:
+            return None
+        return next(
+            (row for row in self.rows if row.get("generation_id") == generation_id), None
+        )
+
+    def _append(self, data: dict[str, Any]) -> dict[str, Any]:
         row = {"id": len(self.rows) + 1, **data}
         row.setdefault("occurred_at", datetime.now(UTC).isoformat())
         self.rows.append(row)
         return row
+
+    async def insert(
+        self, table: str, data: dict[str, Any], return_data: bool = True
+    ) -> dict[str, Any]:
+        assert table == "routing_spend_ledger"
+        await asyncio.sleep(0)
+        if self._existing(data.get("generation_id")) is not None:
+            raise UniqueViolationError(data["generation_id"])
+        return self._append(data)
+
+    async def rpc(self, function_name: str, params: dict[str, Any]) -> Any:
+        assert function_name == "record_spend_once"
+        await asyncio.sleep(0)
+        data = params["p_row"]
+        existing = self._existing(data.get("generation_id"))
+        if existing is not None:
+            return {"created": False, "row": existing}
+        return {"created": True, "row": self._append(data)}
 
 
 @pytest.fixture()
@@ -128,6 +165,30 @@ def test_duplicate_generation_id_returns_200_without_second_row(
     assert second.status_code == 200
     assert second.json()["id"] == first.json()["id"]
     assert [row["generation_id"] for row in memory_db.rows] == ["gen-abc"]
+
+
+@pytest.mark.asyncio
+async def test_concurrent_duplicate_generation_id_writes_exactly_one_row(
+    client: TestClient, memory_db: _MemoryDb
+) -> None:
+    """Concurrent posts of one generation: one 201, the rest 200, one row.
+
+    A lookup-then-insert lets every racer miss the lookup and insert; the
+    dedupe has to be decided by the database's unique index in one step.
+    """
+    transport = httpx.ASGITransport(app=client.app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as http:
+        responses = await asyncio.gather(
+            *(
+                http.post("/routing/spend", headers=_headers(), json=_body())
+                for _ in range(5)
+            )
+        )
+
+    statuses = sorted(response.status_code for response in responses)
+    assert statuses == [200, 200, 200, 200, 201]
+    assert [row["generation_id"] for row in memory_db.rows] == ["gen-abc"]
+    assert {response.json()["id"] for response in responses} == {memory_db.rows[0]["id"]}
 
 
 @pytest.mark.parametrize(

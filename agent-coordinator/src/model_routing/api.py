@@ -365,7 +365,7 @@ class _Ledger(Protocol):
 
     async def record(self, record: Any) -> dict[str, Any]: ...
 
-    async def find_by_generation_id(self, generation_id: str) -> dict[str, Any] | None: ...
+    async def record_once(self, record: Any) -> tuple[dict[str, Any], bool]: ...
 
 
 class RoutingUnavailableError(RuntimeError):
@@ -878,15 +878,12 @@ class RoutingService:
     async def record_spend(self, request: SpendRecordRequest) -> tuple[dict[str, Any], bool]:
         """Write one spend row unless its ``generation_id`` is already recorded.
 
-        Returns ``(row, created)``. The lookup-then-insert is not atomic; two
-        concurrent posts of the same generation can both insert. Callers
-        (``spend_recorder``) post each generation once and replay serially.
+        Returns ``(row, created)``. The dedupe is atomic: the ledger inserts
+        with ``ON CONFLICT DO NOTHING`` against the unique index on
+        ``generation_id`` (migration 046) and otherwise returns the row already
+        recorded, so concurrent posts of one generation write exactly one row.
         """
-        existing = await self.ledger.find_by_generation_id(request.generation_id)
-        if existing is not None:
-            return existing, False
-        row = await self.ledger.record(request.model_dump(exclude_none=True))
-        return row, True
+        return await self.ledger.record_once(request.model_dump(exclude_none=True))
 
     async def post_feedback(self, event: FeedbackEvent) -> dict[str, bool]:
         """Accept feedback without coupling callers to aggregation cadence."""

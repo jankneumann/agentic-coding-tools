@@ -68,6 +68,7 @@ REQUIRED_FUNCTIONS = [
     "is_domain_allowed",
     "upsert_vendor_probe_state",
     "persist_vendor_probe_state",
+    "record_spend_once",
     "record_vendor_rate_limit",
     "compact_vendor_rate_limits",
     "mutate_issue_if_unowned",
@@ -877,3 +878,153 @@ async def test_watchdog_stale_agent_sweep_runs_against_the_migrated_schema(
         assert held == 0
     finally:
         await conn.close()
+
+
+def _spend_row(generation_id: str | None, **overrides: object) -> dict[str, object]:
+    row: dict[str, object] = {
+        "vendor": "openrouter",
+        "model": "review-model",
+        "endpoint_kind": "openrouter",
+        "prompt_tokens": 1200,
+        "completion_tokens": 300,
+        "actual_usd": 0.0042,
+        "counterfactual_usd": 0.0,
+        "tokens_estimated": False,
+        "work_unit_ref": "openrouter-review-lane:VAL_REVIEW:round-2",
+    }
+    if generation_id is not None:
+        row["generation_id"] = generation_id
+    row.update(overrides)
+    return row
+
+
+async def test_046_concurrent_spend_posts_write_one_row(migrated_database) -> None:
+    """Migration 046: concurrent record_spend_once calls for one generation
+    insert exactly one row; every other caller gets that row back."""
+    from src.config import PostgresConfig
+    from src.db_postgres import DirectPostgresClient
+    from src.model_routing.ledger import LedgerService
+
+    dsn, _applied = migrated_database
+    client = DirectPostgresClient(PostgresConfig(dsn=dsn, pool_min=1, pool_max=8))
+    try:
+        ledger = LedgerService(client)
+        results = await asyncio.gather(
+            *(ledger.record_once(_spend_row("gen-race")) for _ in range(8))
+        )
+    finally:
+        await client.close()
+
+    assert sorted(created for _row, created in results) == [False] * 7 + [True]
+    assert len({row["id"] for row, _created in results}) == 1
+    conn = await _connect(dsn)
+    try:
+        count = await conn.fetchval(
+            "SELECT count(*) FROM routing_spend_ledger WHERE generation_id = 'gen-race'"
+        )
+        assert count == 1
+        # A plain insert of the same generation is now refused by the index.
+        with pytest.raises(asyncpg.UniqueViolationError):
+            await conn.execute(
+                "INSERT INTO routing_spend_ledger (vendor, model, endpoint_kind, generation_id) "
+                "VALUES ('openrouter', 'review-model', 'openrouter', 'gen-race')"
+            )
+        # Rows without a generation are outside the partial index.
+        for _ in range(2):
+            await conn.execute(
+                "INSERT INTO routing_spend_ledger (vendor, model, endpoint_kind) "
+                "VALUES ('claude', 'review-model', 'vendor-cli')"
+            )
+    finally:
+        await conn.close()
+
+
+async def test_046_upgrade_keeps_the_earliest_duplicate(tmp_path) -> None:
+    """A pre-046 ledger may already hold duplicates from the old race; the
+    migration keeps the lowest id per generation and then builds the index."""
+    if not _postgres_available:
+        pytest.skip("PostgreSQL not running (start with: docker-compose up -d)")
+
+    name = f"migtest_{uuid.uuid4().hex[:12]}"
+    try:
+        admin = await asyncio.wait_for(_connect(POSTGRES_DSN), timeout=ADMIN_TIMEOUT)
+    except (TimeoutError, OSError) as exc:
+        pytest.skip(f"could not reach PostgreSQL to create a test database: {exc}")
+    try:
+        await admin.execute(f'CREATE DATABASE "{name}"')
+    except asyncpg.InsufficientPrivilegeError:
+        pytest.skip("role may not CREATE DATABASE")
+    finally:
+        await admin.close()
+
+    dsn = _admin_dsn_for(name)
+    pre_dir = tmp_path / "pre046"
+    post_dir = tmp_path / "post046"
+    pre_dir.mkdir()
+    post_dir.mkdir()
+    for sequence, filename, path in discover_migrations():
+        if sequence < 46:
+            (pre_dir / filename).symlink_to(path)
+        elif sequence == 46:
+            (post_dir / filename).symlink_to(path)
+
+    try:
+        try:
+            await asyncio.wait_for(
+                run_migrations(dsn, migrations_dir=pre_dir), timeout=MIGRATE_TIMEOUT
+            )
+        except asyncpg.FeatureNotSupportedError as exc:
+            if "vector" in str(exc):
+                pytest.skip("pgvector extension not installed on this server")
+            raise
+        conn = await _connect(dsn)
+        try:
+            insert = (
+                "INSERT INTO routing_spend_ledger "
+                "(vendor, model, endpoint_kind, generation_id, actual_usd) "
+                "VALUES ('openrouter', 'review-model', 'openrouter', $1, $2) RETURNING id"
+            )
+            first = await conn.fetchval(insert, "gen-dup", 0.01)
+            await conn.fetchval(insert, "gen-dup", 0.02)
+            await conn.fetchval(insert, "gen-dup", 0.03)
+            single = await conn.fetchval(insert, "gen-single", 0.04)
+            await conn.fetchval(insert, None, 0.05)
+            await conn.fetchval(insert, None, 0.06)
+        finally:
+            await conn.close()
+
+        await asyncio.wait_for(
+            run_migrations(dsn, migrations_dir=post_dir), timeout=MIGRATE_TIMEOUT
+        )
+
+        conn = await _connect(dsn)
+        try:
+            kept = await conn.fetch(
+                "SELECT id, generation_id FROM routing_spend_ledger "
+                "WHERE generation_id IS NOT NULL ORDER BY id"
+            )
+            assert [(r["id"], r["generation_id"]) for r in kept] == [
+                (first, "gen-dup"),
+                (single, "gen-single"),
+            ]
+            nulls = await conn.fetchval(
+                "SELECT count(*) FROM routing_spend_ledger WHERE generation_id IS NULL"
+            )
+            assert nulls == 2
+            result = await conn.fetchval(
+                "SELECT record_spend_once($1::jsonb)", json.dumps(_spend_row("gen-dup"))
+            )
+            decoded = json.loads(result)
+            assert decoded["created"] is False
+            assert decoded["row"]["id"] == first
+        finally:
+            await conn.close()
+    finally:
+        try:
+            admin = await asyncio.wait_for(_connect(POSTGRES_DSN), timeout=ADMIN_TIMEOUT)
+            try:
+                await admin.execute(f'DROP DATABASE IF EXISTS "{name}" WITH (FORCE)')
+            finally:
+                await admin.close()
+        except Exception:  # noqa: BLE001 - cleanup is advisory
+            pass

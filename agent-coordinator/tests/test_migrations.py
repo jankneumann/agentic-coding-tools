@@ -405,3 +405,24 @@ def test_migration_044_persists_retention_and_nullable_selection() -> None:
         in sql
     )
     assert "GRANT EXECUTE ON FUNCTION record_routing_decision_with_audit(JSONB, JSONB)" in sql
+
+
+def test_migration_046_makes_spend_generation_id_dedupe_atomic() -> None:
+    sql = (
+        _COORDINATOR_ROOT / "database/migrations/046_spend_generation_id_unique.sql"
+    ).read_text()
+
+    # Pre-existing duplicates are collapsed to the earliest row first, or the
+    # unique index could not be built on a ledger the old race already hit.
+    dedupe = sql.index("DELETE FROM routing_spend_ledger")
+    index = sql.index("CREATE UNIQUE INDEX IF NOT EXISTS uq_spend_ledger_generation_id")
+    assert dedupe < index
+    assert "later.id > earlier.id" in sql
+    assert "WHERE generation_id IS NOT NULL;" in sql
+    assert "CREATE OR REPLACE FUNCTION record_spend_once(p_row JSONB)" in sql
+    assert "RETURNS JSONB" in sql
+    assert "ON CONFLICT (generation_id) WHERE generation_id IS NOT NULL DO NOTHING" in sql
+    assert "SECURITY INVOKER" in sql
+    assert "SET search_path = public, pg_temp" in sql
+    assert "REVOKE ALL ON FUNCTION record_spend_once(JSONB) FROM PUBLIC" in sql
+    assert "GRANT EXECUTE ON FUNCTION record_spend_once(JSONB) TO service_role" in sql
