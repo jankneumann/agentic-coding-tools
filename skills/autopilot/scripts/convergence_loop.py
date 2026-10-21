@@ -54,6 +54,7 @@ from review_dispatcher import (  # noqa: E402
     ErrorClass,
     ReviewOrchestrator,
     ReviewResult,
+    SpendContext,
     _orchestrator_for_dispatch,
 )
 from review_ledger import (  # noqa: E402
@@ -71,7 +72,11 @@ from review_ledger import (  # noqa: E402
     scoped_fix_payload,
     mark_addressed,
 )
-from review_packet import build_review_packet  # noqa: E402
+from review_packet import (  # noqa: E402
+    TOOLLESS_REVIEW_TYPES,
+    build_review_packet,
+    build_toolless_packet,
+)
 import fact_check as fact_check_module  # noqa: E402
 
 from convergence_disposition import (  # noqa: E402
@@ -784,6 +789,7 @@ def converge(
     verified_lanes: list[str] | None = None,
     counting_lanes: list[str] | None = None,
     base_ref: str | None = None,
+    phase: str | None = None,
 ) -> ConvergenceResult:
     """Run the review-fix convergence loop.
 
@@ -828,6 +834,14 @@ def converge(
         base_ref: Ref the review packet diffs against. ``None`` (default)
             keeps the packet builder's ``DEFAULT_BASE_REF``; a stacked branch
             passes its PR base (e.g. ``origin/openspec/<parent>``).
+        phase: The autopilot review phase (e.g. ``PLAN_REVIEW``). When set,
+            each round passes ``spend_context=SpendContext(change_id,
+            "<change_id>:<phase>:round-<n>")`` to an orchestrator that accepts
+            it, so metered lanes can attribute their spend (design D4).
+
+    A primary packet whose meta reports ``tools_overflow`` also gets a
+    tool-less companion packet, passed as ``toolless_packet_path`` to an
+    orchestrator that accepts it (design D6).
 
     Returns:
         ConvergenceResult with convergence status and details.
@@ -879,16 +893,17 @@ def converge(
 
         # 2a. Pack the review input, then dispatch.
         checkpoint_dir = artifacts_dir / ".review-cache" / f"round-{round_num}"
-        packet_path, _packet_meta = build_review_packet(
-            change_id=change_id,
-            round_num=round_num,
-            artifacts_dir=artifacts_dir,
-            worktree_path=worktree_path,
-            output_dir=checkpoint_dir,
-            last_fix_diff=last_fix_diff if round_num > 1 else None,
-            ledger=ledger,
+        packet_inputs: dict[str, Any] = {
+            "change_id": change_id,
+            "round_num": round_num,
+            "artifacts_dir": artifacts_dir,
+            "worktree_path": worktree_path,
+            "output_dir": checkpoint_dir,
+            "last_fix_diff": last_fix_diff if round_num > 1 else None,
+            "ledger": ledger,
             **({"base_ref": base_ref} if base_ref is not None else {}),
-        )
+        }
+        packet_path, packet_meta = build_review_packet(**packet_inputs)
         prompt = packet_path.read_text(encoding="utf-8")
         dispatch_kwargs: dict[str, Any] = {
             "review_type": review_type,
@@ -899,6 +914,21 @@ def converge(
         }
         if _accepts_kwarg(orchestrator.dispatch_and_wait, "packet_path"):
             dispatch_kwargs["packet_path"] = packet_path
+        if (
+            (packet_meta or {}).get("tools_overflow")
+            and review_type in TOOLLESS_REVIEW_TYPES
+            and _accepts_kwarg(orchestrator.dispatch_and_wait, "toolless_packet_path")
+        ):
+            toolless_path, _toolless_meta = build_toolless_packet(
+                review_type=review_type, **packet_inputs,
+            )
+            dispatch_kwargs["toolless_packet_path"] = toolless_path
+        if phase is not None and _accepts_kwarg(
+            orchestrator.dispatch_and_wait, "spend_context"
+        ):
+            dispatch_kwargs["spend_context"] = SpendContext(
+                change_id, f"{change_id}:{phase}:round-{round_num}",
+            )
         checkpointed: dict[str, ReviewResult] = {}
         checkpoint_lock = threading.Lock()
 

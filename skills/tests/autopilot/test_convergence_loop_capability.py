@@ -223,3 +223,108 @@ def test_runner_records_a_metered_spend_unrecorded_degradation(
 
     state = json.loads(path.read_text())
     assert [d["code"] for d in state["degradations"]] == ["metered_spend_unrecorded"]
+
+
+# --------------------------------------------------------------------------- #
+# 5.6: spend attribution and the tool-less packet
+# --------------------------------------------------------------------------- #
+
+
+class _Recording:
+    """Accepts the dispatcher's keyword-only extras and records them."""
+
+    def __init__(self, rounds: list[list[ReviewResult]]) -> None:
+        self._rounds = list(rounds)
+        self.kwargs: list[dict] = []
+
+    def dispatch_and_wait(self, review_type, dispatch_mode, prompt, cwd,
+                          timeout_seconds=None, packet_path=None, result_callback=None,
+                          *, include_lanes=None, toolless_packet_path=None, spend_context=None):
+        self.kwargs.append({
+            "toolless_packet_path": toolless_packet_path,
+            "spend_context": spend_context,
+        })
+        return self._rounds.pop(0)
+
+
+def _two_rounds_then_lost() -> list[list[ReviewResult]]:
+    return [_round_one(), [_ok("claude_code")]]
+
+
+def test_a_phase_attributes_each_rounds_spend(tmp_path: Path) -> None:
+    from review_dispatcher import SpendContext
+
+    orch = _Recording(_two_rounds_then_lost())
+
+    _converge(tmp_path, orch, phase="PLAN_REVIEW")
+
+    assert [k["spend_context"] for k in orch.kwargs] == [
+        SpendContext("demo", "demo:PLAN_REVIEW:round-1"),
+        SpendContext("demo", "demo:PLAN_REVIEW:round-2"),
+    ]
+
+
+def test_without_a_phase_no_spend_context_is_passed(tmp_path: Path) -> None:
+    orch = _Recording(_two_rounds_then_lost())
+
+    _converge(tmp_path, orch)
+
+    assert [k["spend_context"] for k in orch.kwargs] == [None, None]
+
+
+def test_an_orchestrator_without_the_keyword_still_runs_with_a_phase(tmp_path: Path) -> None:
+    result = _converge(tmp_path, _Scripted(_two_rounds_then_lost()), phase="PLAN_REVIEW")
+
+    assert result.reason == "quorum_lost"
+
+
+def _stub_packets(monkeypatch: pytest.MonkeyPatch, *, overflow: bool) -> list[dict]:
+    toolless_calls: list[dict] = []
+
+    def primary(**kwargs):
+        out = Path(kwargs["output_dir"])
+        out.mkdir(parents=True, exist_ok=True)
+        path = out / "review-packet.md"
+        path.write_text("PRIMARY", encoding="utf-8")
+        return path, {"tools_overflow": overflow}
+
+    def toolless(**kwargs):
+        toolless_calls.append(kwargs)
+        path = Path(kwargs["output_dir"]) / "review-packet.toolless.md"
+        path.write_text("TOOLLESS", encoding="utf-8")
+        return path, {"tools_overflow": False}
+
+    monkeypatch.setattr(convergence_loop, "build_review_packet", primary)
+    monkeypatch.setattr(convergence_loop, "build_toolless_packet", toolless)
+    return toolless_calls
+
+
+def test_an_overflowing_packet_gets_a_toolless_companion(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls = _stub_packets(monkeypatch, overflow=True)
+    orch = _Recording(_two_rounds_then_lost())
+
+    _converge(tmp_path, orch, base_ref="origin/base")
+
+    assert len(calls) == 2
+    assert calls[0]["review_type"] == "plan"
+    assert calls[0]["round_num"] == 1
+    assert calls[0]["base_ref"] == "origin/base"
+    assert calls[0]["last_fix_diff"] is None
+    assert calls[1]["last_fix_diff"] is not None
+    paths = [k["toolless_packet_path"] for k in orch.kwargs]
+    assert [p.name for p in paths] == ["review-packet.toolless.md"] * 2
+    assert paths[0].parent.name == "round-1" and paths[1].parent.name == "round-2"
+
+
+def test_a_packet_that_fits_has_no_toolless_companion(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls = _stub_packets(monkeypatch, overflow=False)
+    orch = _Recording(_two_rounds_then_lost())
+
+    _converge(tmp_path, orch)
+
+    assert calls == []
+    assert [k["toolless_packet_path"] for k in orch.kwargs] == [None, None]
