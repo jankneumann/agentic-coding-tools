@@ -239,7 +239,8 @@
             "coordinator_projection_forbidden",
             "audit_sink_failed",
             "phase_fallback_inline",
-            "handoff_local_fallback"
+            "handoff_local_fallback",
+            "metered_spend_unrecorded"
           ]
         },
         "phase": {"type": "string", "minLength": 1, "maxLength": 64},

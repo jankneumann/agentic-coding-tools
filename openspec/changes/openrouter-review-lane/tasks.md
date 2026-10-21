@@ -208,29 +208,29 @@ value), `skills/tests/autopilot/test_agent_lane.py`, `skills/tests/autopilot/tes
 **Specs:** skill-workflow "Honest Review Quorum" (MODIFIED), "Composite Agent-Lane Review";
 parallel-infrastructure "Metered Review Lane Spend Accounting" (checkpoint part)
 
-- [ ] 5.1 Write failing tests: in round 2 the OpenRouter lane fails `vendor_unavailable` →
+- [x] 5.1 Write failing tests: in round 2 the OpenRouter lane fails `vendor_unavailable` →
   `capability_unavailable` with `missing_lanes == ["openrouter"]`; an `unknown` failure →
   `quorum_lost`; a verified lane with no result and no recorded failure → `quorum_lost`
   (`missing_lanes` = verified − succeeded, never vacuous).
-- [ ] 5.2 Implement the mid-run capability mapping in `converge()` (design D7). Write
+- [x] 5.2 Implement the mid-run capability mapping in `converge()` (design D7). Write
   `generation_id`, `prompt_tokens`, `completion_tokens`, `cost_usd` and `cost_source` into the
   round checkpoint's vendor index.
-- [ ] 5.3 Add `metered_spend_unrecorded` to the `Degradation.code` enum in
+- [x] 5.3 Add `metered_spend_unrecorded` to the `Degradation.code` enum in
   `dispatch-result.schema.json` and to the `runner.py record-degradation` choices. Update the
   schema fixture test.
-- [ ] 5.4 Write failing tests for the `CompositeOrchestrator`:
+- [x] 5.4 Write failing tests for the `CompositeOrchestrator`:
   - Run against a fixture change with an injected transport and a scripted handshake.
   - `converge()` receives `min_quorum=2`, the checkpoint holds both lane files, and
     `quorum_received == 2`.
   - Consensus findings attribute both lane ids.
   - `--verified-lanes claude_code` alone → `capability_unavailable` with no handshake files.
-- [ ] 5.5 Implement `--verified-lanes`, `CompositeOrchestrator` (the handshake lane plus
+- [x] 5.5 Implement `--verified-lanes`, `CompositeOrchestrator` (the handshake lane plus
   `ReviewOrchestrator.dispatch_and_wait(include_lanes=...)` run concurrently, with the result
   callback forwarded), and quorum-policy resolution from the verified count. For each
   metered result whose `spend_recorded` is `False` (recorded by the dispatcher, task 3.10),
   record the `metered_spend_unrecorded` degradation through the result payload. `agent_lane`
   does not call `spend_recorder.record()` itself. Update `_review_body` to list the lanes.
-- [ ] 5.6 Write failing tests, then implement:
+- [x] 5.6 Write failing tests, then implement:
   - `converge()` accepts an optional `phase` and, when it is set, passes
     `spend_context=SpendContext(change_id, "<change_id>:<phase>:round-<n>")` to `dispatch_and_wait`
     (via `_accepts_kwarg`; the keyword and dataclass are the ones task 3.10 adds);
@@ -247,7 +247,7 @@ parallel-infrastructure "Metered Review Lane Spend Accounting" (checkpoint part)
     (IMPL_REVIEW), `consensus-val-review.json` (VAL_REVIEW). This matches the skill-workflow
     "Composite Agent-Lane Review" requirement. The D9 evidence and task 7.2 cite
     `consensus-plan.json`. `converge()` itself never writes these files.
-- [ ] 5.7 Write a failing test, then make it pass: with the dispatcher's budget re-check (task
+- [x] 5.7 Write a failing test, then make it pass: with the dispatcher's budget re-check (task
   3.11) injected to fail before round 2, `converge()` through `CompositeOrchestrator` ends
   `capability_unavailable` with `missing_lanes == ["openrouter"]` (design D7). `converge()`
   itself gains no budget logic.

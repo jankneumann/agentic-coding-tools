@@ -51,8 +51,10 @@ from consensus_synthesizer import (  # noqa: E402
     VendorResult,
 )
 from review_dispatcher import (  # noqa: E402
+    ErrorClass,
     ReviewOrchestrator,
     ReviewResult,
+    SpendContext,
     _orchestrator_for_dispatch,
 )
 from review_ledger import (  # noqa: E402
@@ -70,7 +72,11 @@ from review_ledger import (  # noqa: E402
     scoped_fix_payload,
     mark_addressed,
 )
-from review_packet import build_review_packet  # noqa: E402
+from review_packet import (  # noqa: E402
+    TOOLLESS_REVIEW_TYPES,
+    build_review_packet,
+    build_toolless_packet,
+)
 import fact_check as fact_check_module  # noqa: E402
 
 from convergence_disposition import (  # noqa: E402
@@ -121,9 +127,12 @@ class ConvergenceResult:
     escalate_findings: list[dict[str, Any]] | None = None
     validation_errors: list[str] | None = None
     checkpoint_dir: Path | None = None
-    # dispatch-contract D10: with reason="capability_unavailable", the counting
-    # lanes that were not verified. The caller records the park through
-    # `runner.py park`; this loop never writes loop state.
+    # dispatch-contract D10: with reason="capability_unavailable" before any
+    # dispatch, the counting lanes that were not verified. After a dispatched
+    # round falls below quorum (design D7), the verified lanes that returned no
+    # successful result, for both "capability_unavailable" and "quorum_lost".
+    # The caller records the park through `runner.py park`; this loop never
+    # writes loop state.
     missing_lanes: list[str] | None = None
 
 
@@ -351,6 +360,68 @@ def _accepts_kwarg(func: Callable[..., Any], name: str) -> bool:
     )
 
 
+def _vendor_index_entry(
+    result: ReviewResult, review_type: str, findings_array: list[Any],
+) -> dict[str, Any]:
+    """One checkpoint vendor-index entry, with the lane's generation and cost.
+
+    The metered fields are ``None`` for a lane that is not metered, so the
+    index reads the same for every lane.
+    """
+    return {
+        "name": result.vendor,
+        "findings_path": f"findings-{result.vendor}-{review_type}.json",
+        "finding_count": len(findings_array),
+        "unanchored_findings": result.unanchored_findings,
+        "model_used": result.model_used,
+        "generation_id": result.generation_id,
+        "prompt_tokens": result.prompt_tokens,
+        "completion_tokens": result.completion_tokens,
+        "cost_usd": result.cost_usd,
+        "cost_source": result.cost_source,
+    }
+
+
+# A lane that failed with one of these classes can no longer review in this
+# environment (design D7); any other shortfall is a lost quorum.
+_CAPABILITY_ERROR_CLASSES = frozenset({ErrorClass.UNAVAILABLE, ErrorClass.AUTH})
+
+
+def _lane_matches(lane: str, result: ReviewResult) -> bool:
+    return lane == result.vendor or lane == result.agent_id
+
+
+def _classify_quorum_shortfall(
+    results: list[ReviewResult], verified_lanes: list[str] | None,
+) -> tuple[str, list[str] | None]:
+    """Map a below-quorum round to ``(reason, missing_lanes)`` (design D7).
+
+    ``missing_lanes`` is the verified lanes that returned no successful
+    result. The round is ``capability_unavailable`` only when that set is
+    non-empty and every lane in it has a recorded ``vendor_unavailable`` or
+    ``auth_required`` failure. A lane that returned nothing, or failed for
+    any other reason, keeps it ``quorum_lost``. Without ``verified_lanes``
+    the legacy ``quorum_lost`` shape (no ``missing_lanes``) is kept.
+    """
+    if verified_lanes is None:
+        return "quorum_lost", None
+    verified = sorted(set(verified_lanes))
+    missing = [
+        lane for lane in verified
+        if not any(r.success and _lane_matches(lane, r) for r in results)
+    ]
+    capability_lost = bool(missing) and all(
+        any(
+            not r.success
+            and r.error_class in _CAPABILITY_ERROR_CLASSES
+            and _lane_matches(lane, r)
+            for r in results
+        )
+        for lane in missing
+    )
+    return ("capability_unavailable" if capability_lost else "quorum_lost"), missing
+
+
 def _write_review_checkpoint(
     checkpoint_dir: Path,
     results: list[ReviewResult],
@@ -392,12 +463,9 @@ def _write_review_checkpoint(
                 findings=findings_array,
                 reviewer_vendor=result.vendor,
             )
-            vendors_index.append({
-                "name": result.vendor,
-                "findings_path": f"findings-{result.vendor}-{review_type}.json",
-                "finding_count": len(findings_array),
-                "unanchored_findings": result.unanchored_findings,
-            })
+            vendors_index.append(
+                _vendor_index_entry(result, review_type, findings_array)
+            )
     cf_write_manifest(
         checkpoint_dir,
         review_type=review_type,
@@ -469,12 +537,7 @@ def _augment_manifest_with_fact_check(
         })
         if result.success and result.findings:
             findings_array = result.findings.get("findings", [])
-            entry = {
-                "name": result.vendor,
-                "findings_path": f"findings-{result.vendor}-{review_type}.json",
-                "finding_count": len(findings_array),
-                "unanchored_findings": result.unanchored_findings,
-            }
+            entry = _vendor_index_entry(result, review_type, findings_array)
             entry.update(fact_check_info.get(result.vendor, {}))
             vendors_index.append(entry)
     cf_write_manifest(
@@ -726,6 +789,7 @@ def converge(
     verified_lanes: list[str] | None = None,
     counting_lanes: list[str] | None = None,
     base_ref: str | None = None,
+    phase: str | None = None,
 ) -> ConvergenceResult:
     """Run the review-fix convergence loop.
 
@@ -770,6 +834,14 @@ def converge(
         base_ref: Ref the review packet diffs against. ``None`` (default)
             keeps the packet builder's ``DEFAULT_BASE_REF``; a stacked branch
             passes its PR base (e.g. ``origin/openspec/<parent>``).
+        phase: The autopilot review phase (e.g. ``PLAN_REVIEW``). When set,
+            each round passes ``spend_context=SpendContext(change_id,
+            "<change_id>:<phase>:round-<n>")`` to an orchestrator that accepts
+            it, so metered lanes can attribute their spend (design D4).
+
+    A primary packet whose meta reports ``tools_overflow`` also gets a
+    tool-less companion packet, passed as ``toolless_packet_path`` to an
+    orchestrator that accepts it (design D6).
 
     Returns:
         ConvergenceResult with convergence status and details.
@@ -821,16 +893,17 @@ def converge(
 
         # 2a. Pack the review input, then dispatch.
         checkpoint_dir = artifacts_dir / ".review-cache" / f"round-{round_num}"
-        packet_path, _packet_meta = build_review_packet(
-            change_id=change_id,
-            round_num=round_num,
-            artifacts_dir=artifacts_dir,
-            worktree_path=worktree_path,
-            output_dir=checkpoint_dir,
-            last_fix_diff=last_fix_diff if round_num > 1 else None,
-            ledger=ledger,
+        packet_inputs: dict[str, Any] = {
+            "change_id": change_id,
+            "round_num": round_num,
+            "artifacts_dir": artifacts_dir,
+            "worktree_path": worktree_path,
+            "output_dir": checkpoint_dir,
+            "last_fix_diff": last_fix_diff if round_num > 1 else None,
+            "ledger": ledger,
             **({"base_ref": base_ref} if base_ref is not None else {}),
-        )
+        }
+        packet_path, packet_meta = build_review_packet(**packet_inputs)
         prompt = packet_path.read_text(encoding="utf-8")
         dispatch_kwargs: dict[str, Any] = {
             "review_type": review_type,
@@ -841,6 +914,21 @@ def converge(
         }
         if _accepts_kwarg(orchestrator.dispatch_and_wait, "packet_path"):
             dispatch_kwargs["packet_path"] = packet_path
+        if (
+            (packet_meta or {}).get("tools_overflow")
+            and review_type in TOOLLESS_REVIEW_TYPES
+            and _accepts_kwarg(orchestrator.dispatch_and_wait, "toolless_packet_path")
+        ):
+            toolless_path, _toolless_meta = build_toolless_packet(
+                review_type=review_type, **packet_inputs,
+            )
+            dispatch_kwargs["toolless_packet_path"] = toolless_path
+        if phase is not None and _accepts_kwarg(
+            orchestrator.dispatch_and_wait, "spend_context"
+        ):
+            dispatch_kwargs["spend_context"] = SpendContext(
+                change_id, f"{change_id}:{phase}:round-{round_num}",
+            )
         checkpointed: dict[str, ReviewResult] = {}
         checkpoint_lock = threading.Lock()
 
@@ -900,16 +988,18 @@ def converge(
         # 2b. Check quorum
         successful = [r for r in results if r.success]
         if len(successful) < min_quorum:
+            reason, missing = _classify_quorum_shortfall(results, verified_lanes)
             logger.warning(
-                "Quorum lost: %d/%d (need %d)",
-                len(successful), len(results), min_quorum,
+                "Quorum shortfall (%s): %d/%d (need %d); missing %s",
+                reason, len(successful), len(results), min_quorum, missing,
             )
             return ConvergenceResult(
                 converged=False,
                 rounds=round_num,
-                reason="quorum_lost",
+                reason=reason,
                 validation_errors=all_validation_errors or None,
                 checkpoint_dir=latest_checkpoint_dir,
+                missing_lanes=missing,
             )
 
         # 2b.5. Diff-grounded fact-check, after the durable raw checkpoint
