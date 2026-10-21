@@ -8,7 +8,12 @@ path.
 
 from __future__ import annotations
 
-from openai_compat_adapter import OpenAICompatAdapter
+import logging
+import socket
+import urllib.error
+
+import pytest
+from openai_compat_adapter import OpenAICompatAdapter, ProbeResult
 from review_dispatcher import ErrorClass
 
 
@@ -149,3 +154,133 @@ def test_can_dispatch_review_only():
     a = _adapter()
     assert a.can_dispatch("review")
     assert not a.can_dispatch("alternative")
+
+
+# ── probe (openrouter-review-lane, tasks 1.1/1.2, design D3) ────────────────
+
+_SENTINEL = "sk-or-test-SENTINEL-5555555555"
+
+
+class FakeGetTransport:
+    """GET transport double: returns ``(status, body)`` or raises a queued error."""
+
+    def __init__(self, item):
+        self._item = item
+        self.calls = []
+
+    def __call__(self, url, headers, timeout):
+        self.calls.append({"url": url, "headers": headers, "timeout": timeout})
+        if isinstance(self._item, BaseException):
+            raise self._item
+        return self._item
+
+
+def _key_body(limit=20.0, usage=5.0, limit_remaining=15.0):
+    return {"data": {"label": "sk-or-v1-abc...", "limit": limit, "usage": usage,
+                     "limit_remaining": limit_remaining, "is_free_tier": False}}
+
+
+def test_probe_openrouter_gets_key_endpoint():
+    tr = FakeGetTransport((200, _key_body()))
+    result = _adapter().probe("sk-key", transport=tr)
+    assert len(tr.calls) == 1
+    assert tr.calls[0]["url"] == "https://openrouter.ai/api/v1/key"
+    assert tr.calls[0]["timeout"] == 10
+    assert tr.calls[0]["headers"]["Authorization"] == "Bearer sk-key"
+    assert isinstance(result, ProbeResult)
+
+
+def test_probe_local_gets_models_endpoint():
+    tr = FakeGetTransport((200, {"data": [{"id": "qwen3-coder-32b"}]}))
+    adapter = _adapter(endpoint_kind="local", base_url="http://localhost:11434/v1",
+                       vendor="local", model="qwen3-coder-32b")
+    result = adapter.probe(None, transport=tr)
+    assert tr.calls[0]["url"] == "http://localhost:11434/v1/models"
+    assert result.ok is True
+    assert result.reason is None
+    assert result.budget is None  # no budget rule for local lanes
+
+
+def test_probe_200_is_ok_with_numeric_budget():
+    result = _adapter().probe("sk-key", transport=FakeGetTransport((200, _key_body())))
+    assert result.ok is True
+    assert result.reason is None
+    assert result.budget == {"limit": 20.0, "usage": 5.0, "limit_remaining": 15.0}
+
+
+def test_probe_budget_keeps_only_numeric_fields():
+    body = {"data": {"limit": None, "usage": "lots", "limit_remaining": True,
+                     "label": _SENTINEL}}
+    result = _adapter().probe("sk-key", transport=FakeGetTransport((200, body)))
+    assert result.ok is True
+    assert result.budget == {"limit": None, "usage": None, "limit_remaining": None}
+
+
+def test_probe_body_without_data_has_no_budget():
+    result = _adapter().probe("sk-key", transport=FakeGetTransport((200, {"error": "?"})))
+    assert result.ok is True
+    assert result.budget is None
+
+
+@pytest.mark.parametrize("status", [401, 403])
+def test_probe_rejected_key_is_auth_failed(status):
+    result = _adapter().probe("sk-key", transport=FakeGetTransport((status, None)))
+    assert result.ok is False
+    assert result.reason == "auth_failed"
+    assert result.budget is None
+
+
+def test_probe_openrouter_without_key_is_auth_failed_without_request():
+    tr = FakeGetTransport((200, _key_body()))
+    result = _adapter().probe(None, transport=tr)
+    assert result.reason == "auth_failed"
+    assert tr.calls == []
+
+
+@pytest.mark.parametrize("exc", [
+    TimeoutError("timed out"),
+    socket.timeout("timed out"),
+    urllib.error.URLError(socket.timeout("timed out")),
+])
+def test_probe_timeout(exc):
+    result = _adapter().probe("sk-key", transport=FakeGetTransport(exc))
+    assert result.ok is False
+    assert result.reason == "probe_timeout"
+
+
+@pytest.mark.parametrize("exc", [
+    ConnectionRefusedError("refused"),
+    urllib.error.URLError("Name or service not known"),
+    OSError("network unreachable"),
+])
+def test_probe_connection_error_is_endpoint_unreachable(exc):
+    result = _adapter().probe("sk-key", transport=FakeGetTransport(exc))
+    assert result.ok is False
+    assert result.reason == "endpoint_unreachable"
+
+
+def test_probe_server_error_is_endpoint_unreachable():
+    result = _adapter().probe("sk-key", transport=FakeGetTransport((502, None)))
+    assert result.ok is False
+    assert result.reason == "endpoint_unreachable"
+
+
+def test_probe_never_discloses_credentials(caplog, capsys):
+    """Sentinel: a transport echoing headers leaks nothing into result/logs/errors."""
+
+    def echo(url, headers, timeout):
+        return 200, {"data": {"limit": 20.0, "usage": 1.0, "limit_remaining": 19.0,
+                              "echo": dict(headers), "label": headers["Authorization"]}}
+
+    def raising_echo(url, headers, timeout):
+        raise urllib.error.URLError(f"boom {headers['Authorization']}")
+
+    caplog.set_level(logging.DEBUG)
+    ok = _adapter().probe(_SENTINEL, transport=echo)
+    failed = _adapter().probe(_SENTINEL, transport=raising_echo)
+
+    assert ok.ok is True
+    assert failed.reason == "endpoint_unreachable"
+    out = capsys.readouterr()
+    for text in (repr(ok), repr(failed), str(ok.budget), caplog.text, out.out, out.err):
+        assert _SENTINEL not in text

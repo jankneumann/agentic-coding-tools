@@ -20,9 +20,12 @@ classification so it drops into the same dispatch chain.
 from __future__ import annotations
 
 import json
+import socket
+import ssl
 import time
 import urllib.error
 import urllib.request
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
@@ -48,6 +51,83 @@ def _default_transport(
     req = urllib.request.Request(url, data=data, headers=headers, method="POST")
     with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310 (trusted base_url)
         return json.loads(resp.read().decode("utf-8"))
+
+
+# get_transport(url, headers, timeout) -> (http_status, parsed JSON body or None).
+# Raises on timeout / connection failure; an HTTP error status is *returned*, not
+# raised, so the probe can classify it without ever touching the response text.
+GetTransport = Callable[[str, "dict[str, str]", int], "tuple[int, dict[str, Any] | None]"]
+
+
+def _default_get_transport(
+    url: str, headers: dict[str, str], timeout: int
+) -> tuple[int, dict[str, Any] | None]:
+    """Real GET transport (stdlib urllib). Never exercised in unit tests.
+
+    Uses the default SSL context, which honours ``SSL_CERT_FILE`` /
+    ``SSL_CERT_DIR`` (needed behind the cloud egress proxy's CA bundle).
+    """
+    req = urllib.request.Request(url, headers=headers, method="GET")
+    context = ssl.create_default_context()
+    try:
+        with urllib.request.urlopen(  # noqa: S310 (trusted base_url)
+            req, timeout=timeout, context=context
+        ) as resp:
+            status = resp.status
+            raw = resp.read()
+    except urllib.error.HTTPError as exc:
+        # Discard the error body unread: it may echo request details.
+        exc.close()
+        return exc.code, None
+    try:
+        body = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return status, None
+    return status, body if isinstance(body, dict) else None
+
+
+# Probe reasons (design D3). The spend_ceiling_* reasons are applied by the
+# dispatcher's budget check on top of a successful probe (group 3), not here.
+PROBE_AUTH_FAILED = "auth_failed"
+PROBE_TIMEOUT = "probe_timeout"
+PROBE_ENDPOINT_UNREACHABLE = "endpoint_unreachable"
+
+_BUDGET_FIELDS = ("limit", "usage", "limit_remaining")
+
+
+@dataclass(frozen=True)
+class ProbeResult:
+    """Outcome of an authenticated no-op probe (design D3).
+
+    ``budget`` holds only the numeric OpenRouter key fields ``limit``,
+    ``usage`` and ``limit_remaining`` (each a float, or None when absent or
+    non-numeric). It is None for local endpoints and for an OpenRouter body
+    with no ``data`` object. Nothing else from the response is retained.
+    """
+
+    ok: bool
+    reason: str | None = None
+    budget: dict[str, float | None] | None = None
+
+
+def _numeric(value: Any) -> float | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    return float(value)
+
+
+def _extract_budget(body: dict[str, Any] | None) -> dict[str, float | None] | None:
+    data = body.get("data") if isinstance(body, dict) else None
+    if not isinstance(data, dict):
+        return None
+    return {name: _numeric(data.get(name)) for name in _BUDGET_FIELDS}
+
+
+def _is_timeout(exc: BaseException) -> bool:
+    if isinstance(exc, (TimeoutError, socket.timeout)):
+        return True
+    reason = getattr(exc, "reason", None)
+    return isinstance(reason, (TimeoutError, socket.timeout))
 
 
 class OpenAICompatAdapter:
@@ -97,6 +177,47 @@ class OpenAICompatAdapter:
 
     def _endpoint_url(self) -> str:
         return f"{self.base_url}/chat/completions"
+
+    def _probe_url(self) -> str:
+        # OpenRouter: GET /api/v1/key returns the calling key's credit
+        # ``limit``, ``usage`` and ``limit_remaining`` under ``data`` and costs
+        # nothing. Docs: https://openrouter.ai/docs/api-reference/limits
+        # (not re-fetched on 2026-10-21: openrouter.ai unreachable from the build sandbox).
+        # Local (Ollama/vLLM): GET /v1/models is the cheapest authenticated no-op.
+        if self.endpoint_kind == "openrouter":
+            return f"{self.base_url}/key"
+        return f"{self.base_url}/models"
+
+    def probe(
+        self,
+        api_key: str | None,
+        transport: GetTransport | None = None,
+        timeout: int = 10,
+    ) -> ProbeResult:
+        """Authenticated, zero-cost dry probe of the endpoint (design D3).
+
+        Sends exactly one GET (``/key`` for OpenRouter, ``/models`` for local
+        endpoints) and never a chat completion. The response is parsed in
+        memory and only the numeric budget fields are kept; no header, key,
+        response body or exception text is logged, printed, or returned.
+        """
+        if self.endpoint_kind == "openrouter" and not api_key:
+            return ProbeResult(ok=False, reason=PROBE_AUTH_FAILED)
+
+        send = transport or _default_get_transport
+        headers = self.build_headers(api_key)
+        try:
+            status, body = send(self._probe_url(), headers, timeout)
+        except Exception as exc:  # noqa: BLE001 — classified, text discarded
+            reason = PROBE_TIMEOUT if _is_timeout(exc) else PROBE_ENDPOINT_UNREACHABLE
+            return ProbeResult(ok=False, reason=reason)
+
+        if status in (401, 403):
+            return ProbeResult(ok=False, reason=PROBE_AUTH_FAILED)
+        if not 200 <= status < 300:
+            return ProbeResult(ok=False, reason=PROBE_ENDPOINT_UNREACHABLE)
+        budget = _extract_budget(body) if self.endpoint_kind == "openrouter" else None
+        return ProbeResult(ok=True, reason=None, budget=budget)
 
     def dispatch(
         self,

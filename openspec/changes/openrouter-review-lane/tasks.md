@@ -28,14 +28,14 @@ dataclass fields and the shared ingest helper extracted in 1.7),
 "Metered Review Lane Spend Accounting" (capture part), "Tool-less Lane Packet Refusal"
 (including "Fast empty HTTP review does not count"); acceptance outcome 4
 
-- [ ] 1.1 Write the failing tests, all using an injected transport:
+- [x] 1.1 Write the failing tests, all using an injected transport:
   - `probe()` for `openrouter` sends `GET {base_url}/key`, and for `local` sends `GET /models`.
   - 200 → `ok` with numeric budget fields.
   - 401 → `auth_failed`; timeout → `probe_timeout`; connection error → `endpoint_unreachable`.
   - A body with no `data` → budget `None`.
   - Sentinel test: a transport that echoes the headers leaks nothing into the result, the
     logs, or the exception text.
-- [ ] 1.2 Implement `ProbeResult` and `OpenAICompatAdapter.probe(api_key, transport, timeout=10)`.
+- [x] 1.2 Implement `ProbeResult` and `OpenAICompatAdapter.probe(api_key, transport, timeout=10)`.
   Add a GET-capable transport alongside the existing POST transport, using the default SSL
   context (so `SSL_CERT_FILE` is honoured). Cite the OpenRouter docs URLs for `/key` in a
   comment (source-driven-development).
