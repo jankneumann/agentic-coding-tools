@@ -1,0 +1,266 @@
+schema_version: 1
+
+feature:
+  id: define-evidence-ledger-schema-with-immutable-facts
+  title: "Define evidence ledger schema with immutable facts (evidence-grounded-debugging ri-01)"
+  plan_revision: 2
+  created_by: claude-code
+  # Offline validator + JSON Schema; no running service. validate-feature skips
+  # deploy/smoke/scan phases.
+  deployable: false
+
+contracts:
+  revision: 1
+  # No OpenAPI surface (see contracts/README.md). The schema requires an openapi block, so
+  # `primary` points at the README recording that decision; the real inter-package boundary is
+  # the evidence-ledger JSON Schema draft.
+  openapi:
+    primary: "openspec/changes/define-evidence-ledger-schema-with-immutable-facts/contracts/README.md"
+    files:
+      - "openspec/changes/define-evidence-ledger-schema-with-immutable-facts/contracts/README.md"
+      - "openspec/changes/define-evidence-ledger-schema-with-immutable-facts/contracts/schemas/evidence-ledger.schema.json"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  # ─────────────────────────────────────────────────────────────────────
+  # wp-schema — promote the draft schema to both runtime copies (DAG root)
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp-schema
+    title: "Schema — promote evidence-ledger.schema.json byte-identically, drift test"
+    task_type: contracts
+    description: |
+      tasks.md 1.1-1.3 (design D2, D3). Write the schema copy-drift test, then promote the
+      change-local draft byte-identically to openspec/schemas/ and to the skill's
+      install_assets/. Must not alter the draft without bumping contracts.revision.
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "openspec/schemas/evidence-ledger.schema.json"
+        - "skills/evidence-ledger/install_assets/openspec/schemas/evidence-ledger.schema.json"
+      keys:
+        - "contract:evidence-ledger-schema"
+      ttl_minutes: 60
+      reason: "Ledger schema consumed by the validator package"
+    scope:
+      write_allow:
+        - "openspec/schemas/evidence-ledger.schema.json"
+        - "skills/evidence-ledger/install_assets/openspec/schemas/evidence-ledger.schema.json"
+        - "skills/tests/evidence-ledger/test_schema_copies.py"
+      read_allow:
+        - "openspec/**"
+        - "skills/**"
+    worktree:
+      name: define-evidence-ledger-schema-with-immutable-facts-wp-schema
+      mode: isolated
+    timeout_minutes: 30
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Schema copies byte-identical and valid Draft 2020-12"
+          kind: command
+          command: "uv run pytest tests/evidence-ledger/test_schema_copies.py -q"
+          cwd: "skills"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["schema_copies_identical"]
+    metadata:
+      loc_estimate: 70
+      complexity: low
+    inputs: {}
+    outputs:
+      result_keys: ["schema_copies_identical"]
+      artifacts:
+        - "openspec/schemas/evidence-ledger.schema.json"
+
+  # ─────────────────────────────────────────────────────────────────────
+  # wp-validator — evidence_ledger.py module, fixtures, validation/revision/CLI tests
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp-validator
+    title: "Validator — load, schema + semantic checks, check_revision, CLI"
+    task_type: backend
+    description: |
+      tasks.md 2.1-4.2 (design D4-D9). TDD: write fixtures and tests first, then implement
+      skills/evidence-ledger/scripts/evidence_ledger.py exposing load_ledger, validate_ledger,
+      check_revision, VIOLATION_CODES and a `validate` CLI (exit 0/1/2, --previous, --json).
+      Reads the schema from the install_assets copy relative to the script file.
+    priority: 2
+    depends_on: ["wp-schema"]
+    locks:
+      files:
+        - "skills/evidence-ledger/scripts/evidence_ledger.py"
+      keys:
+        - "contract:evidence-ledger-validator-api"
+      ttl_minutes: 90
+      reason: "Validator module API consumed by packaging and by roadmap items ri-02..ri-05"
+    scope:
+      write_allow:
+        - "skills/evidence-ledger/scripts/evidence_ledger.py"
+        - "skills/tests/evidence-ledger/conftest.py"
+        - "skills/tests/evidence-ledger/test_validate.py"
+        - "skills/tests/evidence-ledger/test_revision.py"
+        - "skills/tests/evidence-ledger/test_cli.py"
+        - "skills/tests/evidence-ledger/fixtures/**"
+      read_allow:
+        - "openspec/**"
+        - "skills/**"
+    worktree:
+      name: define-evidence-ledger-schema-with-immutable-facts-wp-validator
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Validator suite green"
+          kind: command
+          command: "uv run pytest tests/evidence-ledger -q"
+          cwd: "skills"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["validator_tests_green"]
+        - name: "Ruff clean on new module and tests"
+          kind: command
+          command: "uv run ruff check evidence-ledger tests/evidence-ledger"
+          cwd: "skills"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["ruff_clean"]
+    metadata:
+      loc_estimate: 520
+      complexity: medium
+    inputs:
+      result_keys: ["schema_copies_identical"]
+    outputs:
+      result_keys: ["validator_tests_green", "ruff_clean"]
+      artifacts:
+        - "skills/evidence-ledger/scripts/evidence_ledger.py"
+
+  # ─────────────────────────────────────────────────────────────────────
+  # wp-packaging — SKILL.md, registries, docs
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp-packaging
+    title: "Packaging — SKILL.md, install manifest, testpaths, workflow guide"
+    task_type: docs
+    description: |
+      tasks.md 5.1-5.5 (design D1, D10). Write the SKILL.md contract test then SKILL.md;
+      register the skill as portable in skills/install-manifest.json, add tests/evidence-ledger
+      to skills/pyproject.toml testpaths, and list the skill under Infrastructure Skills in
+      docs/guides/workflow.md.
+    priority: 3
+    depends_on: ["wp-validator"]
+    locks:
+      files:
+        - "skills/evidence-ledger/SKILL.md"
+        - "skills/install-manifest.json"
+        - "skills/pyproject.toml"
+        - "docs/guides/workflow.md"
+      keys: []
+      ttl_minutes: 60
+      reason: "Shared registries edited by many changes"
+    scope:
+      write_allow:
+        - "skills/evidence-ledger/SKILL.md"
+        - "skills/tests/evidence-ledger/test_skill_md.py"
+        - "skills/install-manifest.json"
+        - "skills/pyproject.toml"
+        - "docs/guides/workflow.md"
+      read_allow:
+        - "openspec/**"
+        - "skills/**"
+        - "docs/**"
+    worktree:
+      name: define-evidence-ledger-schema-with-immutable-facts-wp-packaging
+      mode: isolated
+    timeout_minutes: 30
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "SKILL.md contract, CI coverage and manifest catalog guards"
+          kind: command
+          command: "uv run pytest tests/evidence-ledger/test_skill_md.py tests/ci_coverage tests/install_sh/test_install_manifest.py -q"
+          cwd: "skills"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["packaging_guards_green"]
+    metadata:
+      loc_estimate: 150
+      complexity: low
+    inputs:
+      result_keys: ["validator_tests_green"]
+    outputs:
+      result_keys: ["packaging_guards_green"]
+      artifacts:
+        - "skills/evidence-ledger/SKILL.md"
+
+  # ─────────────────────────────────────────────────────────────────────
+  # wp-integration — merge, full validation (DAG sink)
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp-integration
+    title: "Integration — merge packages, run suites and strict OpenSpec validation"
+    task_type: integration
+    description: |
+      Merge package branches in DAG order, then run the evidence-ledger suite, the shared
+      guards and `openspec validate --strict`. Writes only tasks.md checkbox updates.
+    priority: 4
+    depends_on: ["wp-schema", "wp-validator", "wp-packaging"]
+    locks:
+      files:
+        - "openspec/changes/define-evidence-ledger-schema-with-immutable-facts/tasks.md"
+      keys: []
+      ttl_minutes: 60
+      reason: "Integration sink"
+    scope:
+      write_allow:
+        - "openspec/changes/define-evidence-ledger-schema-with-immutable-facts/tasks.md"
+      read_allow:
+        - "**"
+    worktree:
+      name: define-evidence-ledger-schema-with-immutable-facts-wp-integration
+      mode: shared
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Evidence-ledger suite and shared guards green"
+          kind: command
+          command: "uv run pytest tests/evidence-ledger tests/ci_coverage tests/openspec_paths tests/install_sh/test_install_manifest.py -q"
+          cwd: "skills"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["suites_green"]
+        - name: "OpenSpec valid"
+          kind: command
+          command: "openspec validate define-evidence-ledger-schema-with-immutable-facts --strict"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["openspec_valid"]
+    metadata:
+      loc_estimate: 10
+      complexity: low
+      package_kind: integration
+    inputs: {}
+    outputs:
+      result_keys: ["suites_green", "openspec_valid"]
+      artifacts: []
