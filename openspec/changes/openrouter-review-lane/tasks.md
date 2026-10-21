@@ -150,7 +150,7 @@ dataclass fields and the shared ingest helper extracted in 1.7),
 - [x] 3.9 Integration test: with the repository's `agents.yaml`, an injected transport and no
   `pi`/`codex` binaries on `PATH`, `--check-vendors --json` lists `openrouter` as verified and
   maps it to `openrouter` in `lane_kinds`.
-- [ ] 3.10 Write failing tests, then implement: `ReviewOrchestrator.dispatch_and_wait` calls
+- [x] 3.10 Write failing tests, then implement: `ReviewOrchestrator.dispatch_and_wait` calls
   `spend_recorder.record()` once after every OpenAI-compatible result with `endpoint_kind:
   openrouter` that made an HTTP request, and sets `ReviewResult.spend_recorded` to its
   `recorded` value. The row's `change_id` (for the spool path) and `work_unit_ref` come from a

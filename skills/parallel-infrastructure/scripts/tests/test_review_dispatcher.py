@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import sys
 import threading
 import time
 from pathlib import Path
@@ -2780,7 +2781,10 @@ def test_openai_dispatch_resolves_scoped_principal_and_vendor(tmp_path: Path, mo
     adapter.can_dispatch = MagicMock(return_value=True)
     adapter.dispatch = MagicMock(return_value=ReviewResult(vendor="pi", success=True))
     with patch("api_key_resolver.ApiKeyResolver.resolve", return_value="bao-key") as resolve:
-        results = orchestrator.dispatch_and_wait("implementation", "review", "review", tmp_path)
+        results = orchestrator.dispatch_and_wait(
+            "implementation", "review", "review", tmp_path,
+            spend_context=SpendContext("demo-change", "demo-change:implementation:oneshot"),
+        )
     assert results[0].success is True
     resolve.assert_called_once_with("spiffe://coordinator.rotkohl.ai/agent/pi-local", "openrouter")
     assert adapter.dispatch.call_args.args[-1] == "bao-key"
@@ -3667,3 +3671,180 @@ class TestPacketSidecarToHttpLanes:
         assert len(transport.prompts) == 1
         assert "TOOLLESS-BODY" in transport.prompts[0]
         assert "PRIMARY" not in transport.prompts[0]
+
+
+
+# ---------------------------------------------------------------------------
+# openrouter-review-lane: metered spend recording in dispatch (design D4, 3.10)
+# ---------------------------------------------------------------------------
+
+from review_dispatcher import SpendContext  # noqa: E402
+from spend_recorder import RecordOutcome  # noqa: E402
+
+_CTX = SpendContext(change_id="demo-change", work_unit_ref="demo-change:plan:round-1")
+
+
+class _FakeRecorder:
+    """Stands in for the ``spend_recorder`` module (record + spool total)."""
+
+    def __init__(self, recorded: bool = True, spooled: float = 0.0) -> None:
+        self.recorded = recorded
+        self.spooled = spooled
+        self.rows: list[tuple[dict, str]] = []
+
+    def row_from_review_result(self, result, **kwargs):
+        import spend_recorder
+
+        return spend_recorder.row_from_review_result(result, **kwargs)
+
+    def record(self, row, *, change_id: str, **_kwargs):
+        self.rows.append((dict(row), change_id))
+        return RecordOutcome(recorded=self.recorded, spooled=not self.recorded)
+
+    def spooled_total_usd(self, change_id: str, **_kwargs) -> float:
+        return self.spooled
+
+
+def _metered_orch(
+    lane_models, monkeypatch, *, recorder: _FakeRecorder, chat: _ChatTransport,
+    usage: dict | None = None, key_body: dict | None = None,
+) -> ReviewOrchestrator:
+    monkeypatch.delenv("BAO_ADDR", raising=False)
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-test-not-a-real-key")
+    lane_models["openrouter"] = ("nvidia/nemotron", [])
+    return ReviewOrchestrator.from_config_dict(
+        {"agents": [_openrouter_agent()]},
+        lane_policy=_POLICY,
+        openai_transport=chat,
+        probe_transport=_ProbeTransport(200, key_body or _key_body(20.0, 15.0)),
+        usage_fetcher=lambda: usage,
+        spend_recorder=recorder,
+    )
+
+
+class TestMeteredSpendRecording:
+    def test_metered_dispatch_records_one_row(
+        self, lane_models, monkeypatch, tmp_path: Path, no_chat_calls,
+    ) -> None:
+        recorder, chat = _FakeRecorder(), _ChatTransport()
+        orch = _metered_orch(lane_models, monkeypatch, recorder=recorder, chat=chat)
+        [result] = orch.dispatch_and_wait(
+            "plan", "review", "PROMPT", tmp_path, spend_context=_CTX,
+        )
+        # The empty-review floor may fail the result; the request still cost money.
+        assert len(chat.prompts) == 1
+        assert len(recorder.rows) == 1
+        row, change_id = recorder.rows[0]
+        assert change_id == "demo-change"
+        assert row["vendor"] == "openrouter"
+        assert row["generation_id"] == "gen-test-1"
+        assert row["endpoint_kind"] == "openrouter"
+        assert row["work_unit_ref"] == "demo-change:plan:round-1"
+        assert result.spend_recorded is True
+
+    def test_unrecorded_spend_is_reported(
+        self, lane_models, monkeypatch, tmp_path: Path, no_chat_calls,
+    ) -> None:
+        recorder = _FakeRecorder(recorded=False)
+        orch = _metered_orch(lane_models, monkeypatch, recorder=recorder, chat=_ChatTransport())
+        [result] = orch.dispatch_and_wait(
+            "plan", "review", "PROMPT", tmp_path, spend_context=_CTX,
+        )
+        assert len(recorder.rows) == 1
+        assert result.spend_recorded is False
+
+    def test_refused_packet_records_nothing(
+        self, lane_models, monkeypatch, tmp_path: Path, no_chat_calls,
+    ) -> None:
+        recorder, chat = _FakeRecorder(), _ChatTransport()
+        orch = _metered_orch(lane_models, monkeypatch, recorder=recorder, chat=chat)
+        packet = _write_packet(tmp_path / "r1", "PRIMARY", tools_overflow=True)
+        [result] = orch.dispatch_and_wait(
+            "plan", "review", "PRIMARY", tmp_path, packet_path=packet, spend_context=_CTX,
+        )
+        assert result.error == "packet_requires_tools"
+        assert chat.prompts == []
+        assert recorder.rows == []
+        assert result.spend_recorded is None
+
+    def test_missing_spend_context_is_not_dispatched(
+        self, lane_models, monkeypatch, tmp_path: Path, no_chat_calls,
+    ) -> None:
+        recorder, chat = _FakeRecorder(), _ChatTransport()
+        orch = _metered_orch(lane_models, monkeypatch, recorder=recorder, chat=chat)
+        [result] = orch.dispatch_and_wait("plan", "review", "PROMPT", tmp_path)
+        assert result.success is False
+        assert result.error == "spend_context_missing"
+        assert result.error_class == ErrorClass.UNAVAILABLE
+        assert result.agent_id == "openrouter-review"
+        assert chat.prompts == []
+        assert orch.probe_transport.urls == []
+        assert recorder.rows == []
+
+    def test_non_metered_lane_needs_no_context_and_records_nothing(
+        self, lane_models, tmp_path: Path, no_chat_calls,
+    ) -> None:
+        lane_models["gx10"] = ("meta/llama-4", [])
+        recorder, chat = _FakeRecorder(), _ChatTransport()
+        orch = ReviewOrchestrator.from_config_dict(
+            {"agents": [_local_agent("gx10-local", "gx10")]},
+            lane_policy=_POLICY, openai_transport=chat, spend_recorder=recorder,
+        )
+        [result] = orch.dispatch_and_wait("plan", "review", "PROMPT", tmp_path)
+        assert len(chat.prompts) == 1
+        assert recorder.rows == []
+        assert result.spend_recorded is None
+
+
+class TestOneShotSpendContext:
+    def test_change_id_is_inferred_from_the_reviews_output_dir(self) -> None:
+        from review_dispatcher import _oneshot_spend_context
+
+        ctx = _oneshot_spend_context(
+            None, "openspec/changes/demo-change/reviews", "plan",
+        )
+        assert ctx == SpendContext("demo-change", "demo-change:plan:oneshot")
+
+    def test_explicit_change_id_wins(self) -> None:
+        from review_dispatcher import _oneshot_spend_context
+
+        ctx = _oneshot_spend_context("other-change", "out", "implementation")
+        assert ctx == SpendContext("other-change", "other-change:implementation:oneshot")
+
+    def test_no_change_id_yields_no_context(self) -> None:
+        from review_dispatcher import _oneshot_spend_context
+
+        assert _oneshot_spend_context(None, "some/other/dir", "plan") is None
+
+    def test_cli_dispatch_passes_a_oneshot_spend_context(
+        self, monkeypatch, tmp_path: Path,
+    ) -> None:
+        captured: dict = {}
+
+        class _Orch:
+            def discover_reviewers(self, **_kw):
+                return [review_dispatcher.ReviewerInfo(
+                    vendor="openrouter", agent_id="openrouter-review",
+                    available=True, dispatch_tier="openai",
+                )]
+
+            def dispatch_and_wait(self, **kwargs):
+                captured.update(kwargs)
+                return []
+
+            def write_manifest(self, *_a, **_k):
+                return None
+
+        monkeypatch.setattr(
+            review_dispatcher, "_orchestrator_for_dispatch", lambda *_a, **_k: _Orch(),
+        )
+        out = tmp_path / "openspec" / "changes" / "demo-change" / "reviews"
+        monkeypatch.setattr(sys, "argv", [
+            "review_dispatcher.py",
+            "--review-type", "plan", "--mode", "review", "--prompt", "P",
+            "--cwd", str(tmp_path), "--output-dir", str(out),
+        ])
+        review_dispatcher.main()
+        assert captured["spend_context"] == SpendContext(
+            "demo-change", "demo-change:plan:oneshot",
+        )

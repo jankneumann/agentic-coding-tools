@@ -3330,6 +3330,42 @@ class ReviewOrchestrator:
             return _TIER_LANE_KINDS["sdk"]
         return "unknown"
 
+    def _spend_recorder(self) -> Any:
+        """The injected spend recorder, else the ``spend_recorder`` module."""
+        if self.spend_recorder is not None:
+            return self.spend_recorder
+        import spend_recorder
+
+        return spend_recorder
+
+    def _dispatch_metered(
+        self,
+        run_lane: Callable[[], ReviewResult],
+        *,
+        lane_id: str,
+        spend_context: SpendContext,
+    ) -> ReviewResult:
+        """Run a metered lane and record the spend of a request it sent (D4).
+
+        A result that sent no request (refused packet, missing key) records
+        nothing and keeps ``spend_recorded = None``. Without a generation id
+        there is no idempotency key, so nothing can be recorded either.
+        """
+        result = run_lane()
+        if not result.models_attempted or not result.generation_id:
+            return result
+        recorder = self._spend_recorder()
+        try:
+            row = recorder.row_from_review_result(
+                result, lane_id=lane_id, work_unit_ref=spend_context.work_unit_ref,
+            )
+            outcome = recorder.record(row, change_id=spend_context.change_id)
+            result.spend_recorded = bool(outcome.recorded)
+        except Exception as exc:  # noqa: BLE001 — recording never fails a review
+            logger.warning("Spend recording for %s failed (%s)", lane_id, type(exc).__name__)
+            result.spend_recorded = False
+        return result
+
     def dispatch_and_wait(
         self,
         review_type: str,
@@ -3343,6 +3379,7 @@ class ReviewOrchestrator:
         *,
         include_lanes: list[str] | tuple[str, ...] | set[str] | None = None,
         toolless_packet_path: Path | str | None = None,
+        spend_context: SpendContext | None = None,
     ) -> list[ReviewResult]:
         """Dispatch reviews to available vendors concurrently and collect results.
 
@@ -3363,6 +3400,13 @@ class ReviewOrchestrator:
         ``review-packet.meta.json`` next to the body); an overflowing packet
         is refused by the adapter without a request. CLI and SDK lanes always
         receive ``prompt``.
+
+        ``spend_context`` attributes metered (``endpoint_kind: openrouter``)
+        spend (design D4). A metered lane without one is not dispatched and
+        returns ``spend_context_missing``; with one, every result that sent a
+        request and got a generation id is recorded through the spend
+        recorder and ``spend_recorded`` carries its ``recorded`` value.
+        Non-metered lanes ignore it.
         """
         reviewers = self.discover_reviewers(
             exclude_vendor=exclude_vendor,
@@ -3527,6 +3571,20 @@ class ReviewOrchestrator:
 
             elif reviewer.dispatch_tier == "openai":
                 openai_adapter = self.openai_adapters[reviewer.agent_id]
+                metered = _is_metered(openai_adapter)
+                if metered and spend_context is None:
+                    # Spend that cannot be attributed is never incurred (D4).
+                    idx = next_index
+                    next_index += 1
+                    job_agent_ids[idx] = reviewer.agent_id
+                    sync_jobs.append((
+                        idx, reviewer.vendor, vendor_timeout,
+                        lambda v=reviewer.vendor: ReviewResult(
+                            vendor=v, success=False, error=SPEND_CONTEXT_MISSING,
+                            error_class=ErrorClass.UNAVAILABLE,
+                        ),
+                    ))
+                    continue
                 # A keyless local endpoint has no credential to request.
                 api_key, lookup_error = self._resolve_openai_key(reviewer.agent_id)
                 logger.info(
@@ -3547,21 +3605,22 @@ class ReviewOrchestrator:
                         ),
                     ))
                     continue
-                sync_jobs.append((
-                    idx,
-                    reviewer.vendor,
+                run_lane = partial(
+                    openai_adapter.dispatch,
+                    dispatch_mode,
+                    http_prompt,
+                    cwd,
                     vendor_timeout,
-                    partial(
-                        openai_adapter.dispatch,
-                        dispatch_mode,
-                        http_prompt,
-                        cwd,
-                        vendor_timeout,
-                        api_key,
-                        transport=self.openai_transport,
-                        tools_overflow=http_tools_overflow,
-                    ),
-                ))
+                    api_key,
+                    transport=self.openai_transport,
+                    tools_overflow=http_tools_overflow,
+                )
+                if metered:
+                    run_lane = partial(
+                        self._dispatch_metered, run_lane,
+                        lane_id=reviewer.vendor, spend_context=spend_context,
+                    )
+                sync_jobs.append((idx, reviewer.vendor, vendor_timeout, run_lane))
 
         job_count = len(async_jobs) + len(sync_jobs)
         if job_count == 0:
@@ -4045,6 +4104,24 @@ def _orchestrator_for_dispatch(
     return orchestrator
 
 
+def _oneshot_spend_context(
+    change_id: str | None, output_dir: str | Path, review_type: str,
+) -> SpendContext | None:
+    """The ``/parallel-review-*`` one-shot ``SpendContext`` (design D4).
+
+    ``change_id`` wins; else it is read from an ``.../changes/<id>/reviews``
+    output dir (archived changes included). ``None`` when neither names a
+    change, so a metered lane is then refused with ``spend_context_missing``.
+    """
+    if not change_id:
+        parts = Path(output_dir).parts
+        if len(parts) >= 3 and parts[-1] == "reviews" and "changes" in parts[:-2]:
+            change_id = parts[-2]
+    if not change_id:
+        return None
+    return SpendContext(change_id, f"{change_id}:{review_type}:oneshot")
+
+
 def main() -> int:
     """Dispatch reviews to vendor CLIs and collect results.
 
@@ -4107,6 +4184,13 @@ def main() -> int:
     parser.add_argument(
         "--output-dir", default="reviews",
         help="Directory for per-vendor findings and manifest",
+    )
+    parser.add_argument(
+        "--change-id", default=None,
+        help=(
+            "OpenSpec change id that metered review spend is attributed to; "
+            "inferred from an openspec/changes/<id>/reviews --output-dir"
+        ),
     )
     parser.add_argument(
         "--exclude-vendor", help="Exclude this vendor type from dispatch",
@@ -4206,6 +4290,9 @@ def main() -> int:
         cwd=cwd,
         timeout_seconds=args.timeout,
         exclude_vendor=args.exclude_vendor,
+        spend_context=_oneshot_spend_context(
+            args.change_id, args.output_dir, args.review_type,
+        ),
     )
 
     # Write results via the shared checkpoint_findings helper. Per-vendor
