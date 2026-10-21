@@ -538,6 +538,23 @@ def _untracked_paths(worktree_path: Path) -> set[str]:
     }
 
 
+def _repo_relative(path: str, worktree_path: Path) -> str:
+    """Express a write-allow path the way ``_changed_paths`` reports edits.
+
+    ``derive_spec_file`` joins onto ``artifacts_dir``, which is absolute when
+    the caller passes an absolute change dir, while git names changed files
+    relative to the worktree. Left absolute, a cited spec never matches its
+    own edit and every spec fix is rejected as out of scope.
+    """
+    candidate = Path(path)
+    if not candidate.is_absolute():
+        return candidate.as_posix()
+    try:
+        return candidate.resolve().relative_to(Path(worktree_path).resolve()).as_posix()
+    except ValueError:
+        return path
+
+
 def _changed_paths(
     worktree_path: Path,
     pre_fix_rev: str | None = None,
@@ -1255,7 +1272,8 @@ def converge(
             allowed: list[str] = []
             seen_allowed: set[str] = set()
             for payload in payloads:
-                for path in payload.get("allowed_paths") or []:
+                for raw in payload.get("allowed_paths") or []:
+                    path = _repo_relative(raw, worktree_path)
                     if path not in seen_allowed:
                         seen_allowed.add(path)
                         allowed.append(path)

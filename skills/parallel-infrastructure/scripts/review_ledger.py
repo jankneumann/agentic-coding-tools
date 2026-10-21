@@ -65,6 +65,7 @@ _LEDGER_ITEM_KEYS = (
     "resolution",
     "parked_reason",
     "consensus_status",
+    "fix_touched_file",
 )
 
 
