@@ -4,25 +4,7 @@
     "last_digest_at": null,
     "last_fingerprint": null
   },
-  "pending_gates": [
-    {
-      "approval_id": null,
-      "change_id": "openrouter-review-lane",
-      "deadline": "2026-10-22T11:16:20.976883+00:00",
-      "decision_id": "6b78afc8-0174-4a6d-98b9-23a8b4f81721",
-      "dedupe_fingerprint": "cbe82bb266ed0553afc7b82b5035b01a86ba31de298ce036eb97b3878e5051c5",
-      "dispatch_ids": [
-        {
-          "dispatch_id": "batch-d8913c4d8e973cd7940e2d09:ri-22:attempt-1",
-          "lease_generation": 6
-        }
-      ],
-      "disposition": "block",
-      "gate": "escalate_resume",
-      "requested_at": "2026-10-15T11:16:20.976883+00:00",
-      "source": "supervise"
-    }
-  ],
+  "pending_gates": [],
   "schema_version": 1,
   "standing_decisions": [
     {
@@ -54,5 +36,5 @@
       "scope": "multiplayer-collaboration"
     }
   ],
-  "written_at": "2026-10-15T11:16:16.088662Z"
+  "written_at": "2026-10-21T00:33:32.320802Z"
 }
