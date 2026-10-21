@@ -733,6 +733,16 @@ class ReviewResult:
     capacity_model: str | None = None
     capacity_reset_at: str | None = None
     capacity_retry_after_seconds: int | None = None
+    # Metered-lane spend accounting (openrouter-review-lane, D4). Set by
+    # OpenAICompatAdapter from the response's ``usage`` block; None for
+    # CLI/SDK lanes. cost_source is "reported" when usage.cost was present,
+    # "estimated" when it was absent. spend_recorded is the spend recorder's
+    # ``recorded`` value, set by ReviewOrchestrator.dispatch_and_wait.
+    prompt_tokens: int | None = None
+    completion_tokens: int | None = None
+    cost_usd: float | None = None
+    cost_source: str | None = None
+    spend_recorded: bool | None = None
 
 
 def _notify_capacity(

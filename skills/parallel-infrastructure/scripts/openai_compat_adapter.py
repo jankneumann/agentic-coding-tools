@@ -123,6 +123,12 @@ def _extract_budget(body: dict[str, Any] | None) -> dict[str, float | None] | No
     return {name: _numeric(data.get(name)) for name in _BUDGET_FIELDS}
 
 
+def _int_or_none(value: Any) -> int | None:
+    if isinstance(value, bool) or not isinstance(value, int):
+        return None
+    return value
+
+
 def _is_timeout(exc: BaseException) -> bool:
     if isinstance(exc, (TimeoutError, socket.timeout)):
         return True
@@ -169,11 +175,16 @@ class OpenAICompatAdapter:
         return headers
 
     def build_request(self, prompt: str, model: str) -> dict[str, Any]:
-        return {
+        body: dict[str, Any] = {
             "model": model,
             "messages": [{"role": "user", "content": prompt}],
             "temperature": 0,
         }
+        if self.endpoint_kind == "openrouter":
+            # Inline usage accounting: the response then carries usage.cost (D4).
+            # https://openrouter.ai/docs/use-cases/usage-accounting
+            body["usage"] = {"include": True}
+        return body
 
     def _endpoint_url(self) -> str:
         return f"{self.base_url}/chat/completions"
@@ -265,39 +276,10 @@ class OpenAICompatAdapter:
                     elapsed_seconds=time.monotonic() - start,
                 )
 
-            content = _extract_content(resp)
-            if not content:
-                return ReviewResult(
-                    vendor=self.vendor, success=False,
-                    error="Empty response content", error_class=ErrorClass.UNKNOWN,
-                    model_used=model, models_attempted=models_attempted,
-                    elapsed_seconds=time.monotonic() - start,
-                    generation_id=resp.get("id"),
-                )
-            # Parse the model output into the dispatcher's review-findings shape
-            # ({"findings": [...]}) using the same extractor the CLI/SDK adapters use.
-            # A non-empty response that is NOT valid review-findings JSON is a failure,
-            # not a silent success with zero findings.
-            findings = CliVendorAdapter._parse_findings(content)
-            if findings is None:
-                return ReviewResult(
-                    vendor=self.vendor, success=False,
-                    error="Review output was not valid review-findings JSON",
-                    error_class=ErrorClass.UNKNOWN,
-                    model_used=model, models_attempted=models_attempted,
-                    elapsed_seconds=time.monotonic() - start,
-                    generation_id=resp.get("id"),
-                )
-            return ReviewResult(
-                vendor=self.vendor,
-                success=True,
-                findings=findings,
-                model_used=model,
-                models_attempted=models_attempted,
-                elapsed_seconds=time.monotonic() - start,
-                error=None,
-                generation_id=resp.get("id"),
+            result = self._result_from_response(
+                resp, model, models_attempted, time.monotonic() - start,
             )
+            return self._with_usage(result, resp)
 
         return ReviewResult(
             vendor=self.vendor, success=False,
@@ -305,6 +287,57 @@ class OpenAICompatAdapter:
             error_class=ErrorClass.CAPACITY, models_attempted=models_attempted,
             elapsed_seconds=time.monotonic() - start,
         )
+
+    def _result_from_response(
+        self,
+        resp: dict[str, Any],
+        model: str,
+        models_attempted: list[str],
+        elapsed: float,
+    ) -> ReviewResult:
+        """Turn one chat-completions response into a ReviewResult."""
+        content = _extract_content(resp)
+        if not content:
+            return ReviewResult(
+                vendor=self.vendor, success=False,
+                error="Empty response content", error_class=ErrorClass.UNKNOWN,
+                model_used=model, models_attempted=models_attempted,
+                elapsed_seconds=elapsed, generation_id=resp.get("id"),
+            )
+        # Parse the model output into the dispatcher's review-findings shape
+        # ({"findings": [...]}) using the same extractor the CLI/SDK adapters use.
+        # A non-empty response that is NOT valid review-findings JSON is a failure,
+        # not a silent success with zero findings.
+        findings = CliVendorAdapter._parse_findings(content)
+        if findings is None:
+            return ReviewResult(
+                vendor=self.vendor, success=False,
+                error="Review output was not valid review-findings JSON",
+                error_class=ErrorClass.UNKNOWN,
+                model_used=model, models_attempted=models_attempted,
+                elapsed_seconds=elapsed, generation_id=resp.get("id"),
+            )
+        return ReviewResult(
+            vendor=self.vendor, success=True, findings=findings,
+            model_used=model, models_attempted=models_attempted,
+            elapsed_seconds=elapsed, error=None, generation_id=resp.get("id"),
+        )
+
+    def _with_usage(self, result: ReviewResult, resp: dict[str, Any]) -> ReviewResult:
+        """Copy the response's token counts and cost onto *result* (D4).
+
+        Applied to every result built from a response, successful or not, so
+        a billed-but-rejected review still reports its spend. cost_source is
+        set only for metered (OpenRouter) lanes.
+        """
+        usage = resp.get("usage")
+        usage = usage if isinstance(usage, dict) else {}
+        result.prompt_tokens = _int_or_none(usage.get("prompt_tokens"))
+        result.completion_tokens = _int_or_none(usage.get("completion_tokens"))
+        result.cost_usd = _numeric(usage.get("cost"))
+        if self.endpoint_kind == "openrouter":
+            result.cost_source = "reported" if result.cost_usd is not None else "estimated"
+        return result
 
 
 def _extract_content(resp: dict[str, Any]) -> str | None:

@@ -39,12 +39,12 @@ dataclass fields and the shared ingest helper extracted in 1.7),
   Add a GET-capable transport alongside the existing POST transport, using the default SSL
   context (so `SSL_CERT_FILE` is honoured). Cite the OpenRouter docs URLs for `/key` in a
   comment (source-driven-development).
-- [ ] 1.3 Write the failing tests for cost capture:
+- [x] 1.3 Write the failing tests for cost capture:
   - The request body includes `usage: {include: true}`.
   - The response fields `usage.prompt_tokens`, `usage.completion_tokens` and `usage.cost` map
     to the new `ReviewResult` fields.
   - Without a cost, `cost_source == "estimated"`.
-- [ ] 1.4 Add the optional `ReviewResult` fields `prompt_tokens`, `completion_tokens`,
+- [x] 1.4 Add the optional `ReviewResult` fields `prompt_tokens`, `completion_tokens`,
   `cost_usd`, `cost_source` and `spend_recorded` (set by task 3.10), all defaulting to `None`,
   and implement the capture in `dispatch()`.
 - [ ] 1.5 Write a failing test: `dispatch(..., tools_overflow=True)` returns

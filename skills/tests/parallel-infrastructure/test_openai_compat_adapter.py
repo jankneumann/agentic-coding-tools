@@ -8,13 +8,14 @@ path.
 
 from __future__ import annotations
 
+import json
 import logging
 import socket
 import urllib.error
 
 import pytest
 from openai_compat_adapter import OpenAICompatAdapter, ProbeResult
-from review_dispatcher import ErrorClass
+from review_dispatcher import ErrorClass, ReviewResult
 
 
 class FakeTransport:
@@ -154,6 +155,96 @@ def test_can_dispatch_review_only():
     a = _adapter()
     assert a.can_dispatch("review")
     assert not a.can_dispatch("alternative")
+
+
+# ── cost capture (openrouter-review-lane, tasks 1.3/1.4, design D4) ─────────
+
+# One substantive, schema-valid finding: survives the shared ingest pipeline
+# (schema validation, placeholder check, fast-empty floor) regardless of elapsed.
+_ONE_FINDING_JSON = json.dumps({
+    "review_type": "plan",
+    "target": "test-feature",
+    "reviewer_vendor": "openrouter",
+    "findings": [
+        {"id": 1, "type": "security", "criticality": "high",
+         "description": "Token is compared with == instead of a constant-time compare",
+         "disposition": "fix", "axis": "security", "severity": "critical"},
+    ],
+})
+
+
+def _ok_with_usage(usage, content=_ONE_FINDING_JSON, gen_id="gen-abc"):
+    resp = _ok(content=content, gen_id=gen_id)
+    if usage is not None:
+        resp["usage"] = usage
+    return resp
+
+
+def test_request_body_asks_for_inline_usage_accounting():
+    tr = FakeTransport([_ok_with_usage(None)])
+    _adapter().dispatch("review", "hello", api_key="k", transport=tr)
+    assert tr.calls[0]["body"]["usage"] == {"include": True}
+
+
+def test_reported_cost_and_tokens_map_to_review_result():
+    tr = FakeTransport([_ok_with_usage(
+        {"prompt_tokens": 1200, "completion_tokens": 300, "total_tokens": 1500,
+         "cost": 0.0042},
+    )])
+    result = _adapter().dispatch("review", "p", api_key="k", transport=tr)
+    assert result.success
+    assert result.generation_id == "gen-abc"
+    assert result.prompt_tokens == 1200
+    assert result.completion_tokens == 300
+    assert result.cost_usd == 0.0042
+    assert result.cost_source == "reported"
+    assert result.spend_recorded is None  # set by the dispatcher's recorder (3.10)
+
+
+def test_missing_cost_is_estimated():
+    tr = FakeTransport([_ok_with_usage({"prompt_tokens": 10, "completion_tokens": 5})])
+    result = _adapter().dispatch("review", "p", api_key="k", transport=tr)
+    assert result.prompt_tokens == 10
+    assert result.completion_tokens == 5
+    assert result.cost_usd is None
+    assert result.cost_source == "estimated"
+
+
+def test_missing_usage_block_is_estimated():
+    tr = FakeTransport([_ok_with_usage(None)])
+    result = _adapter().dispatch("review", "p", api_key="k", transport=tr)
+    assert result.prompt_tokens is None
+    assert result.completion_tokens is None
+    assert result.cost_usd is None
+    assert result.cost_source == "estimated"
+
+
+def test_cost_is_captured_on_unsuccessful_response_too():
+    # A response that was billed but failed ingest still carries its spend.
+    tr = FakeTransport([_ok_with_usage(
+        {"prompt_tokens": 7, "completion_tokens": 3, "cost": 0.001},
+        content="not json at all",
+    )])
+    result = _adapter().dispatch("review", "p", api_key="k", transport=tr)
+    assert not result.success
+    assert result.cost_usd == 0.001
+    assert result.cost_source == "reported"
+
+
+def test_local_lane_is_not_metered():
+    tr = FakeTransport([_ok_with_usage({"prompt_tokens": 4, "completion_tokens": 2})])
+    adapter = _adapter(endpoint_kind="local", base_url="http://localhost:11434/v1",
+                       vendor="local", model="qwen3-coder-32b")
+    result = adapter.dispatch("review", "p", api_key=None, transport=tr)
+    assert "usage" not in tr.calls[0]["body"]
+    assert result.prompt_tokens == 4
+    assert result.cost_source is None
+
+
+def test_review_result_cost_fields_default_to_none():
+    r = ReviewResult(vendor="codex", success=True)
+    assert (r.prompt_tokens, r.completion_tokens, r.cost_usd, r.cost_source,
+            r.spend_recorded) == (None, None, None, None, None)
 
 
 # ── probe (openrouter-review-lane, tasks 1.1/1.2, design D3) ────────────────
