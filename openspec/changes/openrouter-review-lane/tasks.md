@@ -87,7 +87,7 @@ dataclass fields and the shared ingest helper extracted in 1.7),
   `routing.yaml` `cost_policy.tiers`. Choose the
   premium slug from the live OpenRouter model catalog: it must be non-Anthropic and preferably
   a family not served by a host CLI. Record the catalog URL and the date in a YAML comment.
-- [ ] 2.3 Run the registry projection tests (`test_registry_projection.py`,
+- [x] 2.3 Run the registry projection tests (`test_registry_projection.py`,
   `test_vendor_registry.py`, profile sync) and fix any projection assumption that every agent
   carries a CLI or SDK block.
 

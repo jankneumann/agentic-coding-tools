@@ -437,6 +437,49 @@ async def test_openrouter_lane_projects_despite_publisher_vendor_and_base_url_mi
 
 
 @pytest.mark.asyncio
+async def test_endpoint_only_review_lane_projects_without_cli_or_sdk() -> None:
+    """openrouter-review-lane task 2.3: the shipped openrouter-review agent has
+    no cli and no sdk block. Its models must still come from the provider map
+    (model_aliases.openrouter) and price against catalog rows, and the lane
+    stays dispatchable over its http transport with no CLI dispatch modes."""
+    from src.agents_config import get_provider_model_map, load_agents_config
+
+    lane_agent = next(a for a in load_agents_config() if a.name == "openrouter-review")
+    assert lane_agent.cli is None and lane_agent.sdk is None
+    provider = get_provider_model_map()["providers"]["openrouter"]
+    slugs = sorted(
+        {value["model"] if isinstance(value, dict) else value for value in provider.values()}
+    )
+    rows = [
+        {
+            "vendor": slug.split("/", 1)[0],
+            "model": slug,
+            "endpoint_kind": "openrouter",
+            "base_url": "https://openrouter.ai/api/v1",
+            "prompt_usd_per_mtok": 1.0,
+            "completion_usd_per_mtok": 2.0,
+            "refreshed_at": NOW.isoformat(),
+            "available": True,
+            "stale": False,
+        }
+        for slug in slugs
+    ]
+    service = VendorRegistryService(
+        _db({"model_catalog": rows}), agents=[lane_agent], now_fn=lambda: NOW
+    )
+
+    lane = (await service.list_vendors(archetype="reviewer", location="cloud"))[0]
+
+    assert lane["agent_id"] == "openrouter-review"
+    assert lane["vendor_type"] == "openrouter"
+    assert lane["dispatchable"] is True
+    assert lane["dispatch_modes"] == []
+    assert lane["cost"]["known"] is True
+    assert lane["cost"]["misses"] == []
+    assert sorted(model["model"] for model in lane["cost"]["models"]) == slugs
+
+
+@pytest.mark.asyncio
 async def test_ambiguous_catalog_model_makes_whole_projection_unknown_and_audits() -> None:
     exact = {
         "vendor": "codex",
