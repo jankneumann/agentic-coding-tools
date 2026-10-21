@@ -27,6 +27,9 @@ KINDS = (
     "missing_deviation_protocol",
     "tier_concentrated_failure",
     "convention_drift",
+    "test_oracle_impl_derived",
+    "test_same_context_authorship",
+    "test_coverage_target",
 )
 REMEDIATIONS = ("keep", "move_to_reference", "extract_to_script", "add_probe", "add_reason", "delete")
 

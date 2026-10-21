@@ -1,0 +1,30 @@
+{
+  "review_type": "plan",
+  "target": "pilot-test-quality-audit",
+  "reviewer": "claude_code",
+  "summary": "Primary plan review after two iterate-on-plan cycles (18 + 6 findings fixed; see plan-findings.md). Residual findings are low: positional scenario IDs in tasks.md drift when scenarios are added, and the 7-class kappa cell will be insufficient by construction at n~40. No critical/high/medium findings remain; openspec validate --strict passes, all 55 scenarios are cited by test tasks, work-package write scopes are disjoint, and context-impact declarations validate.",
+  "findings": [
+    {
+      "id": 1,
+      "type": "style",
+      "criticality": "low",
+      "axis": "readability",
+      "severity": "nit",
+      "description": "tasks.md cites spec scenarios by document position (test-oracle-audit.1-.55); inserting a scenario renumbers every later citation. Mitigated by the regenerated table and a note; a slug-based scheme would remove the hazard but is a repo-wide convention change.",
+      "resolution": "Accept for this change; re-derive the table from the spec whenever a scenario is added.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/pilot-test-quality-audit/tasks.md"
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "fyi",
+      "description": "With ~40 human labels over seven classes, the seven-class Cohen's kappa cell will almost always report `insufficient` under the n<20-per-cell rule; only the binary kappa can drive the 0.7 exclusion decision. D10 and the Risks section already say the pilot's value is in ruling rules out, but the report should state explicitly that the 7-class figure is descriptive.",
+      "resolution": "Accept; D10 lists kappa_7 and kappa_binary separately and the decision rule names the binary kappa only.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/pilot-test-quality-audit/design.md"
+    }
+  ]
+}
