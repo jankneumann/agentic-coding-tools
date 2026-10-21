@@ -74,7 +74,7 @@ dataclass fields and the shared ingest helper extracted in 1.7),
 **Depends:** none
 **Specs:** parallel-infrastructure "OpenAI-Compatible Dispatcher Discovery"
 
-- [ ] 2.1 Write failing tests:
+- [x] 2.1 Write failing tests:
   - `openrouter-review` loads with `endpoint_kind: openrouter`, a `base_url`, no `cli`/`sdk`,
     `archetypes: [reviewer]`, and `vendor_credentials: [openrouter]`.
   - `get_dispatch_configs()` emits it.

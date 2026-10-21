@@ -1680,3 +1680,97 @@ def test_bao_mode_ignores_explicit_static_identity_override(
     config = ApiConfig.from_env()
     assert config.api_keys == ["static-key"]  # preserved for cutover preflight
     assert config.api_key_identities == {}
+
+
+# ---------------------------------------------------------------------------
+# openrouter-review lane roster (openrouter-review-lane, task 2.1 / design D1)
+# ---------------------------------------------------------------------------
+
+
+class TestOpenRouterReviewLane:
+    """The endpoint-only OpenRouter reviewer agent in the real agents.yaml."""
+
+    @staticmethod
+    def _lane() -> AgentEntry:
+        entries = load_agents_config()
+        matches = [e for e in entries if e.name == "openrouter-review"]
+        assert len(matches) == 1, "agents.yaml must declare exactly one openrouter-review"
+        return matches[0]
+
+    def test_endpoint_only_reviewer_shape(self) -> None:
+        lane = self._lane()
+        assert lane.type == "openrouter"
+        assert lane.endpoint_kind == "openrouter"
+        assert lane.base_url == "https://openrouter.ai/api/v1"
+        assert lane.cli is None
+        assert lane.sdk is None
+        assert lane.archetypes == ["reviewer"]
+        assert lane.vendor_credentials == ("openrouter",)
+        assert lane.location == "cloud"
+        assert lane.transport == "http"
+
+    def test_lane_has_no_coordinator_identity(self) -> None:
+        # D1: no api_key — the lane never calls the coordinator as itself.
+        assert self._lane().api_key is None
+
+    def test_lane_type_is_unique_lane_id(self) -> None:
+        # converge() keys checkpointed results by vendor (= agent type).
+        types = [e.type for e in load_agents_config() if e.endpoint_kind == "openrouter"]
+        assert types.count("openrouter") == 1
+
+    def test_dispatch_configs_emit_lane(self) -> None:
+        from src.agents_config import get_dispatch_configs
+
+        configs = get_dispatch_configs(load_agents_config())["agents"]
+        lane = next(c for c in configs if c["agent_id"] == "openrouter-review")
+        assert lane["type"] == "openrouter"
+        assert lane["endpoint_kind"] == "openrouter"
+        assert lane["base_url"] == "https://openrouter.ai/api/v1"
+        assert lane["cli"] is None
+        assert lane["sdk"] is None
+        assert lane["vendor_credentials"] == ["openrouter"]
+        assert lane["principal_id"] is None
+
+
+class TestMeteredCloudCostTier:
+    """routing.yaml must rank a cloud OpenRouter agent (design D1)."""
+
+    def test_cloud_openrouter_has_a_cost_tier(self) -> None:
+        from src.model_routing.routing_policy import load_routing_policy
+
+        policy = load_routing_policy()
+        tier = policy.cost_tier("cloud", "openrouter")
+        assert tier is not None
+        assert tier[1] == "metered-api-cloud"
+
+    def test_cloud_metered_tier_is_last_rung(self) -> None:
+        from src.model_routing.routing_policy import load_routing_policy
+
+        policy = load_routing_policy()
+        tiers = policy.document.cost_policy.tiers
+        cloud = policy.cost_tier("cloud", "openrouter")
+        assert cloud is not None
+        assert cloud[0] == len(tiers) - 1
+
+    def test_local_openrouter_stays_metered_api(self) -> None:
+        from src.model_routing.routing_policy import load_routing_policy
+
+        tier = load_routing_policy().cost_tier("local", "openrouter")
+        assert tier is not None
+        assert tier[1] == "metered-api"
+
+    def test_cloud_metered_tier_cannot_outrank_subscription(self, tmp_path: Path) -> None:
+        import yaml
+
+        from src.model_routing.routing_policy import load_routing_policy
+
+        source = Path(__file__).resolve().parent.parent / "routing.yaml"
+        raw = yaml.safe_load(source.read_text())
+        tiers = raw["cost_policy"]["tiers"]
+        cloud = next(t for t in tiers if t["id"] == "metered-api-cloud")
+        tiers.remove(cloud)
+        tiers.insert(0, cloud)
+        path = tmp_path / "routing.yaml"
+        path.write_text(yaml.safe_dump(raw))
+        with pytest.raises(ValueError, match="cost tiers must follow"):
+            load_routing_policy(path)
