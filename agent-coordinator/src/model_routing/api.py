@@ -278,6 +278,41 @@ class HTTPErrorResponse(BaseModel):
     detail: str
 
 
+class SpendRecordRequest(BaseModel):
+    """One metered review's spend row (openrouter-review-lane, design D4).
+
+    ``generation_id`` is the idempotency key. Unknown fields are rejected so a
+    client can never smuggle a credential or rate field into the ledger.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    vendor: str = Field(min_length=1)
+    model: str = Field(min_length=1)
+    endpoint_kind: EndpointKind
+    generation_id: str = Field(min_length=1)
+    prompt_tokens: int | None = Field(default=None, ge=0)
+    completion_tokens: int | None = Field(default=None, ge=0)
+    actual_usd: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+    tokens_estimated: bool = False
+    work_unit_ref: str | None = None
+    occurred_at: datetime | None = None
+
+
+class SpendRecordResponse(BaseModel):
+    id: int | str | None = None
+    vendor: str
+    model: str
+    endpoint_kind: str
+    generation_id: str
+    prompt_tokens: int | None = None
+    completion_tokens: int | None = None
+    actual_usd: float = 0.0
+    tokens_estimated: bool = False
+    work_unit_ref: str | None = None
+    occurred_at: datetime | None = None
+
+
 class FeedbackMetrics(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -324,6 +359,10 @@ class _Ledger(Protocol):
         window: Literal["day", "week", "month"] = "month",
         month: Any = None,
     ) -> dict[str, Any]: ...
+
+    async def record(self, record: Any) -> dict[str, Any]: ...
+
+    async def find_by_generation_id(self, generation_id: str) -> dict[str, Any] | None: ...
 
 
 class RoutingUnavailableError(RuntimeError):
@@ -833,6 +872,19 @@ class RoutingService:
             "estimated_fraction": estimates / entries if entries else 0.0,
         }
 
+    async def record_spend(self, request: SpendRecordRequest) -> tuple[dict[str, Any], bool]:
+        """Write one spend row unless its ``generation_id`` is already recorded.
+
+        Returns ``(row, created)``. The lookup-then-insert is not atomic; two
+        concurrent posts of the same generation can both insert. Callers
+        (``spend_recorder``) post each generation once and replay serially.
+        """
+        existing = await self.ledger.find_by_generation_id(request.generation_id)
+        if existing is not None:
+            return existing, False
+        row = await self.ledger.record(request.model_dump(exclude_none=True))
+        return row, True
+
     async def post_feedback(self, event: FeedbackEvent) -> dict[str, bool]:
         """Accept feedback without coupling callers to aggregation cadence."""
         from ..audit import get_audit_service
@@ -922,7 +974,7 @@ _SELECT_RESPONSES = {
 
 
 def install_routing_routes(app: FastAPI, auth_dependency: Any) -> None:
-    """Register the five OpenAPI routing paths on the coordinator app."""
+    """Register the six OpenAPI routing paths on the coordinator app."""
 
     @app.post(
         "/routing/select_model",
@@ -981,6 +1033,28 @@ def install_routing_routes(app: FastAPI, auth_dependency: Any) -> None:
     ) -> dict[str, Any]:
         return await get_routing_service().get_usage(
             window=window, include_estimates=include_estimates
+        )
+
+    @app.post(
+        "/routing/spend",
+        status_code=201,
+        response_model=SpendRecordResponse,
+        dependencies=[Depends(auth_dependency)],
+        responses={
+            **_AUTH_RESPONSES,
+            200: {
+                "model": SpendRecordResponse,
+                "description": "generation_id already recorded; existing row returned",
+            },
+        },
+    )
+    async def spend_endpoint(request: SpendRecordRequest) -> Any:
+        row, created = await get_routing_service().record_spend(request)
+        if created:
+            return row
+        return JSONResponse(
+            status_code=200,
+            content=SpendRecordResponse.model_validate(row).model_dump(mode="json"),
         )
 
     @app.post(

@@ -182,10 +182,10 @@ dataclass fields and the shared ingest helper extracted in 1.7),
 **Specs:** model-routing "Review Spend Recording Route"; parallel-infrastructure "Metered
 Review Lane Spend Accounting" (record, spool and replay part)
 
-- [ ] 4.1 Write failing route tests: 201 on insert, 200 on a duplicate `generation_id`, 401
+- [x] 4.1 Write failing route tests: 201 on insert, 200 on a duplicate `generation_id`, 401
   without a key, 422 on a negative `actual_usd` or an unknown field, and `GET /routing/usage`
   reflects the row.
-- [ ] 4.2 Implement the `SpendRecordRequest` Pydantic model (`extra="forbid"`), the
+- [x] 4.2 Implement the `SpendRecordRequest` Pydantic model (`extra="forbid"`), the
   `POST /routing/spend` route, and `LedgerService.find_by_generation_id`. No database
   migration is needed because `generation_id` already exists.
 - [ ] 4.3 Write failing client tests:

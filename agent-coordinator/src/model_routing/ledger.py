@@ -85,6 +85,17 @@ class LedgerService:
             row["occurred_at"] = row["occurred_at"].isoformat()
         return await self.db.insert("routing_spend_ledger", row)
 
+    async def find_by_generation_id(self, generation_id: str) -> dict[str, Any] | None:
+        """Return the first ledger row carrying ``generation_id``, or ``None``.
+
+        ``generation_id`` is the idempotency key of ``POST /routing/spend``.
+        """
+        rows = await self.db.query(
+            "routing_spend_ledger",
+            f"generation_id=eq.{encode_filter_value(generation_id)}&order=id.asc&limit=1",
+        )
+        return rows[0] if rows else None
+
     async def usage_summary(
         self,
         *,

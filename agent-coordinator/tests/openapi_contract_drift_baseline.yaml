@@ -30,6 +30,9 @@ uncontracted_routes:
   - route: POST /routing/feedback
     finding: served but not contracted
     reason: Same as GET /routing/catalog — archived change, routing contract never promoted.
+  - route: POST /routing/spend
+    finding: served but not contracted
+    reason: Added by in-flight openrouter-review-lane (task 4.2); the routing contract is still unpromoted (see GET /routing/catalog). Resolves when the routing contract is promoted.
   - route: POST /routing/select_model
     finding: served but not contracted
     reason: Same as GET /routing/catalog; implement-the-task-router-vendor-x-location-x-model also extends it in flight.
