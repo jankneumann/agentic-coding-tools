@@ -3213,3 +3213,225 @@ class TestIncludeLanes:
         orch = self._orch(lane_models)
         results = orch.dispatch_and_wait("plan", "review", "prompt", tmp_path)
         assert sorted(r.agent_id for r in results) == ["box-local", "gx10-local"]
+
+
+# ---------------------------------------------------------------------------
+# openrouter-review-lane: API-lane probe and budget rule (design D3/D4)
+# ---------------------------------------------------------------------------
+
+from typing import Any  # noqa: E402
+
+import review_dispatcher  # noqa: E402
+from review_dispatcher import metered_budget_reason  # noqa: E402
+
+
+class _ProbeTransport:
+    """GET transport stand-in: records URLs, answers with a fixed response."""
+
+    def __init__(self, status: int = 200, body: Any = None) -> None:
+        self.status = status
+        self.body = body
+        self.urls: list[str] = []
+
+    def __call__(self, url: str, headers: dict[str, str], timeout: float):
+        self.urls.append(url)
+        return self.status, self.body
+
+
+def _key_body(limit: float | None, remaining: float | None, usage: float = 0.0) -> dict:
+    return {"data": {"limit": limit, "limit_remaining": remaining, "usage": usage}}
+
+
+@pytest.fixture
+def no_chat_calls(monkeypatch: pytest.MonkeyPatch):
+    """Fail the test if anything reaches a real network transport."""
+    import openai_compat_adapter
+
+    def _boom(*_a, **_k):
+        raise AssertionError("no real HTTP request may be sent")
+
+    monkeypatch.setattr(openai_compat_adapter, "_default_transport", _boom)
+    monkeypatch.setattr(openai_compat_adapter, "_default_get_transport", _boom)
+
+
+def _api_orch(
+    lane_models,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    transport: _ProbeTransport,
+    usage: dict | None = None,
+    agents: list[dict] | None = None,
+    key: str | None = "sk-or-test-not-a-real-key",
+) -> ReviewOrchestrator:
+    monkeypatch.delenv("BAO_ADDR", raising=False)
+    if key is None:
+        monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    else:
+        monkeypatch.setenv("OPENROUTER_API_KEY", key)
+    lane_models.setdefault("openrouter", ("nvidia/nemotron", ["qwen/qwen3-coder"]))
+    return ReviewOrchestrator.from_config_dict(
+        {"agents": agents if agents is not None else [_openrouter_agent()]},
+        lane_policy=_POLICY,
+        probe_transport=transport,
+        usage_fetcher=lambda: usage,
+    )
+
+
+def _probe(orch: ReviewOrchestrator) -> dict:
+    from review_dispatcher import _probe_mode
+
+    return _probe_mode(orch, "review", exclude_vendor=None, dry_invoke=lambda _a: None)
+
+
+class TestMeteredBudgetReason:
+    def test_key_limit_with_room_verifies(self) -> None:
+        assert metered_budget_reason(
+            {"limit": 20.0, "limit_remaining": 15.0, "usage": 5.0}, None,
+            reservation_usd=1.0,
+        ) is None
+
+    def test_coordinator_ceiling_alone_verifies(self) -> None:
+        assert metered_budget_reason(
+            None, {"metered_ceiling_usd": 50.0, "metered_usd_used": 10.0},
+            reservation_usd=1.0,
+        ) is None
+
+    def test_any_source_below_reservation_is_exceeded(self) -> None:
+        assert metered_budget_reason(
+            {"limit": 20.0, "limit_remaining": 15.0},
+            {"metered_ceiling_usd": 50.0, "metered_usd_used": 49.5},
+            reservation_usd=1.0,
+        ) == "spend_ceiling_exceeded"
+
+    def test_spooled_spend_counts_against_coordinator_ceiling(self) -> None:
+        usage = {"metered_ceiling_usd": 50.0, "metered_usd_used": 40.0}
+        assert metered_budget_reason(None, usage, reservation_usd=1.0, spooled_usd=8.0) is None
+        assert metered_budget_reason(
+            None, usage, reservation_usd=1.0, spooled_usd=9.5,
+        ) == "spend_ceiling_exceeded"
+
+    def test_no_source_is_unverifiable(self) -> None:
+        assert metered_budget_reason(
+            {"limit": None, "limit_remaining": None}, {"metered_ceiling_usd": 0.0},
+            reservation_usd=1.0,
+        ) == "spend_ceiling_unverifiable"
+        assert metered_budget_reason(None, None, reservation_usd=1.0) == (
+            "spend_ceiling_unverifiable"
+        )
+
+    def test_limit_without_remaining_derives_from_usage(self) -> None:
+        assert metered_budget_reason(
+            {"limit": 20.0, "limit_remaining": None, "usage": 19.5}, None,
+            reservation_usd=1.0,
+        ) == "spend_ceiling_exceeded"
+
+
+class TestApiLaneProbe:
+    def test_key_limit_with_budget_verifies_without_chat_call(
+        self, lane_models, monkeypatch, no_chat_calls,
+    ) -> None:
+        transport = _ProbeTransport(200, _key_body(20.0, 15.0))
+        orch = _api_orch(lane_models, monkeypatch, transport=transport, usage=None)
+        report = _probe(orch)
+        assert report["verified"] == ["openrouter"]
+        assert report["lane_kinds"] == {"openrouter": "openrouter"}
+        assert transport.urls == ["https://openrouter.ai/api/v1/key"]
+        assert not any("chat/completions" in url for url in transport.urls)
+
+    def test_coordinator_ceiling_exhausted_is_exceeded(
+        self, lane_models, monkeypatch, no_chat_calls,
+    ) -> None:
+        transport = _ProbeTransport(200, _key_body(20.0, 15.0))
+        orch = _api_orch(
+            lane_models, monkeypatch, transport=transport,
+            usage={"metered_ceiling_usd": 50.0, "metered_usd_used": 49.5},
+        )
+        report = _probe(orch)
+        assert report["verified"] == []
+        assert report["unverified"] == [
+            {"vendor": "openrouter", "reason": "spend_ceiling_exceeded"},
+        ]
+
+    def test_no_ceiling_source_is_unverifiable(
+        self, lane_models, monkeypatch, no_chat_calls,
+    ) -> None:
+        transport = _ProbeTransport(200, _key_body(None, None))
+        orch = _api_orch(
+            lane_models, monkeypatch, transport=transport,
+            usage={"metered_ceiling_usd": 0.0, "metered_usd_used": 0.0},
+        )
+        assert _probe(orch)["unverified"] == [
+            {"vendor": "openrouter", "reason": "spend_ceiling_unverifiable"},
+        ]
+
+    def test_body_without_data_falls_back_to_coordinator_source(
+        self, lane_models, monkeypatch, no_chat_calls,
+    ) -> None:
+        transport = _ProbeTransport(200, {"unexpected": True})
+        orch = _api_orch(lane_models, monkeypatch, transport=transport, usage=None)
+        assert _probe(orch)["unverified"] == [
+            {"vendor": "openrouter", "reason": "spend_ceiling_unverifiable"},
+        ]
+        orch.usage_fetcher = lambda: {"metered_ceiling_usd": 50.0, "metered_usd_used": 10.0}
+        assert _probe(orch)["verified"] == ["openrouter"]
+
+    def test_rejected_key_is_auth_failed(self, lane_models, monkeypatch, no_chat_calls) -> None:
+        transport = _ProbeTransport(401, {"error": "nope"})
+        orch = _api_orch(lane_models, monkeypatch, transport=transport, usage=None)
+        assert _probe(orch)["unverified"] == [{"vendor": "openrouter", "reason": "auth_failed"}]
+
+    def test_missing_key_is_auth_failed_without_request(
+        self, lane_models, monkeypatch, no_chat_calls,
+    ) -> None:
+        transport = _ProbeTransport(200, _key_body(20.0, 15.0))
+        orch = _api_orch(lane_models, monkeypatch, transport=transport, key=None)
+        assert _probe(orch)["unverified"] == [{"vendor": "openrouter", "reason": "auth_failed"}]
+        assert transport.urls == []
+
+    def test_local_lane_verifies_by_models_probe_without_budget(
+        self, lane_models, monkeypatch, no_chat_calls,
+    ) -> None:
+        lane_models["gx10"] = ("meta/llama-4", [])
+        transport = _ProbeTransport(200, {"data": []})
+        orch = _api_orch(
+            lane_models, monkeypatch, transport=transport,
+            agents=[_local_agent("gx10-local", "gx10")],
+        )
+        report = _probe(orch)
+        assert report["verified"] == ["gx10"]
+        assert report["lane_kinds"] == {"gx10": "local"}
+        assert transport.urls == ["http://127.0.0.1:11434/v1/models"]
+
+    def test_lane_kinds_cover_every_lane_and_sdk_stays_unsupported(
+        self, lane_models, monkeypatch, no_chat_calls,
+    ) -> None:
+        transport = _ProbeTransport(200, _key_body(20.0, 15.0))
+        sdk_agent = {
+            "agent_id": "antigravity-api", "type": "antigravity", "transport": "http",
+            "sdk": {"package": "google-genai", "model": "gemini-x"},
+        }
+        orch = _api_orch(
+            lane_models, monkeypatch, transport=transport,
+            agents=[_cli_agent("codex-local", "codex"), sdk_agent, _openrouter_agent()],
+        )
+        with _on_path(), patch.object(
+            review_dispatcher.SdkVendorAdapter, "can_dispatch", return_value=True,
+        ):
+            report = _probe(orch)
+        assert report["lane_kinds"] == {
+            "antigravity": "vendor-sdk", "codex": "vendor-cli", "openrouter": "openrouter",
+        }
+        assert report["verified"] == ["openrouter"]
+        assert {"vendor": "antigravity", "reason": "probe_unsupported"} in report["unverified"]
+        assert {"vendor": "codex", "reason": "cli_not_found"} in report["unverified"]
+
+    def test_anthropic_rejected_lane_kind_is_reported(self, lane_models, monkeypatch) -> None:
+        lane_models["openrouter"] = ("anthropic/claude-opus", [])
+        orch = _api_orch(lane_models, monkeypatch, transport=_ProbeTransport())
+        report = _probe(orch)
+        assert report["lane_kinds"] == {"openrouter": "openrouter"}
+        assert transport_urls_empty(orch)
+
+
+def transport_urls_empty(orch: ReviewOrchestrator) -> bool:
+    return orch.probe_transport.urls == []

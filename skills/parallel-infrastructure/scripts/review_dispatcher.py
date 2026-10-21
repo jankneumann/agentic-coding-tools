@@ -2609,6 +2609,110 @@ def _is_metered(adapter: Any) -> bool:
     return getattr(adapter, "endpoint_kind", None) == "openrouter"
 
 
+def _number(value: Any) -> float | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    return float(value)
+
+
+def metered_budget_reason(
+    key_budget: Mapping[str, Any] | None,
+    coordinator_usage: Mapping[str, Any] | None,
+    *,
+    reservation_usd: float,
+    spooled_usd: float = 0.0,
+) -> str | None:
+    """The spend-ceiling rule for a metered lane (design D4).
+
+    Two sources may bound spend: the coordinator's monthly ceiling (counts
+    when ``metered_ceiling_usd > 0``; remaining is ceiling − used −
+    ``spooled_usd``) and the OpenRouter key's credit ``limit`` (counts when
+    not null; remaining is ``limit_remaining``). Returns ``None`` when at
+    least one source exists and every source has ``reservation_usd`` left,
+    ``spend_ceiling_exceeded`` when any has less, and
+    ``spend_ceiling_unverifiable`` when there is no source (fail closed).
+    The probe has no change context and passes ``spooled_usd=0``.
+    """
+    remaining: list[float] = []
+    if coordinator_usage:
+        ceiling = _number(coordinator_usage.get("metered_ceiling_usd"))
+        if ceiling is not None and ceiling > 0:
+            used = _number(coordinator_usage.get("metered_usd_used")) or 0.0
+            remaining.append(ceiling - used - max(spooled_usd, 0.0))
+    if key_budget:
+        limit = _number(key_budget.get("limit"))
+        if limit is not None:
+            left = _number(key_budget.get("limit_remaining"))
+            if left is None:
+                usage = _number(key_budget.get("usage"))
+                left = limit - usage if usage is not None else 0.0
+            remaining.append(left)
+    if not remaining:
+        return SPEND_CEILING_UNVERIFIABLE
+    if any(left < reservation_usd for left in remaining):
+        return SPEND_CEILING_EXCEEDED
+    return None
+
+
+def fetch_coordinator_usage(
+    *,
+    http_url: str | None = None,
+    api_key: str | None = None,
+    timeout: float = 3.0,
+    transport: Callable[..., Mapping[str, Any]] | None = None,
+) -> dict[str, Any] | None:
+    """``GET /routing/usage?window=month``; ``None`` when unavailable.
+
+    Fails soft: any transport error, non-2xx status, or non-object body
+    means "source unavailable", never an exception. Only the two numeric
+    ceiling fields are returned.
+    """
+    try:
+        import coordination_bridge as bridge
+
+        send = transport or bridge._http_request
+        response = send(
+            method="GET",
+            path="/routing/usage?window=month",
+            payload=None,
+            http_url=bridge._resolve_http_url(http_url),
+            api_key=bridge._resolve_api_key(api_key),
+            timeout=timeout,
+        )
+    except Exception:  # noqa: BLE001 — fail soft to "source unavailable"
+        return None
+    status = response.get("status_code") if isinstance(response, Mapping) else None
+    data = response.get("data") if isinstance(response, Mapping) else None
+    if not isinstance(status, int) or not 200 <= status < 300 or not isinstance(data, dict):
+        return None
+    return {
+        name: _number(data.get(name))
+        for name in ("metered_ceiling_usd", "metered_usd_used")
+    }
+
+
+def _api_key_resolver_cls() -> Any:
+    """``ApiKeyResolver``, importable from any working directory."""
+    try:
+        from api_key_resolver import ApiKeyResolver
+    except ImportError:
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location(
+            "api_key_resolver", Path(__file__).parent / "api_key_resolver.py",
+        )
+        if not (spec and spec.loader):
+            raise
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod.ApiKeyResolver
+    return ApiKeyResolver
+
+
+#: ``lane_kinds`` value for each non-HTTP dispatch tier.
+_TIER_LANE_KINDS = {"cli": "vendor-cli", "sdk": "vendor-sdk"}
+
+
 # ---------------------------------------------------------------------------
 # Review orchestrator
 # ---------------------------------------------------------------------------
@@ -2632,6 +2736,7 @@ class ReviewOrchestrator:
         openai_credential_requests: dict[str, tuple[str | None, str]] | None = None,
         *,
         config_rejections: dict[str, tuple[str, str]] | None = None,
+        rejected_lane_kinds: dict[str, str] | None = None,
         lane_policy: LanePolicy | None = None,
         openai_transport: Callable[..., Any] | None = None,
         probe_transport: Callable[..., Any] | None = None,
@@ -2651,6 +2756,8 @@ class ReviewOrchestrator:
         self.credential_scopes = credential_scopes or {}
         #: agent_id -> (vendor, reason) for lanes refused at config load.
         self.config_rejections: dict[str, tuple[str, str]] = dict(config_rejections or {})
+        #: vendor -> endpoint_kind for rejected lanes (``lane_kinds`` reporting).
+        self.rejected_lane_kinds: dict[str, str] = dict(rejected_lane_kinds or {})
         self.lane_policy = lane_policy if lane_policy is not None else load_lane_policy()
         # Injectable seams (tests and offline probes); None selects the real one.
         self.openai_transport = openai_transport
@@ -2676,6 +2783,7 @@ class ReviewOrchestrator:
         openai_credential_requests: dict[str, tuple[str | None, str]] = {}
         credential_scopes: dict[str, tuple[str, ...]] = {}
         config_rejections: dict[str, tuple[str, str]] = {}
+        rejected_lane_kinds: dict[str, str] = {}
         for agent in data.get("agents", []):
             cli = agent.get("cli")
             sdk = agent.get("sdk")
@@ -2772,6 +2880,7 @@ class ReviewOrchestrator:
                             agent_id,
                         )
                         config_rejections[agent_id] = (agent["type"], ANTHROPIC_FAMILY)
+                        rejected_lane_kinds[agent["type"]] = endpoint_kind
                         continue
                     openai_adapters[agent_id] = OpenAICompatAdapter(
                         agent_id=agent_id,
@@ -2795,6 +2904,7 @@ class ReviewOrchestrator:
                     openai_credential_requests[agent_id] = (principal_id, vendor_id)
 
         kwargs.setdefault("config_rejections", config_rejections)
+        kwargs.setdefault("rejected_lane_kinds", rejected_lane_kinds)
         return cls(
             adapters, sdk_adapters, openai_adapters, openai_key_envs,
             credential_requests, credential_scopes, openai_credential_requests,
@@ -3100,6 +3210,101 @@ class ReviewOrchestrator:
         reviewers.sort(key=lambda r: r.vendor)
         return reviewers, skips
 
+    def _resolve_key(
+        self, principal_id: str | None, vendor_id: str, env_name: str,
+    ) -> tuple[str | None, str | None]:
+        """Resolve a dispatch key via ``ApiKeyResolver``: ``(key, error)``.
+
+        Keys are resolved only here, at dispatch or probe time, never to
+        decide whether a lane exists.
+        """
+        resolver_cls = _api_key_resolver_cls()
+        # Keep development keys bound to this selected agent. A shared
+        # (principal, vendor) map can collide for legacy null principals.
+        resolver = resolver_cls(
+            self.credential_scopes,
+            {(principal_id, vendor_id): env_name} if env_name else {},
+        )
+        if not os.environ.get("BAO_ADDR"):
+            return resolver.resolve(principal_id, vendor_id), None
+        try:
+            from openbao_credentials import BaoCredentialError
+        except ImportError:
+            return None, "OpenBao credential adapter unavailable"
+        try:
+            return resolver.resolve(principal_id, vendor_id), None
+        except BaoCredentialError as exc:
+            return None, f"OpenBao credential lookup failed: {exc.code.value}"
+
+    def _resolve_openai_key(self, agent_id: str) -> tuple[str | None, str | None]:
+        """``(key, error)`` for a tier-2.5 lane; a keyless local lane needs none."""
+        adapter = self.openai_adapters[agent_id]
+        principal_id, vendor_id = self.openai_credential_requests.get(
+            agent_id, (None, "local"),
+        )
+        if (adapter.endpoint_kind == "local" and principal_id is None
+                and not self.openai_key_envs.get(agent_id)):
+            return None, None
+        return self._resolve_key(
+            principal_id, vendor_id, self.openai_key_envs.get(agent_id, ""),
+        )
+
+    def _coordinator_usage(self) -> dict[str, Any] | None:
+        fetch = self.usage_fetcher or fetch_coordinator_usage
+        try:
+            return fetch()
+        except Exception:  # noqa: BLE001 — an injected fetcher fails soft too
+            return None
+
+    def check_api_lane(self, agent_id: str, *, spooled_usd: float = 0.0) -> str | None:
+        """Probe a tier-2.5 lane; ``None`` when it may dispatch, else a reason.
+
+        Resolves the key through ``ApiKeyResolver``, sends the adapter's
+        zero-cost probe (``GET /key`` or ``GET /models``; never a chat
+        completion), and for a metered lane applies
+        :func:`metered_budget_reason` with the current coordinator usage.
+        ``--check-vendors`` calls it with ``spooled_usd=0``; dispatch calls
+        it before every metered round with the change's spooled total.
+        """
+        adapter = self.openai_adapters[agent_id]
+        api_key, lookup_error = self._resolve_openai_key(agent_id)
+        if lookup_error:
+            return "auth_failed"
+        result = adapter.probe(api_key, transport=self.probe_transport)
+        if not result.ok:
+            return result.reason or "probe_failed"
+        if not _is_metered(adapter):
+            return None
+        return metered_budget_reason(
+            result.budget,
+            self._coordinator_usage(),
+            reservation_usd=self.lane_policy.review_reservation_usd,
+            spooled_usd=spooled_usd,
+        )
+
+    def lane_kind(self, vendor: str, dispatch_tier: str | None = None) -> str:
+        """The ``lane_kinds`` value for *vendor* (its endpoint kind)."""
+        if dispatch_tier in _TIER_LANE_KINDS:
+            return _TIER_LANE_KINDS[dispatch_tier]
+        if dispatch_tier == "openai" or dispatch_tier is None:
+            for adapter in self.openai_adapters.values():
+                if adapter.vendor == vendor:
+                    if dispatch_tier == "openai" or not any(
+                        a.vendor == vendor
+                        for a in (*self.adapters.values(), *self.sdk_adapters.values())
+                    ):
+                        return str(adapter.endpoint_kind)
+        if vendor in self.rejected_lane_kinds and not any(
+            a.vendor == vendor
+            for a in (*self.adapters.values(), *self.sdk_adapters.values())
+        ):
+            return self.rejected_lane_kinds[vendor]
+        if any(a.vendor == vendor for a in self.adapters.values()):
+            return _TIER_LANE_KINDS["cli"]
+        if any(a.vendor == vendor for a in self.sdk_adapters.values()):
+            return _TIER_LANE_KINDS["sdk"]
+        return "unknown"
+
     def dispatch_and_wait(
         self,
         review_type: str,
@@ -3125,22 +3330,6 @@ class ReviewOrchestrator:
         those selected lanes; selection itself (family and fill rules) runs
         first over the whole roster.
         """
-        try:
-            from api_key_resolver import ApiKeyResolver
-        except ImportError:
-            # When not running from the scripts directory, try relative path
-            import importlib.util
-            spec = importlib.util.spec_from_file_location(
-                "api_key_resolver",
-                Path(__file__).parent / "api_key_resolver.py",
-            )
-            if spec and spec.loader:
-                mod = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(mod)  # type: ignore[union-attr]
-                ApiKeyResolver = mod.ApiKeyResolver  # type: ignore[no-redef] # noqa: N806
-            else:
-                raise
-
         reviewers = self.discover_reviewers(
             exclude_vendor=exclude_vendor,
             dispatch_mode=dispatch_mode,
@@ -3168,26 +3357,6 @@ class ReviewOrchestrator:
                 f"({', '.join(sorted({r.vendor for r in available}))}); findings "
                 f"are a single vendor's opinion with no consensus cross-check.",
             )
-
-        def _resolve_dispatch_key(
-            principal_id: str | None, vendor_id: str, env_name: str,
-        ) -> tuple[str | None, str | None]:
-            # Keep development keys bound to this selected agent. A shared
-            # (principal, vendor) map can collide for legacy null principals.
-            resolver = ApiKeyResolver(
-                self.credential_scopes,
-                {(principal_id, vendor_id): env_name} if env_name else {},
-            )
-            if not os.environ.get("BAO_ADDR"):
-                return resolver.resolve(principal_id, vendor_id), None
-            try:
-                from openbao_credentials import BaoCredentialError
-            except ImportError:
-                return None, "OpenBao credential adapter unavailable"
-            try:
-                return resolver.resolve(principal_id, vendor_id), None
-            except BaoCredentialError as exc:
-                return None, f"OpenBao credential lookup failed: {exc.code.value}"
 
         cwd = Path(cwd)
         packet = Path(packet_path) if packet_path is not None else None
@@ -3272,7 +3441,7 @@ class ReviewOrchestrator:
                 principal_id, vendor_id = self.credential_requests.get(
                     reviewer.agent_id, (None, sdk_adapter.sdk_config.package),
                 )
-                api_key, lookup_error = _resolve_dispatch_key(
+                api_key, lookup_error = self._resolve_key(
                     principal_id, vendor_id, sdk_adapter.sdk_config.api_key_env,
                 )
                 logger.info(
@@ -3313,18 +3482,8 @@ class ReviewOrchestrator:
 
             elif reviewer.dispatch_tier == "openai":
                 openai_adapter = self.openai_adapters[reviewer.agent_id]
-                principal_id, vendor_id = self.openai_credential_requests.get(
-                    reviewer.agent_id, (None, "local"),
-                )
                 # A keyless local endpoint has no credential to request.
-                if (openai_adapter.endpoint_kind == "local" and principal_id is None
-                    and not self.openai_key_envs.get(reviewer.agent_id)):
-                    api_key, lookup_error = None, None
-                else:
-                    api_key, lookup_error = _resolve_dispatch_key(
-                        principal_id, vendor_id,
-                        self.openai_key_envs.get(reviewer.agent_id, ""),
-                    )
+                api_key, lookup_error = self._resolve_openai_key(reviewer.agent_id)
                 logger.info(
                     "OpenAI-compatible dispatching %s review to %s (key: %s)",
                     review_type,
@@ -3703,13 +3862,25 @@ def _probe_mode(
             continue
         if reviewer.dispatch_tier == "cli" and reviewer.cli_config is not None:
             failure = dry_invoke([reviewer.cli_config.command, "--version"])
+        elif reviewer.dispatch_tier == "openai" and hasattr(orch, "check_api_lane"):
+            failure = orch.check_api_lane(reviewer.agent_id)
         else:
             failure = "probe_unsupported"
         if failure is None:
             verified.append(vendor)
         else:
             unverified.append({"vendor": vendor, "reason": failure})
-    return {"verified": verified, "unverified": unverified}
+    report: dict[str, Any] = {"verified": verified, "unverified": unverified}
+    lane_kind = getattr(orch, "lane_kind", None)
+    if lane_kind is not None:
+        report["lane_kinds"] = {
+            vendor: lane_kind(
+                vendor,
+                reviewers[vendor].dispatch_tier if vendor in reviewers else None,
+            )
+            for vendor in [*verified, *(entry["vendor"] for entry in unverified)]
+        }
+    return report
 
 
 def resolve_quorum_policy(
@@ -3770,10 +3941,20 @@ def check_vendors_report(
     exclude_vendor: str | None = None,
     dry_invoke: Callable[[list[str]], str | None] = _dry_invoke,
     environment: str | None = None,
+    probe_transport: Callable[..., Any] | None = None,
+    usage_fetcher: Callable[[], dict[str, Any] | None] | None = None,
 ) -> dict[str, Any]:
-    """The structured ``--check-vendors --json`` report (never raises)."""
+    """The structured ``--check-vendors --json`` report (never raises).
+
+    ``probe_transport`` / ``usage_fetcher`` override the API-lane probe GET
+    transport and the coordinator usage lookup (tests and offline runs).
+    """
     try:
         orch = _orchestrator_for_dispatch(agents_yaml, cwd or Path("."))
+        if probe_transport is not None:
+            orch.probe_transport = probe_transport
+        if usage_fetcher is not None:
+            orch.usage_fetcher = usage_fetcher
         modes = {
             mode: _probe_mode(orch, mode, exclude_vendor=exclude_vendor, dry_invoke=dry_invoke)
             for mode in PROFILE_MODES

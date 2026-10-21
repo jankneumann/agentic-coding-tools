@@ -122,7 +122,7 @@ dataclass fields and the shared ingest helper extracted in 1.7),
   candidates in `agents.yaml` roster order. Then implement the metered fill selection (design D5)
   and the `include_lanes` filter. Add a fill-rule test where the non-metered lane sorts after the
   metered one.
-- [ ] 3.5 Write failing tests for `_probe_mode` on API lanes, using an injected probe and an
+- [x] 3.5 Write failing tests for `_probe_mode` on API lanes, using an injected probe and an
   injected coordinator-usage function:
   - verified when the key limit leaves enough budget;
   - `spend_ceiling_exceeded` when the coordinator has too little budget left;
@@ -130,7 +130,7 @@ dataclass fields and the shared ingest helper extracted in 1.7),
   - `auth_failed` passes through;
   - `lane_kinds` is present for every lane;
   - no chat-completions call is made.
-- [ ] 3.6 Implement the API-lane probe in `_probe_mode`. Resolve the key via `ApiKeyResolver`,
+- [x] 3.6 Implement the API-lane probe in `_probe_mode`. Resolve the key via `ApiKeyResolver`,
   fetch coordinator usage through an injectable `GET /routing/usage` client (which fails soft
   to "source unavailable"), apply the budget rule (design D4) through a reusable function that
   `dispatch_and_wait` also calls per round (task 3.11), and emit `lane_kinds`. Keep
