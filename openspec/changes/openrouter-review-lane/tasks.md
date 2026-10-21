@@ -247,7 +247,7 @@ parallel-infrastructure "Metered Review Lane Spend Accounting" (checkpoint part)
     (IMPL_REVIEW), `consensus-val-review.json` (VAL_REVIEW). This matches the skill-workflow
     "Composite Agent-Lane Review" requirement. The D9 evidence and task 7.2 cite
     `consensus-plan.json`. `converge()` itself never writes these files.
-- [ ] 5.7 Write a failing test, then make it pass: with the dispatcher's budget re-check (task
+- [x] 5.7 Write a failing test, then make it pass: with the dispatcher's budget re-check (task
   3.11) injected to fail before round 2, `converge()` through `CompositeOrchestrator` ends
   `capability_unavailable` with `missing_lanes == ["openrouter"]` (design D7). `converge()`
   itself gains no budget logic.

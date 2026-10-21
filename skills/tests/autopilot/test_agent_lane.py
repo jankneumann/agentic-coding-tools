@@ -537,3 +537,37 @@ def test_a_composite_val_review_section_lists_both_lanes(tmp_path: Path) -> None
     consensus = json.loads((change_dir / "reviews" / "consensus-val-review.json").read_text())
     assert consensus["quorum_received"] == 2
 
+
+# --------------------------------------------------------------------------- #
+# 5.7: the dispatcher's budget re-check fails before round 2 (design D7)
+# --------------------------------------------------------------------------- #
+
+
+def test_a_budget_exhausted_before_round_two_is_capability_unavailable(
+    tmp_path: Path, metered
+) -> None:
+    _plan_fixture(tmp_path / "wt")
+    usage = {"metered_ceiling_usd": 50.0, "metered_usd_used": 10.0}
+    chat = _ChatTransport(_findings(_BLOCKING_FINDING))
+    review = metered(chat=chat, recorder=_FakeRecorder(), usage=usage)
+
+    def spend_elsewhere(_round: int) -> None:
+        usage["metered_usd_used"] = 49.5  # the ceiling leaves less than one reservation
+
+    server = _serve_findings(
+        tmp_path / "proto", [_findings(_BLOCKING_FINDING), _findings()], before_fix=spend_elsewhere,
+    )
+
+    out = _run_composite(tmp_path, review)
+    server.join(timeout=10)
+
+    assert out["converged"] is False
+    assert out["rounds"] == 2
+    assert out["reason"] == "capability_unavailable"
+    assert out["missing_lanes"] == ["openrouter"]
+    assert chat.calls == 1  # round 2 sent no request
+    assert out["lane_results"]["openrouter"]["success"] is False
+    assert out["lanes"] == ["claude_code", "openrouter"]
+    saved = json.loads((tmp_path / "proto" / "result.json").read_text())
+    assert saved["reason"] == "capability_unavailable" and saved["missing_lanes"] == ["openrouter"]
+
