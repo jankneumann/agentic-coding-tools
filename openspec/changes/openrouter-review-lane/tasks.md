@@ -260,9 +260,9 @@ examples only)
 **Depends:** 3 (the `lane_kinds` shape), 4 (the replay CLI)
 **Specs:** supervise "Execution Profile and Review Requirements" (MODIFIED)
 
-- [ ] 6.1 Write failing tests: `lane_kinds` ranks `openrouter` after `vendor-cli`; a missing
+- [x] 6.1 Write failing tests: `lane_kinds` ranks `openrouter` after `vendor-cli`; a missing
   `lane_kinds` falls back to the old inference.
-- [ ] 6.2 Implement the `rank()` change in `resolve_execution_profile` (design D8).
+- [x] 6.2 Implement the `rank()` change in `resolve_execution_profile` (design D8).
 - [ ] 6.3 Write failing tests, then implement: `ExecutionAdapter.apply` runs
   `spend_recorder.py replay` once when a `metered_spend_unrecorded` degradation is present,
   reports the replayed count, and never fails the apply on a replay error.

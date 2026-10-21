@@ -158,12 +158,17 @@ def resolve_execution_profile(
     min_quorum = {phase: int(quorum.get(phase, 2)) for phase in _REVIEW_PHASES}
     review = modes.get("review") or {}
     ladder = _tier_order()
+    lane_kinds = review.get("lane_kinds")
 
     def rank(lane: dict[str, Any]) -> tuple[int, int, str]:
-        # Verified CLI lanes and CLI lanes that failed their probe are
-        # subscription-local (vendor-cli); lanes without a CLI no-op are
-        # SDK/API endpoints, ordered after them by the cost ladder.
-        kind = "vendor-sdk" if lane.get("reason") == "probe_unsupported" else "vendor-cli"
+        # The report's lane_kinds names each lane's endpoint kind (design D8);
+        # a kind off the ladder (e.g. ``local``) sorts after every rung.
+        kind = lane_kinds.get(lane["vendor"]) if isinstance(lane_kinds, dict) else None
+        if not isinstance(kind, str):
+            # Older reports carry no lane_kinds: verified CLI lanes and CLI
+            # lanes that failed their probe are subscription-local
+            # (vendor-cli); lanes without a CLI no-op are SDK/API endpoints.
+            kind = "vendor-sdk" if lane.get("reason") == "probe_unsupported" else "vendor-cli"
         tier = ladder.index(kind) if kind in ladder else len(ladder)
         return (tier, 0 if lane.get("reason") is None else 1, lane["vendor"])
 
