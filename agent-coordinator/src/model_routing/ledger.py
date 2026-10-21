@@ -49,6 +49,24 @@ class LedgerService:
         return self._db
 
     async def record(self, record: UsageRecord | dict[str, Any]) -> dict[str, Any]:
+        return await self.db.insert("routing_spend_ledger", self._ledger_row(record))
+
+    async def record_once(
+        self, record: UsageRecord | dict[str, Any]
+    ) -> tuple[dict[str, Any], bool]:
+        """Insert ``record`` unless its ``generation_id`` is already recorded.
+
+        Returns ``(row, created)``: the inserted row and ``True``, or the row
+        already holding that ``generation_id`` and ``False``. The check and the
+        insert happen in one statement inside ``record_spend_once``
+        (migration 046), decided by the partial unique index on
+        ``generation_id``, so concurrent callers cannot both insert.
+        """
+        result = await self.db.rpc("record_spend_once", {"p_row": self._ledger_row(record)})
+        return dict(result["row"]), bool(result["created"])
+
+    @staticmethod
+    def _ledger_row(record: UsageRecord | dict[str, Any]) -> dict[str, Any]:
         values = asdict(record) if isinstance(record, UsageRecord) else dict(record)
         prompt_tokens = int(values.get("prompt_tokens") or 0)
         completion_tokens = int(values.get("completion_tokens") or 0)
@@ -83,7 +101,7 @@ class LedgerService:
         row["counterfactual_usd"] = round(float(counterfactual), 6)
         if isinstance(row.get("occurred_at"), datetime):
             row["occurred_at"] = row["occurred_at"].isoformat()
-        return await self.db.insert("routing_spend_ledger", row)
+        return row
 
     async def find_by_generation_id(self, generation_id: str) -> dict[str, Any] | None:
         """Return the first ledger row carrying ``generation_id``, or ``None``.
