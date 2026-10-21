@@ -309,6 +309,22 @@ examples only)
   `agent-coordinator` test sweeps (`pytest -m "not e2e and not integration"`), `ruff`,
   `mypy --strict` on the touched coordinator modules, and `openspec validate openrouter-review-lane --strict`.
 
+## 8. Implementation iteration
+
+- [x] 8.1 Carry the `metered-api-cloud` tier in this change's `contracts/config/` schemas and
+  revert the archived routing-cost-policy schema and the task-router change's `routing.schema.json`.
+- [x] 8.2 Add the `configuration` spec delta that admits an optional `openrouter` key in the
+  provider model map, with a schema test.
+- [ ] 8.3 Make the `generation_id` dedupe in `POST /routing/spend` atomic (unique constraint plus
+  `ON CONFLICT DO NOTHING`) and add a concurrent-duplicate test.
+- [ ] 8.4 Suppress the misleading "Cross-vendor review NOT CHECKED" stderr inside the composite lane.
+- [ ] 8.5 Find and fix the shared-state leak behind the order-dependent
+  `test_relayed_gate_answer` stale-ref test.
+- [x] 8.6 Record the as-built notes in `design.md` (D1 credentials, D5 fill rule, spend on empty
+  findings, null `phase_archetype`).
+- [ ] 8.7 Follow-up, out of scope here: make endpoint-only agents eligible to the task-router
+  resolver, which today excludes `openrouter-review` as `lane:dispatch-mode-ineligible`.
+
 ## Traceability
 
 | Requirement | Tasks |
@@ -321,5 +337,6 @@ examples only)
 | skill-workflow: Composite Agent-Lane Review | 5.4–5.6, 6.4 |
 | skill-workflow: Cloud Single-Vendor Policy Retirement | 5.6, 7.1–7.4 |
 | supervise: Execution Profile and Review Requirements | 6.1–6.3 |
-| model-routing: Review Spend Recording Route | 4.1–4.2 |
+| configuration: Provider Model Mapping Configuration | 8.2 |
+| model-routing: Review Spend Recording Route | 4.1–4.2, 8.3 |
 | Acceptance outcome 4 (schema-conformant HTTP findings, synthesized like CLI lanes) | 1.6–1.7 |

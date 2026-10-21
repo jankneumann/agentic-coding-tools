@@ -353,6 +353,43 @@ Editing the prose of `TRUST_POSTURE.md` is checked against `posture_digest`, whi
 front-matter dispositions. If the digest also covers the body, the resulting gate
 re-evaluation is expected and is recorded in the session log.
 
+## Implementation notes (as built)
+
+These record where the build departs from, or sharpens, the decisions above. None of them
+changes behaviour beyond what the code and tests already pin.
+
+- **D1: no `vendor_credentials` on `openrouter-review`.** The OpenBao topology projection
+  rejects a keyless agent (no `api_key`, no principal) that declares vendor credentials, and the
+  dispatcher reads `vendor_credentials` only for agents that have a `principal_id`. Declaring
+  `[openrouter]` would therefore break the projection without changing key resolution. The
+  entry omits it, and the key resolves through the dispatcher's `OPENROUTER_API_KEY` default for
+  `endpoint_kind: openrouter`. There is no agent-level `api_key_env`. Coordinator-brokered
+  credentials (ri-23) replace this delivery later; nothing here anticipates that.
+- **D5: SDK lanes do not count toward `fill_target`.** An importable SDK package cannot be
+  verified by a dry probe (`probe_unsupported`). Counting it let the `claude-remote` and
+  `codex-remote` SDK lanes meet `fill_target` on the real roster, so the metered lane was always
+  skipped as `fill_target_met`. Only probe-verified lanes now fill quorum.
+- **Spend is recorded on empty findings.** A lane that returns a schema-valid result with no
+  findings still consumed tokens and was billed. Skipping the ledger row would undercount the
+  budget rule (D4), so the row is written whenever the call returned a cost, whatever the
+  findings count. This is intended.
+- **`phase_archetype` is null for IMPLEMENT.** Groups 1–6 were dispatched as direct parallel
+  worktree agents rather than through `build-dispatch`, so no archetype was resolved and the
+  loop state records `phase_archetype: null` for that phase. This is a record of how the run was
+  driven, not a defect in the routing code.
+- **Schemas and spec deltas are carried in this change.** The `metered-api-cloud` tier is added
+  in `contracts/config/routing-cost-policy.schema.json` and `contracts/config/routing.schema.json`
+  of this change, which supersede the archived routing-cost-policy copy and the task-router
+  change's copy (see `contracts/README.md`); those originals are untouched. The opening of the
+  provider-model-map key set to `openrouter` is a MODIFIED requirement in
+  `specs/configuration/spec.md`.
+- **Generation-id dedupe is atomic.** `POST /routing/spend` relies on a unique constraint on
+  `generation_id` and `INSERT … ON CONFLICT DO NOTHING`, so concurrent duplicates write one row.
+- **Follow-up: task-router resolver ineligibility.** `model_routing/resolver.py` excludes
+  `openrouter-review` as `lane:dispatch-mode-ineligible`, because the agent has no dispatch modes.
+  The review dispatcher, not the task router, selects review lanes, so this change does not
+  alter it. Making endpoint-only agents eligible to the resolver is left as a follow-up.
+
 ## Cross-cutting interface contracts
 
 | Contract | Change | Compatibility |
