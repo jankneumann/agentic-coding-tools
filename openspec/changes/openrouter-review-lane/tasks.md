@@ -74,7 +74,7 @@ dataclass fields and the shared ingest helper extracted in 1.7),
 **Depends:** none
 **Specs:** parallel-infrastructure "OpenAI-Compatible Dispatcher Discovery"
 
-- [ ] 2.1 Write failing tests:
+- [x] 2.1 Write failing tests:
   - `openrouter-review` loads with `endpoint_kind: openrouter`, a `base_url`, no `cli`/`sdk`,
     `archetypes: [reviewer]`, and `vendor_credentials: [openrouter]`.
   - `get_dispatch_configs()` emits it.
@@ -82,12 +82,12 @@ dataclass fields and the shared ingest helper extracted in 1.7),
     publisher `anthropic`.
   - `RoutingPolicy.cost_tier("cloud", "openrouter")` is not `None` (design D1), and
     `cost_tier("local", "openrouter")` still returns `metered-api`.
-- [ ] 2.2 Add the agent entry (design D1), the `openrouter` provider tier map, and the
+- [x] 2.2 Add the agent entry (design D1), the `openrouter` provider tier map, and the
   `metered-api-cloud` tier (`location: cloud`, `endpoint_kinds: [openrouter]`), appended last to
   `routing.yaml` `cost_policy.tiers`. Choose the
   premium slug from the live OpenRouter model catalog: it must be non-Anthropic and preferably
   a family not served by a host CLI. Record the catalog URL and the date in a YAML comment.
-- [ ] 2.3 Run the registry projection tests (`test_registry_projection.py`,
+- [x] 2.3 Run the registry projection tests (`test_registry_projection.py`,
   `test_vendor_registry.py`, profile sync) and fix any projection assumption that every agent
   carries a CLI or SDK block.
 

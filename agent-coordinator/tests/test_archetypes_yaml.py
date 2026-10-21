@@ -369,3 +369,27 @@ def test_installed_schema_accepts_every_known_mode() -> None:
         raw = _raw()
         raw["archetypes"]["runner"]["procedure_mode"] = mode
         validate(instance=raw, schema=_installed_schema())
+
+
+# ---------------------------------------------------------------------------
+# openrouter-review-lane task 2.1 — the `openrouter` provider tier map
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("tier", ["premium", "standard", "economy"])
+def test_openrouter_provider_resolves_non_anthropic_slug(
+    tier: str, _load_real_config: None,
+) -> None:
+    spec = resolve_provider_model_spec(tier, provider="openrouter")
+    publisher, sep, model = spec.model.partition("/")
+    assert sep == "/" and publisher and model, (
+        f"openrouter {tier} slug must be <publisher>/<model>, got {spec.model!r}"
+    )
+    assert publisher != "anthropic"
+
+
+def test_openrouter_provider_declares_no_anthropic_model() -> None:
+    entries = _raw()["model_aliases"]["openrouter"]
+    for tier, entry in entries.items():
+        model = entry["model"] if isinstance(entry, dict) else entry
+        assert not model.startswith("anthropic/"), (tier, model)

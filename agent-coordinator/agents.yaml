@@ -466,3 +466,43 @@ agents:
       model: null
       model_fallbacks: []
       prompt_via_stdin: true
+
+  # First OpenAI-compatible review lane (OpenSpec change openrouter-review-lane,
+  # design D1). Endpoint-only: no `cli` and no `sdk` block, so the review
+  # dispatcher builds only the tier-2.5 OpenAICompatAdapter from
+  # endpoint_kind + base_url. Lane id = `type` = `openrouter`; it must stay
+  # unique because converge() keys checkpointed results by vendor. Its model
+  # tiers live under model_aliases.openrouter in archetypes.yaml.
+  #
+  # No `api_key`: the lane never calls the coordinator under its own identity.
+  # Without a principal the dispatcher falls back to its OPENROUTER_API_KEY
+  # default for endpoint_kind openrouter (works in non-OpenBao/cloud mode).
+  # The schema is additionalProperties:false, so there is no agent-level
+  # api_key_env field.
+  openrouter-review:
+    type: openrouter
+    location: cloud
+    policy_vendor: openrouter
+    # Models are OpenRouter catalog rows. pi-local lists under the same
+    # catalog vendor; _provider_for_catalog_vendor skips endpoint-only agents
+    # so a routed `openrouter` selection still maps to the pi harness.
+    catalog_vendor: openrouter
+    endpoint_kind: openrouter
+    base_url: https://openrouter.ai/api/v1
+    profile: openrouter_review
+    trust_level: 1
+    transport: http
+    isolation: none
+    # No vendor_credentials: the OpenBao topology projection forbids them on a
+    # keyless agent (openbao_credentials.topology, "keyless agent cannot
+    # declare vendor credentials"). The dispatcher consults credential scopes
+    # only for agents with a principal, so the key comes from the
+    # OPENROUTER_API_KEY environment default instead.
+    # `discover` only: being found as an available reviewer at dispatch time.
+    capabilities: [discover]
+    archetypes: [reviewer]
+    description: >-
+      Metered cloud review lane over OpenRouter's OpenAI-compatible chat
+      completions API. Adds a model family that no host CLI serves, so a
+      cloud session with only the Claude CLI can still reach multi-vendor
+      review quorum. Costed under routing.yaml tier metered-api-cloud.

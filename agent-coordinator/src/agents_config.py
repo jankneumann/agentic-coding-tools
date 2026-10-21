@@ -2865,11 +2865,16 @@ def _provider_for_catalog_vendor(catalog_vendor: str) -> str | None:
     agent type, or more than one, lists models under that vendor: a routed
     selection that names no single agent type cannot be dispatched, so the caller
     falls back to static rather than guess.
+
+    Endpoint-only agents (no ``cli``/``sdk``, e.g. the ``openrouter-review``
+    lane) are skipped: they are review lanes, not harnesses a routed task can
+    be dispatched to, so they do not make a catalog vendor ambiguous.
     """
     types = {
         agent.type
         for agent in get_agents_config()
         if (agent.catalog_vendor or agent.type) == catalog_vendor
+        and (agent.cli is not None or agent.sdk is not None)
     }
     return types.pop() if len(types) == 1 else None
 

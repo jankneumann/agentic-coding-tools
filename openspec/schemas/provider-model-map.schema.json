@@ -73,7 +73,8 @@
           "antigravity",
           "grok",
           "pi",
-          "local"
+          "local",
+          "openrouter"
         ]
       },
       "additionalProperties": {
