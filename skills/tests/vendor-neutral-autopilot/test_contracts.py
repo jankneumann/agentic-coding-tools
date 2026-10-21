@@ -118,6 +118,21 @@ def test_provider_model_map_schema_rejects_unknown_provider_name() -> None:
     assert list(Draft202012Validator(_schema()).iter_errors(instance))
 
 
+def test_provider_model_map_schema_admits_optional_openrouter_entry() -> None:
+    # openrouter-review-lane: `openrouter` is an optional, non-roster key holding
+    # the endpoint-only review lane's aliases; the roster stays required.
+    providers = _roster_providers(drop_frontier=True)
+    instance = {
+        "schema_version": 2,
+        "tiers": ["premium", "standard", "economy"],
+        "providers": {**providers, "openrouter": dict(providers["pi"])},
+    }
+    Draft202012Validator(_schema()).validate(instance)
+
+    del instance["providers"]["codex"]
+    assert list(Draft202012Validator(_schema()).iter_errors(instance))
+
+
 # ---------------------------------------------------------------------------
 # `local` provider delta (OpenSpec change add-local-model-provider-tier)
 # ---------------------------------------------------------------------------
