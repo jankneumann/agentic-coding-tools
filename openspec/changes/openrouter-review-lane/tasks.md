@@ -164,7 +164,7 @@ dataclass fields and the shared ingest helper extracted in 1.7),
   `recorded=False` yields `spend_recorded=False`; a metered lane with no `spend_context` makes no
   HTTP request and returns `spend_context_missing`; `/parallel-review-*` passes a one-shot
   `SpendContext`.
-- [ ] 3.11 Write failing tests, then implement the per-round budget re-check (design D4) in
+- [x] 3.11 Write failing tests, then implement the per-round budget re-check (design D4) in
   `ReviewOrchestrator.dispatch_and_wait`: before dispatching a metered lane it re-runs the
   probe's budget function (task 3.6); a lane below `review_reservation_usd` is not dispatched
   and is returned `vendor_unavailable` (`spend_ceiling_exceeded`). For the coordinator source it

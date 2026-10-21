@@ -2776,7 +2776,11 @@ def test_openai_dispatch_resolves_scoped_principal_and_vendor(tmp_path: Path, mo
         "principal_id": "spiffe://coordinator.rotkohl.ai/agent/pi-local",
         "vendor_credentials": ["openrouter"],
         "endpoint_kind": "openrouter", "base_url": "https://openrouter.ai/api/v1",
-    }]})
+    }]},
+        probe_transport=_ProbeTransport(200, _key_body(20.0, 15.0)),
+        usage_fetcher=lambda: None,
+        spend_recorder=_FakeRecorder(),
+    )
     adapter = orchestrator.openai_adapters["pi-local"]
     adapter.can_dispatch = MagicMock(return_value=True)
     adapter.dispatch = MagicMock(return_value=ReviewResult(vendor="pi", success=True))
@@ -3848,3 +3852,91 @@ class TestOneShotSpendContext:
         assert captured["spend_context"] == SpendContext(
             "demo-change", "demo-change:plan:oneshot",
         )
+
+
+
+# ---------------------------------------------------------------------------
+# openrouter-review-lane: per-round budget re-check before dispatch (D4, 3.11)
+# ---------------------------------------------------------------------------
+
+
+class TestPerRoundBudgetRecheck:
+    def test_budget_exhausted_before_second_dispatch_skips_the_lane(
+        self, lane_models, monkeypatch, tmp_path: Path, no_chat_calls,
+    ) -> None:
+        usage = {"metered_ceiling_usd": 50.0, "metered_usd_used": 10.0}
+        recorder, chat = _FakeRecorder(), _ChatTransport()
+        orch = _metered_orch(
+            lane_models, monkeypatch, recorder=recorder, chat=chat, usage=usage,
+        )
+        [first] = orch.dispatch_and_wait(
+            "plan", "review", "PROMPT", tmp_path, spend_context=_CTX,
+        )
+        assert first.error != "spend_ceiling_exceeded"
+        assert len(chat.prompts) == 1 and len(recorder.rows) == 1
+
+        usage["metered_usd_used"] = 49.5  # spent elsewhere between rounds
+        [second] = orch.dispatch_and_wait(
+            "plan", "review", "PROMPT", tmp_path, spend_context=_CTX,
+        )
+        assert second.success is False
+        assert second.error == "spend_ceiling_exceeded"
+        assert second.error_class == ErrorClass.UNAVAILABLE
+        assert second.agent_id == "openrouter-review"
+        assert second.spend_recorded is None
+        assert len(chat.prompts) == 1
+        assert len(recorder.rows) == 1
+
+    def test_spooled_spend_counts_as_used_against_the_coordinator_ceiling(
+        self, lane_models, monkeypatch, tmp_path: Path, no_chat_calls,
+    ) -> None:
+        recorder, chat = _FakeRecorder(spooled=1.0), _ChatTransport()
+        orch = _metered_orch(
+            lane_models, monkeypatch, recorder=recorder, chat=chat,
+            usage={"metered_ceiling_usd": 50.0, "metered_usd_used": 48.5},
+            key_body=_key_body(None, None),
+        )
+        [result] = orch.dispatch_and_wait(
+            "plan", "review", "PROMPT", tmp_path, spend_context=_CTX,
+        )
+        assert result.error == "spend_ceiling_exceeded"
+        assert chat.prompts == []
+        assert recorder.rows == []
+
+    def test_same_budget_without_spool_dispatches(
+        self, lane_models, monkeypatch, tmp_path: Path, no_chat_calls,
+    ) -> None:
+        recorder, chat = _FakeRecorder(spooled=0.0), _ChatTransport()
+        orch = _metered_orch(
+            lane_models, monkeypatch, recorder=recorder, chat=chat,
+            usage={"metered_ceiling_usd": 50.0, "metered_usd_used": 48.5},
+            key_body=_key_body(None, None),
+        )
+        orch.dispatch_and_wait("plan", "review", "PROMPT", tmp_path, spend_context=_CTX)
+        assert len(chat.prompts) == 1
+
+    def test_rejected_key_at_recheck_is_auth_and_not_dispatched(
+        self, lane_models, monkeypatch, tmp_path: Path, no_chat_calls,
+    ) -> None:
+        recorder, chat = _FakeRecorder(), _ChatTransport()
+        orch = _metered_orch(lane_models, monkeypatch, recorder=recorder, chat=chat)
+        orch.probe_transport = _ProbeTransport(401, {"error": "nope"})
+        [result] = orch.dispatch_and_wait(
+            "plan", "review", "PROMPT", tmp_path, spend_context=_CTX,
+        )
+        assert result.error == "auth_failed"
+        assert result.error_class == ErrorClass.AUTH
+        assert chat.prompts == []
+        assert recorder.rows == []
+
+    def test_non_metered_lane_is_not_rechecked(
+        self, lane_models, tmp_path: Path, no_chat_calls,
+    ) -> None:
+        lane_models["gx10"] = ("meta/llama-4", [])
+        probe = _ProbeTransport(200, {"data": []})
+        orch = ReviewOrchestrator.from_config_dict(
+            {"agents": [_local_agent("gx10-local", "gx10")]},
+            lane_policy=_POLICY, openai_transport=_ChatTransport(), probe_transport=probe,
+        )
+        orch.dispatch_and_wait("plan", "review", "PROMPT", tmp_path)
+        assert probe.urls == []

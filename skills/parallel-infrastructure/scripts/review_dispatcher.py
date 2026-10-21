@@ -3291,10 +3291,16 @@ class ReviewOrchestrator:
         ``--check-vendors`` calls it with ``spooled_usd=0``; dispatch calls
         it before every metered round with the change's spooled total.
         """
-        adapter = self.openai_adapters[agent_id]
         api_key, lookup_error = self._resolve_openai_key(agent_id)
         if lookup_error:
             return "auth_failed"
+        return self._api_lane_reason(agent_id, api_key, spooled_usd=spooled_usd)
+
+    def _api_lane_reason(
+        self, agent_id: str, api_key: str | None, *, spooled_usd: float = 0.0,
+    ) -> str | None:
+        """Probe with an already-resolved key and apply the metered budget rule."""
+        adapter = self.openai_adapters[agent_id]
         result = adapter.probe(api_key, transport=self.probe_transport)
         if not result.ok:
             return result.reason or "probe_failed"
@@ -3329,6 +3335,18 @@ class ReviewOrchestrator:
         if any(a.vendor == vendor for a in self.sdk_adapters.values()):
             return _TIER_LANE_KINDS["sdk"]
         return "unknown"
+
+    def _metered_recheck_reason(
+        self, agent_id: str, api_key: str | None, spend_context: SpendContext,
+    ) -> str | None:
+        """Per-round probe + budget check; spooled spend counts as used."""
+        try:
+            spooled = float(
+                self._spend_recorder().spooled_total_usd(spend_context.change_id),
+            )
+        except Exception:  # noqa: BLE001 — an unreadable spool fails closed
+            return SPEND_CEILING_UNVERIFIABLE
+        return self._api_lane_reason(agent_id, api_key, spooled_usd=spooled)
 
     def _spend_recorder(self) -> Any:
         """The injected spend recorder, else the ``spend_recorder`` module."""
@@ -3605,6 +3623,24 @@ class ReviewOrchestrator:
                         ),
                     ))
                     continue
+                if metered:
+                    # Re-check the budget before every metered round (D4):
+                    # spend elsewhere, or spooled rows, may have exhausted it.
+                    recheck = self._metered_recheck_reason(
+                        reviewer.agent_id, api_key, spend_context,
+                    )
+                    if recheck is not None:
+                        sync_jobs.append((
+                            idx, reviewer.vendor, vendor_timeout,
+                            lambda v=reviewer.vendor, e=recheck: ReviewResult(
+                                vendor=v, success=False, error=e,
+                                error_class=(
+                                    ErrorClass.AUTH if e == "auth_failed"
+                                    else ErrorClass.UNAVAILABLE
+                                ),
+                            ),
+                        ))
+                        continue
                 run_lane = partial(
                     openai_adapter.dispatch,
                     dispatch_mode,
