@@ -33,11 +33,22 @@ class FakeTransport:
         return item
 
 
-# A minimal, valid review-findings envelope — the adapter parses assistant
-# content with the same extractor as the CLI/SDK adapters, which requires a
-# top-level ``findings`` key. Tests that only care about dispatch mechanics
-# (routing, gen-id, fallback) use this default.
-_FINDINGS_JSON = '{"review_type": "pr", "findings": []}'
+# A minimal, schema-valid review-findings envelope with one substantive
+# finding. HTTP findings go through the same ingest pipeline as CLI findings
+# (schema validation, placeholder check, fast-empty floor), so an *empty*
+# findings list returned instantly is a failure (empty_findings_too_fast).
+# Tests that only care about dispatch mechanics (routing, gen-id, fallback)
+# use this default.
+_FINDINGS_JSON = json.dumps({
+    "review_type": "plan",
+    "target": "test-feature",
+    "reviewer_vendor": "openrouter",
+    "findings": [
+        {"id": 1, "type": "security", "criticality": "high",
+         "description": "Token is compared with == instead of a constant-time compare",
+         "disposition": "fix", "axis": "security", "severity": "critical"},
+    ],
+})
 
 
 def _ok(content=_FINDINGS_JSON, gen_id="gen-abc123"):
@@ -75,7 +86,7 @@ def test_dispatch_routes_to_base_url_and_captures_generation_id():
     assert result.success
     assert result.generation_id == "gen-xyz"
     assert result.model_used == "qwen/qwen3-coder"
-    assert result.findings == {"review_type": "pr", "findings": []}
+    assert result.findings["findings"][0]["id"] == 1
     assert tr.calls[0]["url"] == "https://openrouter.ai/api/v1/chat/completions"
 
 
@@ -159,21 +170,7 @@ def test_can_dispatch_review_only():
 
 # ── cost capture (openrouter-review-lane, tasks 1.3/1.4, design D4) ─────────
 
-# One substantive, schema-valid finding: survives the shared ingest pipeline
-# (schema validation, placeholder check, fast-empty floor) regardless of elapsed.
-_ONE_FINDING_JSON = json.dumps({
-    "review_type": "plan",
-    "target": "test-feature",
-    "reviewer_vendor": "openrouter",
-    "findings": [
-        {"id": 1, "type": "security", "criticality": "high",
-         "description": "Token is compared with == instead of a constant-time compare",
-         "disposition": "fix", "axis": "security", "severity": "critical"},
-    ],
-})
-
-
-def _ok_with_usage(usage, content=_ONE_FINDING_JSON, gen_id="gen-abc"):
+def _ok_with_usage(usage, content=_FINDINGS_JSON, gen_id="gen-abc"):
     resp = _ok(content=content, gen_id=gen_id)
     if usage is not None:
         resp["usage"] = usage
@@ -245,6 +242,109 @@ def test_review_result_cost_fields_default_to_none():
     r = ReviewResult(vendor="codex", success=True)
     assert (r.prompt_tokens, r.completion_tokens, r.cost_usd, r.cost_source,
             r.spend_recorded) == (None, None, None, None, None)
+
+
+# ── shared ingest pipeline (openrouter-review-lane, tasks 1.6/1.7) ──────────
+
+_DIFF_BODY = (
+    "diff --git a/src/foo.py b/src/foo.py\n"
+    "index e69de29..a1b2c3d 100644\n"
+    "--- a/src/foo.py\n"
+    "+++ b/src/foo.py\n"
+    "@@ -1,2 +1,2 @@\n"
+    " def foo():\n"
+    "-    return 1\n"
+    "+    return used_variable\n"
+)
+
+_PACKET_PROMPT = (
+    "## Review Round 1\n\n"
+    "### Diff\n"
+    "```diff\n" + _DIFF_BODY.rstrip("\n") + "\n```\n\n"
+    "### Instructions\nReturn findings as JSON.\n"
+)
+
+
+def _finding(**overrides):
+    finding = {"id": 1, "type": "correctness", "criticality": "high",
+               "description": "Returns an undefined name", "disposition": "fix",
+               "axis": "correctness", "severity": "critical"}
+    finding.update(overrides)
+    return finding
+
+
+def test_fast_empty_http_review_is_unsuccessful():
+    tr = FakeTransport([_ok(content='{"findings": []}')])
+    result = _adapter().dispatch("review", "p", api_key="k", transport=tr)
+    assert result.success is False
+    assert result.error == "empty_findings_too_fast"
+    assert result.generation_id == "gen-abc123"
+
+
+def test_schema_invalid_http_payload_is_unsuccessful_unknown():
+    payload = json.dumps({"findings": [{"id": 1, "description": "missing required fields"}]})
+    tr = FakeTransport([_ok(content=payload)])
+    result = _adapter().dispatch("review", "p", api_key="k", transport=tr)
+    assert result.success is False
+    assert result.error_class == ErrorClass.UNKNOWN
+    assert "schema" in (result.error or "")
+
+
+def test_placeholder_only_http_payload_is_unsuccessful():
+    payload = json.dumps({"findings": [_finding(description="Placeholder while review runs")]})
+    tr = FakeTransport([_ok(content=payload)])
+    result = _adapter().dispatch("review", "p", api_key="k", transport=tr)
+    assert result.success is False
+    assert result.error == "non_substantive_placeholder"
+
+
+def test_valid_http_payload_is_coerced_stamped_and_line_resolved():
+    payload = json.dumps({"findings": [_finding(
+        type="bug", axis=None, file_path="src/foo.py",
+        existing_code="return used_variable", evidence_class="deterministic",
+    )]})
+    # axis=None is dropped so the alias table fills it from the raw type.
+    payload = payload.replace('"axis": null, ', "")
+    tr = FakeTransport([_ok(content=payload)])
+    result = _adapter().dispatch("review", _PACKET_PROMPT, api_key="k", transport=tr)
+    assert result.success is True, result.error
+    finding = result.findings["findings"][0]
+    assert finding["type"] == "correctness"          # coerce_findings_payload
+    assert "type:bug->correctness" in result.coercions
+    assert finding["evidence_class"] == "judgment"   # stamp_judgment_ingest
+    assert finding["line_range"] == {"start": 2, "end": 2}  # line_resolver
+    assert finding["line_resolution"] == "hunk_new"
+    assert result.unanchored_findings == 0
+    assert result.generation_id == "gen-abc123"
+
+
+def test_http_and_cli_ingest_agree_on_the_same_payload(tmp_path):
+    """The two adapters share one ingest helper: identical findings out."""
+    import subprocess
+    from unittest.mock import patch
+
+    from review_dispatcher import CliConfig, CliVendorAdapter, ModeConfig
+
+    payload = json.dumps({"findings": [_finding(
+        type="bug", file_path="src/foo.py", existing_code="return used_variable",
+    )]})
+    cli = CliVendorAdapter(
+        agent_id="codex-local", vendor="openrouter",
+        cli_config=CliConfig(command="codex",
+                             dispatch_modes={"review": ModeConfig(args=["exec"])},
+                             model_flag="-m"),
+    )
+    with patch("review_dispatcher.subprocess.run") as run:
+        run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout=payload, stderr="")
+        cli_result = cli.dispatch("review", _PACKET_PROMPT, cwd=tmp_path)
+    http_result = _adapter().dispatch(
+        "review", _PACKET_PROMPT, cwd=tmp_path, api_key="k",
+        transport=FakeTransport([_ok(content=payload)]),
+    )
+    assert cli_result.success and http_result.success
+    assert http_result.findings == cli_result.findings
+    assert http_result.coercions == cli_result.coercions
 
 
 # ── tool-less packet refusal (openrouter-review-lane, task 1.5, design D6) ──

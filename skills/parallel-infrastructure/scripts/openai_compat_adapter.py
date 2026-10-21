@@ -33,7 +33,11 @@ from review_dispatcher import (  # type: ignore[import-untyped]
     CliVendorAdapter,
     ErrorClass,
     ReviewResult,
+    _coverage_quorum_threshold,
+    _extract_diff_from_prompt,
+    _extract_selected_files_from_prompt,
     classify_error,
+    ingest_findings_output,
 )
 
 # transport(url, headers, body, timeout) -> parsed JSON response dict
@@ -295,6 +299,7 @@ class OpenAICompatAdapter:
 
             result = self._result_from_response(
                 resp, model, models_attempted, time.monotonic() - start,
+                prompt=prompt, cwd=cwd,
             )
             return self._with_usage(result, resp)
 
@@ -311,8 +316,17 @@ class OpenAICompatAdapter:
         model: str,
         models_attempted: list[str],
         elapsed: float,
+        *,
+        prompt: str = "",
+        cwd: Path | None = None,
     ) -> ReviewResult:
-        """Turn one chat-completions response into a ReviewResult."""
+        """Turn one chat-completions response into a ReviewResult.
+
+        The message content goes through the same ingest pipeline as CLI
+        stdout (``ingest_findings_output``): coerce, validate, judgment
+        stamp, line resolve against the packet diff, placeholder check and
+        the empty-findings floor. An HTTP lane is held to the CLI contract.
+        """
         content = _extract_content(resp)
         if not content:
             return ReviewResult(
@@ -325,8 +339,7 @@ class OpenAICompatAdapter:
         # ({"findings": [...]}) using the same extractor the CLI/SDK adapters use.
         # A non-empty response that is NOT valid review-findings JSON is a failure,
         # not a silent success with zero findings.
-        findings = CliVendorAdapter._parse_findings(content)
-        if findings is None:
+        if CliVendorAdapter._parse_findings(content) is None:
             return ReviewResult(
                 vendor=self.vendor, success=False,
                 error="Review output was not valid review-findings JSON",
@@ -334,11 +347,28 @@ class OpenAICompatAdapter:
                 model_used=model, models_attempted=models_attempted,
                 elapsed_seconds=elapsed, generation_id=resp.get("id"),
             )
-        return ReviewResult(
-            vendor=self.vendor, success=True, findings=findings,
-            model_used=model, models_attempted=models_attempted,
-            elapsed_seconds=elapsed, error=None, generation_id=resp.get("id"),
+        result = ingest_findings_output(
+            self.vendor,
+            content,
+            "",
+            elapsed=elapsed,
+            model_name=model,
+            models_attempted=models_attempted,
+            packet_diff=_extract_diff_from_prompt(prompt),
+            selected_files=_extract_selected_files_from_prompt(prompt),
+            coverage_quorum_threshold=(
+                _coverage_quorum_threshold(cwd) if cwd is not None else 0.8
+            ),
         )
+        result.generation_id = resp.get("id")
+        result.agent_id = self.agent_id
+        # The CLI path leaves error_class unset for a schema-invalid payload
+        # (it then falls through vendor fallback as an unclassified error).
+        # An HTTP response that parsed but failed ingest is a model-output
+        # failure, so classify it explicitly.
+        if not result.success and result.error_class is None:
+            result.error_class = ErrorClass.UNKNOWN
+        return result
 
     def _with_usage(self, result: ReviewResult, resp: dict[str, Any]) -> ReviewResult:
         """Copy the response's token counts and cost onto *result* (D4).

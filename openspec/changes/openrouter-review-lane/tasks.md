@@ -50,7 +50,7 @@ dataclass fields and the shared ingest helper extracted in 1.7),
 - [x] 1.5 Write a failing test: `dispatch(..., tools_overflow=True)` returns
   `packet_requires_tools` / `vendor_unavailable` with zero transport calls. Then implement the
   `tools_overflow` keyword (default False).
-- [ ] 1.6 Write failing tests: HTTP findings go through the same ingest pipeline as CLI findings.
+- [x] 1.6 Write failing tests: HTTP findings go through the same ingest pipeline as CLI findings.
   Today `OpenAICompatAdapter.dispatch` only calls `CliVendorAdapter._parse_findings`. The tests,
   each using an injected transport, cover:
   - a fast `{"findings": []}` (under `empty_findings_min_seconds()`) → `success=False`,
@@ -60,7 +60,7 @@ dataclass fields and the shared ingest helper extracted in 1.7),
   - a valid payload → findings coerced (`coerce_findings_payload`), stamped
     `evidence_class: judgment` (`stamp_judgment_ingest`), and line-resolved against the packet diff,
     exactly as on the CLI path.
-- [ ] 1.7 Factor the CLI ingest steps (coerce → validate → judgment stamp → line resolve →
+- [x] 1.7 Factor the CLI ingest steps (coerce → validate → judgment stamp → line resolve →
   placeholder check → empty-findings floor) out of `CliVendorAdapter` into a shared helper in
   `review_dispatcher.py`. Call it from both adapters. CLI behaviour must not change: the existing
   `test_fast_empty_findings_are_unsuccessful` and the related ingest tests stay green.
