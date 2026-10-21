@@ -3001,8 +3001,9 @@ class ReviewOrchestrator:
         roster order, non-metered before metered, for vendors pass 1 did not
         select (design D2). A Tier 2.5 lane whose model family matches an
         already-selected lane is skipped as ``duplicate_model_family``; a
-        metered lane is skipped as ``fill_target_met`` once enough
-        non-metered lanes are selected (design D5). ``skips`` maps vendor to
+        metered lane is skipped as ``fill_target_met`` once the selection
+        holds ``fill_target`` lanes, so metered lanes fill quorum and never
+        add to it (design D5). ``skips`` maps vendor to
         reason. At most one reviewer per vendor.
         """
         def _excluded(adapter: Any) -> bool:
@@ -3062,7 +3063,6 @@ class ReviewOrchestrator:
             for r in reviewers
             if r.vendor in self.lane_policy.vendor_families
         }
-        non_metered = len(reviewers)
         openai_by_vendor: dict[str, tuple[str, Any]] = {}
         for agent_id, adapter in self.openai_adapters.items():
             if (not _excluded(adapter) and adapter.vendor not in selected_vendors
@@ -3080,7 +3080,8 @@ class ReviewOrchestrator:
                 skips[vendor] = DUPLICATE_MODEL_FAMILY
                 continue
             metered = _is_metered(openai_adapter)
-            if metered and non_metered >= self.lane_policy.fill_target:
+            # Metered lanes fill toward the target; they never add past it.
+            if metered and len(reviewers) >= self.lane_policy.fill_target:
                 logger.info("Tier 2.5 skip for %s: fill target met", vendor)
                 skips[vendor] = FILL_TARGET_MET
                 continue
@@ -3095,8 +3096,6 @@ class ReviewOrchestrator:
             ))
             if family is not None:
                 families.add(family)
-            if not metered:
-                non_metered += 1
 
         reviewers.sort(key=lambda r: r.vendor)
         return reviewers, skips
@@ -3111,6 +3110,8 @@ class ReviewOrchestrator:
         exclude_vendor: str | None = None,
         packet_path: Path | str | None = None,
         result_callback: Callable[[ReviewResult, int], None] | None = None,
+        *,
+        include_lanes: list[str] | tuple[str, ...] | set[str] | None = None,
     ) -> list[ReviewResult]:
         """Dispatch reviews to available vendors concurrently and collect results.
 
@@ -3119,6 +3120,10 @@ class ReviewOrchestrator:
         all submitted first, then polled. Review cwd is the shared worktree
         (read-only). ``packet_path`` is accepted for callers that pack the
         prompt; the packet body is already in ``prompt``.
+
+        ``include_lanes`` (agent ids or vendor names) restricts dispatch to
+        those selected lanes; selection itself (family and fill rules) runs
+        first over the whole roster.
         """
         try:
             from api_key_resolver import ApiKeyResolver
@@ -3141,6 +3146,11 @@ class ReviewOrchestrator:
             dispatch_mode=dispatch_mode,
         )
         available = [r for r in reviewers if r.available]
+        if include_lanes is not None:
+            wanted = set(include_lanes)
+            available = [
+                r for r in available if r.agent_id in wanted or r.vendor in wanted
+            ]
 
         if not available:
             logger.warning("No vendors available for review dispatch")

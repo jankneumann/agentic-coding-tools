@@ -113,12 +113,12 @@ dataclass fields and the shared ingest helper extracted in 1.7),
 - [x] 3.2 Add `vendor_families` and `metered_lanes {fill_target, review_reservation_usd}` to
   `review_quorum_policy.json`, plus a loader. Implement the family rule in
   `from_config_dict` / `discover_reviewers` (design D2).
-- [ ] 3.3 Write failing tests for the fill rule. With `fill_target` 2:
+- [x] 3.3 Write failing tests for the fill rule. With `fill_target` 2:
   - two non-metered lanes → no metered lane is selected;
   - one non-metered lane → exactly one metered lane is selected.
   
   Also test that `dispatch_and_wait(include_lanes=...)` restricts dispatch.
-- [ ] 3.4 Implement the two-pass selection (design D2): pass 1 for tier 1/2, pass 2 for tier-2.5
+- [x] 3.4 Implement the two-pass selection (design D2): pass 1 for tier 1/2, pass 2 for tier-2.5
   candidates in `agents.yaml` roster order. Then implement the metered fill selection (design D5)
   and the `include_lanes` filter. Add a fill-rule test where the non-metered lane sorts after the
   metered one.

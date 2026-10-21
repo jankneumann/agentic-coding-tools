@@ -3104,3 +3104,112 @@ class TestFamilyRule:
         adapter = orch.openai_adapters["openrouter-review"]
         assert adapter.model == "nvidia/nemotron"
         assert adapter.model_fallbacks == ["qwen/qwen3-coder", "qwen/qwen3-coder-flash"]
+
+
+# ---------------------------------------------------------------------------
+# openrouter-review-lane: metered fill rule and include_lanes (design D5)
+# ---------------------------------------------------------------------------
+
+
+class TestFillRule:
+    def test_two_non_metered_lanes_select_no_metered_lane(self, lane_models) -> None:
+        lane_models["openrouter"] = ("nvidia/nemotron", [])
+        orch = ReviewOrchestrator.from_config_dict(
+            {"agents": [
+                _cli_agent("codex-local", "codex"),
+                _cli_agent("grok-local", "grok"),
+                _openrouter_agent(),
+            ]},
+            lane_policy=_POLICY,
+        )
+        with _on_path("codex", "grok"):
+            reviewers, skips = orch.select_reviewers()
+        assert [r.agent_id for r in reviewers] == ["codex-local", "grok-local"]
+        assert skips == {"openrouter": "fill_target_met"}
+
+    def test_one_non_metered_lane_selects_exactly_one_metered_lane(self, lane_models) -> None:
+        lane_models["openrouter"] = ("nvidia/nemotron", [])
+        lane_models["openrouter2"] = ("qwen/qwen3-coder", [])
+        orch = ReviewOrchestrator.from_config_dict(
+            {"agents": [
+                _cli_agent("codex-local", "codex"),
+                _openrouter_agent(),
+                _openrouter_agent("openrouter-two", "openrouter2"),
+            ]},
+            lane_policy=_POLICY,
+        )
+        with _on_path("codex"):
+            reviewers, skips = orch.select_reviewers()
+        assert [r.agent_id for r in reviewers] == ["codex-local", "openrouter-review"]
+        assert skips == {"openrouter2": "fill_target_met"}
+
+    def test_non_metered_lane_sorting_after_metered_one_counts_first(self, lane_models) -> None:
+        """Roster order puts the metered lane first; the non-metered tier-2.5
+        lane is still decided first, so it fills the target (design D2/D5)."""
+        lane_models["openrouter"] = ("nvidia/nemotron", [])
+        lane_models["zz_gx10"] = ("meta/llama-4", [])
+        orch = ReviewOrchestrator.from_config_dict(
+            {"agents": [
+                _cli_agent("codex-local", "codex"),
+                _openrouter_agent(),
+                _local_agent("gx10-local", "zz_gx10"),
+            ]},
+            lane_policy=_POLICY,
+        )
+        with _on_path("codex"):
+            reviewers, skips = orch.select_reviewers()
+        assert [r.agent_id for r in reviewers] == ["codex-local", "gx10-local"]
+        assert skips == {"openrouter": "fill_target_met"}
+
+    def test_fill_target_met_reported_by_check_vendors(self, lane_models) -> None:
+        from review_dispatcher import _probe_mode
+
+        lane_models["openrouter"] = ("nvidia/nemotron", [])
+        orch = ReviewOrchestrator.from_config_dict(
+            {"agents": [
+                _cli_agent("codex-local", "codex"),
+                _cli_agent("grok-local", "grok"),
+                _openrouter_agent(),
+            ]},
+            lane_policy=_POLICY,
+        )
+        with _on_path("codex", "grok"):
+            report = _probe_mode(orch, "review", exclude_vendor=None, dry_invoke=lambda _a: None)
+        assert report["verified"] == ["codex", "grok"]
+        assert {"vendor": "openrouter", "reason": "fill_target_met"} in report["unverified"]
+
+
+class TestIncludeLanes:
+    def _orch(self, lane_models) -> ReviewOrchestrator:
+        lane_models["gx10"] = ("meta/llama-4", [])
+        lane_models["local"] = ("qwen/qwen3-coder", [])
+        orch = ReviewOrchestrator.from_config_dict(
+            {"agents": [_local_agent("gx10-local", "gx10"), _local_agent("box-local", "local")]},
+            lane_policy=_POLICY,
+        )
+        for agent_id, adapter in orch.openai_adapters.items():
+            adapter.dispatch = MagicMock(
+                return_value=ReviewResult(vendor=adapter.vendor, success=True),
+            )
+        return orch
+
+    def test_include_lanes_by_agent_id_restricts_dispatch(self, lane_models, tmp_path: Path) -> None:
+        orch = self._orch(lane_models)
+        results = orch.dispatch_and_wait(
+            "plan", "review", "prompt", tmp_path, include_lanes=["gx10-local"],
+        )
+        assert [r.agent_id for r in results] == ["gx10-local"]
+        orch.openai_adapters["box-local"].dispatch.assert_not_called()
+
+    def test_include_lanes_by_vendor_restricts_dispatch(self, lane_models, tmp_path: Path) -> None:
+        orch = self._orch(lane_models)
+        results = orch.dispatch_and_wait(
+            "plan", "review", "prompt", tmp_path, include_lanes=["local"],
+        )
+        assert [r.agent_id for r in results] == ["box-local"]
+        orch.openai_adapters["gx10-local"].dispatch.assert_not_called()
+
+    def test_no_include_lanes_dispatches_all_selected(self, lane_models, tmp_path: Path) -> None:
+        orch = self._orch(lane_models)
+        results = orch.dispatch_and_wait("plan", "review", "prompt", tmp_path)
+        assert sorted(r.agent_id for r in results) == ["box-local", "gx10-local"]
