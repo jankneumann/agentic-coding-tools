@@ -7,6 +7,7 @@ mapping is the normative one in ``dispatch_contract.result_from_loop_state``.
 
 from __future__ import annotations
 
+import ast
 import json
 import re
 import subprocess
@@ -245,3 +246,51 @@ def test_degradations_travel_into_the_result(repo: Path) -> None:
     )
     assert _emit() == 0
     assert _written(repo)["degradations"] == [degradation]
+
+
+# openrouter-review-lane, task 6.4 ------------------------------------------ #
+
+_REVIEW_PHASES = {"PLAN_REVIEW", "IMPL_REVIEW", "VAL_REVIEW"}
+_PYTHON_FENCE = re.compile(r"```python\n(.*?)```", re.DOTALL)
+
+
+def _host_converge_calls(text: str) -> list[ast.Call]:
+    calls: list[ast.Call] = []
+    for block in _PYTHON_FENCE.findall(text):
+        if "converge(" not in block:
+            continue
+        # A converge example that does not parse cannot be checked; keep them valid.
+        tree = ast.parse(block)
+        calls += [
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "converge"
+        ]
+    return calls
+
+
+def test_every_host_converge_example_names_its_phase() -> None:
+    # Without phase= converge() sends no spend_context, and a metered lane is
+    # refused with spend_context_missing (openrouter-review-lane task 3.10).
+    text = (_SKILLS / "autopilot" / "SKILL.md").read_text(encoding="utf-8")
+    phases = []
+    for call in _host_converge_calls(text):
+        keyword = next((kw for kw in call.keywords if kw.arg == "phase"), None)
+        assert keyword is not None, f"converge(...) example without phase= (line {call.lineno})"
+        assert isinstance(keyword.value, ast.Constant), "phase= must name the review phase"
+        phases.append(keyword.value.value)
+    # The PLAN_REVIEW inline fallback and its IMPL_REVIEW and VAL_REVIEW equivalents.
+    assert sorted(phases) == sorted(_REVIEW_PHASES), phases
+
+
+def test_cloud_review_protocol_runs_the_composite_agent_lane() -> None:
+    text = (_SKILLS / "autopilot" / "SKILL.md").read_text(encoding="utf-8")
+    assert "agent_lane.py\" converge" in text
+    assert "--verified-lanes" in text
+    assert "execution_profile.lanes.review" in text
+    # agent_lane's capability_unavailable result parks; unrecorded spend is recorded.
+    assert "capability_unavailable` result maps to `runner.py park --kind capability_unavailable`" in text
+    assert "--code metered_spend_unrecorded" in text
+    assert "`metered_spend_unrecorded`" in text.split("**Degradations.**", 1)[1].split("- **Result.**", 1)[0]

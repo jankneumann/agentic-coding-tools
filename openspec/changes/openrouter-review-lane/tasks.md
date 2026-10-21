@@ -260,13 +260,13 @@ examples only)
 **Depends:** 3 (the `lane_kinds` shape), 4 (the replay CLI)
 **Specs:** supervise "Execution Profile and Review Requirements" (MODIFIED)
 
-- [ ] 6.1 Write failing tests: `lane_kinds` ranks `openrouter` after `vendor-cli`; a missing
+- [x] 6.1 Write failing tests: `lane_kinds` ranks `openrouter` after `vendor-cli`; a missing
   `lane_kinds` falls back to the old inference.
-- [ ] 6.2 Implement the `rank()` change in `resolve_execution_profile` (design D8).
-- [ ] 6.3 Write failing tests, then implement: `ExecutionAdapter.apply` runs
+- [x] 6.2 Implement the `rank()` change in `resolve_execution_profile` (design D8).
+- [x] 6.3 Write failing tests, then implement: `ExecutionAdapter.apply` runs
   `spend_recorder.py replay` once when a `metered_spend_unrecorded` degradation is present,
   reports the replayed count, and never fails the apply on a replay error.
-- [ ] 6.4 Update the autopilot `SKILL.md` review section with these rules:
+- [x] 6.4 Update the autopilot `SKILL.md` review section with these rules:
   - In cloud, run `agent_lane.py converge --verified-lanes <each lane from execution_profile.lanes.review>`.
   - A `capability_unavailable` result maps to `runner.py park --kind capability_unavailable`.
   - Record the degradation `metered_spend_unrecorded` when the result reports it.

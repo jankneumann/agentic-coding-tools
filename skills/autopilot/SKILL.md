@@ -130,10 +130,15 @@ carries no token.
   `loop-state.json`, emit the result, and stop. The command is stored redacted.
 - **Probing.** Run only `execution_profile.probe_command`. Never read environment
   variables or credentials to discover capabilities.
+- **Review in cloud.** Run each review phase through `agent_lane.py converge
+  --phase <phase>` with one `--verified-lanes <lane>` per entry of the marker's
+  `execution_profile.lanes.review` (see *Cloud review lanes* under Detect CLI mode).
+  A `capability_unavailable` result maps to `runner.py park --kind capability_unavailable`
+  with its `missing_lanes`; record `metered_spend_unrecorded` when the result reports it.
 - **Degradations.** Record every degraded path with `runner.py record-degradation`
   (closed codes only: `single_vendor_review`, `review_skipped`,
   `coordinator_projection_forbidden`, `audit_sink_failed`, `phase_fallback_inline`,
-  `handoff_local_fallback`).
+  `handoff_local_fallback`, `metered_spend_unrecorded`).
 - **Result.** When the loop is terminal or parked, commit `loop-state.json`, then
   `runner.py emit-result <change-id> --dispatch-id <id> --generation <N> --attempt <A>`
   (exit 5: not terminal or parked; exit 2: loop state uncommitted). Commit the file it
@@ -215,6 +220,36 @@ python3 "<skill-base-dir>/scripts/runner.py" park <change-id> \
 # quorum met by exactly one lane (min_quorum 1 by policy): record it, then review
 python3 "<skill-base-dir>/scripts/runner.py" record-degradation <change-id> \
   --code single_vendor_review --phase <phase> --detail "vendor=<the one lane>"
+```
+
+*Cloud review lanes (dispatched child in a cloud container).* The running agent
+serves the `claude_code` lane; any other verified lane (for example `openrouter`)
+is dispatched beside it by the composite agent lane. Pass every lane in the
+marker's `execution_profile.lanes.review`, one `--verified-lanes` per lane — never
+add a lane the marker does not list, and never probe for one:
+
+```bash
+python3 "<skill-base-dir>/scripts/agent_lane.py" converge \
+  --change-id <change-id> --phase <PLAN_REVIEW|IMPL_REVIEW|VAL_REVIEW> \
+  --proto-dir <protocol dir> --base-ref origin/<pr-base> --model <model id> \
+  --verified-lanes <lane> [--verified-lanes <lane> ...]
+```
+
+Then read the protocol directory's `result.json`:
+
+- A `capability_unavailable` result maps to `runner.py park --kind capability_unavailable`:
+  park with `--phase <phase>` and one `--missing-lane` per entry of the result's
+  `missing_lanes`, commit `loop-state.json`, emit the result, and stop. This covers a
+  lane that verified at launch and lost budget or auth mid-run. Any other
+  non-converged reason (`quorum_lost`, `max_rounds`, `stalled`) follows the phase's
+  normal not-converged path.
+- When the result's `degradations` include `metered_spend_unrecorded` (a metered
+  lane's spend was spooled because the coordinator write failed), record it, once per
+  entry, before emitting the result. The supervisor replays the spool during `apply`.
+
+```bash
+python3 "<skill-base-dir>/scripts/runner.py" record-degradation <change-id> \
+  --code metered_spend_unrecorded --phase <phase> --detail "<the result entry's detail>"
 ```
 
 *Standalone run (no marker).* Keep today's probe, and record the degradation when
@@ -576,6 +611,7 @@ from convergence_loop import converge
 result = converge(
     change_id=change_id,
     review_type="plan",
+    phase="PLAN_REVIEW",  # required: names the spend_context for metered lanes
     artifacts_dir=change_dir,
     worktree_path=worktree_path,
     agents_yaml_path=agents_yaml_path,
@@ -586,6 +622,11 @@ result = converge(
     memory_callback=write_memory,
 )
 ```
+
+Every host-path `converge(...)` call passes `phase=` (here `"PLAN_REVIEW"`; the
+IMPL_REVIEW and VAL_REVIEW fallbacks below pass theirs). Without it `converge()`
+sends no `spend_context`, and a metered lane selected on a host is refused with
+`spend_context_missing`.
 
 Then run `apply-outcome` to record `phase_archetype = null`.
 
@@ -807,7 +848,27 @@ the dispatched agent executes `converge()` as the whole review phase.
 **Fallback**: If `archetype: null` OR the dispatch adapter is unavailable, run the
 inline path — invoke the convergence loop with `fix_mode="targeted"`
 and a `post_fix_validator` callback for scoped pytest/mypy/openspec
-checks. Then run `apply-outcome` to record `phase_archetype = null`.
+checks:
+
+```python
+from convergence_loop import converge
+result = converge(
+    change_id=change_id,
+    review_type="implementation",
+    phase="IMPL_REVIEW",  # required: names the spend_context for metered lanes
+    artifacts_dir=change_dir,
+    worktree_path=worktree_path,
+    agents_yaml_path=agents_yaml_path,
+    max_rounds=3,
+    min_quorum=2,
+    fix_mode="targeted",
+    fix_callback=apply_impl_fixes_targeted,
+    post_fix_validator=run_scoped_checks,
+    memory_callback=write_memory,
+)
+```
+
+Then run `apply-outcome` to record `phase_archetype = null`.
 
 For **targeted implementation fixes** (IMPL_FIX sub-step, NOT a
 sub-agent dispatch): Look up the lead vendor from `package_authors`, use
@@ -880,8 +941,26 @@ as the whole VAL_REVIEW phase.
 
 **Fallback**: If `archetype: null` OR the dispatch adapter is unavailable, run the
 inline path — invoke the convergence loop with `review_type="implementation"`
-and `fix_mode="targeted"`, scoped to the validation evidence. Then run
-`apply-outcome` to record `phase_archetype = null`.
+and `fix_mode="targeted"`, scoped to the validation evidence:
+
+```python
+from convergence_loop import converge
+result = converge(
+    change_id=change_id,
+    review_type="implementation",
+    phase="VAL_REVIEW",  # required: names the spend_context for metered lanes
+    artifacts_dir=change_dir,
+    worktree_path=worktree_path,
+    agents_yaml_path=agents_yaml_path,
+    max_rounds=3,
+    min_quorum=2,
+    fix_mode="targeted",
+    fix_callback=apply_val_fixes_targeted,
+    memory_callback=write_memory,
+)
+```
+
+Then run `apply-outcome` to record `phase_archetype = null`.
 
 ### 8. SUBMIT_PR Phase
 
