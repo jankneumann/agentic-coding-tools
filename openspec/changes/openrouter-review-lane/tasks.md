@@ -315,7 +315,7 @@ examples only)
   revert the archived routing-cost-policy schema and the task-router change's `routing.schema.json`.
 - [x] 8.2 Add the `configuration` spec delta that admits an optional `openrouter` key in the
   provider model map, with a schema test.
-- [ ] 8.3 Make the `generation_id` dedupe in `POST /routing/spend` atomic (unique constraint plus
+- [x] 8.3 Make the `generation_id` dedupe in `POST /routing/spend` atomic (unique constraint plus
   `ON CONFLICT DO NOTHING`) and add a concurrent-duplicate test.
 - [x] 8.4 Suppress the misleading "Cross-vendor review NOT CHECKED" stderr inside the composite lane.
 - [x] 8.5 Find and fix the shared-state leak behind the order-dependent

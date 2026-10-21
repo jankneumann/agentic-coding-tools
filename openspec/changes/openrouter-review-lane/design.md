@@ -383,8 +383,11 @@ changes behaviour beyond what the code and tests already pin.
   change's copy (see `contracts/README.md`); those originals are untouched. The opening of the
   provider-model-map key set to `openrouter` is a MODIFIED requirement in
   `specs/configuration/spec.md`.
-- **Generation-id dedupe is atomic.** `POST /routing/spend` relies on a unique constraint on
-  `generation_id` and `INSERT … ON CONFLICT DO NOTHING`, so concurrent duplicates write one row.
+- **Generation-id dedupe is atomic.** Migration 046 adds a partial unique index on
+  `routing_spend_ledger (generation_id) WHERE generation_id IS NOT NULL` and the RPC
+  `record_spend_once`, which inserts with `ON CONFLICT … DO NOTHING` and otherwise returns the
+  existing row. `POST /routing/spend` calls it through `ledger.record_once`, so concurrent
+  duplicates write exactly one row (201 for the writer, 200 for the rest).
 - **Follow-up: task-router resolver ineligibility.** `model_routing/resolver.py` excludes
   `openrouter-review` as `lane:dispatch-mode-ineligible`, because the agent has no dispatch modes.
   The review dispatcher, not the task router, selects review lanes, so this change does not
