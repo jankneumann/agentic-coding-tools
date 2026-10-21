@@ -2,6 +2,17 @@
   "schema_version": 1,
   "description": "Review quorum per execution environment, as data (dispatch-contract D10). The supervisor copies the resolved entry into every request's review_requirements; a worker never lowers a quorum itself. A single-lane review is detected only by lanes failing to dispatch, never by reading environment variables or credentials, and records the degradation single_vendor_review (phase, vendor).",
   "default_min_quorum": 2,
+  "vendor_families": {
+    "claude_code": "anthropic",
+    "codex": "openai",
+    "antigravity": "google",
+    "grok": "xai"
+  },
+  "metered_lanes": {
+    "description": "Design D5 (openrouter-review-lane): a metered (OpenRouter) review lane is added only while fewer than fill_target non-metered lanes are selected. Each round reserves review_reservation_usd against the remaining spend ceiling before dispatch.",
+    "fill_target": 2,
+    "review_reservation_usd": 1.0
+  },
   "policies": [
     {
       "id": "cloud-container-single-vendor-2026-10-09",

@@ -2905,3 +2905,202 @@ def test_configured_bao_missing_adapter_does_not_use_ambient_sdk_key(
     assert "adapter unavailable" in (results[0].error or "")
     assert "ambient-key" not in (results[0].error or "")
     adapter.dispatch.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# openrouter-review-lane: model-family rule (design D2)
+# ---------------------------------------------------------------------------
+
+from review_dispatcher import (  # noqa: E402
+    LanePolicy,
+    load_lane_policy,
+    model_family,
+)
+
+_POLICY = LanePolicy(
+    vendor_families={
+        "claude_code": "anthropic", "codex": "openai", "antigravity": "google",
+        "grok": "xai", "pi": "openai",
+    },
+    fill_target=2,
+    review_reservation_usd=1.0,
+)
+
+
+def _openrouter_agent(agent_id: str = "openrouter-review", type_: str = "openrouter") -> dict:
+    return {
+        "agent_id": agent_id, "type": type_, "transport": "http",
+        "endpoint_kind": "openrouter", "base_url": "https://openrouter.ai/api/v1",
+    }
+
+
+def _local_agent(agent_id: str = "local-gx10", type_: str = "local") -> dict:
+    return {
+        "agent_id": agent_id, "type": type_, "transport": "http",
+        "endpoint_kind": "local", "base_url": "http://127.0.0.1:11434/v1",
+    }
+
+
+def _cli_agent(agent_id: str, type_: str, command: str | None = None) -> dict:
+    return {
+        "agent_id": agent_id, "type": type_, "transport": "mcp",
+        "cli": {
+            "command": command or type_,
+            "dispatch_modes": {"review": {"args": ["exec"]}},
+            "model_flag": "-m",
+        },
+    }
+
+
+@pytest.fixture
+def lane_models(monkeypatch: pytest.MonkeyPatch):
+    """Pin each endpoint lane's primary/fallback models by agent type."""
+    models: dict[str, tuple[str, list[str]]] = {}
+
+    def _premium(vendor: str):
+        return (models[vendor][0], None) if vendor in models else (None, None)
+
+    def _fallbacks(vendor: str):
+        return list(models[vendor][1]) if vendor in models else []
+
+    monkeypatch.setattr("review_dispatcher._resolve_review_model_spec", _premium)
+    monkeypatch.setattr("review_dispatcher._derived_tier_fallbacks", _fallbacks)
+    return models
+
+
+def _on_path(*commands: str):
+    present = set(commands)
+    return patch(
+        "shutil.which",
+        side_effect=lambda cmd: f"/usr/bin/{cmd}" if cmd in present else None,
+    )
+
+
+class TestModelFamily:
+    def test_publisher_prefix_is_family(self) -> None:
+        assert model_family("nvidia/nemotron-3-ultra") == "nvidia"
+        assert model_family("OpenAI/gpt-5") == "openai"
+
+    def test_unprefixed_model_has_unknown_family(self) -> None:
+        assert model_family("llama3") is None
+        assert model_family(None) is None
+
+
+class TestLanePolicyLoader:
+    def test_repo_policy_declares_families_and_metered_lanes(self) -> None:
+        policy = load_lane_policy()
+        assert policy.vendor_families["claude_code"] == "anthropic"
+        assert policy.vendor_families["codex"] == "openai"
+        assert policy.vendor_families["antigravity"] == "google"
+        assert policy.vendor_families["grok"] == "xai"
+        assert policy.fill_target == 2
+        assert policy.review_reservation_usd == 1.0
+
+    def test_fill_target_defaults_to_default_min_quorum(self, tmp_path: Path) -> None:
+        path = tmp_path / "policy.json"
+        path.write_text(json.dumps({"default_min_quorum": 3, "policies": []}))
+        policy = load_lane_policy(path)
+        assert policy.fill_target == 3
+        assert policy.review_reservation_usd == 1.0
+        assert dict(policy.vendor_families) == {}
+
+    def test_unreadable_policy_falls_back_to_defaults(self, tmp_path: Path) -> None:
+        policy = load_lane_policy(tmp_path / "missing.json")
+        assert policy.fill_target == 2
+        assert policy.review_reservation_usd == 1.0
+
+
+class TestFamilyRule:
+    def test_anthropic_primary_rejected_at_config_load(self, lane_models) -> None:
+        lane_models["openrouter"] = ("anthropic/claude-opus", [])
+        orch = ReviewOrchestrator.from_config_dict(
+            {"agents": [_openrouter_agent()]}, lane_policy=_POLICY,
+        )
+        assert "openrouter-review" not in orch.openai_adapters
+        assert orch.config_rejections["openrouter-review"] == (
+            "openrouter", "anthropic_family",
+        )
+        assert orch.discover_reviewers() == []
+
+    def test_anthropic_fallback_rejected_at_config_load(self, lane_models) -> None:
+        lane_models["openrouter"] = (
+            "nvidia/nemotron", ["qwen/qwen3-coder", "anthropic/claude-haiku"],
+        )
+        orch = ReviewOrchestrator.from_config_dict(
+            {"agents": [_openrouter_agent()]}, lane_policy=_POLICY,
+        )
+        assert "openrouter-review" not in orch.openai_adapters
+        assert orch.config_rejections["openrouter-review"][1] == "anthropic_family"
+
+    def test_anthropic_lane_listed_unverified_by_check_vendors(self, lane_models) -> None:
+        from review_dispatcher import _probe_mode
+
+        lane_models["openrouter"] = ("anthropic/claude-opus", [])
+        orch = ReviewOrchestrator.from_config_dict(
+            {"agents": [_openrouter_agent()]}, lane_policy=_POLICY,
+        )
+        report = _probe_mode(orch, "review", exclude_vendor=None, dry_invoke=lambda _a: None)
+        assert report["verified"] == []
+        assert {"vendor": "openrouter", "reason": "anthropic_family"} in report["unverified"]
+
+    def test_codex_tier1_makes_openai_lane_duplicate(self, lane_models) -> None:
+        lane_models["openrouter"] = ("openai/gpt-5", [])
+        orch = ReviewOrchestrator.from_config_dict(
+            {"agents": [_cli_agent("codex-local", "codex"), _openrouter_agent()]},
+            lane_policy=_POLICY,
+        )
+        with _on_path("codex"):
+            reviewers, skips = orch.select_reviewers()
+        assert [r.agent_id for r in reviewers] == ["codex-local"]
+        assert skips == {"openrouter": "duplicate_model_family"}
+
+    def test_duplicate_family_reported_by_check_vendors(self, lane_models) -> None:
+        from review_dispatcher import _probe_mode
+
+        lane_models["openrouter"] = ("openai/gpt-5", [])
+        orch = ReviewOrchestrator.from_config_dict(
+            {"agents": [_cli_agent("codex-local", "codex"), _openrouter_agent()]},
+            lane_policy=_POLICY,
+        )
+        with _on_path("codex"):
+            report = _probe_mode(
+                orch, "review", exclude_vendor=None, dry_invoke=lambda _a: None,
+            )
+        assert report["verified"] == ["codex"]
+        assert {"vendor": "openrouter", "reason": "duplicate_model_family"} in report["unverified"]
+
+    def test_vendor_missing_from_map_is_never_duplicate(self, lane_models) -> None:
+        lane_models["openrouter"] = ("xai/grok-4", [])
+        policy = LanePolicy(vendor_families={}, fill_target=2, review_reservation_usd=1.0)
+        orch = ReviewOrchestrator.from_config_dict(
+            {"agents": [_cli_agent("grok-local", "grok"), _openrouter_agent()]},
+            lane_policy=policy,
+        )
+        with _on_path("grok"):
+            reviewers, skips = orch.select_reviewers()
+        assert [r.agent_id for r in reviewers] == ["grok-local", "openrouter-review"]
+        assert skips == {}
+
+    def test_two_pass_vendor_sorting_after_openrouter_still_dedups(self, lane_models) -> None:
+        """`pi` sorts after `openrouter`; a single sorted pass would decide the
+        OpenRouter lane before seeing pi (design D2 two-pass selection)."""
+        lane_models["openrouter"] = ("openai/gpt-5", [])
+        orch = ReviewOrchestrator.from_config_dict(
+            {"agents": [_openrouter_agent(), _cli_agent("pi-local", "pi")]},
+            lane_policy=_POLICY,
+        )
+        with _on_path("pi"):
+            reviewers, skips = orch.select_reviewers()
+        assert [r.agent_id for r in reviewers] == ["pi-local"]
+        assert skips == {"openrouter": "duplicate_model_family"}
+
+    def test_fallbacks_keep_standard_and_economy_tiers(self, lane_models) -> None:
+        lane_models["openrouter"] = (
+            "nvidia/nemotron", ["qwen/qwen3-coder", "qwen/qwen3-coder-flash"],
+        )
+        orch = ReviewOrchestrator.from_config_dict(
+            {"agents": [_openrouter_agent()]}, lane_policy=_POLICY,
+        )
+        adapter = orch.openai_adapters["openrouter-review"]
+        assert adapter.model == "nvidia/nemotron"
+        assert adapter.model_fallbacks == ["qwen/qwen3-coder", "qwen/qwen3-coder-flash"]

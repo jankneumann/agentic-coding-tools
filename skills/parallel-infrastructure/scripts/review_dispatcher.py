@@ -34,7 +34,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from functools import partial
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Mapping
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 from uuid import uuid4
@@ -2533,6 +2533,83 @@ def _dispatch_with_snapshot_fallback(
 
 
 # ---------------------------------------------------------------------------
+# Lane policy: model families and metered fill (openrouter-review-lane D2/D5)
+# ---------------------------------------------------------------------------
+
+#: Skip reasons recorded by lane selection and surfaced by ``--check-vendors``.
+ANTHROPIC_FAMILY = "anthropic_family"
+DUPLICATE_MODEL_FAMILY = "duplicate_model_family"
+FILL_TARGET_MET = "fill_target_met"
+SPEND_CEILING_EXCEEDED = "spend_ceiling_exceeded"
+SPEND_CEILING_UNVERIFIABLE = "spend_ceiling_unverifiable"
+SPEND_CONTEXT_MISSING = "spend_context_missing"
+
+#: Default per-round spend reservation (USD) for a metered review lane.
+DEFAULT_REVIEW_RESERVATION_USD = 1.0
+_DEFAULT_FILL_TARGET = 2
+
+
+@dataclass(frozen=True)
+class SpendContext:
+    """Attribution for metered spend: which change and work unit paid for it."""
+
+    change_id: str
+    work_unit_ref: str
+
+
+@dataclass(frozen=True)
+class LanePolicy:
+    """Data-driven lane-selection policy from ``review_quorum_policy.json``.
+
+    ``vendor_families`` maps a CLI/SDK vendor to its model family; a vendor
+    missing from the map has an unknown family and is never a duplicate.
+    ``fill_target`` is the number of non-metered lanes above which no
+    metered lane is added (design D5).
+    """
+
+    vendor_families: Mapping[str, str] = field(default_factory=dict)
+    fill_target: int = _DEFAULT_FILL_TARGET
+    review_reservation_usd: float = DEFAULT_REVIEW_RESERVATION_USD
+
+
+def load_lane_policy(policy_path: Path | None = None) -> LanePolicy:
+    """Load :class:`LanePolicy`; an unreadable file yields the defaults."""
+    try:
+        document = json.loads(
+            (policy_path or _QUORUM_POLICY_PATH).read_text(encoding="utf-8"),
+        )
+    except (OSError, ValueError):
+        return LanePolicy()
+    if not isinstance(document, dict):
+        return LanePolicy()
+    families = document.get("vendor_families") or {}
+    metered = document.get("metered_lanes") or {}
+    default_fill = int(document.get("default_min_quorum", _DEFAULT_FILL_TARGET))
+    return LanePolicy(
+        vendor_families={
+            str(k): str(v).lower() for k, v in families.items() if isinstance(v, str)
+        } if isinstance(families, dict) else {},
+        fill_target=int(metered.get("fill_target", default_fill)),
+        review_reservation_usd=float(
+            metered.get("review_reservation_usd", DEFAULT_REVIEW_RESERVATION_USD),
+        ),
+    )
+
+
+def model_family(model: str | None) -> str | None:
+    """The publisher prefix of a model slug (``nvidia/x`` → ``nvidia``)."""
+    if not model or "/" not in model:
+        return None
+    prefix = model.split("/", 1)[0].strip().lower()
+    return prefix or None
+
+
+def _is_metered(adapter: Any) -> bool:
+    """A tier-2.5 lane is metered when it bills through OpenRouter."""
+    return getattr(adapter, "endpoint_kind", None) == "openrouter"
+
+
+# ---------------------------------------------------------------------------
 # Review orchestrator
 # ---------------------------------------------------------------------------
 
@@ -2553,6 +2630,13 @@ class ReviewOrchestrator:
         credential_requests: dict[str, tuple[str | None, str]] | None = None,
         credential_scopes: dict[str, tuple[str, ...]] | None = None,
         openai_credential_requests: dict[str, tuple[str | None, str]] | None = None,
+        *,
+        config_rejections: dict[str, tuple[str, str]] | None = None,
+        lane_policy: LanePolicy | None = None,
+        openai_transport: Callable[..., Any] | None = None,
+        probe_transport: Callable[..., Any] | None = None,
+        usage_fetcher: Callable[[], dict[str, Any] | None] | None = None,
+        spend_recorder: Any | None = None,
     ) -> None:
         self.adapters = adapters
         self.sdk_adapters = sdk_adapters or {}
@@ -2565,9 +2649,19 @@ class ReviewOrchestrator:
         }
         self.openai_credential_requests = openai_credential_requests or {}
         self.credential_scopes = credential_scopes or {}
+        #: agent_id -> (vendor, reason) for lanes refused at config load.
+        self.config_rejections: dict[str, tuple[str, str]] = dict(config_rejections or {})
+        self.lane_policy = lane_policy if lane_policy is not None else load_lane_policy()
+        # Injectable seams (tests and offline probes); None selects the real one.
+        self.openai_transport = openai_transport
+        self.probe_transport = probe_transport
+        self.usage_fetcher = usage_fetcher
+        self.spend_recorder = spend_recorder
 
     @classmethod
-    def from_config_dict(cls, data: dict[str, Any]) -> "ReviewOrchestrator":
+    def from_config_dict(
+        cls, data: dict[str, Any], **kwargs: Any,
+    ) -> "ReviewOrchestrator":
         """Create orchestrator from a config dict (as returned by coordinator).
 
         The dict should have an ``agents`` key containing a list of agent
@@ -2581,6 +2675,7 @@ class ReviewOrchestrator:
         credential_requests: dict[str, tuple[str | None, str]] = {}
         openai_credential_requests: dict[str, tuple[str | None, str]] = {}
         credential_scopes: dict[str, tuple[str, ...]] = {}
+        config_rejections: dict[str, tuple[str, str]] = {}
         for agent in data.get("agents", []):
             cli = agent.get("cli")
             sdk = agent.get("sdk")
@@ -2659,14 +2754,32 @@ class ReviewOrchestrator:
                 )
                 if configured_model:
                     agent_id = agent["agent_id"]
+                    # Keep every derived tier other than the primary (the
+                    # standard tier used to be dropped by a ``[1:]`` slice).
+                    fallbacks = list(
+                        (sdk or {}).get("model_fallbacks")
+                        or (cli or {}).get("model_fallbacks")
+                        or [m for m in derived_fallbacks if m != configured_model]
+                    )
+                    # Design D2: an Anthropic-family model on a tier-2.5 lane
+                    # would duplicate the reviewing harness; refuse the lane.
+                    if any(
+                        model_family(m) == "anthropic"
+                        for m in [configured_model, *fallbacks]
+                    ):
+                        logger.warning(
+                            "Rejecting lane %s: anthropic-family model configured",
+                            agent_id,
+                        )
+                        config_rejections[agent_id] = (agent["type"], ANTHROPIC_FAMILY)
+                        continue
                     openai_adapters[agent_id] = OpenAICompatAdapter(
                         agent_id=agent_id,
                         vendor=agent["type"],
                         model=configured_model,
                         base_url=base_url,
                         endpoint_kind=endpoint_kind,
-                        model_fallbacks=(sdk or {}).get("model_fallbacks")
-                        or (cli or {}).get("model_fallbacks", derived_fallbacks[1:]),
+                        model_fallbacks=fallbacks,
                     )
                     openai_key_envs[agent_id] = (
                         agent.get("api_key_env")
@@ -2681,9 +2794,11 @@ class ReviewOrchestrator:
                     vendor_id = "openrouter" if endpoint_kind == "openrouter" else "local"
                     openai_credential_requests[agent_id] = (principal_id, vendor_id)
 
+        kwargs.setdefault("config_rejections", config_rejections)
         return cls(
             adapters, sdk_adapters, openai_adapters, openai_key_envs,
             credential_requests, credential_scopes, openai_credential_requests,
+            **kwargs,
         )
 
     @staticmethod
@@ -2868,45 +2983,48 @@ class ReviewOrchestrator:
         exclude_vendor: str | None = None,
         dispatch_mode: str = "review",
     ) -> list[ReviewerInfo]:
-        """Discover available reviewers with ordered transport selection.
+        """Discover available reviewers (see :meth:`select_reviewers`)."""
+        reviewers, _skips = self.select_reviewers(
+            exclude_vendor=exclude_vendor, dispatch_mode=dispatch_mode,
+        )
+        return reviewers
 
-        For each vendor, selects the best available dispatch method:
-        Tier 1 (Local CLI) → Tier 2 (SDK/API) → Tier 2.5
-        (OpenAI-compatible) → Tier 3 (Skip).
-        Deduplicates by vendor — at most one reviewer per vendor type.
+    def select_reviewers(
+        self,
+        exclude_vendor: str | None = None,
+        dispatch_mode: str = "review",
+    ) -> tuple[list[ReviewerInfo], dict[str, str]]:
+        """Select reviewers in two passes; return ``(reviewers, skips)``.
+
+        Pass 1 picks, per vendor in sorted order, Tier 1 (Local CLI) then
+        Tier 2 (SDK/API). Pass 2 visits Tier 2.5 (OpenAI-compatible) lanes in
+        roster order, non-metered before metered, for vendors pass 1 did not
+        select (design D2). A Tier 2.5 lane whose model family matches an
+        already-selected lane is skipped as ``duplicate_model_family``; a
+        metered lane is skipped as ``fill_target_met`` once enough
+        non-metered lanes are selected (design D5). ``skips`` maps vendor to
+        reason. At most one reviewer per vendor.
         """
-        # Collect all CLI adapters (local transport only)
+        def _excluded(adapter: Any) -> bool:
+            return bool(exclude_vendor) and adapter.vendor == exclude_vendor
+
         cli_by_vendor: dict[str, tuple[str, CliVendorAdapter]] = {}
         for agent_id, adapter in self.adapters.items():
-            if exclude_vendor and adapter.vendor == exclude_vendor:
-                continue
             # Only consider local agents (transport=mcp) for CLI dispatch
-            if adapter.transport == "mcp" and adapter.vendor not in cli_by_vendor:
+            if (not _excluded(adapter) and adapter.transport == "mcp"
+                    and adapter.vendor not in cli_by_vendor):
                 cli_by_vendor[adapter.vendor] = (agent_id, adapter)
 
-        # Collect all SDK adapters
         sdk_by_vendor: dict[str, tuple[str, SdkVendorAdapter]] = {}
         for agent_id, adapter in self.sdk_adapters.items():
-            if exclude_vendor and adapter.vendor == exclude_vendor:
-                continue
-            if adapter.vendor not in sdk_by_vendor:
+            if not _excluded(adapter) and adapter.vendor not in sdk_by_vendor:
                 sdk_by_vendor[adapter.vendor] = (agent_id, adapter)
 
-        openai_by_vendor: dict[str, tuple[str, Any]] = {}
-        for agent_id, adapter in self.openai_adapters.items():
-            if exclude_vendor and adapter.vendor == exclude_vendor:
-                continue
-            if adapter.vendor not in openai_by_vendor:
-                openai_by_vendor[adapter.vendor] = (agent_id, adapter)
-
-        all_vendors = (
-            set(cli_by_vendor.keys())
-            | set(sdk_by_vendor.keys())
-            | set(openai_by_vendor.keys())
-        )
         reviewers: list[ReviewerInfo] = []
+        skips: dict[str, str] = {}
 
-        for vendor in sorted(all_vendors):
+        # Pass 1: Tier 1 / Tier 2, sorted by vendor.
+        for vendor in sorted(set(cli_by_vendor) | set(sdk_by_vendor)):
             # Tier 1: Local CLI. can_dispatch() checks mode + PATH only; no
             # env var is read for credential presence (a missing key is an
             # honest dispatch-time auth failure, not a hidden lane).
@@ -2937,31 +3055,51 @@ class ReviewOrchestrator:
                     ))
                     continue
 
-            # Tier 2.5: OpenAI-compatible HTTP endpoint. This follows SDK so
-            # existing local/provider-native paths remain the preferred route.
-            if vendor in openai_by_vendor:
-                agent_id, openai_adapter = openai_by_vendor[vendor]
-                if openai_adapter.can_dispatch(dispatch_mode):
-                    logger.info(
-                        "Tier 2.5 (OpenAI-compatible) selected for %s: %s",
-                        vendor,
-                        agent_id,
-                    )
-                    reviewers.append(ReviewerInfo(
-                        vendor=vendor,
-                        agent_id=agent_id,
-                        available=True,
-                        dispatch_tier="openai",
-                    ))
-                    continue
-
-            # Tier 3: Skip
+        # Pass 2: Tier 2.5 in roster order, non-metered before metered.
+        selected_vendors = {r.vendor for r in reviewers}
+        families = {
+            self.lane_policy.vendor_families[r.vendor]
+            for r in reviewers
+            if r.vendor in self.lane_policy.vendor_families
+        }
+        non_metered = len(reviewers)
+        openai_by_vendor: dict[str, tuple[str, Any]] = {}
+        for agent_id, adapter in self.openai_adapters.items():
+            if (not _excluded(adapter) and adapter.vendor not in selected_vendors
+                    and adapter.vendor not in openai_by_vendor):
+                openai_by_vendor[adapter.vendor] = (agent_id, adapter)
+        candidates = sorted(
+            openai_by_vendor.items(), key=lambda item: _is_metered(item[1][1]),
+        )
+        for vendor, (agent_id, openai_adapter) in candidates:
+            if not openai_adapter.can_dispatch(dispatch_mode):
+                continue
+            family = model_family(getattr(openai_adapter, "model", None))
+            if family is not None and family in families:
+                logger.info("Tier 2.5 skip for %s: duplicate model family %s", vendor, family)
+                skips[vendor] = DUPLICATE_MODEL_FAMILY
+                continue
+            metered = _is_metered(openai_adapter)
+            if metered and non_metered >= self.lane_policy.fill_target:
+                logger.info("Tier 2.5 skip for %s: fill target met", vendor)
+                skips[vendor] = FILL_TARGET_MET
+                continue
             logger.info(
-                "Tier 3 (skip) for %s: no CLI, SDK, or OpenAI endpoint available",
-                vendor,
+                "Tier 2.5 (OpenAI-compatible) selected for %s: %s", vendor, agent_id,
             )
+            reviewers.append(ReviewerInfo(
+                vendor=vendor,
+                agent_id=agent_id,
+                available=True,
+                dispatch_tier="openai",
+            ))
+            if family is not None:
+                families.add(family)
+            if not metered:
+                non_metered += 1
 
-        return reviewers
+        reviewers.sort(key=lambda r: r.vendor)
+        return reviewers, skips
 
     def dispatch_and_wait(
         self,
@@ -3518,11 +3656,29 @@ def _probe_mode(
             if exclude_vendor and adapter.vendor == exclude_vendor:
                 continue
             configured.add(adapter.vendor)
-    reviewers = {r.vendor: r for r in orch.discover_reviewers(exclude_vendor=exclude_vendor, dispatch_mode=mode)}
+    rejected = {
+        vendor: reason
+        for vendor, reason in getattr(orch, "config_rejections", {}).values()
+        if not (exclude_vendor and vendor == exclude_vendor)
+    }
+    configured |= set(rejected)
+    select = getattr(orch, "select_reviewers", None)
+    if select is not None:
+        selected, skips = select(exclude_vendor=exclude_vendor, dispatch_mode=mode)
+    else:  # duck-typed orchestrators that only discover
+        selected = orch.discover_reviewers(exclude_vendor=exclude_vendor, dispatch_mode=mode)
+        skips = {}
+    reviewers = {r.vendor: r for r in selected}
     verified: list[str] = []
     unverified: list[dict[str, str]] = []
     for vendor in sorted(configured | set(reviewers)):
         reviewer = reviewers.get(vendor)
+        if reviewer is None and vendor in skips:
+            unverified.append({"vendor": vendor, "reason": skips[vendor]})
+            continue
+        if reviewer is None and vendor in rejected:
+            unverified.append({"vendor": vendor, "reason": rejected[vendor]})
+            continue
         if reviewer is None:
             cli = next(
                 (a for a in orch.adapters.values() if a.vendor == vendor),

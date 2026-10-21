@@ -104,13 +104,13 @@ dataclass fields and the shared ingest helper extracted in 1.7),
 **Specs:** parallel-infrastructure "OpenAI-Compatible Dispatcher Discovery" (MODIFIED),
 "Dispatchable Vendor Verification" (MODIFIED), "Tool-less Lane Packet Refusal"
 
-- [ ] 3.1 Write failing tests for the family rule:
+- [x] 3.1 Write failing tests for the family rule:
   - An `anthropic/` primary or fallback → `unverified` with reason `anthropic_family`.
   - `codex` at tier 1 plus an `openai/` OpenRouter lane → `duplicate_model_family`.
   - A vendor missing from `vendor_families` is never a duplicate.
   - Two-pass order (design D2): a non-metered vendor that sorts after `openrouter` (for example
     `pi`, mapped to `openai`) still makes an `openai/` OpenRouter lane a `duplicate_model_family`.
-- [ ] 3.2 Add `vendor_families` and `metered_lanes {fill_target, review_reservation_usd}` to
+- [x] 3.2 Add `vendor_families` and `metered_lanes {fill_target, review_reservation_usd}` to
   `review_quorum_policy.json`, plus a loader. Implement the family rule in
   `from_config_dict` / `discover_reviewers` (design D2).
 - [ ] 3.3 Write failing tests for the fill rule. With `fill_target` 2:
