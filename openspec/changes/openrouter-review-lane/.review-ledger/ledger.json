@@ -405,7 +405,7 @@
       "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
       "fingerprint": "211e50b1839d551a",
       "first_seen_round": 1,
-      "last_seen_round": 1,
+      "last_seen_round": 2,
       "vendor_hits": [
         "claude_code"
       ],
@@ -423,7 +423,7 @@
       "spec_file": "/home/user/agentic-coding-tools/openspec/changes/openrouter-review-lane/specs/parallel-infrastructure/spec.md",
       "fingerprint": "f684518de810e11f",
       "first_seen_round": 1,
-      "last_seen_round": 1,
+      "last_seen_round": 2,
       "vendor_hits": [
         "claude_code"
       ],
@@ -440,7 +440,7 @@
       "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
       "fingerprint": "3f65a9a309c151d3",
       "first_seen_round": 1,
-      "last_seen_round": 1,
+      "last_seen_round": 2,
       "vendor_hits": [
         "claude_code"
       ],
@@ -457,7 +457,7 @@
       "file_path": "skills/parallel-infrastructure/scripts/openai_compat_adapter.py",
       "fingerprint": "f990843b5a3aa24d",
       "first_seen_round": 1,
-      "last_seen_round": 1,
+      "last_seen_round": 2,
       "vendor_hits": [
         "claude_code"
       ],
@@ -493,7 +493,7 @@
       "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
       "fingerprint": "57979ba61339642f",
       "first_seen_round": 1,
-      "last_seen_round": 1,
+      "last_seen_round": 2,
       "vendor_hits": [
         "claude_code"
       ],
@@ -510,7 +510,7 @@
       "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
       "fingerprint": "58f530a8539ffd75",
       "first_seen_round": 1,
-      "last_seen_round": 1,
+      "last_seen_round": 2,
       "vendor_hits": [
         "claude_code"
       ],
@@ -527,7 +527,7 @@
       "file_path": "skills/autopilot/scripts/agent_lane.py",
       "fingerprint": "f61b292cde6f7d30",
       "first_seen_round": 1,
-      "last_seen_round": 1,
+      "last_seen_round": 2,
       "vendor_hits": [
         "claude_code"
       ],

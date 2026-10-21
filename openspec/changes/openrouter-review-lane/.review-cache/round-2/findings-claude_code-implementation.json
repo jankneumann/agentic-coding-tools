@@ -1,0 +1,94 @@
+{
+  "review_type": "implementation",
+  "target": "openrouter-review-lane",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "resilience",
+      "criticality": "medium",
+      "axis": "observability",
+      "severity": "optional",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "line_range": "3359-3390",
+      "description": "A metered request that OpenRouter accepted but that then failed client-side (read timeout, connection reset, or a 'timed out' error that classifies as UNKNOWN) comes back with models_attempted set and no generation_id. _dispatch_metered then skips recording and leaves spend_recorded=None. The result is no ledger row, no spool entry, and no metered_spend_unrecorded degradation. Spend that may have been billed goes uncounted silently, and later budget rechecks use a total that is too low. The same gap applies to TRANSIENT 500/503 falls-through to the fallback model within one round.",
+      "resolution": "When models_attempted is non-empty and generation_id is absent after a transport exception, set spend_recorded=False (or emit a distinct 'metered_spend_unknown' degradation) so the round surfaces possible unrecorded spend; optionally spool a reservation-sized row."
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "axis": "correctness",
+      "severity": "optional",
+      "disposition": "escalate",
+      "evidence_class": "judgment",
+      "file_path": "skills/parallel-infrastructure/scripts/spend_recorder.py",
+      "line_range": "163-190",
+      "description": "When the response has no usage.cost, row_from_review_result sends actual_usd=None (dropped by exclude_none). The server's LedgerService._ledger_row then computes _token_cost with no rates and gets 0.0 (float(rate or 0.0)). The stored row says tokens_estimated=true and actual_usd=0, so the coordinator ceiling, metered_usd_used and spooled_total_usd all count that call as free.",
+      "resolution": "Human decision on the estimate source for cost-less responses: reservation amount, catalog per-token rates, or refuse/flag. Any of these beats silently recording $0."
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "nit",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "line_range": "4151-4167",
+      "description": "The _oneshot_spend_context docstring says archived changes are included, but an output dir of openspec/changes/archive/2026-10-21-<id>/reviews gives change_id='2026-10-21-<id>'. The consequences are a wrong work_unit_ref, and spend_recorder's _change_dir finding neither a live nor an archive (*-<id>) match. Spooling would then create a stray openspec/changes/2026-10-21-<id>/reviews/spend-spool.jsonl tree.",
+      "resolution": "When parts[-3] == 'archive', strip the leading YYYY-MM-DD- prefix from parts[-2] (or resolve via the shared openspec_paths helper); add a test for the archived path."
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "low",
+      "axis": "resilience",
+      "severity": "nit",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "skills/parallel-infrastructure/scripts/openai_compat_adapter.py",
+      "line_range": "390-400",
+      "description": "_extract_content calls choices[0].get(...) without checking that choices[0] is a dict. A malformed or proxy-mangled 200 response, such as choices: [\"...\"] or [null], raises AttributeError. The exception escapes dispatch instead of becoming a classified ReviewResult failure, so the lane crashes rather than degrading cleanly.",
+      "resolution": "Guard with isinstance(choices[0], dict) (and message dict) and return None so the existing empty-content path classifies the failure."
+    },
+    {
+      "id": 5,
+      "type": "architecture",
+      "criticality": "low",
+      "axis": "architecture",
+      "severity": "fyi",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "line_range": "3130-3200",
+      "description": "The duplicate_model_family check in select_reviewers looks only at the primary adapter.model. Fallback models go through the anthropic-family rejection in from_config_dict but not through the duplicate-family check. A fallback from a family already served (for example openai/...) could therefore be dispatched after a CAPACITY fallback, which would defeat D2 independence. The current archetypes.yaml fallbacks are all qwen, so this does not happen today.",
+      "resolution": "Accept for now; consider checking every model in the fallback chain against selected families when configs grow."
+    },
+    {
+      "id": 6,
+      "type": "compatibility",
+      "criticality": "low",
+      "axis": "compatibility",
+      "severity": "fyi",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "description": "can_dispatch no longer checks for api_key_env. A pi/CLI lane with OPENROUTER_API_KEY unset is now counted as available, and passes --check-vendors through 'pi --version'. It can therefore fill a fill_target slot and then fail with AUTH at dispatch time. This matches design D1 (honest dispatch-time auth failure, classified as capability_unavailable), so it is not a defect; it is noted here as a behaviour change."
+    },
+    {
+      "id": 7,
+      "type": "architecture",
+      "criticality": "low",
+      "axis": "architecture",
+      "severity": "fyi",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "skills/autopilot/scripts/agent_lane.py",
+      "description": "CompositeOrchestrator gives the inner ReviewOrchestrator include_lanes=others and caller_vendors=(LANE,) but no exclude_vendor. Inner selection can count the claude_code CLI toward fill_target before include_lanes filters it out. On the intended cloud path (claude_code is the only CLI) countable stays at 1, so the metered lane is still selected and the behaviour is correct. Passing exclude_vendor=LANE would make this explicit."
+    }
+  ]
+}

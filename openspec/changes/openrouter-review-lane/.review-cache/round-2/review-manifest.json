@@ -1,18 +1,18 @@
 {
   "schema_version": 1,
   "change_id": "openrouter-review-lane",
-  "review_type": "plan",
-  "created_at": "2026-10-12T02:47:27Z",
+  "review_type": "implementation",
+  "created_at": "2026-10-21T16:37:22Z",
   "target": "openrouter-review-lane",
   "dispatches": [
     {
       "vendor": "claude_code",
       "success": true,
-      "model_used": "claude-opus-5-5",
+      "model_used": "agent-lane",
       "models_attempted": [
-        "claude-opus-5-5"
+        "agent-lane"
       ],
-      "elapsed_seconds": 42.007269237999935,
+      "elapsed_seconds": 24.003831458000604,
       "error": null,
       "error_class": null
     }
@@ -22,9 +22,15 @@
   "vendors": [
     {
       "name": "claude_code",
-      "findings_path": "findings-claude_code-plan.json",
-      "finding_count": 2,
+      "findings_path": "findings-claude_code-implementation.json",
+      "finding_count": 7,
       "unanchored_findings": 0,
+      "model_used": "agent-lane",
+      "generation_id": null,
+      "prompt_tokens": null,
+      "completion_tokens": null,
+      "cost_usd": null,
+      "cost_source": null,
       "fact_check": "skipped",
       "fact_check_removed": 0,
       "fact_check_tokens": 0
