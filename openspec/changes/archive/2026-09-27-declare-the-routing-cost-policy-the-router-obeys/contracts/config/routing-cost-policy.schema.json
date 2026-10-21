@@ -7,8 +7,7 @@
           "enum": [
             "subscription-local",
             "subscription-cloud",
-            "metered-api",
-            "metered-api-cloud"
+            "metered-api"
           ],
           "title": "Id",
           "type": "string"
@@ -52,7 +51,7 @@
       "items": {
         "$ref": "#/$defs/CostTier"
       },
-      "maxItems": 4,
+      "maxItems": 3,
       "minItems": 3,
       "title": "Tiers",
       "type": "array"

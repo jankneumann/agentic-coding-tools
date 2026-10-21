@@ -104,7 +104,9 @@ def test_cost_policy_schema_and_loader_reject_invalid_ladder(tmp_path) -> None:
     from openspec_paths import change_dir, repo_root_from
 
     schema_path = (
-        change_dir(repo_root_from(__file__, 3), "declare-the-routing-cost-policy-the-router-obeys")
+        # openrouter-review-lane supersedes the archived ladder schema with the
+        # metered-api-cloud tier; archives stay as history.
+        change_dir(repo_root_from(__file__, 3), "openrouter-review-lane")
         / "contracts/config/routing-cost-policy.schema.json"
     )
     schema = json.loads(schema_path.read_text())

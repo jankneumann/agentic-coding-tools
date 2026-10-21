@@ -12,7 +12,9 @@ from jsonschema import Draft202012Validator, ValidationError
 from openspec_paths import change_dir, repo_root_from
 
 _ROOT = repo_root_from(__file__, 3)
-_CHANGE = change_dir(_ROOT, "implement-the-task-router-vendor-x-location-x-model")
+# openrouter-review-lane supersedes the task-router schema with the
+# metered-api-cloud cost tier; the deployed policy must validate against it.
+_CHANGE = change_dir(_ROOT, "openrouter-review-lane")
 _POLICY = _ROOT / "agent-coordinator/routing.yaml"
 _POLICY_SCHEMA = _CHANGE / "contracts/config/routing.schema.json"
 _ARCHETYPES = _ROOT / "agent-coordinator/archetypes.yaml"
