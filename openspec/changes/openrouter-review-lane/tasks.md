@@ -266,7 +266,7 @@ examples only)
 - [x] 6.3 Write failing tests, then implement: `ExecutionAdapter.apply` runs
   `spend_recorder.py replay` once when a `metered_spend_unrecorded` degradation is present,
   reports the replayed count, and never fails the apply on a replay error.
-- [ ] 6.4 Update the autopilot `SKILL.md` review section with these rules:
+- [x] 6.4 Update the autopilot `SKILL.md` review section with these rules:
   - In cloud, run `agent_lane.py converge --verified-lanes <each lane from execution_profile.lanes.review>`.
   - A `capability_unavailable` result maps to `runner.py park --kind capability_unavailable`.
   - Record the degradation `metered_spend_unrecorded` when the result reports it.
