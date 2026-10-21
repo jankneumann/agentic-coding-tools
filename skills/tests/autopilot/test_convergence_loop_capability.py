@@ -185,3 +185,41 @@ def test_the_checkpoint_vendor_index_carries_generation_and_cost(tmp_path: Path)
     assert entries["openrouter"]["cost_source"] == "generation"
     assert entries["claude_code"]["generation_id"] is None
     assert result.reason == "quorum_lost"
+
+
+# --------------------------------------------------------------------------- #
+# 5.3: the metered_spend_unrecorded degradation code
+# --------------------------------------------------------------------------- #
+
+
+def test_metered_spend_unrecorded_is_a_closed_degradation_code() -> None:
+    import jsonschema
+
+    import runner
+
+    dispatch_contract = runner.dispatch_contract
+    schema = dispatch_contract.load_schema(dispatch_contract.RESULT_V2)
+    degradation = schema["$defs"]["Degradation"]
+    assert "metered_spend_unrecorded" in degradation["properties"]["code"]["enum"]
+    jsonschema.Draft202012Validator(degradation).validate(
+        {"code": "metered_spend_unrecorded", "phase": "PLAN_REVIEW", "detail": "openrouter round 1"}
+    )
+
+
+def test_runner_records_a_metered_spend_unrecorded_degradation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import autopilot
+    import runner
+
+    monkeypatch.chdir(tmp_path)
+    path = tmp_path / "openspec" / "changes" / "demo" / "loop-state.json"
+    autopilot.save_state(autopilot.LoopState(change_id="demo", current_phase="PLAN_REVIEW"), path)
+
+    assert runner.main(
+        ["record-degradation", "demo", "--code", "metered_spend_unrecorded",
+         "--phase", "PLAN_REVIEW", "--detail", "openrouter round 1 spend not recorded"]
+    ) == 0
+
+    state = json.loads(path.read_text())
+    assert [d["code"] for d in state["degradations"]] == ["metered_spend_unrecorded"]

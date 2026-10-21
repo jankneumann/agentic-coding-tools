@@ -215,7 +215,7 @@ parallel-infrastructure "Metered Review Lane Spend Accounting" (checkpoint part)
 - [x] 5.2 Implement the mid-run capability mapping in `converge()` (design D7). Write
   `generation_id`, `prompt_tokens`, `completion_tokens`, `cost_usd` and `cost_source` into the
   round checkpoint's vendor index.
-- [ ] 5.3 Add `metered_spend_unrecorded` to the `Degradation.code` enum in
+- [x] 5.3 Add `metered_spend_unrecorded` to the `Degradation.code` enum in
   `dispatch-result.schema.json` and to the `runner.py record-degradation` choices. Update the
   schema fixture test.
 - [ ] 5.4 Write failing tests for the `CompositeOrchestrator`:
