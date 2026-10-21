@@ -147,3 +147,49 @@ def test_gatekeeper_plain_proceed_leaves_val_review_alone(workspace: Path) -> No
     path = _seed(workspace, current_phase="GATEKEEPER", val_review_enabled=False)
     assert runner.main(["transition", "--change-id", "demo", "--outcome", "proceed"]) == 0
     assert _read(path)["val_review_enabled"] is False
+
+
+_PLAN_REVIEW_PARK = {"kind": "capability_unavailable", "phase": "PLAN_REVIEW", "missing_lanes": ["openrouter"]}
+
+
+def test_resume_at_implement_accepts_the_plan_from_a_plan_review_park(workspace: Path) -> None:
+    path = _seed(workspace, current_phase="PLAN_REVIEW", park=_PLAN_REVIEW_PARK)
+
+    rc = runner.main(
+        ["gate-answer", "demo", "--gate", "escalate_resume", "--decision", "approved", "--resume-at", "IMPLEMENT"]
+    )
+
+    assert rc == 0
+    state = _read(path)
+    assert state["park"] is None
+    assert state["current_phase"] == "IMPLEMENT"
+    outcomes = [entry["outcome"] for entry in state["phase_history"]]
+    assert "operator_accept" in outcomes
+    assert "converged" not in outcomes
+
+
+def test_resume_at_implement_is_refused_outside_plan_review(workspace: Path) -> None:
+    path = _seed(workspace, current_phase="VALIDATE", park={**_PLAN_REVIEW_PARK, "phase": "VALIDATE"})
+    before = path.read_bytes()
+
+    rc = runner.main(
+        ["gate-answer", "demo", "--gate", "escalate_resume", "--decision", "approved", "--resume-at", "IMPLEMENT"]
+    )
+
+    assert rc == 2
+    assert path.read_bytes() == before
+
+
+@pytest.mark.parametrize("outcome", sorted(autopilot.OPERATOR_ONLY_OUTCOMES))
+def test_transition_refuses_operator_only_outcomes(workspace: Path, outcome: str) -> None:
+    path = _seed(workspace, current_phase="PLAN_REVIEW")
+    before = path.read_bytes()
+
+    assert runner.main(["transition", "--change-id", "demo", "--outcome", outcome]) == 2
+    assert path.read_bytes() == before
+
+
+def test_operator_accept_from_escalate_requires_a_plan_review_escalation() -> None:
+    state = autopilot.LoopState(change_id="demo", current_phase="ESCALATE", previous_phase="VALIDATE")
+    with pytest.raises(ValueError, match="operator_accept"):
+        autopilot.transition(state, "operator_accept")

@@ -368,6 +368,8 @@ def test_gate_answer_may_name_validate_as_the_resume_target(
     }
     assert _errors(validators["request_v2"], request) == []
     request["gate_answer"]["resume_at"] = "IMPLEMENT"
+    assert _errors(validators["request_v2"], request) == []
+    request["gate_answer"]["resume_at"] = "SUBMIT_PR"
     assert _errors(validators["request_v2"], request)
 
 

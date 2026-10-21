@@ -390,3 +390,45 @@ def test_resume_at_is_refused_outside_an_approved_escalate_resume(
 
     assert runner.main(["gate-answer", "demo", *argv]) == 2
     assert state_path.read_bytes() == before
+
+
+def _escalated_from_plan_review(workspace: Path) -> Path:
+    return seed(
+        workspace,
+        pending=pending_request(
+            Gate.ESCALATE_RESUME,
+            phase="ESCALATE",
+            edge={"outcome": "resolved", "target": "PLAN_REVIEW"},
+            context={"escalation_reason": "review lane unavailable", "previous_phase": "PLAN_REVIEW"},
+        ),
+        current_phase="ESCALATE",
+        previous_phase="PLAN_REVIEW",
+    )
+
+
+def test_resume_at_implement_accepts_a_plan_review_escalation(workspace: Path) -> None:
+    state_path = _escalated_from_plan_review(workspace)
+
+    rc = runner.main([
+        "gate-answer", "demo", "--gate", "escalate_resume", "--decision", "approved",
+        "--resume-at", "IMPLEMENT",
+    ])
+
+    assert rc == 0
+    state = read_state(state_path)
+    assert state["current_phase"] == "IMPLEMENT"
+    assert state["pending_gate"] is None
+    assert any(entry["outcome"] == "operator_accept" for entry in state["phase_history"])
+
+
+def test_resume_at_implement_is_refused_for_a_non_plan_review_escalation(workspace: Path) -> None:
+    state_path = _escalated_after_goal_gate(workspace)
+    before = state_path.read_bytes()
+
+    rc = runner.main([
+        "gate-answer", "demo", "--gate", "escalate_resume", "--decision", "approved",
+        "--resume-at", "IMPLEMENT",
+    ])
+
+    assert rc == 2
+    assert state_path.read_bytes() == before

@@ -1549,8 +1549,22 @@ def test_escalate_resume_answer_records_resume_at_validate(repo: Path, workspace
     assert routed.decision.proceed
 
 
-@pytest.mark.parametrize("approved, resume_at", [(False, "VALIDATE"), (True, "IMPLEMENT")])
-def test_resume_at_is_refused_unless_an_approved_validate_resume(
+def test_escalate_resume_answer_records_resume_at_implement(repo: Path, workspace: Path) -> None:
+    _save_escalation_checkpoint(repo, workspace)
+
+    routed = gate_router.answer(
+        Gate.ESCALATE_RESUME, workspace=workspace, repo_root=repo, approved=True,
+        context={"dispatch_id": "d-1", "resume_at": "IMPLEMENT"},
+    )
+
+    assert routed.record["resume_at"] == "IMPLEMENT"
+    assert routed.decision.proceed
+
+
+@pytest.mark.parametrize(
+    "approved, resume_at", [(False, "VALIDATE"), (False, "IMPLEMENT"), (True, "SUBMIT_PR")]
+)
+def test_resume_at_is_refused_unless_an_approved_resume_to_a_known_target(
     repo: Path, workspace: Path, approved: bool, resume_at: str
 ) -> None:
     _save_escalation_checkpoint(repo, workspace)

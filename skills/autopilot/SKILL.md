@@ -118,12 +118,18 @@ carries no token.
 - **Cloud workers (no launch marker).** The supervisor relays its answer as a message
   naming `gate-decision:<id>`. Apply it only with `runner.py relayed-gate-answer
   <change-id> --gate <gate> --decision <decision> --approval-ref <ref>
-  [--resume-at VALIDATE]`. It fetches the roadmap branch and records the answer only if
+  [--resume-at VALIDATE|IMPLEMENT]`. It fetches the roadmap branch and records the answer only if
   that decision is committed there for this change and gate, is the latest one, and
   its attempt is where that decision leaves it (relaunched after an approval, still
   parked after a rejection); otherwise, or when the fetch fails, it exits 2 and
   records nothing. Never use plain `gate-answer` for a relayed answer, and never push to
   `openspec/roadmap-*`.
+- **Resume targets.** `--resume-at` must match the supervisor's decision. `VALIDATE`
+  re-runs validation instead of the parked phase. `IMPLEMENT` is the operator accepting
+  a plan PLAN_REVIEW could not converge (outcome `operator_accept`): it applies only from
+  PLAN_REVIEW or a PLAN_REVIEW escalation and is written to `phase_history` as
+  `operator_accept`, never as `converged`. `runner.py transition` refuses both
+  operator-only outcomes (`revalidate`, `operator_accept`).
 - **Permission denials.** When the harness denies a tool call, do not retry or wait:
   `runner.py park <change-id> --kind permission_blocked --tool <tool> --rule "<matched
   rule>" --command "<command>" --reason "<classifier reason>"`, commit

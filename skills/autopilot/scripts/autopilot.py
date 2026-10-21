@@ -262,7 +262,15 @@ TRANSITIONS: dict[str, dict[str, str]] = {
     },
     "PLAN": {"exists": "PLAN_ITERATE", "created": "PLAN_ITERATE", "failed": "ESCALATE"},
     "PLAN_ITERATE": {"complete": "PLAN_REVIEW_OR_IMPLEMENT", "failed": "ESCALATE"},
-    "PLAN_REVIEW": {"converged": "IMPLEMENT", "not_converged": "PLAN_FIX", "max_iter": "ESCALATE"},
+    # "operator_accept" exists only for an operator-approved escalate_resume
+    # that names resume_at=IMPLEMENT: the operator accepts the plan as reviewed
+    # so far without claiming the reviewers converged.
+    "PLAN_REVIEW": {
+        "converged": "IMPLEMENT",
+        "not_converged": "PLAN_FIX",
+        "max_iter": "ESCALATE",
+        "operator_accept": "IMPLEMENT",
+    },
     "PLAN_FIX": {"fixed": "PLAN_REVIEW", "stuck": "ESCALATE"},
     "IMPLEMENT": {"complete": "IMPL_ITERATE", "failed": "ESCALATE"},
     "IMPL_ITERATE": {"complete": "IMPL_REVIEW_OR_VALIDATE", "failed": "ESCALATE"},
@@ -275,8 +283,17 @@ TRANSITIONS: dict[str, dict[str, str]] = {
     # "revalidate" exists only for an operator-approved escalate_resume that
     # names resume_at=VALIDATE: evidence the goal gate refused is regenerated
     # by this run instead of being edited after the fact.
-    "ESCALATE": {"resolved": "_previous_phase", "revalidate": "VALIDATE", "abandoned": "DONE"},
+    "ESCALATE": {
+        "resolved": "_previous_phase",
+        "revalidate": "VALIDATE",
+        "operator_accept": "IMPLEMENT",
+        "abandoned": "DONE",
+    },
 }
+
+# Outcomes only an operator's escalate_resume answer may apply (via
+# `runner.py gate-answer --resume-at`), never a phase agent or `transition`.
+OPERATOR_ONLY_OUTCOMES = frozenset({"revalidate", "operator_accept"})
 
 
 def transition(state: LoopState, outcome: str) -> str:
@@ -291,6 +308,10 @@ def transition(state: LoopState, outcome: str) -> str:
     target = table.get(outcome)
     if target is None:
         raise ValueError(f"Invalid outcome {outcome!r} for phase {phase!r}")
+    if outcome == "operator_accept" and phase == "ESCALATE" and state.previous_phase != "PLAN_REVIEW":
+        raise ValueError(
+            f"operator_accept resumes only a PLAN_REVIEW escalation, not {state.previous_phase!r}"
+        )
 
     # Dynamic resolution
     if target == "GATEKEEPER_OR_PLAN":

@@ -74,6 +74,9 @@ DEFAULT_BLOCK_HORIZON = timedelta(days=7)
 #: can `grep` records this module wrote regardless of which verb produced them.
 _PHASE = "SUPERVISE"
 
+# escalate_resume targets other than the parked phase (runner.py --resume-at).
+_RESUME_TARGETS = frozenset({"VALIDATE", "IMPLEMENT"})
+
 _TERMINAL_BLOCK_RESOLUTIONS = frozenset({"rejected", "console_rejected"})
 
 _POLICY_PAUSE_REASON = "supervised phase retry budget exhausted"
@@ -1031,8 +1034,10 @@ def answer(
     if note is not None:
         extra["note"] = note
     if resume_at is not None:
-        if gate_enum is not Gate.ESCALATE_RESUME or not approved or resume_at != "VALIDATE":
-            raise GateRefusalError("resume_at=VALIDATE applies only to an approved escalate_resume")
+        if gate_enum is not Gate.ESCALATE_RESUME or not approved or resume_at not in _RESUME_TARGETS:
+            raise GateRefusalError(
+                "resume_at=VALIDATE|IMPLEMENT applies only to an approved escalate_resume"
+            )
         extra["resume_at"] = resume_at
     record = build_gate_decision_record(decision, phase=_PHASE, extra=extra)
     # Project before persisting -- a `GateRefusalError` (e.g. a blocked answer

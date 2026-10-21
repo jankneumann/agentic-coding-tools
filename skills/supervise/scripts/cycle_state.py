@@ -1367,8 +1367,11 @@ def main(argv: list[str] | None = None) -> int:
     p_gate_answer.add_argument("--dispatch-id", dest="dispatch_id")
     p_gate_answer.add_argument("--lease-generation", dest="lease_generation", type=int)
     p_gate_answer.add_argument(
-        "--resume-at", dest="resume_at", choices=["VALIDATE"],
-        help="escalate_resume only: resume the child at VALIDATE instead of its parked phase.",
+        "--resume-at", dest="resume_at", choices=["VALIDATE", "IMPLEMENT"],
+        help=(
+            "escalate_resume only: resume the child at VALIDATE instead of its parked phase, "
+            "or at IMPLEMENT to accept a plan that PLAN_REVIEW could not converge."
+        ),
     )
 
     p_gate_log = sub.add_parser("gate-log", help="Print the sidecar + child gate_decisions for a roadmap (D6).")
