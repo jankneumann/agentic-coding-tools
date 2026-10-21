@@ -3134,8 +3134,8 @@ class ReviewOrchestrator:
         select (design D2). A Tier 2.5 lane whose model family matches an
         already-selected lane is skipped as ``duplicate_model_family``; a
         metered lane is skipped as ``fill_target_met`` once the selection
-        holds ``fill_target`` lanes, so metered lanes fill quorum and never
-        add to it (design D5). ``skips`` maps vendor to
+        holds ``fill_target`` verifiable (non-SDK) lanes, so metered lanes
+        fill quorum and never add to it (design D5). ``skips`` maps vendor to
         reason. At most one reviewer per vendor.
         """
         def _excluded(adapter: Any) -> bool:
@@ -3213,7 +3213,10 @@ class ReviewOrchestrator:
                 continue
             metered = _is_metered(openai_adapter)
             # Metered lanes fill toward the target; they never add past it.
-            if metered and len(reviewers) >= self.lane_policy.fill_target:
+            # SDK lanes do not count: an importable package proves nothing
+            # (``probe_unsupported``), so they must not starve the fill.
+            countable = sum(1 for r in reviewers if r.dispatch_tier != "sdk")
+            if metered and countable >= self.lane_policy.fill_target:
                 logger.info("Tier 2.5 skip for %s: fill target met", vendor)
                 skips[vendor] = FILL_TARGET_MET
                 continue

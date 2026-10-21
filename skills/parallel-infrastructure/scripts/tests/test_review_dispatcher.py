@@ -3178,6 +3178,29 @@ class TestFillRule:
         assert report["verified"] == ["codex", "grok"]
         assert {"vendor": "openrouter", "reason": "fill_target_met"} in report["unverified"]
 
+    def test_unverifiable_sdk_lanes_do_not_count_toward_fill_target(self, lane_models) -> None:
+        """An importable SDK package is not a usable lane: SDK lanes cannot be
+        probed (``probe_unsupported``), so they must not starve the metered
+        lane. A cloud container with the SDK packages installed but no CLI
+        still gets its metered lane (design D5, found by the 3.9 test)."""
+        lane_models["openrouter"] = ("nvidia/nemotron", [])
+        sdk_agents = [
+            {"agent_id": f"{vendor}-remote", "type": vendor, "transport": "http",
+             "sdk": {"package": "some-sdk", "model": "m"}}
+            for vendor in ("claude_code", "codex")
+        ]
+        orch = ReviewOrchestrator.from_config_dict(
+            {"agents": [*sdk_agents, _openrouter_agent()]}, lane_policy=_POLICY,
+        )
+        with _on_path(), patch.object(
+            review_dispatcher.SdkVendorAdapter, "can_dispatch", return_value=True,
+        ):
+            reviewers, skips = orch.select_reviewers()
+        assert [r.agent_id for r in reviewers] == [
+            "claude_code-remote", "codex-remote", "openrouter-review",
+        ]
+        assert skips == {}
+
 
 class TestIncludeLanes:
     def _orch(self, lane_models) -> ReviewOrchestrator:
