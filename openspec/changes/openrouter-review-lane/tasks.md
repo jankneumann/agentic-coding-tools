@@ -47,7 +47,7 @@ dataclass fields and the shared ingest helper extracted in 1.7),
 - [x] 1.4 Add the optional `ReviewResult` fields `prompt_tokens`, `completion_tokens`,
   `cost_usd`, `cost_source` and `spend_recorded` (set by task 3.10), all defaulting to `None`,
   and implement the capture in `dispatch()`.
-- [ ] 1.5 Write a failing test: `dispatch(..., tools_overflow=True)` returns
+- [x] 1.5 Write a failing test: `dispatch(..., tools_overflow=True)` returns
   `packet_requires_tools` / `vendor_unavailable` with zero transport calls. Then implement the
   `tools_overflow` keyword (default False).
 - [ ] 1.6 Write failing tests: HTTP findings go through the same ingest pipeline as CLI findings.

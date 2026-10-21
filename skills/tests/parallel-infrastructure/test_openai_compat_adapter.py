@@ -247,6 +247,34 @@ def test_review_result_cost_fields_default_to_none():
             r.spend_recorded) == (None, None, None, None, None)
 
 
+# ── tool-less packet refusal (openrouter-review-lane, task 1.5, design D6) ──
+
+def test_tools_overflow_packet_is_refused_without_request():
+    tr = FakeTransport([_ok_with_usage(None)])
+    result = _adapter().dispatch("review", "p", api_key="k", transport=tr,
+                                 tools_overflow=True)
+    assert tr.calls == []
+    assert result.success is False
+    assert result.error == "packet_requires_tools"
+    assert result.error_class == ErrorClass.UNAVAILABLE
+    assert result.error_class.value == "vendor_unavailable"
+    assert result.vendor == "openrouter"
+
+
+def test_tools_overflow_refusal_precedes_key_check():
+    # The refusal is a packet property, not a credential one: no key needed to refuse.
+    result = _adapter().dispatch("review", "p", api_key=None,
+                                 transport=FakeTransport([]), tools_overflow=True)
+    assert result.error == "packet_requires_tools"
+
+
+def test_tools_overflow_defaults_false():
+    tr = FakeTransport([_ok_with_usage(None)])
+    result = _adapter().dispatch("review", "p", api_key="k", transport=tr)
+    assert len(tr.calls) == 1
+    assert result.success
+
+
 # ── probe (openrouter-review-lane, tasks 1.1/1.2, design D3) ────────────────
 
 _SENTINEL = "sk-or-test-SENTINEL-5555555555"

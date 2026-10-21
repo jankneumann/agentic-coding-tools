@@ -94,6 +94,9 @@ PROBE_ENDPOINT_UNREACHABLE = "endpoint_unreachable"
 
 _BUDGET_FIELDS = ("limit", "usage", "limit_remaining")
 
+# Dispatch refusal for a packet whose sidecar has tools_overflow: true (D6).
+PACKET_REQUIRES_TOOLS = "packet_requires_tools"
+
 
 @dataclass(frozen=True)
 class ProbeResult:
@@ -238,13 +241,27 @@ class OpenAICompatAdapter:
         timeout_seconds: int = 300,
         api_key: str | None = None,
         transport: Transport | None = None,
+        *,
+        tools_overflow: bool = False,
     ) -> ReviewResult:
         """Dispatch via the OpenAI-compatible API with model fallback.
 
         Captures the generation id (``response["id"]``) for spend reconciliation.
         On a capacity/rate-limit error the next fallback model is tried; other
         errors return immediately.
+
+        ``tools_overflow`` is the ``tools_overflow`` flag from the sidecar of
+        the packet this lane receives. HTTP lanes cannot read files, so a
+        packet that needs tools is refused before any request is sent (D6):
+        reviewing it blind would manufacture false consensus.
         """
+        if tools_overflow:
+            return ReviewResult(
+                vendor=self.vendor, success=False,
+                error=PACKET_REQUIRES_TOOLS,
+                error_class=ErrorClass.UNAVAILABLE,
+                agent_id=self.agent_id,
+            )
         # OpenRouter (metered) requires a key; local endpoints may not.
         if self.endpoint_kind == "openrouter" and not api_key:
             return ReviewResult(
