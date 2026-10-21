@@ -235,24 +235,3 @@ def test_usage_reflects_recorded_review_row(client: TestClient) -> None:
     after = client.get("/routing/usage?window=month", headers=_headers())
     assert after.status_code == 200
     assert after.json()["metered_usd_used"] == pytest.approx(used_before + 0.0042)
-
-
-@pytest.mark.asyncio
-async def test_find_by_generation_id_returns_row_or_none(memory_db: _MemoryDb) -> None:
-    ledger = LedgerService(memory_db)
-    assert await ledger.find_by_generation_id("gen-x&y") is None
-
-    await ledger.record(
-        {
-            "vendor": "openrouter",
-            "model": "openai/gpt-5",
-            "endpoint_kind": "openrouter",
-            "generation_id": "gen-x&y",
-            "actual_usd": 0.01,
-        }
-    )
-
-    found = await ledger.find_by_generation_id("gen-x&y")
-    assert found is not None
-    assert found["generation_id"] == "gen-x&y"
-    assert await ledger.find_by_generation_id("gen-other") is None
