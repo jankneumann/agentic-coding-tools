@@ -135,7 +135,7 @@ dataclass fields and the shared ingest helper extracted in 1.7),
   to "source unavailable"), apply the budget rule (design D4) through a reusable function that
   `dispatch_and_wait` also calls per round (task 3.11), and emit `lane_kinds`. Keep
   `probe_unsupported` for SDK lanes.
-- [ ] 3.7 Extend the existing credential-sentinel test to cover `OPENROUTER_API_KEY` and an
+- [x] 3.7 Extend the existing credential-sentinel test to cover `OPENROUTER_API_KEY` and an
   OpenRouter lane with an echoing transport.
 - [ ] 3.8 Write a failing test, then implement: `dispatch_and_wait` reads `tools_overflow` from
   the packet sidecar next to `packet_path` and passes it to OpenAI-compatible adapters.

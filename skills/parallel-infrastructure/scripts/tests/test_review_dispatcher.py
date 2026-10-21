@@ -3435,3 +3435,67 @@ class TestApiLaneProbe:
 
 def transport_urls_empty(orch: ReviewOrchestrator) -> bool:
     return orch.probe_transport.urls == []
+
+
+
+# ---------------------------------------------------------------------------
+# openrouter-review-lane: credential sentinel for the OpenRouter lane (task 3.7)
+# ---------------------------------------------------------------------------
+
+_OR_SENTINEL = "sk-or-test-SENTINEL-5555555555"
+
+
+class _EchoingTransport:
+    """Echoes every request header (the key included) back in the body."""
+
+    def __init__(self, status: int) -> None:
+        self.status = status
+        self.seen_headers: list[dict[str, str]] = []
+
+    def __call__(self, url: str, headers: dict[str, str], timeout: float):
+        self.seen_headers.append(dict(headers))
+        echo = json.dumps(headers)
+        body = {
+            "data": {"limit": 20.0, "limit_remaining": 15.0, "usage": 5.0, "label": echo},
+            "error": {"message": f"echo {echo}"},
+        }
+        return self.status, body
+
+
+class TestOpenRouterCredentialSentinel:
+    @pytest.mark.parametrize("status", [200, 401])
+    def test_check_vendors_never_discloses_the_openrouter_key(
+        self, status, lane_models, monkeypatch, capsys, caplog, no_chat_calls,
+    ) -> None:
+        import logging
+
+        from review_dispatcher import CHECK_VENDORS_BELOW_QUORUM, _check_vendors
+
+        caplog.set_level(logging.DEBUG)
+        transport = _EchoingTransport(status)
+        orch = _api_orch(
+            lane_models, monkeypatch, transport=transport, key=_OR_SENTINEL,
+            usage={"metered_ceiling_usd": 50.0, "metered_usd_used": 1.0},
+        )
+        monkeypatch.setattr(
+            review_dispatcher, "_orchestrator_for_dispatch", lambda *_a, **_k: orch,
+        )
+        monkeypatch.setattr(review_dispatcher, "_execution_environment", lambda: "host")
+
+        code = _check_vendors(min_vendors=1, as_json=True)
+
+        captured = capsys.readouterr()
+        assert transport.seen_headers, "the probe authenticated with the key"
+        assert any(_OR_SENTINEL in v for h in transport.seen_headers for v in h.values())
+        assert _OR_SENTINEL not in captured.out
+        assert _OR_SENTINEL not in captured.err
+        assert _OR_SENTINEL not in caplog.text
+        report = json.loads(captured.out.strip().splitlines()[-1])
+        if status == 200:
+            assert code == 0
+            assert report["modes"]["review"]["verified"] == ["openrouter"]
+        else:
+            assert code == CHECK_VENDORS_BELOW_QUORUM
+            assert {"vendor": "openrouter", "reason": "auth_failed"} in (
+                report["modes"]["review"]["unverified"]
+            )
