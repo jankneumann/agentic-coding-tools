@@ -62,6 +62,17 @@ SPEC_DROPPED_NOTE = (
     "(excerpt dropped — over packet budget; Read this path if needed)"
 )
 
+# Tool-less packet for HTTP lanes (openrouter-review-lane, design D6).
+TOOLLESS_BODY_NAME = "review-packet.toolless.md"
+TOOLLESS_META_NAME = "review-packet.toolless.meta.json"
+TOOLLESS_REVIEW_TYPES = ("plan", "implementation")
+SKIP_OVER_BUDGET = "over_budget"
+PLAN_ARTIFACT_NAMES = ("proposal.md", "design.md", "tasks.md")
+TOOLLESS_INSTRUCTION = (
+    "You have no file-reading tools: this packet is everything you can see. "
+    "Review only what it contains."
+)
+
 
 def build_review_packet(
     *,
@@ -139,6 +150,186 @@ def build_review_packet(
     meta_path = output_dir / PACKET_META_NAME
     meta_path.write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
     return body_path, metadata
+
+
+def build_toolless_packet(
+    *,
+    change_id: str,
+    review_type: str,
+    round_num: int,
+    artifacts_dir: Path,
+    worktree_path: Path,
+    output_dir: Path,
+    last_fix_diff: str | None = None,
+    base_ref: str = DEFAULT_BASE_REF,
+    head_ref: str = DEFAULT_HEAD_REF,
+    ledger: dict[str, Any] | None = None,
+    rule_config: review_rules.RuleConfig | None = None,
+) -> tuple[Path, dict[str, Any]]:
+    """Write a packet an HTTP (tool-less) lane can review, plus its sidecar.
+
+    HTTP lanes cannot read files, so this packet never relies on tools
+    (design D6). It is written as :data:`TOOLLESS_BODY_NAME` with the sidecar
+    :data:`TOOLLESS_META_NAME`, next to the primary packet, within the same
+    :data:`BUDGET_CHARS`:
+
+    - ``plan``: the diff is limited to the change directory
+      (``openspec/changes/<change-id>/``), and the full text of
+      ``proposal.md``, ``design.md``, ``tasks.md`` and every spec delta is
+      included (no excerpt truncation).
+    - ``implementation``: the rule-group selection is kept; excluded files
+      and files that do not fit the budget are dropped whole (never cut
+      mid-file) and listed in ``coverage.skipped`` (and named in the body,
+      so the reviewer knows what it did not see).
+
+    ``tools_overflow`` is ``True`` only when the fixed content (contract,
+    artifacts, spec excerpts, ledger) alone exceeds the budget; an HTTP lane
+    refuses such a packet. Returns ``(body_path, metadata)``.
+    """
+    if review_type not in TOOLLESS_REVIEW_TYPES:
+        raise ValueError(
+            f"review_type must be one of {TOOLLESS_REVIEW_TYPES}, got {review_type!r}",
+        )
+    artifacts_dir = Path(artifacts_dir)
+    worktree_path = Path(worktree_path)
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    contract = prompt_contract_block()
+    raw_diff_text, diff_kind = _select_diff(
+        round_num=round_num,
+        last_fix_diff=last_fix_diff,
+        worktree_path=worktree_path,
+        base_ref=base_ref,
+        head_ref=head_ref,
+    )
+    if not (raw_diff_text or "").strip():
+        diff_kind = "empty"
+    includes_ledger, open_items = _open_ledger_items(artifacts_dir, ledger)
+    ledger_items = open_items if includes_ledger else None
+
+    skipped: list[dict[str, str]] = []
+    if review_type == "plan":
+        scope = _change_scope(artifacts_dir, worktree_path, change_id)
+        candidates = [
+            f for f in file_selection.parse_diff_files(raw_diff_text)
+            if f.path.startswith(scope) or (f.old_path or "").startswith(scope)
+        ]
+        documents = _plan_documents(artifacts_dir)
+        documents_heading = "### Plan artifacts (full text)"
+        rule_config = None
+    else:
+        scope = "rule_group_selection"
+        rule_config = rule_config if rule_config is not None else review_rules.load_config(
+            worktree_path
+        )
+        sel = select_and_group(raw_diff_text, rule_config)
+        skipped.extend(
+            {"path": d.path, "reason": d.reason} for d in sel.decisions if not d.selected
+        )
+        candidates = [d.file for d in sel.decisions if d.selected and d.file is not None]
+        documents = _spec_entries(artifacts_dir)
+        documents_heading = "### Spec excerpts"
+
+    def _groups_md(paths: list[str]) -> str:
+        if rule_config is None or not paths:
+            return ""
+        return _render_rule_groups(review_rules.group_files_by_rule(paths, rule_config))
+
+    def _body(diff_text: str, skipped_paths: list[str], groups_md: str) -> str:
+        return _render(
+            round_num=round_num,
+            contract=contract,
+            diff_text=diff_text,
+            rule_groups_md=groups_md,
+            spec_entries=documents,
+            open_items=ledger_items,
+            overflow=False,
+            instruction=TOOLLESS_INSTRUCTION,
+            documents_heading=documents_heading,
+            not_included=skipped_paths,
+        )
+
+    # Size against the worst case (every candidate skipped and listed, the
+    # rule groups of every candidate), then add whole files while they fit;
+    # the final body can only be shorter than that bound.
+    all_skipped = [e["path"] for e in skipped] + [f.path for f in candidates]
+    placeholder = "\x00DIFF\x00"
+    worst = _body(placeholder, all_skipped, _groups_md([f.path for f in candidates]))
+    room = BUDGET_CHARS - (len(worst) - len(placeholder))
+    tools_overflow = room < 0
+
+    included = []
+    used = 0
+    for f in candidates:
+        cost = len(f.body) + (1 if included else 0)
+        if not tools_overflow and used + cost <= room:
+            included.append(f)
+            used += cost
+        else:
+            skipped.append({"path": f.path, "reason": SKIP_OVER_BUDGET})
+
+    body = _body(
+        "\n".join(f.body for f in included),
+        [e["path"] for e in skipped],
+        _groups_md([f.path for f in included]),
+    )
+    if len(body) > BUDGET_CHARS:
+        tools_overflow = True
+        body = body[:BUDGET_CHARS]
+
+    body_path = output_dir / TOOLLESS_BODY_NAME
+    body_path.write_text(body, encoding="utf-8")
+    metadata: dict[str, Any] = {
+        "schema_version": SCHEMA_VERSION,
+        "packet_kind": "toolless",
+        "change_id": change_id,
+        "review_type": review_type,
+        "round": int(round_num),
+        "body_path": TOOLLESS_BODY_NAME,
+        "sha256": hashlib.sha256(body.encode("utf-8")).hexdigest(),
+        "char_length": len(body),
+        "budget_chars": BUDGET_CHARS,
+        "tools_overflow": tools_overflow,
+        "includes_ledger": includes_ledger,
+        "diff_kind": diff_kind,
+        "coverage": {
+            "scope": scope,
+            "included": [f.path for f in included],
+            "skipped": skipped,
+        },
+    }
+    meta_path = output_dir / TOOLLESS_META_NAME
+    meta_path.write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
+    return body_path, metadata
+
+
+def _change_scope(artifacts_dir: Path, worktree_path: Path, change_id: str) -> str:
+    """Diff path prefix of the change directory (``openspec/changes/<id>/``)."""
+    try:
+        rel = artifacts_dir.resolve().relative_to(worktree_path.resolve()).as_posix()
+    except ValueError:
+        rel = f"openspec/changes/{change_id}"
+    return rel.rstrip("/") + "/"
+
+
+def _plan_documents(artifacts_dir: Path) -> list[tuple[str, str]]:
+    """Full text of the plan artifacts and spec deltas, in a stable order."""
+    paths = [artifacts_dir / name for name in PLAN_ARTIFACT_NAMES]
+    specs_root = artifacts_dir / "specs"
+    if specs_root.is_dir():
+        paths.extend(sorted(specs_root.glob("**/spec.md")))
+    documents: list[tuple[str, str]] = []
+    for path in paths:
+        if not path.is_file():
+            continue
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError as exc:
+            logger.warning("failed to read plan artifact %s: %s", path, exc)
+            continue
+        documents.append((path.relative_to(artifacts_dir).as_posix(), text))
+    return documents
 
 
 class SelectionResult:
@@ -450,6 +641,9 @@ def _render(
     spec_entries: list[tuple[str, str | None]] | list[tuple[str, str]],
     open_items: list[dict[str, Any]] | None,
     overflow: bool,
+    instruction: str | None = None,
+    documents_heading: str = "### Spec excerpts",
+    not_included: list[str] | None = None,
 ) -> str:
     displayed_diff = diff_text if (diff_text or "").strip() else EMPTY_DIFF_MARKER
     parts: list[str] = [
@@ -457,6 +651,10 @@ def _render(
         "",
         OVERFLOW_INSTRUCTION if overflow else COMPLETE_INSTRUCTION,
         "",
+    ]
+    if instruction:
+        parts.extend([instruction, ""])
+    parts += [
         "Review the attached artifacts for correctness, completeness, "
         "and adherence to project standards.",
         "",
@@ -471,8 +669,16 @@ def _render(
     ]
     if rule_groups_md:
         parts.append(rule_groups_md)
+    if not_included:
+        parts.append("### Not included in this packet")
+        parts.append(
+            "These changed files were left out; do not report findings about them."
+        )
+        for path in not_included:
+            parts.append(f"- {path}")
+        parts.append("")
     if spec_entries:
-        parts.append("### Spec excerpts")
+        parts.append(documents_heading)
         for rel, excerpt in spec_entries:
             parts.append(f"#### {rel}")
             if excerpt is None:
