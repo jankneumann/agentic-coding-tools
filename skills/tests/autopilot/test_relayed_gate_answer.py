@@ -160,7 +160,11 @@ def _origin_with_only_rm(worker: Path) -> None:
     _git(worker, "add", "-A")
     _git(worker, "commit", "-q", "-m", "second roadmap")
     _git(worker, "update-ref", "refs/remotes/origin/openspec/roadmap-gone", "HEAD")
-    bare = worker.parent / "origin.git"
+    # ``worker.parent`` is the session-wide pytest basetemp: a fixed name there
+    # is shared with every other test that builds an origin, and a re-init keeps
+    # the previous test's branch, so the push below is a non-fast-forward.
+    bare = worker.parent / f"{worker.name}-origin.git"
+    assert not bare.exists(), f"{bare} belongs to another test"
     _git(worker.parent, "init", "-q", "--bare", str(bare))
     _git(worker, "remote", "add", "origin", str(bare))
     _git(worker, "push", "-q", "origin", "refs/remotes/origin/openspec/roadmap-rm:refs/heads/openspec/roadmap-rm")

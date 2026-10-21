@@ -3398,6 +3398,7 @@ class ReviewOrchestrator:
         include_lanes: list[str] | tuple[str, ...] | set[str] | None = None,
         toolless_packet_path: Path | str | None = None,
         spend_context: SpendContext | None = None,
+        caller_vendors: list[str] | tuple[str, ...] | set[str] = (),
     ) -> list[ReviewResult]:
         """Dispatch reviews to available vendors concurrently and collect results.
 
@@ -3425,6 +3426,12 @@ class ReviewOrchestrator:
         request and got a generation id is recorded through the spend
         recorder and ``spend_recorded`` carries its ``recorded`` value.
         Non-metered lanes ignore it.
+
+        ``caller_vendors`` names vendors the caller reviews with itself in the
+        same round, outside this dispatcher (the autopilot composite's
+        handshake lane). They count toward the cross-vendor minimum, so a
+        caller that dispatches only a subset here is not reported as
+        single-vendor; the caller owns the round's cross-vendor statement.
         """
         reviewers = self.discover_reviewers(
             exclude_vendor=exclude_vendor,
@@ -3445,12 +3452,13 @@ class ReviewOrchestrator:
             )
             return []
 
-        if len({r.vendor for r in available}) < MIN_REVIEW_VENDORS:
+        round_vendors = {r.vendor for r in available} | set(caller_vendors)
+        if len(round_vendors) < MIN_REVIEW_VENDORS:
             report_degraded(
                 f"Cross-vendor {review_type} review NOT CHECKED — only "
-                f"{len({r.vendor for r in available})} of {MIN_REVIEW_VENDORS} "
+                f"{len(round_vendors)} of {MIN_REVIEW_VENDORS} "
                 f"required vendors dispatchable "
-                f"({', '.join(sorted({r.vendor for r in available}))}); findings "
+                f"({', '.join(sorted(round_vendors))}); findings "
                 f"are a single vendor's opinion with no consensus cross-check.",
             )
 

@@ -571,3 +571,54 @@ def test_a_budget_exhausted_before_round_two_is_capability_unavailable(
     saved = json.loads((tmp_path / "proto" / "result.json").read_text())
     assert saved["reason"] == "capability_unavailable" and saved["missing_lanes"] == ["openrouter"]
 
+
+# --------------------------------------------------------------------------- #
+# The dispatcher's cross-vendor warning inside the composite
+# --------------------------------------------------------------------------- #
+
+
+def test_a_composite_round_does_not_warn_cross_vendor_not_checked(
+    tmp_path: Path, metered, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The dispatcher sees only the non-handshake lanes; the composite round is still two vendors."""
+    _plan_fixture(tmp_path / "wt")
+    review = metered(chat=_ChatTransport(_findings(_LOW_FINDING)), recorder=_FakeRecorder(), usage={})
+    server = _serve_findings(tmp_path / "proto", [_findings(_LOW_FINDING)])
+    out = _run_composite(tmp_path, review)
+    server.join(timeout=10)
+
+    assert out["converged"] is True, out
+    assert "NOT CHECKED" not in capsys.readouterr().err
+
+
+def _dispatch_openrouter_only(review: Any, cwd: Path, **kwargs: Any) -> list[Any]:
+    import review_dispatcher
+
+    return review.dispatch_and_wait(
+        "plan", "review", "prompt", cwd,
+        include_lanes=["openrouter"],
+        spend_context=review_dispatcher.SpendContext(change_id="demo", work_unit_ref="demo:r1"),
+        **kwargs,
+    )
+
+
+def test_a_standalone_single_vendor_dispatch_still_warns(
+    tmp_path: Path, metered, capsys: pytest.CaptureFixture[str]
+) -> None:
+    review = metered(chat=_ChatTransport(_findings(_LOW_FINDING)), recorder=_FakeRecorder(), usage={})
+    results = _dispatch_openrouter_only(review, tmp_path)
+
+    assert [r.success for r in results] == [True]
+    err = capsys.readouterr().err
+    assert "Cross-vendor plan review NOT CHECKED" in err
+    assert "only 1 of 2" in err
+
+
+def test_caller_vendors_count_toward_the_cross_vendor_minimum(
+    tmp_path: Path, metered, capsys: pytest.CaptureFixture[str]
+) -> None:
+    review = metered(chat=_ChatTransport(_findings(_LOW_FINDING)), recorder=_FakeRecorder(), usage={})
+    _dispatch_openrouter_only(review, tmp_path, caller_vendors=["claude_code"])
+
+    assert "NOT CHECKED" not in capsys.readouterr().err
+
