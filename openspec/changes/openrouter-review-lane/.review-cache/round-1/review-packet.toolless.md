@@ -361,7 +361,7 @@ index 32b02d83..cee933fc 100644
          "/routing/feedback",
          status_code=202,
 diff --git a/agent-coordinator/src/model_routing/ledger.py b/agent-coordinator/src/model_routing/ledger.py
-index 806b9a66..1bd64cd2 100644
+index 806b9a66..c5e4c061 100644
 --- a/agent-coordinator/src/model_routing/ledger.py
 +++ b/agent-coordinator/src/model_routing/ledger.py
 @@ -49,6 +49,24 @@ class LedgerService:
@@ -389,23 +389,12 @@ index 806b9a66..1bd64cd2 100644
          values = asdict(record) if isinstance(record, UsageRecord) else dict(record)
          prompt_tokens = int(values.get("prompt_tokens") or 0)
          completion_tokens = int(values.get("completion_tokens") or 0)
-@@ -83,7 +101,18 @@ class LedgerService:
+@@ -83,7 +101,7 @@ class LedgerService:
          row["counterfactual_usd"] = round(float(counterfactual), 6)
          if isinstance(row.get("occurred_at"), datetime):
              row["occurred_at"] = row["occurred_at"].isoformat()
 -        return await self.db.insert("routing_spend_ledger", row)
 +        return row
-+
-+    async def find_by_generation_id(self, generation_id: str) -> dict[str, Any] | None:
-+        """Return the first ledger row carrying ``generation_id``, or ``None``.
-+
-+        ``generation_id`` is the idempotency key of ``POST /routing/spend``.
-+        """
-+        rows = await self.db.query(
-+            "routing_spend_ledger",
-+            f"generation_id=eq.{encode_filter_value(generation_id)}&order=id.asc&limit=1",
-+        )
-+        return rows[0] if rows else None
  
      async def usage_summary(
          self,
@@ -693,10 +682,10 @@ index 1274caca..bf741453 100644
  _ARCHETYPES = _ROOT / "agent-coordinator/archetypes.yaml"
 diff --git a/agent-coordinator/tests/model_routing/test_spend_route.py b/agent-coordinator/tests/model_routing/test_spend_route.py
 new file mode 100644
-index 00000000..c72f4feb
+index 00000000..325be6e2
 --- /dev/null
 +++ b/agent-coordinator/tests/model_routing/test_spend_route.py
-@@ -0,0 +1,258 @@
+@@ -0,0 +1,237 @@
 +"""Contract tests for ``POST /routing/spend`` (openrouter-review-lane, task 4.1).
 +
 +The route writes one ``routing_spend_ledger`` row per metered review through
@@ -934,27 +923,6 @@ index 00000000..c72f4feb
 +    after = client.get("/routing/usage?window=month", headers=_headers())
 +    assert after.status_code == 200
 +    assert after.json()["metered_usd_used"] == pytest.approx(used_before + 0.0042)
-+
-+
-+@pytest.mark.asyncio
-+async def test_find_by_generation_id_returns_row_or_none(memory_db: _MemoryDb) -> None:
-+    ledger = LedgerService(memory_db)
-+    assert await ledger.find_by_generation_id("gen-x&y") is None
-+
-+    await ledger.record(
-+        {
-+            "vendor": "openrouter",
-+            "model": "openai/gpt-5",
-+            "endpoint_kind": "openrouter",
-+            "generation_id": "gen-x&y",
-+            "actual_usd": 0.01,
-+        }
-+    )
-+
-+    found = await ledger.find_by_generation_id("gen-x&y")
-+    assert found is not None
-+    assert found["generation_id"] == "gen-x&y"
-+    assert await ledger.find_by_generation_id("gen-other") is None
 diff --git a/agent-coordinator/tests/openapi_contract_drift_baseline.yaml b/agent-coordinator/tests/openapi_contract_drift_baseline.yaml
 index b14276a8..eb13d505 100644
 --- a/agent-coordinator/tests/openapi_contract_drift_baseline.yaml
@@ -1367,10 +1335,10 @@ index f49c0317..19ffcd22 100644
  ### Phase: Plan Review
 diff --git a/openspec/changes/openrouter-review-lane/.review-ledger/ledger.json b/openspec/changes/openrouter-review-lane/.review-ledger/ledger.json
 new file mode 100644
-index 00000000..828e6045
+index 00000000..d7fd71a6
 --- /dev/null
 +++ b/openspec/changes/openrouter-review-lane/.review-ledger/ledger.json
-@@ -0,0 +1,400 @@
+@@ -0,0 +1,537 @@
 +{
 +  "schema_version": 1,
 +  "change_id": "openrouter-review-lane",
@@ -1426,8 +1394,8 @@ index 00000000..828e6045
 +        "claude_code"
 +      ],
 +      "description": "The mid-run mapping fires when 'every failed lane's error_class is UNAVAILABLE or AUTH'. A verified lane can also produce no ReviewResult at all: it is filtered at dispatch by the family or fill rule, not discovered in the worker environment, or dispatch_and_wait returns [] when job_count == 0. In that case the failed set is empty, the condition is vacuously true, and converge() returns capability_unavailable with missing_lanes == [].",
-+      "consensus_status": "unconfirmed",
-+      "resolution": "operator adjudication 2026-10-12: resolved by ba681f63 (missing_lanes = verified - succeeded)"
++      "resolution": "operator adjudication 2026-10-12: resolved by ba681f63 (missing_lanes = verified - succeeded)",
++      "consensus_status": "unconfirmed"
 +    },
 +    {
 +      "id": 4,
@@ -1498,8 +1466,8 @@ index 00000000..828e6045
 +        "claude_code"
 +      ],
 +      "description": "D4 checks the budget only in the probe, which the supervisor runs once per batch against a $1.00 reservation. A dispatched child can then run up to 3 rounds in each of 3 review phases with packets of roughly 80k tokens, and every concurrently dispatched child sees the same remaining budget. When the coordinator ceiling is the only source (key limit null), nothing stops an overrun, so 'bounded before dispatch' does not hold.",
-+      "consensus_status": "unconfirmed",
-+      "resolution": "operator adjudication 2026-10-12: resolved by ba681f63, then moved to the dispatch layer (task 3.11)"
++      "resolution": "operator adjudication 2026-10-12: resolved by ba681f63, then moved to the dispatch layer (task 3.11)",
++      "consensus_status": "unconfirmed"
 +    },
 +    {
 +      "id": 8,
@@ -1608,9 +1576,9 @@ index 00000000..828e6045
 +        "claude_code"
 +      ],
 +      "description": "D6 and tasks 3.8a/5.6 have converge() build a second, tool-less packet and 'pass both paths to dispatch_and_wait', and have dispatch_and_wait hand the tool-less body and its tools_overflow flag to OpenAI-compatible adapters. That needs a new optional dispatch_and_wait parameter (for both ReviewOrchestrator and the CompositeOrchestrator that converge() calls through _accepts_kwarg) and a new tools_overflow keyword on OpenAICompatAdapter.dispatch. Neither is named anywhere, and the cross-cutting interface contract table lists only include_lanes for dispatch_and_wait. Groups 3 and 5 implement the two sides of this interface in separate packages.",
++      "resolution": " | fix commit 3f9651df touched the cited file (verified on disk 2026-10-12)",
 +      "consensus_status": "unconfirmed",
-+      "fix_touched_file": true,
-+      "resolution": " | fix commit 3f9651df touched the cited file (verified on disk 2026-10-12)"
++      "fix_touched_file": true
 +    },
 +    {
 +      "id": 14,
@@ -1628,9 +1596,9 @@ index 00000000..828e6045
 +        "claude_code"
 +      ],
 +      "description": "The Metered Review Lane Spend Accounting requirement says every review an openrouter lane dispatches is recorded with spend_recorder.record(), and acceptance outcome 3 says every OpenRouter review is recorded against the ceiling. The only task that calls record() is 5.5, inside agent_lane's CompositeOrchestrator. D5 also selects the metered lane on a host with fewer than fill_target non-metered lanes (for example one CLI vendor and OPENROUTER_API_KEY in non-OpenBao mode). That review runs through ReviewOrchestrator.dispatch_and_wait from converge() or /parallel-review-*, never through agent_lane, so its spend is neither recorded nor spooled and no metered_spend_unrecorded degradation is raised.",
++      "resolution": " | fix commit 3f9651df touched the cited file (verified on disk 2026-10-12)",
 +      "consensus_status": "unconfirmed",
-+      "fix_touched_file": true,
-+      "resolution": " | fix commit 3f9651df touched the cited file (verified on disk 2026-10-12)"
++      "fix_touched_file": true
 +    },
 +    {
 +      "id": 15,
@@ -1647,9 +1615,9 @@ index 00000000..828e6045
 +        "claude_code"
 +      ],
 +      "description": "The spec fixes work_unit_ref as '<change_id>:<review_type>:round-<n>'. IMPL_REVIEW and VAL_REVIEW both run with review_type 'implementation', so their rows get the same work_unit_ref and spend cannot be split by phase. This is the collision the round-2 fix already removed for the consensus files. Design D4 allows '<phase|review_type>'.",
++      "resolution": " | fix commit 3f9651df touched the cited file (verified on disk 2026-10-12)",
 +      "consensus_status": "unconfirmed",
-+      "fix_touched_file": true,
-+      "resolution": " | fix commit 3f9651df touched the cited file (verified on disk 2026-10-12)"
++      "fix_touched_file": true
 +    },
 +    {
 +      "id": 16,
@@ -1666,9 +1634,9 @@ index 00000000..828e6045
 +        "claude_code"
 +      ],
 +      "description": "D4 and task 5.7 put the per-round budget re-check in converge(). converge() is vendor-agnostic: it receives only verified_lanes and an orchestrator, does not know which lanes are metered, has no coordinator-usage client, and has no way to keep one lane out of a dispatch except through orchestrator-specific kwargs. CompositeOrchestrator already knows the metered lanes and builds include_lanes, so the check fits there, or in ReviewOrchestrator.dispatch_and_wait next to the probe code. Keeping it in converge() widens the converge() signature with routing concerns.",
++      "resolution": "escalation fix 2026-10-12 (operator-directed): spend_context + dispatch-layer budget re-check (tasks 3.10, 3.11, 5.7; design D4 and interface row)",
 +      "consensus_status": "unconfirmed",
-+      "fix_touched_file": true,
-+      "resolution": "escalation fix 2026-10-12 (operator-directed): spend_context + dispatch-layer budget re-check (tasks 3.10, 3.11, 5.7; design D4 and interface row)"
++      "fix_touched_file": true
 +    },
 +    {
 +      "id": 17,
@@ -1686,9 +1654,9 @@ index 00000000..828e6045
 +        "claude_code"
 +      ],
 +      "description": "The round-1 fix moved spend_recorder.record() into ReviewOrchestrator.dispatch_and_wait, which gets only an optional work_unit_ref and no change id. When the write fails, the spec spools to 'openspec/changes/<change-id>/reviews/spend-spool.jsonl' (spec line 173) and replay runs per change id. A dispatch_and_wait call with work_unit_ref None, such as a one-shot /parallel-review-* run or any caller not yet updated, has no change id, so the failed row has nowhere to go. That metered spend is then neither recorded nor spooled, which is the gap the fix was meant to close.",
++      "resolution": "escalation fix 2026-10-12 (operator-directed): spend_context + dispatch-layer budget re-check (tasks 3.10, 3.11, 5.7; design D4 and interface row)",
 +      "consensus_status": "unconfirmed",
-+      "fix_touched_file": true,
-+      "resolution": "escalation fix 2026-10-12 (operator-directed): spend_context + dispatch-layer budget re-check (tasks 3.10, 3.11, 5.7; design D4 and interface row)"
++      "fix_touched_file": true
 +    },
 +    {
 +      "id": 18,
@@ -1705,9 +1673,9 @@ index 00000000..828e6045
 +        "claude_code"
 +      ],
 +      "description": "The new 'spend context' row in the interface contract table says dispatch_and_wait adds 'work_unit_ref: str | None' and that a missing value only drops the field from the row. It does not carry the change id that the D4 spool path (openspec/changes/<id>/reviews/spend-spool.jsonl) needs, and it does not say what happens to a metered lane when no context is given.",
++      "resolution": "escalation fix 2026-10-12 (operator-directed): spend_context + dispatch-layer budget re-check (tasks 3.10, 3.11, 5.7; design D4 and interface row)",
 +      "consensus_status": "unconfirmed",
-+      "fix_touched_file": true,
-+      "resolution": "escalation fix 2026-10-12 (operator-directed): spend_context + dispatch-layer budget re-check (tasks 3.10, 3.11, 5.7; design D4 and interface row)"
++      "fix_touched_file": true
 +    },
 +    {
 +      "id": 19,
@@ -1725,9 +1693,9 @@ index 00000000..828e6045
 +        "claude_code"
 +      ],
 +      "description": "Since commit 62590065 a metered lane is refused (spend_context_missing) unless dispatch_and_wait receives a SpendContext, and converge() builds one only when its caller passes the new optional `phase`. The only caller that passes `phase` is agent_lane.py (task 5.6). The host inline converge() call in skills/autopilot/SKILL.md (PLAN_REVIEW fallback, about line 567) and the other host review phases pass no phase, and task 6.4 edits only the cloud review-section text. On a host where D5 selects the metered lane (one non-metered lane), every host converge() round therefore refuses the openrouter lane and ends capability_unavailable. The 'A host-path metered review is recorded' scenario can only pass in a unit test that calls dispatch_and_wait directly. Fix: add a task (or extend 6.4) that makes every host converge() caller in skills/autopilot/SKILL.md pass phase=<PLAN_REVIEW|IMPL_REVIEW|VAL_REVIEW>, or have converge() derive a SpendContext from change_id plus review_type and round when phase is None (accepting the IMPL/VAL collision only for that fallback).",
++      "resolution": "PLAN_FIX round 1 (gen 5): fix commit 6c7d08b3 touched the cited file; spec_file edit withheld (absolute allowed_paths scope bug)",
 +      "consensus_status": "unconfirmed",
-+      "fix_touched_file": true,
-+      "resolution": "PLAN_FIX round 1 (gen 5): fix commit 6c7d08b3 touched the cited file; spec_file edit withheld (absolute allowed_paths scope bug)"
++      "fix_touched_file": true
 +    },
 +    {
 +      "id": 20,
@@ -1744,9 +1712,9 @@ index 00000000..828e6045
 +        "claude_code"
 +      ],
 +      "description": "Task 5.6 bullet 1 still says converge() 'passes work_unit_ref=<change_id>:<phase>:round-<n> to dispatch_and_wait (via _accepts_kwarg)'. After commit 62590065 the design's interface contract table, D4 and task 3.10 define the keyword as `spend_context: SpendContext(change_id, work_unit_ref)`. Groups 3 and 5 implement the two sides of this keyword in separate packages, so an implementer following 5.6 literally would pass a keyword that ReviewOrchestrator.dispatch_and_wait does not accept, and _accepts_kwarg would silently drop it, which leaves every metered dispatch spend_context_missing.",
++      "resolution": "PLAN_FIX round 1 (gen 5): fix commit 6c7d08b3 touched the cited file; spec_file edit withheld (absolute allowed_paths scope bug)",
 +      "consensus_status": "unconfirmed",
-+      "fix_touched_file": true,
-+      "resolution": "PLAN_FIX round 1 (gen 5): fix commit 6c7d08b3 touched the cited file; spec_file edit withheld (absolute allowed_paths scope bug)"
++      "fix_touched_file": true
 +    },
 +    {
 +      "id": 21,
@@ -1764,9 +1732,146 @@ index 00000000..828e6045
 +        "claude_code"
 +      ],
 +      "description": "The D4 per-round budget re-check reads metered_usd_used from GET /routing/usage, which counts only ledger rows. Rows that spooled because POST /routing/spend failed are invisible to it. D4 says 'the key's credit limit bounds spend while rows sit in the spool', but when the key limit is null and the coordinator ceiling is the only source, a worker whose GET succeeds while its POST fails (the partly-forbidden coordinator case D4 itself cites: coordinator_projection_forbidden) keeps passing the re-check while every round's spend spools. The bound then fails exactly in the degraded mode that motivated the spool. The Cost abuse bullet in Security and the Risks row on concurrent overspend do not cover it.",
++      "resolution": "PLAN_FIX round 1 (gen 5): fix commit 6c7d08b3 touched the cited file; spec_file edit withheld (absolute allowed_paths scope bug)",
 +      "consensus_status": "unconfirmed",
-+      "fix_touched_file": true,
-+      "resolution": "PLAN_FIX round 1 (gen 5): fix commit 6c7d08b3 touched the cited file; spec_file edit withheld (absolute allowed_paths scope bug)"
++      "fix_touched_file": true
++    },
++    {
++      "id": 22,
++      "status": "open",
++      "axis": "observability",
++      "type": "resilience",
++      "criticality": "medium",
++      "evidence_class": "judgment",
++      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
++      "fingerprint": "211e50b1839d551a",
++      "first_seen_round": 1,
++      "last_seen_round": 1,
++      "vendor_hits": [
++        "claude_code"
++      ],
++      "description": "A metered request that OpenRouter accepted but that then failed client-side (read timeout, connection reset, or a 'timed out' error that classifies as UNKNOWN) comes back with models_attempted set and no generation_id. _dispatch_metered then skips recording and leaves spend_recorded=None. The result is no ledger row, no spool entry, and no metered_spend_unrecorded degradation. Spend that may have been billed goes uncounted silently, and later budget rechecks use a total that is too low. The same gap applies to TRANSIENT 500/503 falls-through to the fallback model within one round.",
++      "consensus_status": "unconfirmed"
++    },
++    {
++      "id": 23,
++      "status": "open",
++      "axis": "correctness",
++      "type": "spec_gap",
++      "criticality": "medium",
++      "evidence_class": "judgment",
++      "file_path": "skills/parallel-infrastructure/scripts/spend_recorder.py",
++      "spec_file": "/home/user/agentic-coding-tools/openspec/changes/openrouter-review-lane/specs/parallel-infrastructure/spec.md",
++      "fingerprint": "f684518de810e11f",
++      "first_seen_round": 1,
++      "last_seen_round": 1,
++      "vendor_hits": [
++        "claude_code"
++      ],
++      "description": "When the response has no usage.cost, row_from_review_result sends actual_usd=None (dropped by exclude_none). The server's LedgerService._ledger_row then computes _token_cost with no rates and gets 0.0 (float(rate or 0.0)). The stored row says tokens_estimated=true and actual_usd=0, so the coordinator ceiling, metered_usd_used and spooled_total_usd all count that call as free.",
++      "consensus_status": "unconfirmed"
++    },
++    {
++      "id": 24,
++      "status": "open",
++      "axis": "correctness",
++      "type": "correctness",
++      "criticality": "low",
++      "evidence_class": "judgment",
++      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
++      "fingerprint": "3f65a9a309c151d3",
++      "first_seen_round": 1,
++      "last_seen_round": 1,
++      "vendor_hits": [
++        "claude_code"
++      ],
++      "description": "The _oneshot_spend_context docstring says archived changes are included, but an output dir of openspec/changes/archive/2026-10-21-<id>/reviews gives change_id='2026-10-21-<id>'. The consequences are a wrong work_unit_ref, and spend_recorder's _change_dir finding neither a live nor an archive (*-<id>) match. Spooling would then create a stray openspec/changes/2026-10-21-<id>/reviews/spend-spool.jsonl tree.",
++      "consensus_status": "unconfirmed"
++    },
++    {
++      "id": 25,
++      "status": "open",
++      "axis": "resilience",
++      "type": "correctness",
++      "criticality": "low",
++      "evidence_class": "judgment",
++      "file_path": "skills/parallel-infrastructure/scripts/openai_compat_adapter.py",
++      "fingerprint": "f990843b5a3aa24d",
++      "first_seen_round": 1,
++      "last_seen_round": 1,
++      "vendor_hits": [
++        "claude_code"
++      ],
++      "description": "_extract_content calls choices[0].get(...) without checking that choices[0] is a dict. A malformed or proxy-mangled 200 response, such as choices: [\"...\"] or [null], raises AttributeError. The exception escapes dispatch instead of becoming a classified ReviewResult failure, so the lane crashes rather than degrading cleanly.",
++      "consensus_status": "unconfirmed"
++    },
++    {
++      "id": 26,
++      "status": "open",
++      "axis": "readability",
++      "type": "style",
++      "criticality": "low",
++      "evidence_class": "deterministic",
++      "file_path": "agent-coordinator/src/model_routing/ledger.py",
++      "fingerprint": "14e341d02ce1819c",
++      "first_seen_round": 1,
++      "last_seen_round": 1,
++      "vendor_hits": [
++        "claude_code"
++      ],
++      "description": "LedgerService.find_by_generation_id has no callers now that POST /routing/spend uses record_once, which calls the atomic record_spend_once RPC from migration 046. It is dead code, and it invites a reintroduction of the non-atomic read-then-insert dedupe.",
++      "consensus_status": "unconfirmed"
++    },
++    {
++      "id": 27,
++      "status": "open",
++      "axis": "architecture",
++      "type": "architecture",
++      "criticality": "low",
++      "evidence_class": "judgment",
++      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
++      "fingerprint": "57979ba61339642f",
++      "first_seen_round": 1,
++      "last_seen_round": 1,
++      "vendor_hits": [
++        "claude_code"
++      ],
++      "description": "The duplicate_model_family check in select_reviewers looks only at the primary adapter.model. Fallback models go through the anthropic-family rejection in from_config_dict but not through the duplicate-family check. A fallback from a family already served (for example openai/...) could therefore be dispatched after a CAPACITY fallback, which would defeat D2 independence. The current archetypes.yaml fallbacks are all qwen, so this does not happen today.",
++      "consensus_status": "unconfirmed"
++    },
++    {
++      "id": 28,
++      "status": "open",
++      "axis": "compatibility",
++      "type": "compatibility",
++      "criticality": "low",
++      "evidence_class": "judgment",
++      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
++      "fingerprint": "58f530a8539ffd75",
++      "first_seen_round": 1,
++      "last_seen_round": 1,
++      "vendor_hits": [
++        "claude_code"
++      ],
++      "description": "can_dispatch no longer checks for api_key_env. A pi/CLI lane with OPENROUTER_API_KEY unset is now counted as available, and passes --check-vendors through 'pi --version'. It can therefore fill a fill_target slot and then fail with AUTH at dispatch time. This matches design D1 (honest dispatch-time auth failure, classified as capability_unavailable), so it is not a defect; it is noted here as a behaviour change.",
++      "consensus_status": "unconfirmed"
++    },
++    {
++      "id": 29,
++      "status": "open",
++      "axis": "architecture",
++      "type": "architecture",
++      "criticality": "low",
++      "evidence_class": "judgment",
++      "file_path": "skills/autopilot/scripts/agent_lane.py",
++      "fingerprint": "f61b292cde6f7d30",
++      "first_seen_round": 1,
++      "last_seen_round": 1,
++      "vendor_hits": [
++        "claude_code"
++      ],
++      "description": "CompositeOrchestrator gives the inner ReviewOrchestrator include_lanes=others and caller_vendors=(LANE,) but no exclude_vendor. Inner selection can count the claude_code CLI toward fill_target before include_lanes filters it out. On the intended cloud path (claude_code is the only CLI) countable stays at 1, so the metered lane is still selected and the behaviour is correct. Passing exclude_vendor=LANE would make this explicit.",
++      "consensus_status": "unconfirmed"
 +    }
 +  ],
 +  "compacted_at": "2026-10-13T00:47:58Z"
@@ -5001,346 +5106,107 @@ index 5446e53c..8924f940 100644
    "policies": [
      {
        "id": "cloud-container-single-vendor-2026-10-09",
-diff --git a/skills/parallel-infrastructure/scripts/openai_compat_adapter.py b/skills/parallel-infrastructure/scripts/openai_compat_adapter.py
-index 0388e6e2..0b96a531 100644
---- a/skills/parallel-infrastructure/scripts/openai_compat_adapter.py
-+++ b/skills/parallel-infrastructure/scripts/openai_compat_adapter.py
-@@ -20,9 +20,12 @@ classification so it drops into the same dispatch chain.
- from __future__ import annotations
- 
- import json
-+import socket
-+import ssl
- import time
- import urllib.error
- import urllib.request
-+from dataclasses import dataclass
- from pathlib import Path
- from typing import Any, Callable
- 
-@@ -30,7 +33,11 @@ from review_dispatcher import (  # type: ignore[import-untyped]
-     CliVendorAdapter,
-     ErrorClass,
-     ReviewResult,
-+    _coverage_quorum_threshold,
-+    _extract_diff_from_prompt,
-+    _extract_selected_files_from_prompt,
-     classify_error,
-+    ingest_findings_output,
- )
- 
- # transport(url, headers, body, timeout) -> parsed JSON response dict
-@@ -50,6 +57,92 @@ def _default_transport(
-         return json.loads(resp.read().decode("utf-8"))
- 
- 
-+# get_transport(url, headers, timeout) -> (http_status, parsed JSON body or None).
-+# Raises on timeout / connection failure; an HTTP error status is *returned*, not
-+# raised, so the probe can classify it without ever touching the response text.
-+GetTransport = Callable[[str, "dict[str, str]", int], "tuple[int, dict[str, Any] | None]"]
+diff --git a/skills/parallel-infrastructure/tests/test_check_vendors_api_lane.py b/skills/parallel-infrastructure/tests/test_check_vendors_api_lane.py
+new file mode 100644
+index 00000000..282e15a9
+--- /dev/null
++++ b/skills/parallel-infrastructure/tests/test_check_vendors_api_lane.py
+@@ -0,0 +1,95 @@
++"""Integration test: ``--check-vendors --json`` over the repo's real roster.
++
++openrouter-review-lane task 3.9. Loads ``agent-coordinator/agents.yaml`` as
++shipped, with no host CLI on PATH, and checks that the endpoint-only
++``openrouter-review`` lane is probed (``GET /key`` through an injected
++transport), passes the budget rule, and is reported as a verified review lane
++of kind ``openrouter``. No real HTTP request is made and no key is real.
++
++Note: this directory is not in ``skills/pyproject.toml`` testpaths; run it
++explicitly (``pytest parallel-infrastructure/tests/test_check_vendors_api_lane.py``).
++"""
++
++from __future__ import annotations
++
++import sys
++from pathlib import Path
++
++import pytest
++
++SCRIPTS_DIR = Path(__file__).resolve().parent.parent / "scripts"
++sys.path.insert(0, str(SCRIPTS_DIR))
++
++import openai_compat_adapter  # noqa: E402
++import review_dispatcher  # noqa: E402
++
++REPO_ROOT = Path(__file__).resolve().parents[3]
++AGENTS_YAML = REPO_ROOT / "agent-coordinator" / "agents.yaml"
++FAKE_KEY = "sk-or-test-integration-not-real"
 +
 +
-+def _default_get_transport(
-+    url: str, headers: dict[str, str], timeout: int
-+) -> tuple[int, dict[str, Any] | None]:
-+    """Real GET transport (stdlib urllib). Never exercised in unit tests.
++class _KeyProbeTransport:
++    """GET stand-in for OpenRouter ``/key``: a key with budget headroom."""
 +
-+    Uses the default SSL context, which honours ``SSL_CERT_FILE`` /
-+    ``SSL_CERT_DIR`` (needed behind the cloud egress proxy's CA bundle).
-+    """
-+    req = urllib.request.Request(url, headers=headers, method="GET")
-+    context = ssl.create_default_context()
-+    try:
-+        with urllib.request.urlopen(  # noqa: S310 (trusted base_url)
-+            req, timeout=timeout, context=context
-+        ) as resp:
-+            status = resp.status
-+            raw = resp.read()
-+    except urllib.error.HTTPError as exc:
-+        # Discard the error body unread: it may echo request details.
-+        exc.close()
-+        return exc.code, None
-+    try:
-+        body = json.loads(raw.decode("utf-8"))
-+    except (UnicodeDecodeError, json.JSONDecodeError):
-+        return status, None
-+    return status, body if isinstance(body, dict) else None
++    def __init__(self) -> None:
++        self.urls: list[str] = []
++
++    def __call__(self, url: str, headers: dict[str, str], timeout: float):
++        self.urls.append(url)
++        if url.endswith("/key"):
++            return 200, {"data": {"limit": 20.0, "limit_remaining": 15.0, "usage": 5.0}}
++        return 200, {"data": []}
 +
 +
-+# Probe reasons (design D3). The spend_ceiling_* reasons are applied by the
-+# dispatcher's budget check on top of a successful probe (group 3), not here.
-+PROBE_AUTH_FAILED = "auth_failed"
-+PROBE_TIMEOUT = "probe_timeout"
-+PROBE_ENDPOINT_UNREACHABLE = "endpoint_unreachable"
++@pytest.fixture
++def offline_host(monkeypatch: pytest.MonkeyPatch):
++    """A host with no vendor CLI on PATH, no OpenBao, and no network."""
 +
-+_BUDGET_FIELDS = ("limit", "usage", "limit_remaining")
++    def _boom(*_a, **_k):
++        raise AssertionError("no real HTTP request may be sent")
 +
-+# Dispatch refusal for a packet whose sidecar has tools_overflow: true (D6).
-+PACKET_REQUIRES_TOOLS = "packet_requires_tools"
-+
-+
-+@dataclass(frozen=True)
-+class ProbeResult:
-+    """Outcome of an authenticated no-op probe (design D3).
-+
-+    ``budget`` holds only the numeric OpenRouter key fields ``limit``,
-+    ``usage`` and ``limit_remaining`` (each a float, or None when absent or
-+    non-numeric). It is None for local endpoints and for an OpenRouter body
-+    with no ``data`` object. Nothing else from the response is retained.
-+    """
-+
-+    ok: bool
-+    reason: str | None = None
-+    budget: dict[str, float | None] | None = None
++    monkeypatch.setattr(openai_compat_adapter, "_default_transport", _boom)
++    monkeypatch.setattr(openai_compat_adapter, "_default_get_transport", _boom)
++    monkeypatch.setattr(review_dispatcher.shutil, "which", lambda *_a, **_k: None)
++    monkeypatch.delenv("BAO_ADDR", raising=False)
++    monkeypatch.setenv("OPENROUTER_API_KEY", FAKE_KEY)
 +
 +
-+def _numeric(value: Any) -> float | None:
-+    if isinstance(value, bool) or not isinstance(value, (int, float)):
-+        return None
-+    return float(value)
++def test_repo_roster_declares_the_openrouter_review_lane() -> None:
++    text = AGENTS_YAML.read_text(encoding="utf-8")
++    assert "openrouter-review:" in text
 +
 +
-+def _extract_budget(body: dict[str, Any] | None) -> dict[str, float | None] | None:
-+    data = body.get("data") if isinstance(body, dict) else None
-+    if not isinstance(data, dict):
-+        return None
-+    return {name: _numeric(data.get(name)) for name in _BUDGET_FIELDS}
++def test_check_vendors_reports_openrouter_as_verified_api_lane(offline_host) -> None:
++    transport = _KeyProbeTransport()
++    report = review_dispatcher.check_vendors_report(
++        agents_yaml=str(AGENTS_YAML),
++        cwd=REPO_ROOT,
++        dry_invoke=lambda _argv: None,
++        environment="cloud",
++        probe_transport=transport,
++        usage_fetcher=lambda: {"metered_ceiling_usd": 50.0, "metered_usd_used": 0.0},
++    )
++
++    assert "error" not in report, report
++    review = report["modes"]["review"]
++    assert "openrouter" in review["verified"]
++    assert review["lane_kinds"]["openrouter"] == "openrouter"
++    assert "https://openrouter.ai/api/v1/key" in transport.urls
++    assert not any("chat/completions" in url for url in transport.urls)
++    assert FAKE_KEY not in repr(report)
 +
 +
-+def _int_or_none(value: Any) -> int | None:
-+    if isinstance(value, bool) or not isinstance(value, int):
-+        return None
-+    return value
++def test_check_vendors_reports_exhausted_ceiling_on_repo_roster(offline_host) -> None:
++    report = review_dispatcher.check_vendors_report(
++        agents_yaml=str(AGENTS_YAML),
++        cwd=REPO_ROOT,
++        dry_invoke=lambda _argv: None,
++        environment="cloud",
++        probe_transport=_KeyProbeTransport(),
++        usage_fetcher=lambda: {"metered_ceiling_usd": 50.0, "metered_usd_used": 49.9},
++    )
 +
-+
-+def _is_timeout(exc: BaseException) -> bool:
-+    if isinstance(exc, (TimeoutError, socket.timeout)):
-+        return True
-+    reason = getattr(exc, "reason", None)
-+    return isinstance(reason, (TimeoutError, socket.timeout))
-+
-+
- class OpenAICompatAdapter:
-     """Dispatch to an OpenAI-compatible endpoint (OpenRouter or local)."""
- 
-@@ -89,15 +182,61 @@ class OpenAICompatAdapter:
-         return headers
- 
-     def build_request(self, prompt: str, model: str) -> dict[str, Any]:
--        return {
-+        body: dict[str, Any] = {
-             "model": model,
-             "messages": [{"role": "user", "content": prompt}],
-             "temperature": 0,
-         }
-+        if self.endpoint_kind == "openrouter":
-+            # Inline usage accounting: the response then carries usage.cost (D4).
-+            # https://openrouter.ai/docs/use-cases/usage-accounting
-+            body["usage"] = {"include": True}
-+        return body
- 
-     def _endpoint_url(self) -> str:
-         return f"{self.base_url}/chat/completions"
- 
-+    def _probe_url(self) -> str:
-+        # OpenRouter: GET /api/v1/key returns the calling key's credit
-+        # ``limit``, ``usage`` and ``limit_remaining`` under ``data`` and costs
-+        # nothing. Docs: https://openrouter.ai/docs/api-reference/limits
-+        # (not re-fetched on 2026-10-21: openrouter.ai unreachable from the build sandbox).
-+        # Local (Ollama/vLLM): GET /v1/models is the cheapest authenticated no-op.
-+        if self.endpoint_kind == "openrouter":
-+            return f"{self.base_url}/key"
-+        return f"{self.base_url}/models"
-+
-+    def probe(
-+        self,
-+        api_key: str | None,
-+        transport: GetTransport | None = None,
-+        timeout: int = 10,
-+    ) -> ProbeResult:
-+        """Authenticated, zero-cost dry probe of the endpoint (design D3).
-+
-+        Sends exactly one GET (``/key`` for OpenRouter, ``/models`` for local
-+        endpoints) and never a chat completion. The response is parsed in
-+        memory and only the numeric budget fields are kept; no header, key,
-+        response body or exception text is logged, printed, or returned.
-+        """
-+        if self.endpoint_kind == "openrouter" and not api_key:
-+            return ProbeResult(ok=False, reason=PROBE_AUTH_FAILED)
-+
-+        send = transport or _default_get_transport
-+        headers = self.build_headers(api_key)
-+        try:
-+            status, body = send(self._probe_url(), headers, timeout)
-+        except Exception as exc:  # noqa: BLE001 — classified, text discarded
-+            reason = PROBE_TIMEOUT if _is_timeout(exc) else PROBE_ENDPOINT_UNREACHABLE
-+            return ProbeResult(ok=False, reason=reason)
-+
-+        if status in (401, 403):
-+            return ProbeResult(ok=False, reason=PROBE_AUTH_FAILED)
-+        if not 200 <= status < 300:
-+            return ProbeResult(ok=False, reason=PROBE_ENDPOINT_UNREACHABLE)
-+        budget = _extract_budget(body) if self.endpoint_kind == "openrouter" else None
-+        return ProbeResult(ok=True, reason=None, budget=budget)
-+
-     def dispatch(
-         self,
-         mode: str,
-@@ -106,13 +245,27 @@ class OpenAICompatAdapter:
-         timeout_seconds: int = 300,
-         api_key: str | None = None,
-         transport: Transport | None = None,
-+        *,
-+        tools_overflow: bool = False,
-     ) -> ReviewResult:
-         """Dispatch via the OpenAI-compatible API with model fallback.
- 
-         Captures the generation id (``response["id"]``) for spend reconciliation.
-         On a capacity/rate-limit error the next fallback model is tried; other
-         errors return immediately.
-+
-+        ``tools_overflow`` is the ``tools_overflow`` flag from the sidecar of
-+        the packet this lane receives. HTTP lanes cannot read files, so a
-+        packet that needs tools is refused before any request is sent (D6):
-+        reviewing it blind would manufacture false consensus.
-         """
-+        if tools_overflow:
-+            return ReviewResult(
-+                vendor=self.vendor, success=False,
-+                error=PACKET_REQUIRES_TOOLS,
-+                error_class=ErrorClass.UNAVAILABLE,
-+                agent_id=self.agent_id,
-+            )
-         # OpenRouter (metered) requires a key; local endpoints may not.
-         if self.endpoint_kind == "openrouter" and not api_key:
-             return ReviewResult(
-@@ -144,39 +297,11 @@ class OpenAICompatAdapter:
-                     elapsed_seconds=time.monotonic() - start,
-                 )
- 
--            content = _extract_content(resp)
--            if not content:
--                return ReviewResult(
--                    vendor=self.vendor, success=False,
--                    error="Empty response content", error_class=ErrorClass.UNKNOWN,
--                    model_used=model, models_attempted=models_attempted,
--                    elapsed_seconds=time.monotonic() - start,
--                    generation_id=resp.get("id"),
--                )
--            # Parse the model output into the dispatcher's review-findings shape
--            # ({"findings": [...]}) using the same extractor the CLI/SDK adapters use.
--            # A non-empty response that is NOT valid review-findings JSON is a failure,
--            # not a silent success with zero findings.
--            findings = CliVendorAdapter._parse_findings(content)
--            if findings is None:
--                return ReviewResult(
--                    vendor=self.vendor, success=False,
--                    error="Review output was not valid review-findings JSON",
--                    error_class=ErrorClass.UNKNOWN,
--                    model_used=model, models_attempted=models_attempted,
--                    elapsed_seconds=time.monotonic() - start,
--                    generation_id=resp.get("id"),
--                )
--            return ReviewResult(
--                vendor=self.vendor,
--                success=True,
--                findings=findings,
--                model_used=model,
--                models_attempted=models_attempted,
--                elapsed_seconds=time.monotonic() - start,
--                error=None,
--                generation_id=resp.get("id"),
-+            result = self._result_from_response(
-+                resp, model, models_attempted, time.monotonic() - start,
-+                prompt=prompt, cwd=cwd,
-             )
-+            return self._with_usage(result, resp)
- 
-         return ReviewResult(
-             vendor=self.vendor, success=False,
-@@ -185,6 +310,82 @@ class OpenAICompatAdapter:
-             elapsed_seconds=time.monotonic() - start,
-         )
- 
-+    def _result_from_response(
-+        self,
-+        resp: dict[str, Any],
-+        model: str,
-+        models_attempted: list[str],
-+        elapsed: float,
-+        *,
-+        prompt: str = "",
-+        cwd: Path | None = None,
-+    ) -> ReviewResult:
-+        """Turn one chat-completions response into a ReviewResult.
-+
-+        The message content goes through the same ingest pipeline as CLI
-+        stdout (``ingest_findings_output``): coerce, validate, judgment
-+        stamp, line resolve against the packet diff, placeholder check and
-+        the empty-findings floor. An HTTP lane is held to the CLI contract.
-+        """
-+        content = _extract_content(resp)
-+        if not content:
-+            return ReviewResult(
-+                vendor=self.vendor, success=False,
-+                error="Empty response content", error_class=ErrorClass.UNKNOWN,
-+                model_used=model, models_attempted=models_attempted,
-+                elapsed_seconds=elapsed, generation_id=resp.get("id"),
-+            )
-+        # Parse the model output into the dispatcher's review-findings shape
-+        # ({"findings": [...]}) using the same extractor the CLI/SDK adapters use.
-+        # A non-empty response that is NOT valid review-findings JSON is a failure,
-+        # not a silent success with zero findings.
-+        if CliVendorAdapter._parse_findings(content) is None:
-+            return ReviewResult(
-+                vendor=self.vendor, success=False,
-+                error="Review output was not valid review-findings JSON",
-+                error_class=ErrorClass.UNKNOWN,
-+                model_used=model, models_attempted=models_attempted,
-+                elapsed_seconds=elapsed, generation_id=resp.get("id"),
-+            )
-+        result = ingest_findings_output(
-+            self.vendor,
-+            content,
-+            "",
-+            elapsed=elapsed,
-+            model_name=model,
-+            models_attempted=models_attempted,
-+            packet_diff=_extract_diff_from_prompt(prompt),
-+            selected_files=_extract_selected_files_from_prompt(prompt),
-+            coverage_quorum_threshold=(
-+                _coverage_quorum_threshold(cwd) if cwd is not None else 0.8
-+            ),
-+        )
-+        result.generation_id = resp.get("id")
-+        result.agent_id = self.agent_id
-+        # The CLI path leaves error_class unset for a schema-invalid payload
-+        # (it then falls through vendor fallback as an unclassified error).
-+        # An HTTP response that parsed but failed ingest is a model-output
-+        # failure, so classify it explicitly.
-+        if not result.success and result.error_class is None:
-+            result.error_class = ErrorClass.UNKNOWN
-+        return result
-+
-+    def _with_usage(self, result: ReviewResult, resp: dict[str, Any]) -> ReviewResult:
-+        """Copy the response's token counts and cost onto *result* (D4).
-+
-+        Applied to every result built from a response, successful or not, so
-+        a billed-but-rejected review still reports its spend. cost_source is
-+        set only for metered (OpenRouter) lanes.
-+        """
-+        usage = resp.get("usage")
-+        usage = usage if isinstance(usage, dict) else {}
-+        result.prompt_tokens = _int_or_none(usage.get("prompt_tokens"))
-+        result.completion_tokens = _int_or_none(usage.get("completion_tokens"))
-+        result.cost_usd = _numeric(usage.get("cost"))
-+        if self.endpoint_kind == "openrouter":
-+            result.cost_source = "reported" if result.cost_usd is not None else "estimated"
-+        return result
-+
- 
- def _extract_content(resp: dict[str, Any]) -> str | None:
-     """Pull assistant text from an OpenAI-compatible chat response."""
++    review = report["modes"]["review"]
++    assert "openrouter" not in review["verified"]
++    assert {"vendor": "openrouter", "reason": "spend_ceiling_exceeded"} in review["unverified"]
 diff --git a/skills/roadmap-runtime/install_assets/openspec/schemas/dispatch-result.schema.json b/skills/roadmap-runtime/install_assets/openspec/schemas/dispatch-result.schema.json
 index e7168bc2..9035488c 100644
 --- a/skills/roadmap-runtime/install_assets/openspec/schemas/dispatch-result.schema.json
@@ -5459,6 +5325,7 @@ Applies to:
 - agent-coordinator/tests/test_archetypes_yaml.py
 - agent-coordinator/tests/test_migrations.py
 - agent-coordinator/tests/test_vendor_registry.py
+- skills/parallel-infrastructure/tests/test_check_vendors_api_lane.py
 
 Check for unhandled exceptions, resource leaks (files/sockets/locks not in a context manager), and mutable default arguments. Flag a docstring claim ("never raises", "pure function") the code does not actually satisfy.
 
@@ -5489,7 +5356,6 @@ Check that the workflow steps match what the referenced scripts actually accept 
 Applies to:
 - skills/autopilot/scripts/agent_lane.py
 - skills/autopilot/scripts/convergence_loop.py
-- skills/parallel-infrastructure/scripts/openai_compat_adapter.py
 
 Check for unhandled exceptions on the failure paths this module is meant to guard (network, subprocess, file I/O). Verify a function documented as "never raises" actually catches every exception class it claims to. Flag silent behavior changes to existing callers.
 
@@ -5503,12 +5369,17 @@ Same standard as scripts/tests/: verify the test would fail if the behavior it t
 ### Not included in this packet
 These changed files were left out; do not report findings about them.
 - openspec/changes/openrouter-review-lane/.review-cache/round-1/fact-check-claude_code.json
+- openspec/changes/openrouter-review-lane/.review-cache/round-1/findings-claude_code-implementation.json
 - openspec/changes/openrouter-review-lane/.review-cache/round-1/findings-claude_code-plan.json
+- openspec/changes/openrouter-review-lane/.review-cache/round-1/raw-claude_code-implementation.meta.json
+- openspec/changes/openrouter-review-lane/.review-cache/round-1/raw-claude_code-implementation.txt
 - openspec/changes/openrouter-review-lane/.review-cache/round-1/raw-claude_code-plan.meta.json
 - openspec/changes/openrouter-review-lane/.review-cache/round-1/raw-claude_code-plan.txt
 - openspec/changes/openrouter-review-lane/.review-cache/round-1/review-manifest.json
 - openspec/changes/openrouter-review-lane/.review-cache/round-1/review-packet.md
 - openspec/changes/openrouter-review-lane/.review-cache/round-1/review-packet.meta.json
+- openspec/changes/openrouter-review-lane/.review-cache/round-1/review-packet.toolless.md
+- openspec/changes/openrouter-review-lane/.review-cache/round-1/review-packet.toolless.meta.json
 - openspec/changes/openrouter-review-lane/.review-cache/round-2/fact-check-claude_code.json
 - openspec/changes/openrouter-review-lane/.review-cache/round-2/findings-claude_code-plan.json
 - openspec/changes/openrouter-review-lane/.review-cache/round-2/raw-claude_code-plan.meta.json
@@ -5524,12 +5395,12 @@ These changed files were left out; do not report findings about them.
 - openspec/changes/openrouter-review-lane/.review-cache/round-3/review-packet.md
 - openspec/changes/openrouter-review-lane/.review-cache/round-3/review-packet.meta.json
 - openspec/changes/openrouter-review-lane/specs/multiplayer-collaboration/spec.md
+- skills/parallel-infrastructure/scripts/openai_compat_adapter.py
 - skills/parallel-infrastructure/scripts/review_dispatcher.py
 - skills/parallel-infrastructure/scripts/review_packet.py
 - skills/parallel-infrastructure/scripts/spend_recorder.py
 - skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py
 - skills/parallel-infrastructure/scripts/tests/test_review_packet.py
-- skills/parallel-infrastructure/tests/test_check_vendors_api_lane.py
 - skills/supervise/scripts/execution.py
 - skills/tests/autopilot/test_agent_lane.py
 - skills/tests/autopilot/test_convergence_loop_capability.py
@@ -6065,6 +5936,18 @@ summary without failing the apply.
 - **THEN** neither SHALL contain an instruction to run `env`, `printenv`, or to read API key
   variables for vendor discovery
 
+
+### Open ledger items
+- [22] A metered request that OpenRouter accepted but that then failed client-side (read timeout, connection reset, or a 'timed out' error that classifies as UNKNOWN) comes back with models_attempted set and no generation_id. _dispatch_metered then skips recording and leaves spend_recorded=None. The result is no ledger row, no spool entry, and no metered_spend_unrecorded degradation. Spend that may have been billed goes uncounted silently, and later budget rechecks use a total that is too low. The same gap applies to TRANSIENT 500/503 falls-through to the fallback model within one round.
+- [23] When the response has no usage.cost, row_from_review_result sends actual_usd=None (dropped by exclude_none). The server's LedgerService._ledger_row then computes _token_cost with no rates and gets 0.0 (float(rate or 0.0)). The stored row says tokens_estimated=true and actual_usd=0, so the coordinator ceiling, metered_usd_used and spooled_total_usd all count that call as free.
+- [24] The _oneshot_spend_context docstring says archived changes are included, but an output dir of openspec/changes/archive/2026-10-21-<id>/reviews gives change_id='2026-10-21-<id>'. The consequences are a wrong work_unit_ref, and spend_recorder's _change_dir finding neither a live nor an archive (*-<id>) match. Spooling would then create a stray openspec/changes/2026-10-21-<id>/reviews/spend-spool.jsonl tree.
+- [25] _extract_content calls choices[0].get(...) without checking that choices[0] is a dict. A malformed or proxy-mangled 200 response, such as choices: ["..."] or [null], raises AttributeError. The exception escapes dispatch instead of becoming a classified ReviewResult failure, so the lane crashes rather than degrading cleanly.
+- [26] LedgerService.find_by_generation_id has no callers now that POST /routing/spend uses record_once, which calls the atomic record_spend_once RPC from migration 046. It is dead code, and it invites a reintroduction of the non-atomic read-then-insert dedupe.
+- [27] The duplicate_model_family check in select_reviewers looks only at the primary adapter.model. Fallback models go through the anthropic-family rejection in from_config_dict but not through the duplicate-family check. A fallback from a family already served (for example openai/...) could therefore be dispatched after a CAPACITY fallback, which would defeat D2 independence. The current archetypes.yaml fallbacks are all qwen, so this does not happen today.
+- [28] can_dispatch no longer checks for api_key_env. A pi/CLI lane with OPENROUTER_API_KEY unset is now counted as available, and passes --check-vendors through 'pi --version'. It can therefore fill a fill_target slot and then fail with AUTH at dispatch time. This matches design D1 (honest dispatch-time auth failure, classified as capability_unavailable), so it is not a defect; it is noted here as a behaviour change.
+- [29] CompositeOrchestrator gives the inner ReviewOrchestrator include_lanes=others and caller_vendors=(LANE,) but no exclude_vendor. Inner selection can count the claude_code CLI toward fill_target before include_lanes filters it out. On the intended cloud path (claude_code is the only CLI) countable stays at 1, so the metered lane is still selected and the behaviour is correct. Passing exclude_vendor=LANE would make this explicit.
+
+Do not emit findings for issues already in the ledger except to re-verify the open items listed above.
 
 ### Instructions
 Return findings as JSON with a top-level `findings` array.

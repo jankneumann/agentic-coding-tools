@@ -5,8 +5,8 @@
   "review_type": "implementation",
   "round": 1,
   "body_path": "review-packet.toolless.md",
-  "sha256": "6b53c3d1d0b1cae7c1c3b510f28de92a55831521e288f0311245390316d0b79c",
-  "char_length": 315812,
+  "sha256": "ffe0d5b27c22b35a8ee2f744b5ef4f3c66777ace6b662b60b8faf0d325bdb0e5",
+  "char_length": 315424,
   "budget_chars": 320000,
   "tools_overflow": false,
   "includes_ledger": true,
@@ -62,7 +62,7 @@
       "skills/autopilot/scripts/agent_lane.py",
       "skills/autopilot/scripts/convergence_loop.py",
       "skills/parallel-infrastructure/review_quorum_policy.json",
-      "skills/parallel-infrastructure/scripts/openai_compat_adapter.py",
+      "skills/parallel-infrastructure/tests/test_check_vendors_api_lane.py",
       "skills/roadmap-runtime/install_assets/openspec/schemas/dispatch-result.schema.json",
       "skills/tests/autopilot/test_relayed_gate_answer.py",
       "skills/tests/vendor-neutral-autopilot/test_contracts.py"
@@ -73,7 +73,19 @@
         "reason": "generated_path"
       },
       {
+        "path": "openspec/changes/openrouter-review-lane/.review-cache/round-1/findings-claude_code-implementation.json",
+        "reason": "generated_path"
+      },
+      {
         "path": "openspec/changes/openrouter-review-lane/.review-cache/round-1/findings-claude_code-plan.json",
+        "reason": "generated_path"
+      },
+      {
+        "path": "openspec/changes/openrouter-review-lane/.review-cache/round-1/raw-claude_code-implementation.meta.json",
+        "reason": "generated_path"
+      },
+      {
+        "path": "openspec/changes/openrouter-review-lane/.review-cache/round-1/raw-claude_code-implementation.txt",
         "reason": "generated_path"
       },
       {
@@ -94,6 +106,14 @@
       },
       {
         "path": "openspec/changes/openrouter-review-lane/.review-cache/round-1/review-packet.meta.json",
+        "reason": "generated_path"
+      },
+      {
+        "path": "openspec/changes/openrouter-review-lane/.review-cache/round-1/review-packet.toolless.md",
+        "reason": "generated_path"
+      },
+      {
+        "path": "openspec/changes/openrouter-review-lane/.review-cache/round-1/review-packet.toolless.meta.json",
         "reason": "generated_path"
       },
       {
@@ -157,6 +177,10 @@
         "reason": "deleted"
       },
       {
+        "path": "skills/parallel-infrastructure/scripts/openai_compat_adapter.py",
+        "reason": "over_budget"
+      },
+      {
         "path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
         "reason": "over_budget"
       },
@@ -174,10 +198,6 @@
       },
       {
         "path": "skills/parallel-infrastructure/scripts/tests/test_review_packet.py",
-        "reason": "over_budget"
-      },
-      {
-        "path": "skills/parallel-infrastructure/tests/test_check_vendors_api_lane.py",
         "reason": "over_budget"
       },
       {
