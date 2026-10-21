@@ -1,0 +1,44 @@
+[Unit]
+Description=Agent coordinator on GX-10 (shares the analyzer's Langfuse and OpenBao)
+# The analyzer owns the networks this project joins and renders the secrets it
+# reads, so it is a hard requirement rather than an ordering preference.
+Requires=aca-gx10.service
+After=aca-gx10.service
+# PartOf propagates the analyzer's stop and restart to this unit. Without it,
+# `systemctl stop aca-gx10` removes the networks from underneath a coordinator
+# that is still running, which looks like a coordinator bug and is not one.
+PartOf=aca-gx10.service
+Requires=aca-gx10-coordinator-secrets.service
+After=aca-gx10-coordinator-secrets.service
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+EnvironmentFile=/etc/aca/gx10-images.env
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/agentic-coding-tools
+Environment=COMPOSE_PROJECT_NAME=aca-gx10-coord
+ExecStartPre=/opt/agentic-coding-tools/deploy/gx10/check_unit_current.sh %n
+ExecStart=/opt/agentic-coding-tools/deploy/gx10/coordinator-runtime.sh up
+ExecReload=/opt/agentic-coding-tools/deploy/gx10/coordinator-runtime.sh up
+ExecStop=/opt/agentic-coding-tools/deploy/gx10/coordinator-runtime.sh down
+Restart=on-failure
+RestartSec=15s
+TimeoutStartSec=300
+TimeoutStopSec=180
+# A failed ExecStart skips ExecStop for a oneshot, and the default
+# KillMode=control-group would then SIGTERM every conmon in the cgroup and wait
+# out TimeoutStopSec for the ones that do not exit. Container lifetime is the
+# script's job; a failed start leaves the stack in place for a post-mortem
+# until the next start's sweep removes it.
+KillMode=process
+NoNewPrivileges=yes
+# Podman keeps state under /var/lib/containers and /run; ProtectHome=yes would
+# also hide an interpreter living under /root, which took down three analyzer
+# units with 203/EXEC before anyone looked at the sandboxing.
+ProtectHome=read-only
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target

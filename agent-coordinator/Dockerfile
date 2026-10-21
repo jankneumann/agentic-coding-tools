@@ -112,9 +112,17 @@ COPY agent-coordinator/archetypes.yaml /app/archetypes.yaml
 # doesn't exist with write permissions for the unprivileged user).
 RUN mkdir -p /app/workdir/docs/kanban-viz
 
-# Create non-root user and switch to it
-RUN groupadd --system appuser && \
-    useradd --system --gid appuser --no-create-home appuser && \
+# Create non-root user and switch to it.
+#
+# The uid/gid are PINNED. `useradd --system` picks the first free id below
+# 1000, which varies with the base image's existing accounts -- so the number
+# was unknowable from outside the build. The GX-10 deployment bind-mounts a
+# host directory for COORDINATOR_WORKDIR_ROOT and fails closed unless that
+# directory is owned by the uid that writes it, which needs a fixed number.
+# An unpinned uid also means a base-image change can silently orphan the
+# workdir: the container starts, then the first saved-view write fails.
+RUN groupadd --system --gid 10001 appuser && \
+    useradd --system --uid 10001 --gid 10001 --no-create-home appuser && \
     chown -R appuser:appuser /app
 USER appuser
 
