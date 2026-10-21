@@ -253,6 +253,10 @@ def _project_saved_state(
 # Transition table
 # ---------------------------------------------------------------------------
 
+# Outcome applied only by an operator-approved escalate_resume carrying
+# resume_at=IMPLEMENT; never returned by a phase handler or phase agent.
+OPERATOR_ACCEPT = "operator_accept"
+
 TRANSITIONS: dict[str, dict[str, str]] = {
     "INIT": {"next": "GATEKEEPER_OR_PLAN"},
     "GATEKEEPER": {
@@ -262,7 +266,17 @@ TRANSITIONS: dict[str, dict[str, str]] = {
     },
     "PLAN": {"exists": "PLAN_ITERATE", "created": "PLAN_ITERATE", "failed": "ESCALATE"},
     "PLAN_ITERATE": {"complete": "PLAN_REVIEW_OR_IMPLEMENT", "failed": "ESCALATE"},
-    "PLAN_REVIEW": {"converged": "IMPLEMENT", "not_converged": "PLAN_FIX", "max_iter": "ESCALATE"},
+    # "operator_accept" exists only for an operator-approved escalate_resume
+    # that names resume_at=IMPLEMENT: the operator accepts a reviewed plan
+    # that did not reach quorum convergence. It is recorded under its own name
+    # so phase_history never claims a convergence that did not happen, and the
+    # runner refuses it on the agent-callable `transition` subcommand.
+    "PLAN_REVIEW": {
+        "converged": "IMPLEMENT",
+        "not_converged": "PLAN_FIX",
+        "max_iter": "ESCALATE",
+        "operator_accept": "IMPLEMENT",
+    },
     "PLAN_FIX": {"fixed": "PLAN_REVIEW", "stuck": "ESCALATE"},
     "IMPLEMENT": {"complete": "IMPL_ITERATE", "failed": "ESCALATE"},
     "IMPL_ITERATE": {"complete": "IMPL_REVIEW_OR_VALIDATE", "failed": "ESCALATE"},
@@ -275,7 +289,14 @@ TRANSITIONS: dict[str, dict[str, str]] = {
     # "revalidate" exists only for an operator-approved escalate_resume that
     # names resume_at=VALIDATE: evidence the goal gate refused is regenerated
     # by this run instead of being edited after the fact.
-    "ESCALATE": {"resolved": "_previous_phase", "revalidate": "VALIDATE", "abandoned": "DONE"},
+    # From ESCALATE, "operator_accept" is legal only when the escalation came
+    # out of PLAN_REVIEW (enforced in transition()).
+    "ESCALATE": {
+        "resolved": "_previous_phase",
+        "revalidate": "VALIDATE",
+        "operator_accept": "IMPLEMENT",
+        "abandoned": "DONE",
+    },
 }
 
 
@@ -291,6 +312,11 @@ def transition(state: LoopState, outcome: str) -> str:
     target = table.get(outcome)
     if target is None:
         raise ValueError(f"Invalid outcome {outcome!r} for phase {phase!r}")
+    if outcome == OPERATOR_ACCEPT and phase == "ESCALATE" and state.previous_phase != "PLAN_REVIEW":
+        raise ValueError(
+            "operator_accept from ESCALATE requires previous_phase PLAN_REVIEW, "
+            f"got {state.previous_phase!r}"
+        )
 
     # Dynamic resolution
     if target == "GATEKEEPER_OR_PLAN":
@@ -882,6 +908,7 @@ def _apply_transition(
     status_fn: Callable[[LoopState, str, str, bool], None] | None = None,
     *,
     change_dir: str | Path | None = None,
+    operator_authorized: bool = False,
 ) -> LoopState:
     """Compute and apply the transition, updating bookkeeping fields.
 
@@ -893,7 +920,18 @@ def _apply_transition(
        human question is outstanding.
     2. resolved target is DONE (and the edge is not ESCALATE/abandoned) → the
        goal gate must find its evidence, or ``GoalGateRefused``.
+
+    ``operator_accept`` is refused (``ValueError``) unless the caller passes
+    ``operator_authorized=True``. Only ``runner.py gate-answer`` does, and only
+    for an approved escalate_resume whose recorded answer names
+    resume_at=IMPLEMENT; every agent-reachable path (``transition``,
+    ``apply-outcome``, run_loop) leaves it False.
     """
+    if outcome == OPERATOR_ACCEPT and not operator_authorized:
+        raise ValueError(
+            "operator_accept is applied only by gate-answer for an approved "
+            "escalate_resume with resume_at=IMPLEMENT"
+        )
     if state.pending_gate:
         raise GatePending(str(state.pending_gate.get("gate", "unknown")))
     if state.park:
@@ -901,6 +939,12 @@ def _apply_transition(
 
     old_phase = state.current_phase
     next_phase = transition(state, outcome)
+    if outcome == OPERATOR_ACCEPT:
+        # No phase handler produced this outcome, so nothing else logs it: the
+        # history must show that the operator, not quorum review, moved the plan on.
+        state.phase_history.append(
+            {"phase": old_phase, "outcome": OPERATOR_ACCEPT, "at": _now_iso()}
+        )
     if old_phase == "GATEKEEPER" and outcome in _GATEKEEPER_OUTCOMES:
         # The host-driven path (`runner.py transition`) applies the judge's
         # verdict here, so its review scheduling must be applied here too —
