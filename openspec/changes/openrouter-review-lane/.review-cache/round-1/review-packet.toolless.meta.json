@@ -1,0 +1,213 @@
+{
+  "schema_version": 2,
+  "packet_kind": "toolless",
+  "change_id": "openrouter-review-lane",
+  "review_type": "implementation",
+  "round": 1,
+  "body_path": "review-packet.toolless.md",
+  "sha256": "6b53c3d1d0b1cae7c1c3b510f28de92a55831521e288f0311245390316d0b79c",
+  "char_length": 315812,
+  "budget_chars": 320000,
+  "tools_overflow": false,
+  "includes_ledger": true,
+  "diff_kind": "full",
+  "coverage": {
+    "scope": "rule_group_selection",
+    "included": [
+      "agent-coordinator/agents.yaml",
+      "agent-coordinator/archetypes.yaml",
+      "agent-coordinator/database/migrations/046_spend_generation_id_unique.sql",
+      "agent-coordinator/routing.yaml",
+      "agent-coordinator/src/agents_config.py",
+      "agent-coordinator/src/model_routing/api.py",
+      "agent-coordinator/src/model_routing/ledger.py",
+      "agent-coordinator/src/model_routing/routing_policy.py",
+      "agent-coordinator/tests/integration/postgres/test_fresh_database_migration.py",
+      "agent-coordinator/tests/model_routing/test_agent_endpoints.py",
+      "agent-coordinator/tests/model_routing/test_ledger.py",
+      "agent-coordinator/tests/model_routing/test_routing_cost_policy.py",
+      "agent-coordinator/tests/model_routing/test_routing_policy_config.py",
+      "agent-coordinator/tests/model_routing/test_spend_route.py",
+      "agent-coordinator/tests/openapi_contract_drift_baseline.yaml",
+      "agent-coordinator/tests/test_agents_config.py",
+      "agent-coordinator/tests/test_archetypes_yaml.py",
+      "agent-coordinator/tests/test_migrations.py",
+      "agent-coordinator/tests/test_vendor_registry.py",
+      "docs/decisions/README.md",
+      "docs/decisions/model-routing.md",
+      "docs/decisions/parallel-infrastructure.md",
+      "docs/decisions/skill-workflow.md",
+      "openspec/changes/openrouter-review-lane/.review-ledger/ledger.json",
+      "openspec/changes/openrouter-review-lane/contracts/README.md",
+      "openspec/changes/openrouter-review-lane/contracts/config/routing-cost-policy.schema.json",
+      "openspec/changes/openrouter-review-lane/contracts/config/routing.schema.json",
+      "openspec/changes/openrouter-review-lane/design.md",
+      "openspec/changes/openrouter-review-lane/dispatch-results/batch-d8913c4d8e973cd7940e2d09-ri-22-attempt-1-g1.json",
+      "openspec/changes/openrouter-review-lane/dispatch-results/batch-d8913c4d8e973cd7940e2d09-ri-22-attempt-1-g2.json",
+      "openspec/changes/openrouter-review-lane/dispatch-results/batch-d8913c4d8e973cd7940e2d09-ri-22-attempt-1-g3.json",
+      "openspec/changes/openrouter-review-lane/dispatch-results/batch-d8913c4d8e973cd7940e2d09-ri-22-attempt-1-g6.json",
+      "openspec/changes/openrouter-review-lane/loop-state.json",
+      "openspec/changes/openrouter-review-lane/plan-findings.md",
+      "openspec/changes/openrouter-review-lane/proposal.md",
+      "openspec/changes/openrouter-review-lane/session-log.md",
+      "openspec/changes/openrouter-review-lane/specs/configuration/spec.md",
+      "openspec/changes/openrouter-review-lane/specs/model-routing/spec.md",
+      "openspec/changes/openrouter-review-lane/specs/parallel-infrastructure/spec.md",
+      "openspec/changes/openrouter-review-lane/specs/skill-workflow/spec.md",
+      "openspec/changes/openrouter-review-lane/specs/supervise/spec.md",
+      "openspec/changes/openrouter-review-lane/tasks.md",
+      "openspec/schemas/dispatch-result.schema.json",
+      "openspec/schemas/provider-model-map.schema.json",
+      "skills/autopilot/SKILL.md",
+      "skills/autopilot/scripts/agent_lane.py",
+      "skills/autopilot/scripts/convergence_loop.py",
+      "skills/parallel-infrastructure/review_quorum_policy.json",
+      "skills/parallel-infrastructure/scripts/openai_compat_adapter.py",
+      "skills/roadmap-runtime/install_assets/openspec/schemas/dispatch-result.schema.json",
+      "skills/tests/autopilot/test_relayed_gate_answer.py",
+      "skills/tests/vendor-neutral-autopilot/test_contracts.py"
+    ],
+    "skipped": [
+      {
+        "path": "openspec/changes/openrouter-review-lane/.review-cache/round-1/fact-check-claude_code.json",
+        "reason": "generated_path"
+      },
+      {
+        "path": "openspec/changes/openrouter-review-lane/.review-cache/round-1/findings-claude_code-plan.json",
+        "reason": "generated_path"
+      },
+      {
+        "path": "openspec/changes/openrouter-review-lane/.review-cache/round-1/raw-claude_code-plan.meta.json",
+        "reason": "generated_path"
+      },
+      {
+        "path": "openspec/changes/openrouter-review-lane/.review-cache/round-1/raw-claude_code-plan.txt",
+        "reason": "generated_path"
+      },
+      {
+        "path": "openspec/changes/openrouter-review-lane/.review-cache/round-1/review-manifest.json",
+        "reason": "generated_path"
+      },
+      {
+        "path": "openspec/changes/openrouter-review-lane/.review-cache/round-1/review-packet.md",
+        "reason": "generated_path"
+      },
+      {
+        "path": "openspec/changes/openrouter-review-lane/.review-cache/round-1/review-packet.meta.json",
+        "reason": "generated_path"
+      },
+      {
+        "path": "openspec/changes/openrouter-review-lane/.review-cache/round-2/fact-check-claude_code.json",
+        "reason": "generated_path"
+      },
+      {
+        "path": "openspec/changes/openrouter-review-lane/.review-cache/round-2/findings-claude_code-plan.json",
+        "reason": "generated_path"
+      },
+      {
+        "path": "openspec/changes/openrouter-review-lane/.review-cache/round-2/raw-claude_code-plan.meta.json",
+        "reason": "generated_path"
+      },
+      {
+        "path": "openspec/changes/openrouter-review-lane/.review-cache/round-2/raw-claude_code-plan.txt",
+        "reason": "generated_path"
+      },
+      {
+        "path": "openspec/changes/openrouter-review-lane/.review-cache/round-2/review-manifest.json",
+        "reason": "generated_path"
+      },
+      {
+        "path": "openspec/changes/openrouter-review-lane/.review-cache/round-2/review-packet.md",
+        "reason": "generated_path"
+      },
+      {
+        "path": "openspec/changes/openrouter-review-lane/.review-cache/round-2/review-packet.meta.json",
+        "reason": "generated_path"
+      },
+      {
+        "path": "openspec/changes/openrouter-review-lane/.review-cache/round-3/fact-check-claude_code.json",
+        "reason": "generated_path"
+      },
+      {
+        "path": "openspec/changes/openrouter-review-lane/.review-cache/round-3/findings-claude_code-plan.json",
+        "reason": "generated_path"
+      },
+      {
+        "path": "openspec/changes/openrouter-review-lane/.review-cache/round-3/raw-claude_code-plan.meta.json",
+        "reason": "generated_path"
+      },
+      {
+        "path": "openspec/changes/openrouter-review-lane/.review-cache/round-3/raw-claude_code-plan.txt",
+        "reason": "generated_path"
+      },
+      {
+        "path": "openspec/changes/openrouter-review-lane/.review-cache/round-3/review-manifest.json",
+        "reason": "generated_path"
+      },
+      {
+        "path": "openspec/changes/openrouter-review-lane/.review-cache/round-3/review-packet.md",
+        "reason": "generated_path"
+      },
+      {
+        "path": "openspec/changes/openrouter-review-lane/.review-cache/round-3/review-packet.meta.json",
+        "reason": "generated_path"
+      },
+      {
+        "path": "openspec/changes/openrouter-review-lane/specs/multiplayer-collaboration/spec.md",
+        "reason": "deleted"
+      },
+      {
+        "path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+        "reason": "over_budget"
+      },
+      {
+        "path": "skills/parallel-infrastructure/scripts/review_packet.py",
+        "reason": "over_budget"
+      },
+      {
+        "path": "skills/parallel-infrastructure/scripts/spend_recorder.py",
+        "reason": "over_budget"
+      },
+      {
+        "path": "skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py",
+        "reason": "over_budget"
+      },
+      {
+        "path": "skills/parallel-infrastructure/scripts/tests/test_review_packet.py",
+        "reason": "over_budget"
+      },
+      {
+        "path": "skills/parallel-infrastructure/tests/test_check_vendors_api_lane.py",
+        "reason": "over_budget"
+      },
+      {
+        "path": "skills/supervise/scripts/execution.py",
+        "reason": "over_budget"
+      },
+      {
+        "path": "skills/tests/autopilot/test_agent_lane.py",
+        "reason": "over_budget"
+      },
+      {
+        "path": "skills/tests/autopilot/test_convergence_loop_capability.py",
+        "reason": "over_budget"
+      },
+      {
+        "path": "skills/tests/autopilot/test_emit_result.py",
+        "reason": "over_budget"
+      },
+      {
+        "path": "skills/tests/parallel-infrastructure/test_openai_compat_adapter.py",
+        "reason": "over_budget"
+      },
+      {
+        "path": "skills/tests/parallel-infrastructure/test_spend_recorder.py",
+        "reason": "over_budget"
+      },
+      {
+        "path": "skills/tests/supervise/test_execution_profile.py",
+        "reason": "over_budget"
+      }
+    ]
+  }
+}

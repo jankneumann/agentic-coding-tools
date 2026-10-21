@@ -18,756 +18,1242 @@ Output ONLY a JSON object with a top-level `findings` array.
 
 ### Diff
 ```diff
-diff --git a/.github/CODEOWNERS b/.github/CODEOWNERS
-new file mode 100644
-index 00000000..e8336847
---- /dev/null
-+++ b/.github/CODEOWNERS
-@@ -0,0 +1,9 @@
-+# BEGIN ownership-map (generated from openspec/owners.yaml — do not edit; run codeowners.py emit)
-+*                                      @jankneumann
-+openspec/schemas/**                    @jankneumann
-+openspec/contracts/**                  @jankneumann
-+openspec/specs/agent-identity/         @jankneumann
-+openspec/specs/agent-coordinator/      @jankneumann
-+openspec/contracts/agent-identity/     @jankneumann
-+openspec/contracts/agent-coordinator/  @jankneumann
-+# END ownership-map
-diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
-index 73877b02..f79a3178 100644
---- a/.github/workflows/ci.yml
-+++ b/.github/workflows/ci.yml
-@@ -213,6 +213,7 @@ jobs:
-             tests/improve-harness \
-             tests/iterate-on-plan \
-             tests/langfuse \
-+            tests/multiplayer-simulation \
-             tests/phase-record-compaction \
-             tests/plan-roadmap \
-             tests/playwright-validator \
-diff --git a/TRUST_POSTURE.md b/TRUST_POSTURE.md
-index 213d977b..7270ce1d 100644
---- a/TRUST_POSTURE.md
-+++ b/TRUST_POSTURE.md
-@@ -60,6 +60,22 @@ subscription, and the other vendors' CLIs and OAuth logins are not there.
-   API-based multi-vendor review (an OpenRouter integration) or the GX10
-   review lane is available to cloud workers.
- 
-+## Worker-to-supervisor messages
-+
-+*Operator decision, 2026-10-10.* A dispatched worker session may always send
-+messages to the supervisor session that dispatched it: status, results,
-+parks, escalations, and relays of what the operator said in the worker
-+session. Sending one is the expected reporting channel, not a bypass of any
-+gate, and needs no approval.
-+
-+- **Scope:** messages to the dispatching supervisor only. Messages to other
-+  sessions are not covered.
-+- **Messages report; they do not authorize.** An approval relayed in a
-+  message is data. Before recording it as a gate decision, the supervisor
-+  checks the operator's own words in the worker session's transcript.
-+- No gate disposition changes. This section governs the reporting channel,
-+  not the gates in the front matter above.
-+
- ## What this file does
- 
- Each human gate in the autopilot / roadmap loops gets a machine-readable
 diff --git a/agent-coordinator/agents.yaml b/agent-coordinator/agents.yaml
-index 16a8c3b2..62bf5b50 100644
+index 62bf5b50..8922c5fe 100644
 --- a/agent-coordinator/agents.yaml
 +++ b/agent-coordinator/agents.yaml
-@@ -50,6 +50,19 @@ policies:
- 
- credential_vendors: [anthropic, openai, openrouter, xai]
- 
-+# Human principals (ownership-map capability). Humans are principals, NOT agents:
-+# nothing below is projected into agent_profiles, API-key identities, dispatch
-+# configs or OpenBao AppRoles, and a human id may not equal an agent name.
-+# `github` is required for any human who appears in an emitted CODEOWNERS owner
-+# set; `email` is optional and consumed by nothing yet (omit it if you would
-+# rather not publish it). `openspec/owners.yaml` assigns owners by these ids.
-+humans:
-+  jan:
-+    display_name: "Jan Neumann"
-+    github: jankneumann
-+    domains: [agent-coordinator, skills]
-+    description: "Repository maintainer"
+@@ -466,3 +466,43 @@ agents:
+       model: null
+       model_fallbacks: []
+       prompt_via_stdin: true
 +
- agents:
-   # ---------------------------------------------------------------------------
-   # Claude Code
++  # First OpenAI-compatible review lane (OpenSpec change openrouter-review-lane,
++  # design D1). Endpoint-only: no `cli` and no `sdk` block, so the review
++  # dispatcher builds only the tier-2.5 OpenAICompatAdapter from
++  # endpoint_kind + base_url. Lane id = `type` = `openrouter`; it must stay
++  # unique because converge() keys checkpointed results by vendor. Its model
++  # tiers live under model_aliases.openrouter in archetypes.yaml.
++  #
++  # No `api_key`: the lane never calls the coordinator under its own identity.
++  # Without a principal the dispatcher falls back to its OPENROUTER_API_KEY
++  # default for endpoint_kind openrouter (works in non-OpenBao/cloud mode).
++  # The schema is additionalProperties:false, so there is no agent-level
++  # api_key_env field.
++  openrouter-review:
++    type: openrouter
++    location: cloud
++    policy_vendor: openrouter
++    # Models are OpenRouter catalog rows. pi-local lists under the same
++    # catalog vendor; _provider_for_catalog_vendor skips endpoint-only agents
++    # so a routed `openrouter` selection still maps to the pi harness.
++    catalog_vendor: openrouter
++    endpoint_kind: openrouter
++    base_url: https://openrouter.ai/api/v1
++    profile: openrouter_review
++    trust_level: 1
++    transport: http
++    isolation: none
++    # No vendor_credentials: the OpenBao topology projection forbids them on a
++    # keyless agent (openbao_credentials.topology, "keyless agent cannot
++    # declare vendor credentials"). The dispatcher consults credential scopes
++    # only for agents with a principal, so the key comes from the
++    # OPENROUTER_API_KEY environment default instead.
++    # `discover` only: being found as an available reviewer at dispatch time.
++    capabilities: [discover]
++    archetypes: [reviewer]
++    description: >-
++      Metered cloud review lane over OpenRouter's OpenAI-compatible chat
++      completions API. Adds a model family that no host CLI serves, so a
++      cloud session with only the Claude CLI can still reach multi-vendor
++      review quorum. Costed under routing.yaml tier metered-api-cloud.
+diff --git a/agent-coordinator/archetypes.yaml b/agent-coordinator/archetypes.yaml
+index 8d08cfd9..724c45ae 100644
+--- a/agent-coordinator/archetypes.yaml
++++ b/agent-coordinator/archetypes.yaml
+@@ -66,6 +66,20 @@ model_aliases:
+     premium: nvidia/nemotron-3-ultra-550b-a55b
+     standard: qwen/qwen3-coder
+     economy: qwen/qwen3-coder-flash
++  openrouter:
++    # Endpoint-only review lane `openrouter-review` (agents.yaml; OpenSpec
++    # change openrouter-review-lane, design D1/D2). premium is the review
++    # model; standard/economy are its fallbacks (_derived_tier_fallbacks).
++    # Rule: no `anthropic/` publisher, and preferably a family no host CLI
++    # serves (not openai/codex, google/antigravity, xai/grok).
++    # Catalog: GET https://openrouter.ai/api/v1/models (public, no key),
++    # consulted 2026-10-21. The live fetch was unreachable from the
++    # implementing sandbox (DNS), so these slugs are carried from the pi
++    # roster above, last verified against that catalog on 2026-09-13.
++    # Re-verify before relying on them.
++    premium: nvidia/nemotron-3-ultra-550b-a55b
++    standard: qwen/qwen3-coder
++    economy: qwen/qwen3-coder-flash
+   # Always-on local host (see local_host_class above). Entries use the extended
+   # form {model, total_params_b, active_params_b, reviewed} so the MoE-first
+   # rule is validated, not merely documented; `reviewed` is the operator's
+diff --git a/agent-coordinator/database/migrations/046_spend_generation_id_unique.sql b/agent-coordinator/database/migrations/046_spend_generation_id_unique.sql
+new file mode 100644
+index 00000000..74ba5e5f
+--- /dev/null
++++ b/agent-coordinator/database/migrations/046_spend_generation_id_unique.sql
+@@ -0,0 +1,100 @@
++-- 046: make POST /routing/spend's generation_id dedupe atomic.
++--
++-- generation_id is the idempotency key of POST /routing/spend. The route used
++-- to look the key up and then insert, so two concurrent posts of one
++-- generation could both miss the lookup and both insert, double-counting the
++-- spend. The dedupe now belongs to the database: a partial unique index on
++-- generation_id, and record_spend_once(), which inserts with
++-- ON CONFLICT DO NOTHING and otherwise returns the row already recorded.
++--
++-- The index is partial (WHERE generation_id IS NOT NULL) because generation_id
++-- is nullable: rows written through LedgerService.record by other callers may
++-- carry no generation and must not collide with each other.
++
++BEGIN;
++
++-- Duplicates may already exist: the race above could produce them. Each one
++-- is the same generation counted twice, so keep the earliest row (lowest id)
++-- and drop the rest; otherwise the unique index below cannot be built.
++DELETE FROM routing_spend_ledger AS later
++USING routing_spend_ledger AS earlier
++WHERE later.generation_id IS NOT NULL
++  AND later.generation_id = earlier.generation_id
++  AND later.id > earlier.id;
++
++CREATE UNIQUE INDEX IF NOT EXISTS uq_spend_ledger_generation_id
++    ON routing_spend_ledger (generation_id)
++    WHERE generation_id IS NOT NULL;
++
++-- Insert one spend row unless its generation_id is already recorded.
++--
++-- Returns {"created": true, "row": <inserted row>} on a fresh insert and
++-- {"created": false, "row": <existing row>} when the generation was already
++-- recorded. Under READ COMMITTED, ON CONFLICT DO NOTHING waits for a
++-- concurrent inserter of the same key to commit, and the follow-up SELECT
++-- runs with a fresh snapshot, so it sees that row. Returns jsonb (not a
++-- composite) so both database clients decode it (see 045).
++CREATE OR REPLACE FUNCTION record_spend_once(p_row JSONB)
++RETURNS JSONB
++LANGUAGE plpgsql
++VOLATILE
++SECURITY INVOKER
++SET search_path = public, pg_temp
++AS $$
++DECLARE
++    v_in routing_spend_ledger;
++    v_row routing_spend_ledger;
++BEGIN
++    v_in := jsonb_populate_record(NULL::routing_spend_ledger, p_row);
++
++    INSERT INTO routing_spend_ledger (
++        occurred_at,
++        decision_id,
++        vendor,
++        model,
++        endpoint_kind,
++        prompt_tokens,
++        completion_tokens,
++        tokens_estimated,
++        actual_usd,
++        counterfactual_usd,
++        exploration,
++        generation_id,
++        work_unit_ref
++    )
++    VALUES (
++        COALESCE(v_in.occurred_at, now()),
++        v_in.decision_id,
++        v_in.vendor,
++        v_in.model,
++        v_in.endpoint_kind,
++        v_in.prompt_tokens,
++        v_in.completion_tokens,
++        COALESCE(v_in.tokens_estimated, FALSE),
++        COALESCE(v_in.actual_usd, 0),
++        COALESCE(v_in.counterfactual_usd, 0),
++        COALESCE(v_in.exploration, FALSE),
++        v_in.generation_id,
++        v_in.work_unit_ref
++    )
++    ON CONFLICT (generation_id) WHERE generation_id IS NOT NULL DO NOTHING
++    RETURNING * INTO v_row;
++
++    IF FOUND THEN
++        RETURN jsonb_build_object('created', TRUE, 'row', to_jsonb(v_row));
++    END IF;
++
++    SELECT * INTO v_row
++    FROM routing_spend_ledger
++    WHERE generation_id = v_in.generation_id
++    ORDER BY id
++    LIMIT 1;
++
++    RETURN jsonb_build_object('created', FALSE, 'row', to_jsonb(v_row));
++END;
++$$;
++
++REVOKE ALL ON FUNCTION record_spend_once(JSONB) FROM PUBLIC;
++GRANT EXECUTE ON FUNCTION record_spend_once(JSONB) TO service_role;
++
++COMMIT;
+diff --git a/agent-coordinator/routing.yaml b/agent-coordinator/routing.yaml
+index b0c4ace3..822c02db 100644
+--- a/agent-coordinator/routing.yaml
++++ b/agent-coordinator/routing.yaml
+@@ -15,6 +15,11 @@ cost_policy:
+     - id: metered-api
+       location: local
+       endpoint_kinds: [openrouter]
++    # Cloud OpenRouter lanes (openrouter-review-lane, design D1). Last rung:
++    # it never outranks a subscription tier.
++    - id: metered-api-cloud
++      location: cloud
++      endpoint_kinds: [openrouter]
+ 
+ defaults:
+   dispatch_mode: quick
 diff --git a/agent-coordinator/src/agents_config.py b/agent-coordinator/src/agents_config.py
-index 21b191fe..c5a4f9e0 100644
+index c5a4f9e0..b7b8f350 100644
 --- a/agent-coordinator/src/agents_config.py
 +++ b/agent-coordinator/src/agents_config.py
-@@ -387,10 +387,95 @@ VALID_CAPABILITIES = {
-     "feature_registry", "vendor_limit_reporter",
- }
+@@ -2865,11 +2865,16 @@ def _provider_for_catalog_vendor(catalog_vendor: str) -> str | None:
+     agent type, or more than one, lists models under that vendor: a routed
+     selection that names no single agent type cannot be dispatched, so the caller
+     falls back to static rather than guess.
++
++    Endpoint-only agents (no ``cli``/``sdk``, e.g. the ``openrouter-review``
++    lane) are skipped: they are review lanes, not harnesses a routed task can
++    be dispatched to, so they do not make a catalog vendor ambiguous.
+     """
+     types = {
+         agent.type
+         for agent in get_agents_config()
+         if (agent.catalog_vendor or agent.type) == catalog_vendor
++        and (agent.cli is not None or agent.sdk is not None)
+     }
+     return types.pop() if len(types) == 1 else None
  
-+#: Slug pattern shared by agent names and human principal ids (one namespace).
-+PRINCIPAL_ID_PATTERN = r"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
-+
-+#: One ``humans:`` entry. Mirrors ``openspec/schemas/human-principals.schema.json``
-+#: minus its ``$schema``/``$id``/``title``/``description`` metadata; a test pins
-+#: the two equal (design D2 of change ownership-map).
-+HUMAN_PRINCIPAL_SCHEMA: dict[str, Any] = {
-+    "type": "object",
-+    "additionalProperties": False,
-+    "required": ["display_name"],
-+    "properties": {
-+        "display_name": {"type": "string", "minLength": 1, "maxLength": 200},
-+        "github": {
-+            "type": "string",
-+            "minLength": 1,
-+            "maxLength": 39,
-+            "pattern": r"^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$",
-+            "description": (
-+                "GitHub login without the leading `@`. Required for any principal "
-+                "that appears in an emitted CODEOWNERS owner set (design D8)."
-+            ),
-+        },
-+        "email": {
-+            "type": "string",
-+            "minLength": 3,
-+            "maxLength": 254,
-+            "pattern": r"^[^@\s]+@[^@\s]+$",
-+            "description": (
-+                "Declared for commit-author attribution in later roadmap items "
-+                "(ri-03); not consumed by ri-02 (design D5). Optional: omit it if "
-+                "you prefer not to publish it."
-+            ),
-+        },
-+        "domains": {
-+            "type": "array",
-+            "uniqueItems": True,
-+            "items": {
-+                "type": "string",
-+                "minLength": 1,
-+                "maxLength": 128,
-+                "pattern": r"^[a-z0-9][a-z0-9._-]*$",
-+            },
-+            "description": (
-+                "Advisory area-of-expertise slugs. Nothing routes on them in ri-02; "
-+                "ri-06 is the first consumer and may tighten them to capability names."
-+            ),
-+        },
-+        "availability": {
-+            "type": "object",
-+            "additionalProperties": False,
-+            "description": "Declared so later items can consume it; not interpreted by ri-02.",
-+            "properties": {
-+                "timezone": {
-+                    "type": "string",
-+                    "minLength": 1,
-+                    "maxLength": 64,
-+                    "description": "IANA time zone name, e.g. Europe/Berlin.",
-+                },
-+                "hours": {
-+                    "type": "string",
-+                    "pattern": r"^([01]\d|2[0-3]):[0-5]\d-([01]\d|2[0-3]):[0-5]\d$",
-+                    "description": "Working hours in the declared time zone, HH:MM-HH:MM.",
-+                },
-+                "days": {
-+                    "type": "array",
-+                    "minItems": 1,
-+                    "maxItems": 7,
-+                    "uniqueItems": True,
-+                    "items": {
-+                        "type": "string",
-+                        "enum": ["mon", "tue", "wed", "thu", "fri", "sat", "sun"],
-+                    },
-+                },
-+            },
-+        },
-+        "description": {"type": "string", "maxLength": 1000},
-+    },
-+}
-+
- AGENTS_SCHEMA: dict[str, Any] = {
-     "type": "object",
-     "required": ["agents", "credential_vendors"],
-     "properties": {
-+        # Human principals: principals, not agents. Never projected (design D1).
-+        "humans": {
-+            "type": "object",
-+            "propertyNames": {"type": "string", "maxLength": 64, "pattern": PRINCIPAL_ID_PATTERN},
-+            "additionalProperties": HUMAN_PRINCIPAL_SCHEMA,
-+        },
-         "credential_vendors": {
-             "type": "array",
-             "uniqueItems": True,
-@@ -653,6 +738,23 @@ class AgentEntry:
-     sdk: SdkConfig | None = None
+diff --git a/agent-coordinator/src/model_routing/api.py b/agent-coordinator/src/model_routing/api.py
+index 32b02d83..cee933fc 100644
+--- a/agent-coordinator/src/model_routing/api.py
++++ b/agent-coordinator/src/model_routing/api.py
+@@ -177,7 +177,10 @@ class RoutingProvenanceResponse(BaseModel):
+     persisted: bool
+     durable_audit: bool
+     catalog_key: tuple[str, str, str, str | None] | None
+-    cost_tier: Literal["subscription-local", "subscription-cloud", "metered-api"] | None = None
++    cost_tier: (
++        Literal["subscription-local", "subscription-cloud", "metered-api", "metered-api-cloud"]
++        | None
++    ) = None
  
  
-+@dataclass
-+class HumanEntry:
-+    """A human principal from the ``humans:`` block of ``agents.yaml``.
+ class CandidateResponse(BaseModel):
+@@ -278,6 +281,41 @@ class HTTPErrorResponse(BaseModel):
+     detail: str
+ 
+ 
++class SpendRecordRequest(BaseModel):
++    """One metered review's spend row (openrouter-review-lane, design D4).
 +
-+    Deliberately not an :class:`AgentEntry`: humans are never projected into
-+    profiles, identities, dispatch configs or OpenBao principals.
++    ``generation_id`` is the idempotency key. Unknown fields are rejected so a
++    client can never smuggle a credential or rate field into the ledger.
 +    """
 +
-+    name: str
-+    display_name: str
-+    github: str | None = None
-+    email: str | None = None
-+    domains: list[str] = field(default_factory=list)
-+    availability: dict[str, Any] = field(default_factory=dict)
-+    description: str = ""
++    model_config = ConfigDict(extra="forbid")
++
++    vendor: str = Field(min_length=1)
++    model: str = Field(min_length=1)
++    endpoint_kind: EndpointKind
++    generation_id: str = Field(min_length=1)
++    prompt_tokens: int | None = Field(default=None, ge=0)
++    completion_tokens: int | None = Field(default=None, ge=0)
++    actual_usd: float | None = Field(default=None, ge=0, allow_inf_nan=False)
++    tokens_estimated: bool = False
++    work_unit_ref: str | None = None
++    occurred_at: datetime | None = None
 +
 +
- # ---------------------------------------------------------------------------
- # Archetype data classes
- # ---------------------------------------------------------------------------
-@@ -810,6 +912,47 @@ def _default_secrets_path() -> Path:
-     return Path(__file__).resolve().parent.parent / ".secrets.yaml"
++class SpendRecordResponse(BaseModel):
++    id: int | str | None = None
++    vendor: str
++    model: str
++    endpoint_kind: str
++    generation_id: str
++    prompt_tokens: int | None = None
++    completion_tokens: int | None = None
++    actual_usd: float = 0.0
++    tokens_estimated: bool = False
++    work_unit_ref: str | None = None
++    occurred_at: datetime | None = None
++
++
+ class FeedbackMetrics(BaseModel):
+     model_config = ConfigDict(extra="forbid")
+ 
+@@ -325,6 +363,10 @@ class _Ledger(Protocol):
+         month: Any = None,
+     ) -> dict[str, Any]: ...
+ 
++    async def record(self, record: Any) -> dict[str, Any]: ...
++
++    async def record_once(self, record: Any) -> tuple[dict[str, Any], bool]: ...
++
+ 
+ class RoutingUnavailableError(RuntimeError):
+     """No feasible candidate or backing service is currently available."""
+@@ -833,6 +875,16 @@ class RoutingService:
+             "estimated_fraction": estimates / entries if entries else 0.0,
+         }
+ 
++    async def record_spend(self, request: SpendRecordRequest) -> tuple[dict[str, Any], bool]:
++        """Write one spend row unless its ``generation_id`` is already recorded.
++
++        Returns ``(row, created)``. The dedupe is atomic: the ledger inserts
++        with ``ON CONFLICT DO NOTHING`` against the unique index on
++        ``generation_id`` (migration 046) and otherwise returns the row already
++        recorded, so concurrent posts of one generation write exactly one row.
++        """
++        return await self.ledger.record_once(request.model_dump(exclude_none=True))
++
+     async def post_feedback(self, event: FeedbackEvent) -> dict[str, bool]:
+         """Accept feedback without coupling callers to aggregation cadence."""
+         from ..audit import get_audit_service
+@@ -922,7 +974,7 @@ _SELECT_RESPONSES = {
  
  
-+def _check_principal_namespace(raw: Mapping[str, Any]) -> None:
-+    """Agent names and human ids share one namespace (design D1)."""
-+    clashes = sorted(set(raw.get("agents", {})) & set(raw.get("humans", {})))
-+    if clashes:
-+        name = clashes[0]
-+        raise ValueError(
-+            f"'{name}' is declared as both an agent and a human principal; "
-+            f"agent names and human ids share one namespace"
+ def install_routing_routes(app: FastAPI, auth_dependency: Any) -> None:
+-    """Register the five OpenAPI routing paths on the coordinator app."""
++    """Register the six OpenAPI routing paths on the coordinator app."""
+ 
+     @app.post(
+         "/routing/select_model",
+@@ -983,6 +1035,28 @@ def install_routing_routes(app: FastAPI, auth_dependency: Any) -> None:
+             window=window, include_estimates=include_estimates
+         )
+ 
++    @app.post(
++        "/routing/spend",
++        status_code=201,
++        response_model=SpendRecordResponse,
++        dependencies=[Depends(auth_dependency)],
++        responses={
++            **_AUTH_RESPONSES,
++            200: {
++                "model": SpendRecordResponse,
++                "description": "generation_id already recorded; existing row returned",
++            },
++        },
++    )
++    async def spend_endpoint(request: SpendRecordRequest) -> Any:
++        row, created = await get_routing_service().record_spend(request)
++        if created:
++            return row
++        return JSONResponse(
++            status_code=200,
++            content=SpendRecordResponse.model_validate(row).model_dump(mode="json"),
 +        )
 +
-+
-+def load_human_principals(path: Path | None = None) -> list[HumanEntry]:
-+    """Load the ``humans:`` block of ``agents.yaml`` (empty list when absent).
-+
-+    Raises:
-+        FileNotFoundError: If *path* does not exist.
-+        jsonschema.ValidationError: If the registry fails schema validation.
-+        ValueError: If a human id collides with an agent name.
-+    """
-+    if path is None:
-+        path = _default_agents_path()
-+    with open(path) as fh:
-+        raw = yaml.safe_load(fh)
-+    if raw is None:
-+        raise ValueError("Empty agents.yaml file")
-+    validate(instance=raw, schema=AGENTS_SCHEMA)
-+    _check_principal_namespace(raw)
-+    return [
-+        HumanEntry(
-+            name=name,
-+            display_name=data["display_name"],
-+            github=data.get("github"),
-+            email=data.get("email"),
-+            domains=list(data.get("domains", [])),
-+            availability=dict(data.get("availability", {})),
-+            description=data.get("description", ""),
-+        )
-+        for name, data in raw.get("humans", {}).items()
-+    ]
-+
-+
- def load_agents_config(
-     path: Path | None = None,
-     *,
-@@ -842,6 +985,7 @@ def load_agents_config(
-         raise ValueError("Empty agents.yaml file")
+     @app.post(
+         "/routing/feedback",
+         status_code=202,
+diff --git a/agent-coordinator/src/model_routing/ledger.py b/agent-coordinator/src/model_routing/ledger.py
+index 806b9a66..1bd64cd2 100644
+--- a/agent-coordinator/src/model_routing/ledger.py
++++ b/agent-coordinator/src/model_routing/ledger.py
+@@ -49,6 +49,24 @@ class LedgerService:
+         return self._db
  
-     validate(instance=raw, schema=AGENTS_SCHEMA)
-+    _check_principal_namespace(raw)
-     # Validate the cross-entry catalog and names once, before interpolation.
-     project_principals({
-         "credential_vendors": raw["credential_vendors"],
-diff --git a/agent-coordinator/tests/test_human_principals.py b/agent-coordinator/tests/test_human_principals.py
+     async def record(self, record: UsageRecord | dict[str, Any]) -> dict[str, Any]:
++        return await self.db.insert("routing_spend_ledger", self._ledger_row(record))
++
++    async def record_once(
++        self, record: UsageRecord | dict[str, Any]
++    ) -> tuple[dict[str, Any], bool]:
++        """Insert ``record`` unless its ``generation_id`` is already recorded.
++
++        Returns ``(row, created)``: the inserted row and ``True``, or the row
++        already holding that ``generation_id`` and ``False``. The check and the
++        insert happen in one statement inside ``record_spend_once``
++        (migration 046), decided by the partial unique index on
++        ``generation_id``, so concurrent callers cannot both insert.
++        """
++        result = await self.db.rpc("record_spend_once", {"p_row": self._ledger_row(record)})
++        return dict(result["row"]), bool(result["created"])
++
++    @staticmethod
++    def _ledger_row(record: UsageRecord | dict[str, Any]) -> dict[str, Any]:
+         values = asdict(record) if isinstance(record, UsageRecord) else dict(record)
+         prompt_tokens = int(values.get("prompt_tokens") or 0)
+         completion_tokens = int(values.get("completion_tokens") or 0)
+@@ -83,7 +101,18 @@ class LedgerService:
+         row["counterfactual_usd"] = round(float(counterfactual), 6)
+         if isinstance(row.get("occurred_at"), datetime):
+             row["occurred_at"] = row["occurred_at"].isoformat()
+-        return await self.db.insert("routing_spend_ledger", row)
++        return row
++
++    async def find_by_generation_id(self, generation_id: str) -> dict[str, Any] | None:
++        """Return the first ledger row carrying ``generation_id``, or ``None``.
++
++        ``generation_id`` is the idempotency key of ``POST /routing/spend``.
++        """
++        rows = await self.db.query(
++            "routing_spend_ledger",
++            f"generation_id=eq.{encode_filter_value(generation_id)}&order=id.asc&limit=1",
++        )
++        return rows[0] if rows else None
+ 
+     async def usage_summary(
+         self,
+diff --git a/agent-coordinator/src/model_routing/routing_policy.py b/agent-coordinator/src/model_routing/routing_policy.py
+index 3d25324b..902bb7bd 100644
+--- a/agent-coordinator/src/model_routing/routing_policy.py
++++ b/agent-coordinator/src/model_routing/routing_policy.py
+@@ -95,7 +95,7 @@ class FallbackOrder(_StrictModel):
+ 
+ 
+ class CostTier(_StrictModel):
+-    id: Literal["subscription-local", "subscription-cloud", "metered-api"]
++    id: Literal["subscription-local", "subscription-cloud", "metered-api", "metered-api-cloud"]
+     location: Location
+     endpoint_kinds: list[Literal["vendor-cli", "vendor-sdk", "openrouter", "local"]] = Field(
+         min_length=1
+@@ -109,11 +109,16 @@ class CostTier(_StrictModel):
+ 
+ 
+ class CostPolicy(_StrictModel):
+-    tiers: list[CostTier] = Field(min_length=3, max_length=3)
++    tiers: list[CostTier] = Field(min_length=3, max_length=4)
+ 
+     @model_validator(mode="after")
+     def validate_ladder(self) -> CostPolicy:
++        # The three-rung ladder is fixed; the optional fourth rung
++        # metered-api-cloud (cloud OpenRouter lanes, openrouter-review-lane D1)
++        # may only be appended last, so it never outranks a subscription tier.
+         expected = ["subscription-local", "subscription-cloud", "metered-api"]
++        if len(self.tiers) == 4:
++            expected = [*expected, "metered-api-cloud"]
+         if [tier.id for tier in self.tiers] != expected:
+             raise ValueError("cost tiers must follow the declared subscription and metered ladder")
+         if len(
+diff --git a/agent-coordinator/tests/integration/postgres/test_fresh_database_migration.py b/agent-coordinator/tests/integration/postgres/test_fresh_database_migration.py
+index 1717f898..634b5dc9 100644
+--- a/agent-coordinator/tests/integration/postgres/test_fresh_database_migration.py
++++ b/agent-coordinator/tests/integration/postgres/test_fresh_database_migration.py
+@@ -68,6 +68,7 @@ REQUIRED_FUNCTIONS = [
+     "is_domain_allowed",
+     "upsert_vendor_probe_state",
+     "persist_vendor_probe_state",
++    "record_spend_once",
+     "record_vendor_rate_limit",
+     "compact_vendor_rate_limits",
+     "mutate_issue_if_unowned",
+@@ -877,3 +878,153 @@ async def test_watchdog_stale_agent_sweep_runs_against_the_migrated_schema(
+         assert held == 0
+     finally:
+         await conn.close()
++
++
++def _spend_row(generation_id: str | None, **overrides: object) -> dict[str, object]:
++    row: dict[str, object] = {
++        "vendor": "openrouter",
++        "model": "review-model",
++        "endpoint_kind": "openrouter",
++        "prompt_tokens": 1200,
++        "completion_tokens": 300,
++        "actual_usd": 0.0042,
++        "counterfactual_usd": 0.0,
++        "tokens_estimated": False,
++        "work_unit_ref": "openrouter-review-lane:VAL_REVIEW:round-2",
++    }
++    if generation_id is not None:
++        row["generation_id"] = generation_id
++    row.update(overrides)
++    return row
++
++
++async def test_046_concurrent_spend_posts_write_one_row(migrated_database) -> None:
++    """Migration 046: concurrent record_spend_once calls for one generation
++    insert exactly one row; every other caller gets that row back."""
++    from src.config import PostgresConfig
++    from src.db_postgres import DirectPostgresClient
++    from src.model_routing.ledger import LedgerService
++
++    dsn, _applied = migrated_database
++    client = DirectPostgresClient(PostgresConfig(dsn=dsn, pool_min=1, pool_max=8))
++    try:
++        ledger = LedgerService(client)
++        results = await asyncio.gather(
++            *(ledger.record_once(_spend_row("gen-race")) for _ in range(8))
++        )
++    finally:
++        await client.close()
++
++    assert sorted(created for _row, created in results) == [False] * 7 + [True]
++    assert len({row["id"] for row, _created in results}) == 1
++    conn = await _connect(dsn)
++    try:
++        count = await conn.fetchval(
++            "SELECT count(*) FROM routing_spend_ledger WHERE generation_id = 'gen-race'"
++        )
++        assert count == 1
++        # A plain insert of the same generation is now refused by the index.
++        with pytest.raises(asyncpg.UniqueViolationError):
++            await conn.execute(
++                "INSERT INTO routing_spend_ledger (vendor, model, endpoint_kind, generation_id) "
++                "VALUES ('openrouter', 'review-model', 'openrouter', 'gen-race')"
++            )
++        # Rows without a generation are outside the partial index.
++        for _ in range(2):
++            await conn.execute(
++                "INSERT INTO routing_spend_ledger (vendor, model, endpoint_kind) "
++                "VALUES ('claude', 'review-model', 'vendor-cli')"
++            )
++    finally:
++        await conn.close()
++
++
++async def test_046_upgrade_keeps_the_earliest_duplicate(tmp_path) -> None:
++    """A pre-046 ledger may already hold duplicates from the old race; the
++    migration keeps the lowest id per generation and then builds the index."""
++    if not _postgres_available:
++        pytest.skip("PostgreSQL not running (start with: docker-compose up -d)")
++
++    name = f"migtest_{uuid.uuid4().hex[:12]}"
++    try:
++        admin = await asyncio.wait_for(_connect(POSTGRES_DSN), timeout=ADMIN_TIMEOUT)
++    except (TimeoutError, OSError) as exc:
++        pytest.skip(f"could not reach PostgreSQL to create a test database: {exc}")
++    try:
++        await admin.execute(f'CREATE DATABASE "{name}"')
++    except asyncpg.InsufficientPrivilegeError:
++        pytest.skip("role may not CREATE DATABASE")
++    finally:
++        await admin.close()
++
++    dsn = _admin_dsn_for(name)
++    pre_dir = tmp_path / "pre046"
++    post_dir = tmp_path / "post046"
++    pre_dir.mkdir()
++    post_dir.mkdir()
++    for sequence, filename, path in discover_migrations():
++        if sequence < 46:
++            (pre_dir / filename).symlink_to(path)
++        elif sequence == 46:
++            (post_dir / filename).symlink_to(path)
++
++    try:
++        try:
++            await asyncio.wait_for(
++                run_migrations(dsn, migrations_dir=pre_dir), timeout=MIGRATE_TIMEOUT
++            )
++        except asyncpg.FeatureNotSupportedError as exc:
++            if "vector" in str(exc):
++                pytest.skip("pgvector extension not installed on this server")
++            raise
++        conn = await _connect(dsn)
++        try:
++            insert = (
++                "INSERT INTO routing_spend_ledger "
++                "(vendor, model, endpoint_kind, generation_id, actual_usd) "
++                "VALUES ('openrouter', 'review-model', 'openrouter', $1, $2) RETURNING id"
++            )
++            first = await conn.fetchval(insert, "gen-dup", 0.01)
++            await conn.fetchval(insert, "gen-dup", 0.02)
++            await conn.fetchval(insert, "gen-dup", 0.03)
++            single = await conn.fetchval(insert, "gen-single", 0.04)
++            await conn.fetchval(insert, None, 0.05)
++            await conn.fetchval(insert, None, 0.06)
++        finally:
++            await conn.close()
++
++        await asyncio.wait_for(
++            run_migrations(dsn, migrations_dir=post_dir), timeout=MIGRATE_TIMEOUT
++        )
++
++        conn = await _connect(dsn)
++        try:
++            kept = await conn.fetch(
++                "SELECT id, generation_id FROM routing_spend_ledger "
++                "WHERE generation_id IS NOT NULL ORDER BY id"
++            )
++            assert [(r["id"], r["generation_id"]) for r in kept] == [
++                (first, "gen-dup"),
++                (single, "gen-single"),
++            ]
++            nulls = await conn.fetchval(
++                "SELECT count(*) FROM routing_spend_ledger WHERE generation_id IS NULL"
++            )
++            assert nulls == 2
++            result = await conn.fetchval(
++                "SELECT record_spend_once($1::jsonb)", json.dumps(_spend_row("gen-dup"))
++            )
++            decoded = json.loads(result)
++            assert decoded["created"] is False
++            assert decoded["row"]["id"] == first
++        finally:
++            await conn.close()
++    finally:
++        try:
++            admin = await asyncio.wait_for(_connect(POSTGRES_DSN), timeout=ADMIN_TIMEOUT)
++            try:
++                await admin.execute(f'DROP DATABASE IF EXISTS "{name}" WITH (FORCE)')
++            finally:
++                await admin.close()
++        except Exception:  # noqa: BLE001 - cleanup is advisory
++            pass
+diff --git a/agent-coordinator/tests/model_routing/test_agent_endpoints.py b/agent-coordinator/tests/model_routing/test_agent_endpoints.py
+index a85cb2d9..ad68fbd1 100644
+--- a/agent-coordinator/tests/model_routing/test_agent_endpoints.py
++++ b/agent-coordinator/tests/model_routing/test_agent_endpoints.py
+@@ -111,5 +111,7 @@ def test_bundled_registry_declares_lane_identity_and_reporter_capability() -> No
+         assert loaded[name].location == raw["location"]
+         assert loaded[name].policy_vendor == raw["policy_vendor"]
+         assert loaded[name].catalog_vendor == raw["catalog_vendor"]
+-        if loaded[name].trust_level < 3 and name != "ocr-local":
++        # Keyless agents (ocr-local, the openrouter-review lane) hold no
++        # coordinator identity, so they cannot call report_vendor_rate_limit.
++        if loaded[name].trust_level < 3 and loaded[name].api_key is not None:
+             assert "vendor_limit_reporter" in loaded[name].capabilities, name
+diff --git a/agent-coordinator/tests/model_routing/test_ledger.py b/agent-coordinator/tests/model_routing/test_ledger.py
+index d78f31e5..164b0c56 100644
+--- a/agent-coordinator/tests/model_routing/test_ledger.py
++++ b/agent-coordinator/tests/model_routing/test_ledger.py
+@@ -41,6 +41,37 @@ async def test_record_computes_actual_and_metered_counterfactual() -> None:
+     assert row["tokens_estimated"] is False
+ 
+ 
++@pytest.mark.asyncio
++async def test_record_once_sends_the_computed_row_to_the_atomic_rpc() -> None:
++    db = _db()
++    db.rpc = AsyncMock(
++        side_effect=lambda _fn, params: {"created": False, "row": {"id": 7, **params["p_row"]}}
++    )
++    ledger = LedgerService(db)
++
++    row, created = await ledger.record_once(
++        UsageRecord(
++            vendor="openrouter",
++            model="review-model",
++            endpoint_kind="openrouter",
++            prompt_tokens=1_000_000,
++            actual_prompt_usd_per_mtok=2.0,
++            generation_id="gen-1",
++            occurred_at=datetime(2026, 10, 1, tzinfo=UTC),
++        )
++    )
++
++    db.rpc.assert_awaited_once()
++    function_name, params = db.rpc.await_args.args
++    assert function_name == "record_spend_once"
++    assert params["p_row"]["generation_id"] == "gen-1"
++    assert params["p_row"]["actual_usd"] == pytest.approx(2.0)
++    assert params["p_row"]["occurred_at"] == "2026-10-01T00:00:00+00:00"
++    assert "actual_prompt_usd_per_mtok" not in params["p_row"]
++    db.insert.assert_not_awaited()
++    assert (row["id"], created) == (7, False)
++
++
+ @pytest.mark.asyncio
+ async def test_usage_summary_can_exclude_estimated_entries() -> None:
+     db = _db(
+diff --git a/agent-coordinator/tests/model_routing/test_routing_cost_policy.py b/agent-coordinator/tests/model_routing/test_routing_cost_policy.py
+index ad3a3c33..191f4ad8 100644
+--- a/agent-coordinator/tests/model_routing/test_routing_cost_policy.py
++++ b/agent-coordinator/tests/model_routing/test_routing_cost_policy.py
+@@ -104,7 +104,9 @@ def test_cost_policy_schema_and_loader_reject_invalid_ladder(tmp_path) -> None:
+     from openspec_paths import change_dir, repo_root_from
+ 
+     schema_path = (
+-        change_dir(repo_root_from(__file__, 3), "declare-the-routing-cost-policy-the-router-obeys")
++        # openrouter-review-lane supersedes the archived ladder schema with the
++        # metered-api-cloud tier; archives stay as history.
++        change_dir(repo_root_from(__file__, 3), "openrouter-review-lane")
+         / "contracts/config/routing-cost-policy.schema.json"
+     )
+     schema = json.loads(schema_path.read_text())
+diff --git a/agent-coordinator/tests/model_routing/test_routing_policy_config.py b/agent-coordinator/tests/model_routing/test_routing_policy_config.py
+index 1274caca..bf741453 100644
+--- a/agent-coordinator/tests/model_routing/test_routing_policy_config.py
++++ b/agent-coordinator/tests/model_routing/test_routing_policy_config.py
+@@ -12,7 +12,9 @@ from jsonschema import Draft202012Validator, ValidationError
+ from openspec_paths import change_dir, repo_root_from
+ 
+ _ROOT = repo_root_from(__file__, 3)
+-_CHANGE = change_dir(_ROOT, "implement-the-task-router-vendor-x-location-x-model")
++# openrouter-review-lane supersedes the task-router schema with the
++# metered-api-cloud cost tier; the deployed policy must validate against it.
++_CHANGE = change_dir(_ROOT, "openrouter-review-lane")
+ _POLICY = _ROOT / "agent-coordinator/routing.yaml"
+ _POLICY_SCHEMA = _CHANGE / "contracts/config/routing.schema.json"
+ _ARCHETYPES = _ROOT / "agent-coordinator/archetypes.yaml"
+diff --git a/agent-coordinator/tests/model_routing/test_spend_route.py b/agent-coordinator/tests/model_routing/test_spend_route.py
 new file mode 100644
-index 00000000..08c5c21b
+index 00000000..c72f4feb
 --- /dev/null
-+++ b/agent-coordinator/tests/test_human_principals.py
-@@ -0,0 +1,245 @@
-+"""Human principals in ``agents.yaml`` (agent-identity spec, change ownership-map).
++++ b/agent-coordinator/tests/model_routing/test_spend_route.py
+@@ -0,0 +1,258 @@
++"""Contract tests for ``POST /routing/spend`` (openrouter-review-lane, task 4.1).
 +
-+Covers the ``humans:`` block: schema, the agent/human namespace collision check,
-+``load_human_principals()``, the guarantee that ``load_agents_config()`` is
-+unchanged by the block, and the pin between the inline ``HUMAN_PRINCIPAL_SCHEMA``
-+and the canonical ``openspec/schemas/human-principals.schema.json`` (design D2).
++The route writes one ``routing_spend_ledger`` row per metered review through
++``LedgerService.record``; ``generation_id`` is the idempotency key.
 +"""
 +
 +from __future__ import annotations
 +
-+import dataclasses
-+import json
++import asyncio
 +from collections.abc import Iterator
-+from pathlib import Path
++from datetime import UTC, datetime
 +from typing import Any
++from unittest.mock import AsyncMock, patch
++from urllib.parse import unquote
 +
++import httpx
 +import pytest
-+from jsonschema import ValidationError
-+from openspec_paths import repo_root_from
++from fastapi.testclient import TestClient
 +
-+from src.agents_config import (
-+    HUMAN_PRINCIPAL_SCHEMA,
-+    HumanEntry,
-+    get_api_key_identities,
-+    get_dispatch_configs,
-+    load_agents_config,
-+    load_human_principals,
-+)
-+from tests.test_profile_sync import FakeAudit, FakeDb
++from src.config import reset_config
++from src.coordination_api import create_coordination_api
++from src.model_routing.api import RoutingService
++from src.model_routing.ledger import LedgerService
 +
-+REPO_ROOT = repo_root_from(__file__, 2)
-+SCHEMA_JSON = REPO_ROOT / "openspec" / "schemas" / "human-principals.schema.json"
-+METADATA_KEYS = ("$schema", "$id", "title", "description")
-+
-+AGENTS_ONLY = """\
-+credential_vendors: []
-+agents:
-+  claude-local:
-+    type: claude_code
-+    profile: claude_code_cli
-+    trust_level: 3
-+    transport: mcp
-+    capabilities: [lock, queue, memory]
-+    description: Test local agent
-+"""
-+
-+HUMANS_BLOCK = """\
-+humans:
-+  jan:
-+    display_name: "Jan Neumann"
-+    github: jankneumann
-+    email: jan@example.org
-+    domains: [agent-coordinator, skills]
-+    availability:
-+      timezone: Europe/Berlin
-+      hours: "09:00-18:00"
-+      days: [mon, tue, wed, thu, fri]
-+    description: Repository maintainer
-+"""
++_TEST_KEY = "spend-route-test-key"
 +
 +
-+def _write(tmp_path: Path, body: str) -> Path:
-+    path = tmp_path / "agents.yaml"
-+    path.write_text(body, encoding="utf-8")
-+    return path
++class UniqueViolationError(Exception):
++    """What the fake raises where PostgreSQL would raise ``23505``."""
 +
 +
-+def _strings(obj: Any) -> Iterator[str]:
-+    """Every string reachable in ``obj`` (dataclasses, mappings, sequences)."""
-+    if isinstance(obj, str):
-+        yield obj
-+    elif dataclasses.is_dataclass(obj) and not isinstance(obj, type):
-+        for f in dataclasses.fields(obj):
-+            yield from _strings(getattr(obj, f.name))
-+    elif isinstance(obj, dict):
-+        for key, value in obj.items():
-+            yield from _strings(key)
-+            yield from _strings(value)
-+    elif isinstance(obj, (list, tuple, set, frozenset)):
-+        for item in obj:
-+            yield from _strings(item)
-+    elif hasattr(obj, "__dict__"):
-+        yield from _strings(vars(obj))
++class _MemoryDb:
++    """In-memory ``routing_spend_ledger`` mirroring migration 046.
 +
++    It honours the ``generation_id=eq.`` filter, enforces the partial unique
++    index on ``generation_id`` (a plain ``insert`` of a duplicate raises, as
++    PostgreSQL would), and implements ``record_spend_once`` as one atomic step,
++    like its ``INSERT ... ON CONFLICT DO NOTHING``. ``query`` yields to the
++    event loop so concurrent callers interleave the way they would over a real
++    connection; a lookup-then-insert therefore races here exactly as in prod.
++    """
 +
-+class TestHumansBlock:
-+    def test_humans_block_validates_and_loads(self, tmp_path: Path) -> None:
-+        path = _write(tmp_path, AGENTS_ONLY + HUMANS_BLOCK)
-+        humans = load_human_principals(path)
-+        assert len(humans) == 1
-+        jan = humans[0]
-+        assert isinstance(jan, HumanEntry)
-+        assert jan.name == "jan"
-+        assert jan.display_name == "Jan Neumann"
-+        assert jan.github == "jankneumann"
-+        assert jan.email == "jan@example.org"
-+        assert jan.domains == ["agent-coordinator", "skills"]
-+        assert jan.availability == {
-+            "timezone": "Europe/Berlin",
-+            "hours": "09:00-18:00",
-+            "days": ["mon", "tue", "wed", "thu", "fri"],
-+        }
-+        assert jan.description == "Repository maintainer"
++    def __init__(self) -> None:
++        self.rows: list[dict[str, Any]] = []
 +
-+    def test_minimal_entry_defaults(self, tmp_path: Path) -> None:
-+        path = _write(
-+            tmp_path, AGENTS_ONLY + 'humans:\n  kim:\n    display_name: "Kim"\n'
-+        )
-+        (kim,) = load_human_principals(path)
-+        assert kim.name == "kim"
-+        assert kim.github is None
-+        assert kim.email is None
-+        assert kim.domains == []
-+        assert kim.availability == {}
-+        assert kim.description == ""
++    async def query(
++        self, table: str, query_params: str | None = None, select: str = "*"
++    ) -> list[dict[str, Any]]:
++        assert table == "routing_spend_ledger"
++        await asyncio.sleep(0)
++        rows = list(self.rows)
++        for clause in (query_params or "").split("&"):
++            key, _, expr = clause.partition("=")
++            if key == "generation_id" and expr.startswith("eq."):
++                wanted = unquote(expr[3:])
++                rows = [row for row in rows if row.get("generation_id") == wanted]
++        return rows
 +
-+    def test_missing_display_name_rejected_naming_entry_and_field(
-+        self, tmp_path: Path
-+    ) -> None:
-+        path = _write(tmp_path, AGENTS_ONLY + "humans:\n  jan:\n    github: jankneumann\n")
-+        with pytest.raises(ValidationError) as excinfo:
-+            load_agents_config(path, secrets_path=tmp_path / "none")
-+        assert "display_name" in excinfo.value.message
-+        assert list(excinfo.value.absolute_path) == ["humans", "jan"]
-+
-+    def test_unknown_field_rejected(self, tmp_path: Path) -> None:
-+        path = _write(
-+            tmp_path,
-+            AGENTS_ONLY + 'humans:\n  jan:\n    display_name: "Jan"\n    trust_level: 3\n',
-+        )
-+        with pytest.raises(ValidationError, match="trust_level"):
-+            load_agents_config(path, secrets_path=tmp_path / "none")
-+
-+    def test_human_id_must_follow_the_slug_pattern(self, tmp_path: Path) -> None:
-+        path = _write(tmp_path, AGENTS_ONLY + 'humans:\n  Jan_N:\n    display_name: "Jan"\n')
-+        with pytest.raises(ValidationError):
-+            load_agents_config(path, secrets_path=tmp_path / "none")
-+
-+    def test_human_id_colliding_with_agent_name_rejected(self, tmp_path: Path) -> None:
-+        path = _write(
-+            tmp_path,
-+            AGENTS_ONLY + 'humans:\n  claude-local:\n    display_name: "Not an agent"\n',
-+        )
-+        with pytest.raises(ValueError, match="claude-local") as excinfo:
-+            load_agents_config(path, secrets_path=tmp_path / "none")
-+        message = str(excinfo.value)
-+        assert "agent" in message
-+        assert "human" in message
-+
-+    def test_collision_is_also_detected_by_load_human_principals(
-+        self, tmp_path: Path
-+    ) -> None:
-+        path = _write(
-+            tmp_path,
-+            AGENTS_ONLY + 'humans:\n  claude-local:\n    display_name: "Not an agent"\n',
-+        )
-+        with pytest.raises(ValueError, match="claude-local"):
-+            load_human_principals(path)
-+
-+
-+class TestRegistryWithoutHumansUnchanged:
-+    def test_no_humans_block_loads_empty_list(self, tmp_path: Path) -> None:
-+        path = _write(tmp_path, AGENTS_ONLY)
-+        assert load_human_principals(path) == []
-+
-+    def test_load_agents_config_identical_with_and_without_block(
-+        self, tmp_path: Path
-+    ) -> None:
-+        without = load_agents_config(
-+            _write(tmp_path, AGENTS_ONLY), secrets_path=tmp_path / "none"
-+        )
-+        with_block = load_agents_config(
-+            _write(tmp_path, AGENTS_ONLY + HUMANS_BLOCK), secrets_path=tmp_path / "none"
-+        )
-+        assert with_block == without
-+        assert [a.name for a in with_block] == ["claude-local"]
-+
-+
-+class TestHumanNeverProjectedAsAgent:
-+    """Spec scenario: Human principal declared without agent projection."""
-+
-+    async def test_no_projection_output_contains_the_human_id(
-+        self, tmp_path: Path
-+    ) -> None:
-+        from openbao_credentials import project_principals
-+
-+        from src.agents_config import sync_profiles
-+
-+        path = _write(tmp_path, AGENTS_ONLY + HUMANS_BLOCK)
-+        agents = load_agents_config(path, secrets_path=tmp_path / "none")
-+
-+        db = FakeDb([])
-+        await sync_profiles(agents, db=db, audit=FakeAudit())
-+        topology = project_principals(
-+            {"credential_vendors": [], "agents": {a.name: {} for a in agents}}
++    def _existing(self, generation_id: Any) -> dict[str, Any] | None:
++        if generation_id is None:
++            return None
++        return next(
++            (row for row in self.rows if row.get("generation_id") == generation_id), None
 +        )
 +
-+        outputs = {
-+            "agents": agents,
-+            "profile rows": db.rows,
-+            "assignments": db.assignments,
-+            "identities": get_api_key_identities(agents),
-+            "dispatch configs": get_dispatch_configs(agents),
-+            "principals": topology,
-+        }
-+        for label, output in outputs.items():
-+            assert "jan" not in set(_strings(output)), label
++    def _append(self, data: dict[str, Any]) -> dict[str, Any]:
++        row = {"id": len(self.rows) + 1, **data}
++        row.setdefault("occurred_at", datetime.now(UTC).isoformat())
++        self.rows.append(row)
++        return row
 +
-+        (jan,) = load_human_principals(path)
-+        assert jan.name == "jan"
++    async def insert(
++        self, table: str, data: dict[str, Any], return_data: bool = True
++    ) -> dict[str, Any]:
++        assert table == "routing_spend_ledger"
++        await asyncio.sleep(0)
++        if self._existing(data.get("generation_id")) is not None:
++            raise UniqueViolationError(data["generation_id"])
++        return self._append(data)
++
++    async def rpc(self, function_name: str, params: dict[str, Any]) -> Any:
++        assert function_name == "record_spend_once"
++        await asyncio.sleep(0)
++        data = params["p_row"]
++        existing = self._existing(data.get("generation_id"))
++        if existing is not None:
++            return {"created": False, "row": existing}
++        return {"created": True, "row": self._append(data)}
 +
 +
-+class TestSchemaMirror:
-+    """Spec scenario: Schema mirror pinned (design D2)."""
++@pytest.fixture()
++def memory_db() -> _MemoryDb:
++    return _MemoryDb()
 +
-+    def test_inline_schema_equals_canonical_json_minus_metadata(self) -> None:
-+        canonical = json.loads(SCHEMA_JSON.read_text(encoding="utf-8"))
-+        stripped = {k: v for k, v in canonical.items() if k not in METADATA_KEYS}
-+        assert stripped == HUMAN_PRINCIPAL_SCHEMA
 +
-+    def test_agents_schema_references_the_inline_human_schema(self) -> None:
-+        from src.agents_config import AGENTS_SCHEMA
++@pytest.fixture()
++def client(monkeypatch: pytest.MonkeyPatch, memory_db: _MemoryDb) -> Iterator[TestClient]:
++    reset_config()
++    monkeypatch.setenv("SUPABASE_URL", "http://localhost:54321")
++    monkeypatch.setenv("SUPABASE_SERVICE_KEY", "test-service-key")
++    monkeypatch.setenv("COORDINATION_API_KEYS", _TEST_KEY)
++    monkeypatch.setenv("COORDINATION_API_KEY_IDENTITIES", "{}")
++    monkeypatch.setenv("ROUTING_MONTHLY_CEILING_USD", "10")
++    reset_config()
++    service = RoutingService(catalog=AsyncMock(), ledger=LedgerService(memory_db))
++    with patch("src.model_routing.api.get_routing_service", return_value=service):
++        yield TestClient(create_coordination_api())
++    reset_config()
 +
-+        humans = AGENTS_SCHEMA["properties"]["humans"]
-+        assert humans["type"] == "object"
-+        assert humans["additionalProperties"] == HUMAN_PRINCIPAL_SCHEMA
-+        assert "humans" not in AGENTS_SCHEMA.get("required", [])
 +
-+    def test_principal_id_key_constraint_matches_the_owners_schema(self) -> None:
-+        """The ``humans:`` key constraint lives outside the mirrored entry schema.
++def _headers() -> dict[str, str]:
++    return {"X-API-Key": _TEST_KEY}
 +
-+        Pin it to ``owners.schema.json`` ``$defs.PrincipalId``, which the skills-side
-+        reader validates human ids against, so the two readers accept the same ids.
-+        """
-+        from src.agents_config import AGENTS_SCHEMA, PRINCIPAL_ID_PATTERN
 +
-+        owners_schema = json.loads(
-+            (REPO_ROOT / "openspec" / "schemas" / "owners.schema.json").read_text(
-+                encoding="utf-8"
++def _body(**overrides: Any) -> dict[str, Any]:
++    body: dict[str, Any] = {
++        "vendor": "openrouter",
++        "model": "openai/gpt-5",
++        "endpoint_kind": "openrouter",
++        "generation_id": "gen-abc",
++        "prompt_tokens": 1200,
++        "completion_tokens": 300,
++        "actual_usd": 0.0042,
++        "tokens_estimated": False,
++        "work_unit_ref": "openrouter-review-lane:VAL_REVIEW:round-2",
++    }
++    body.update(overrides)
++    return body
++
++
++def test_spend_route_is_registered(client: TestClient) -> None:
++    paths = {
++        (method, route.path)
++        for route in client.app.routes
++        if hasattr(route, "methods")
++        for method in route.methods
++    }
++    assert ("POST", "/routing/spend") in paths
++
++
++def test_insert_returns_201_and_writes_one_row(
++    client: TestClient, memory_db: _MemoryDb
++) -> None:
++    response = client.post("/routing/spend", headers=_headers(), json=_body())
++
++    assert response.status_code == 201
++    payload = response.json()
++    assert payload["generation_id"] == "gen-abc"
++    assert payload["actual_usd"] == pytest.approx(0.0042)
++    assert len(memory_db.rows) == 1
++    row = memory_db.rows[0]
++    assert row["vendor"] == "openrouter"
++    assert row["endpoint_kind"] == "openrouter"
++    assert row["tokens_estimated"] is False
++    assert row["work_unit_ref"] == "openrouter-review-lane:VAL_REVIEW:round-2"
++
++
++def test_duplicate_generation_id_returns_200_without_second_row(
++    client: TestClient, memory_db: _MemoryDb
++) -> None:
++    first = client.post("/routing/spend", headers=_headers(), json=_body())
++    second = client.post("/routing/spend", headers=_headers(), json=_body())
++
++    assert first.status_code == 201
++    assert second.status_code == 200
++    assert second.json()["id"] == first.json()["id"]
++    assert [row["generation_id"] for row in memory_db.rows] == ["gen-abc"]
++
++
++@pytest.mark.asyncio
++async def test_concurrent_duplicate_generation_id_writes_exactly_one_row(
++    client: TestClient, memory_db: _MemoryDb
++) -> None:
++    """Concurrent posts of one generation: one 201, the rest 200, one row.
++
++    A lookup-then-insert lets every racer miss the lookup and insert; the
++    dedupe has to be decided by the database's unique index in one step.
++    """
++    transport = httpx.ASGITransport(app=client.app)
++    async with httpx.AsyncClient(transport=transport, base_url="http://test") as http:
++        responses = await asyncio.gather(
++            *(
++                http.post("/routing/spend", headers=_headers(), json=_body())
++                for _ in range(5)
 +            )
 +        )
-+        principal_id = owners_schema["$defs"]["PrincipalId"]
-+        names = AGENTS_SCHEMA["properties"]["humans"]["propertyNames"]
-+        assert principal_id["pattern"] == PRINCIPAL_ID_PATTERN == names["pattern"]
-+        assert principal_id["maxLength"] == names["maxLength"] == 64
-diff --git a/agent-coordinator/tests/test_registry_projection.py b/agent-coordinator/tests/test_registry_projection.py
-index 66475a5b..113c700f 100644
---- a/agent-coordinator/tests/test_registry_projection.py
-+++ b/agent-coordinator/tests/test_registry_projection.py
-@@ -51,9 +51,12 @@ from src.agents_config import (
-     UNMANAGED_PROFILES,
-     AgentEntry,
-     DuplicateApiKeyError,
-+    HumanEntry,
-     ProfileSyncError,
-     get_api_key_identities,
-+    get_dispatch_configs,
-     load_agents_config,
-+    load_human_principals,
-     sync_profiles,
++
++    statuses = sorted(response.status_code for response in responses)
++    assert statuses == [200, 200, 200, 200, 201]
++    assert [row["generation_id"] for row in memory_db.rows] == ["gen-abc"]
++    assert {response.json()["id"] for response in responses} == {memory_db.rows[0]["id"]}
++
++
++@pytest.mark.parametrize(
++    "headers",
++    [{}, {"X-API-Key": "wrong-key"}],
++    ids=["missing", "invalid"],
++)
++def test_unauthenticated_write_is_rejected(
++    client: TestClient, memory_db: _MemoryDb, headers: dict[str, str]
++) -> None:
++    response = client.post("/routing/spend", headers=headers, json=_body())
++
++    assert response.status_code == 401
++    assert memory_db.rows == []
++
++
++@pytest.mark.parametrize(
++    "body",
++    [
++        _body(actual_usd=-1),
++        _body(api_key="sk-should-never-be-accepted"),
++        _body(prompt_tokens=-5),
++        {key: value for key, value in _body().items() if key != "generation_id"},
++    ],
++    ids=["negative-actual-usd", "unknown-field", "negative-tokens", "missing-generation-id"],
++)
++def test_invalid_spend_is_rejected_with_422(
++    client: TestClient, memory_db: _MemoryDb, body: dict[str, Any]
++) -> None:
++    response = client.post("/routing/spend", headers=_headers(), json=body)
++
++    assert response.status_code == 422
++    assert memory_db.rows == []
++
++
++def test_usage_reflects_recorded_review_row(client: TestClient) -> None:
++    before = client.get("/routing/usage?window=month", headers=_headers())
++    assert before.status_code == 200
++    used_before = before.json()["metered_usd_used"]
++
++    posted = client.post("/routing/spend", headers=_headers(), json=_body())
++    assert posted.status_code == 201
++
++    after = client.get("/routing/usage?window=month", headers=_headers())
++    assert after.status_code == 200
++    assert after.json()["metered_usd_used"] == pytest.approx(used_before + 0.0042)
++
++
++@pytest.mark.asyncio
++async def test_find_by_generation_id_returns_row_or_none(memory_db: _MemoryDb) -> None:
++    ledger = LedgerService(memory_db)
++    assert await ledger.find_by_generation_id("gen-x&y") is None
++
++    await ledger.record(
++        {
++            "vendor": "openrouter",
++            "model": "openai/gpt-5",
++            "endpoint_kind": "openrouter",
++            "generation_id": "gen-x&y",
++            "actual_usd": 0.01,
++        }
++    )
++
++    found = await ledger.find_by_generation_id("gen-x&y")
++    assert found is not None
++    assert found["generation_id"] == "gen-x&y"
++    assert await ledger.find_by_generation_id("gen-other") is None
+diff --git a/agent-coordinator/tests/openapi_contract_drift_baseline.yaml b/agent-coordinator/tests/openapi_contract_drift_baseline.yaml
+index b14276a8..eb13d505 100644
+--- a/agent-coordinator/tests/openapi_contract_drift_baseline.yaml
++++ b/agent-coordinator/tests/openapi_contract_drift_baseline.yaml
+@@ -30,6 +30,9 @@ uncontracted_routes:
+   - route: POST /routing/feedback
+     finding: served but not contracted
+     reason: Same as GET /routing/catalog — archived change, routing contract never promoted.
++  - route: POST /routing/spend
++    finding: served but not contracted
++    reason: Added by in-flight openrouter-review-lane (task 4.2); the routing contract is still unpromoted (see GET /routing/catalog). Resolves when the routing contract is promoted.
+   - route: POST /routing/select_model
+     finding: served but not contracted
+     reason: Same as GET /routing/catalog; implement-the-task-router-vendor-x-location-x-model also extends it in flight.
+diff --git a/agent-coordinator/tests/test_agents_config.py b/agent-coordinator/tests/test_agents_config.py
+index b3bc4e64..3079d355 100644
+--- a/agent-coordinator/tests/test_agents_config.py
++++ b/agent-coordinator/tests/test_agents_config.py
+@@ -814,6 +814,10 @@ CLOUD_ROSTER_PROVIDER_KEYS = frozenset(
+     {"claude_code", "codex", "antigravity", "grok", "pi"}
  )
- from src.config import reset_config
-@@ -774,3 +777,113 @@ def test_openbao_topology_matches_bundled_registry() -> None:
-     keyed = {agent.name for agent in load_agents_config() if agent.api_key}
-     projected = {p.name for p in topology.principals if p.kind == "agent"}
-     assert keyed == projected
+ ROSTER_PROVIDER_KEYS = CLOUD_ROSTER_PROVIDER_KEYS | {"local"}
++# Endpoint-only review-lane providers (openrouter-review-lane D1). They live
++# in archetypes.yaml model_aliases but are not first-class harness providers,
++# so DEFAULT_PROVIDER_MODEL_MAP does not carry them.
++REVIEW_LANE_PROVIDER_KEYS = frozenset({"openrouter"})
+ BASE_MODEL_TIERS = frozenset({"premium", "standard", "economy"})
+ 
+ 
+@@ -1413,7 +1417,9 @@ class TestExistingProvidersAreByteIdentical:
+         existing_providers = sorted(
+             p for p in raw["model_aliases"] if p != LOCAL_PROVIDER
+         )
+-        assert set(existing_providers) == set(CLOUD_ROSTER_PROVIDER_KEYS)
++        assert set(existing_providers) == set(
++            CLOUD_ROSTER_PROVIDER_KEYS | REVIEW_LANE_PROVIDER_KEYS
++        )
+ 
+         # "Before": the same config with the local roster + host class removed.
+         del raw["model_aliases"][LOCAL_PROVIDER]
+@@ -1680,3 +1686,133 @@ def test_bao_mode_ignores_explicit_static_identity_override(
+     config = ApiConfig.from_env()
+     assert config.api_keys == ["static-key"]  # preserved for cutover preflight
+     assert config.api_key_identities == {}
 +
 +
 +# ---------------------------------------------------------------------------
-+# Rule 6 — human principals are never projected as agents (ownership-map, D1/D12)
++# openrouter-review lane roster (openrouter-review-lane, task 2.1 / design D1)
 +# ---------------------------------------------------------------------------
 +
 +
-+def _strings_in(obj: Any) -> set[str]:
-+    """Every string reachable in *obj* (dataclasses, mappings, sequences)."""
-+    import dataclasses
++class TestOpenRouterReviewLane:
++    """The endpoint-only OpenRouter reviewer agent in the real agents.yaml."""
 +
-+    found: set[str] = set()
-+    if isinstance(obj, str):
-+        found.add(obj)
-+    elif dataclasses.is_dataclass(obj) and not isinstance(obj, type):
-+        for f in dataclasses.fields(obj):
-+            found |= _strings_in(getattr(obj, f.name))
-+    elif isinstance(obj, dict):
-+        for key, value in obj.items():
-+            found |= _strings_in(key) | _strings_in(value)
-+    elif isinstance(obj, (list, tuple, set, frozenset)):
-+        for item in obj:
-+            found |= _strings_in(item)
-+    elif hasattr(obj, "to_dict"):
-+        found |= _strings_in(obj.to_dict())
-+    return found
++    @staticmethod
++    def _lane() -> AgentEntry:
++        entries = load_agents_config()
++        matches = [e for e in entries if e.name == "openrouter-review"]
++        assert len(matches) == 1, "agents.yaml must declare exactly one openrouter-review"
++        return matches[0]
++
++    def test_endpoint_only_reviewer_shape(self) -> None:
++        lane = self._lane()
++        assert lane.type == "openrouter"
++        assert lane.endpoint_kind == "openrouter"
++        assert lane.base_url == "https://openrouter.ai/api/v1"
++        assert lane.cli is None
++        assert lane.sdk is None
++        assert lane.archetypes == ["reviewer"]
++        # Keyless: the OpenBao topology projection rejects a keyless agent
++        # that declares vendor_credentials (no principal can hold them). The
++        # dispatcher reads credential scopes only for agents with a
++        # principal, and falls back to OPENROUTER_API_KEY for this lane.
++        assert lane.vendor_credentials == ()
++        assert lane.location == "cloud"
++        assert lane.transport == "http"
++
++    def test_lane_has_no_coordinator_identity(self) -> None:
++        # D1: no api_key — the lane never calls the coordinator as itself.
++        assert self._lane().api_key is None
++
++    def test_lane_type_is_unique_lane_id(self) -> None:
++        # converge() keys checkpointed results by vendor (= agent type).
++        types = [e.type for e in load_agents_config() if e.endpoint_kind == "openrouter"]
++        assert types.count("openrouter") == 1
++
++    def test_dispatch_configs_emit_lane(self) -> None:
++        from src.agents_config import get_dispatch_configs
++
++        configs = get_dispatch_configs(load_agents_config())["agents"]
++        lane = next(c for c in configs if c["agent_id"] == "openrouter-review")
++        assert lane["type"] == "openrouter"
++        assert lane["endpoint_kind"] == "openrouter"
++        assert lane["base_url"] == "https://openrouter.ai/api/v1"
++        assert lane["cli"] is None
++        assert lane["sdk"] is None
++        assert not lane.get("vendor_credentials")
++        assert lane["principal_id"] is None
 +
 +
-+def _human_projection_violations(
-+    humans: list[HumanEntry],
-+    *,
-+    rows: list[dict[str, Any]],
-+    assignments: list[dict[str, Any]],
-+    identities: dict[str, dict[str, str]],
-+    dispatch: dict[str, Any],
-+    principals: Any,
-+) -> list[str]:
-+    """Rule 6 — no human id appears in any agent runtime projection."""
-+    surfaces: dict[str, Any] = {
-+        "agent_profiles rows": rows,
-+        "agent_profile_assignments": assignments,
-+        "API-key identity map": identities,
-+        "dispatch configs": dispatch,
-+        "OpenBao principal projection": principals,
-+    }
-+    violations: list[str] = []
-+    for human in humans:
-+        for label, surface in surfaces.items():
-+            if human.name in _strings_in(surface):
-+                violations.append(
-+                    f"human principal {human.name!r} appears in the {label} — humans "
-+                    f"are principals, not agents, and must never be projected."
-+                )
-+    return violations
++class TestMeteredCloudCostTier:
++    """routing.yaml must rank a cloud OpenRouter agent (design D1)."""
++
++    def test_cloud_openrouter_has_a_cost_tier(self) -> None:
++        from src.model_routing.routing_policy import load_routing_policy
++
++        policy = load_routing_policy()
++        tier = policy.cost_tier("cloud", "openrouter")
++        assert tier is not None
++        assert tier[1] == "metered-api-cloud"
++
++    def test_cloud_metered_tier_is_last_rung(self) -> None:
++        from src.model_routing.routing_policy import load_routing_policy
++
++        policy = load_routing_policy()
++        tiers = policy.document.cost_policy.tiers
++        cloud = policy.cost_tier("cloud", "openrouter")
++        assert cloud is not None
++        assert cloud[0] == len(tiers) - 1
++
++    def test_local_openrouter_stays_metered_api(self) -> None:
++        from src.model_routing.routing_policy import load_routing_policy
++
++        tier = load_routing_policy().cost_tier("local", "openrouter")
++        assert tier is not None
++        assert tier[1] == "metered-api"
++
++    def test_cloud_metered_tier_cannot_outrank_subscription(self, tmp_path: Path) -> None:
++        import yaml
++
++        from src.model_routing.routing_policy import load_routing_policy
++
++        source = Path(__file__).resolve().parent.parent / "routing.yaml"
++        raw = yaml.safe_load(source.read_text())
++        tiers = raw["cost_policy"]["tiers"]
++        cloud = next(t for t in tiers if t["id"] == "metered-api-cloud")
++        tiers.remove(cloud)
++        tiers.insert(0, cloud)
++        path = tmp_path / "routing.yaml"
++        path.write_text(yaml.safe_dump(raw))
++        with pytest.raises(ValueError, match="cost tiers must follow"):
++            load_routing_policy(path)
++
++    def test_provenance_response_admits_every_cost_tier_id(self) -> None:
++        # Every id the policy can return must survive the API response model.
++        import typing
++
++        from src.model_routing.api import RoutingProvenanceResponse
++        from src.model_routing.routing_policy import load_routing_policy
++
++        annotation = RoutingProvenanceResponse.model_fields["cost_tier"].annotation
++        literal = next(a for a in typing.get_args(annotation) if a is not type(None))
++        allowed = set(typing.get_args(literal))
++        ids = {tier.id for tier in load_routing_policy().document.cost_policy.tiers}
++        assert ids <= allowed
 +
 +
-+class TestHumanProjectionInvariant:
-+    """Rule 6, against the real registry and against a broken world."""
++class TestCatalogVendorStaysUnambiguous:
++    """The lane shares catalog vendor `openrouter` with pi-local (design D1).
 +
-+    async def test_no_declared_human_is_projected_as_an_agent(
-+        self, registry: list[AgentEntry]
-+    ) -> None:
-+        from openbao_credentials import project_principals
++    A routed selection naming catalog vendor `openrouter` must still map to
++    the pi harness: the endpoint-only lane has no CLI/SDK to dispatch a
++    routed task to, so it does not make the vendor ambiguous.
++    """
 +
-+        db = await _synced_db(registry)
-+        violations = _human_projection_violations(
-+            load_human_principals(),
-+            rows=db.rows,
-+            assignments=db.assignments,
-+            identities=get_api_key_identities(registry),
-+            dispatch=get_dispatch_configs(registry),
-+            principals=project_principals(
-+                {
-+                    "credential_vendors": ["anthropic", "openai", "openrouter", "xai"],
-+                    "agents": {a.name: {} for a in registry},
-+                }
-+            ),
-+        )
-+        assert not violations, _report(violations)
++    def test_openrouter_catalog_vendor_maps_to_pi(self) -> None:
++        from src.agents_config import _provider_for_catalog_vendor
 +
-+    async def test_human_named_profile_row_is_reported(
-+        self, registry: list[AgentEntry]
-+    ) -> None:
-+        """Negative: inject a human-named profile row and the checker fires."""
-+        jan = HumanEntry(name="jan", display_name="Jan Neumann")
-+        db = await _synced_db(registry)
-+        rows = [*db.rows, _row("jan", agent_type="human", trust_level=2)]
-+        violations = _human_projection_violations(
-+            [jan],
-+            rows=rows,
-+            assignments=db.assignments,
-+            identities={},
-+            dispatch={},
-+            principals=None,
-+        )
-+        assert any("'jan'" in v and "agent_profiles rows" in v for v in violations), (
-+            _report(violations)
-+        )
++        assert _provider_for_catalog_vendor("openrouter") == "pi"
 +
-+    def test_human_named_assignment_is_reported(self) -> None:
-+        jan = HumanEntry(name="jan", display_name="Jan Neumann")
-+        violations = _human_projection_violations(
-+            [jan],
-+            rows=[],
-+            assignments=[_assignment("jan", "claude_code_local")],
-+            identities={},
-+            dispatch={},
-+            principals=None,
-+        )
-+        assert any("agent_profile_assignments" in v for v in violations)
-diff --git a/docs/architecture-analysis/contracts-inventory.md b/docs/architecture-analysis/contracts-inventory.md
-index 6c4eb00f..a899a5fa 100644
---- a/docs/architecture-analysis/contracts-inventory.md
-+++ b/docs/architecture-analysis/contracts-inventory.md
-@@ -3,7 +3,7 @@
- <!-- This file is generated by a project-context producer. Edit prose outside the generated markers only; content inside the markers is overwritten on regeneration. -->
++    def test_pi_catalog_vendor_is_still_openrouter(self) -> None:
++        from src.agents_config import _catalog_vendor_for_provider
++
++        assert _catalog_vendor_for_provider("pi") == "openrouter"
+diff --git a/agent-coordinator/tests/test_archetypes_yaml.py b/agent-coordinator/tests/test_archetypes_yaml.py
+index c108358f..ffede639 100644
+--- a/agent-coordinator/tests/test_archetypes_yaml.py
++++ b/agent-coordinator/tests/test_archetypes_yaml.py
+@@ -369,3 +369,27 @@ def test_installed_schema_accepts_every_known_mode() -> None:
+         raw = _raw()
+         raw["archetypes"]["runner"]["procedure_mode"] = mode
+         validate(instance=raw, schema=_installed_schema())
++
++
++# ---------------------------------------------------------------------------
++# openrouter-review-lane task 2.1 — the `openrouter` provider tier map
++# ---------------------------------------------------------------------------
++
++
++@pytest.mark.parametrize("tier", ["premium", "standard", "economy"])
++def test_openrouter_provider_resolves_non_anthropic_slug(
++    tier: str, _load_real_config: None,
++) -> None:
++    spec = resolve_provider_model_spec(tier, provider="openrouter")
++    publisher, sep, model = spec.model.partition("/")
++    assert sep == "/" and publisher and model, (
++        f"openrouter {tier} slug must be <publisher>/<model>, got {spec.model!r}"
++    )
++    assert publisher != "anthropic"
++
++
++def test_openrouter_provider_declares_no_anthropic_model() -> None:
++    entries = _raw()["model_aliases"]["openrouter"]
++    for tier, entry in entries.items():
++        model = entry["model"] if isinstance(entry, dict) else entry
++        assert not model.startswith("anthropic/"), (tier, model)
+diff --git a/agent-coordinator/tests/test_migrations.py b/agent-coordinator/tests/test_migrations.py
+index 8eeaef90..77ecaf2a 100644
+--- a/agent-coordinator/tests/test_migrations.py
++++ b/agent-coordinator/tests/test_migrations.py
+@@ -405,3 +405,24 @@ def test_migration_044_persists_retention_and_nullable_selection() -> None:
+         in sql
+     )
+     assert "GRANT EXECUTE ON FUNCTION record_routing_decision_with_audit(JSONB, JSONB)" in sql
++
++
++def test_migration_046_makes_spend_generation_id_dedupe_atomic() -> None:
++    sql = (
++        _COORDINATOR_ROOT / "database/migrations/046_spend_generation_id_unique.sql"
++    ).read_text()
++
++    # Pre-existing duplicates are collapsed to the earliest row first, or the
++    # unique index could not be built on a ledger the old race already hit.
++    dedupe = sql.index("DELETE FROM routing_spend_ledger")
++    index = sql.index("CREATE UNIQUE INDEX IF NOT EXISTS uq_spend_ledger_generation_id")
++    assert dedupe < index
++    assert "later.id > earlier.id" in sql
++    assert "WHERE generation_id IS NOT NULL;" in sql
++    assert "CREATE OR REPLACE FUNCTION record_spend_once(p_row JSONB)" in sql
++    assert "RETURNS JSONB" in sql
++    assert "ON CONFLICT (generation_id) WHERE generation_id IS NOT NULL DO NOTHING" in sql
++    assert "SECURITY INVOKER" in sql
++    assert "SET search_path = public, pg_temp" in sql
++    assert "REVOKE ALL ON FUNCTION record_spend_once(JSONB) FROM PUBLIC" in sql
++    assert "GRANT EXECUTE ON FUNCTION record_spend_once(JSONB) TO service_role" in sql
+diff --git a/agent-coordinator/tests/test_vendor_registry.py b/agent-coordinator/tests/test_vendor_registry.py
+index 172840ad..07990dbf 100644
+--- a/agent-coordinator/tests/test_vendor_registry.py
++++ b/agent-coordinator/tests/test_vendor_registry.py
+@@ -436,6 +436,49 @@ async def test_openrouter_lane_projects_despite_publisher_vendor_and_base_url_mi
+     ]
  
- <!-- GENERATED: begin contracts-inventory -->
--_22 contract schema(s). Generated by api.contracts@1.0.0._
-+_23 contract schema(s). Generated by api.contracts@1.0.0._
  
- | Capability | Schema | `$id` |
- | --- | --- | --- |
-@@ -12,6 +12,7 @@ _22 contract schema(s). Generated by api.contracts@1.0.0._
- | `gen-eval-framework` | `openspec/contracts/gen-eval-framework/schemas/cli-contract.schema.json` | `https://raw.githubusercontent.com/jankneumann/agentic-coding-tools/main/openspec/contracts/gen-eval-framework/schemas/cli-contract.schema.json` |
- | `gen-eval-framework` | `openspec/contracts/gen-eval-framework/schemas/traceability-exclusions.schema.json` | `https://raw.githubusercontent.com/jankneumann/agentic-coding-tools/main/openspec/contracts/gen-eval-framework/schemas/traceability-exclusions.schema.json` |
- | `gen-eval-framework` | `openspec/contracts/gen-eval-framework/schemas/traceability.schema.json` | `https://raw.githubusercontent.com/jankneumann/agentic-coding-tools/main/openspec/contracts/gen-eval-framework/schemas/traceability.schema.json` |
-+| `multiplayer-simulation` | `openspec/contracts/multiplayer-simulation/schemas/sim-report.schema.json` | `https://raw.githubusercontent.com/jankneumann/agentic-coding-tools/main/openspec/contracts/multiplayer-simulation/schemas/sim-report.schema.json` |
- | `phase-record` | `openspec/contracts/phase-record/schemas/handoff-local-fallback.schema.json` | `https://github.com/jankneumann/agentic-coding-tools/openspec/changes/phase-record-compaction/contracts/schemas/handoff-local-fallback.schema.json` |
- | `phase-record` | `openspec/contracts/phase-record/schemas/phase-record.schema.json` | `https://github.com/jankneumann/agentic-coding-tools/openspec/changes/phase-record-compaction/contracts/schemas/phase-record.schema.json` |
- | `project-context-refresh` | `openspec/contracts/project-context-refresh/schemas/context-checkpoint.schema.json` | `https://agentic-coding-tools.dev/schemas/context-checkpoint.schema.json` |
-diff --git a/docs/architecture-analysis/skills-inventory.md b/docs/architecture-analysis/skills-inventory.md
-index b7c3941e..5ec0a779 100644
---- a/docs/architecture-analysis/skills-inventory.md
-+++ b/docs/architecture-analysis/skills-inventory.md
-@@ -3,7 +3,7 @@
- <!-- This file is generated by a project-context producer. Edit prose outside the generated markers only; content inside the markers is overwritten on regeneration. -->
- 
- <!-- GENERATED: begin skills-inventory -->
--_76 skills. Generated by documentation.inventory@1.0.0._
-+_77 skills. Generated by documentation.inventory@1.0.0._
- 
- | Skill | User-invocable | Description |
- | --- | --- | --- |
-@@ -48,6 +48,7 @@ _76 skills. Generated by documentation.inventory@1.0.0._
- | `obsidian-bases` | no | Create and edit Obsidian Bases (.base files) with views, filters, formulas, and summaries. Use when working with .base files, creating database-like views of notes, or when the user mentions Bases, table views, card views, filters, or formulas in Obsidian. |
- | `obsidian-cli` | no | Interact with Obsidian vaults using the Obsidian CLI to read, create, search, and manage notes, tasks, properties, and more. Also supports plugin and theme development with commands to reload plugins, run JavaScript, capture errors, take screenshots, and inspect the DOM. Use when the user asks to interact with their Obsidian vault, manage notes, search vault content, perform vault operations from the command line, or develop and debug Obsidian plugins and themes. |
- | `obsidian-markdown` | no | Create and edit Obsidian Flavored Markdown with wikilinks, embeds, callouts, properties, and other Obsidian-specific syntax. Use when working with .md files in Obsidian, or when the user mentions wikilinks, callouts, frontmatter, tags, embeds, or Obsidian notes. |
-+| `ownership-runtime` | no | Git-native ownership map resolver, check and CODEOWNERS projection: who owns a capability, roadmap item or path |
- | `parallel-infrastructure` | no | Shared parallel execution infrastructure: DAG scheduling, review dispatch, consensus synthesis, scope checking |
- | `parallel-review-implementation` | no | Per-package implementation review producing structured findings per review-findings.schema.json |
- | `parallel-review-plan` | no | Independent plan review producing structured findings per review-findings.schema.json |
++@pytest.mark.asyncio
++async def test_endpoint_only_review_lane_projects_without_cli_or_sdk() -> None:
++    """openrouter-review-lane task 2.3: the shipped openrouter-review agent has
++    no cli and no sdk block. Its models must still come from the provider map
++    (model_aliases.openrouter) and price against catalog rows, and the lane
++    stays dispatchable over its http transport with no CLI dispatch modes."""
++    from src.agents_config import get_provider_model_map, load_agents_config
++
++    lane_agent = next(a for a in load_agents_config() if a.name == "openrouter-review")
++    assert lane_agent.cli is None and lane_agent.sdk is None
++    provider = get_provider_model_map()["providers"]["openrouter"]
++    slugs = sorted(
++        {value["model"] if isinstance(value, dict) else value for value in provider.values()}
++    )
++    rows = [
++        {
++            "vendor": slug.split("/", 1)[0],
++            "model": slug,
++            "endpoint_kind": "openrouter",
++            "base_url": "https://openrouter.ai/api/v1",
++            "prompt_usd_per_mtok": 1.0,
++            "completion_usd_per_mtok": 2.0,
++            "refreshed_at": NOW.isoformat(),
++            "available": True,
++            "stale": False,
++        }
++        for slug in slugs
++    ]
++    service = VendorRegistryService(
++        _db({"model_catalog": rows}), agents=[lane_agent], now_fn=lambda: NOW
++    )
++
++    lane = (await service.list_vendors(archetype="reviewer", location="cloud"))[0]
++
++    assert lane["agent_id"] == "openrouter-review"
++    assert lane["vendor_type"] == "openrouter"
++    assert lane["dispatchable"] is True
++    assert lane["dispatch_modes"] == []
++    assert lane["cost"]["known"] is True
++    assert lane["cost"]["misses"] == []
++    assert sorted(model["model"] for model in lane["cost"]["models"]) == slugs
++
++
+ @pytest.mark.asyncio
+ async def test_ambiguous_catalog_model_makes_whole_projection_unknown_and_audits() -> None:
+     exact = {
 diff --git a/docs/decisions/README.md b/docs/decisions/README.md
-index a0526a7a..acd02fae 100644
+index 84d431c3..dd5c7f7a 100644
 --- a/docs/decisions/README.md
 +++ b/docs/decisions/README.md
-@@ -40,7 +40,11 @@ CI verifies the index is fresh by re-running `make decisions` and failing on any
- - [merge-infrastructure](./merge-infrastructure.md)
- - [merge-pull-requests](./merge-pull-requests.md)
- - [model-routing](./model-routing.md)
-+- [multiplayer-collaboration](./multiplayer-collaboration.md)
-+- [multiplayer-simulation](./multiplayer-simulation.md)
+@@ -45,6 +45,7 @@ CI verifies the index is fresh by re-running `make decisions` and failing on any
+ - [multiplayer-simulation](./multiplayer-simulation.md)
  - [observability](./observability.md)
-+- [ownership-map](./ownership-map.md)
+ - [ownership-map](./ownership-map.md)
 +- [parallel-infrastructure](./parallel-infrastructure.md)
  - [project-context-refresh](./project-context-refresh.md)
  - [project-context-refresh-orchestration](./project-context-refresh-orchestration.md)
  - [review-convergence-safety](./review-convergence-safety.md)
-@@ -51,6 +55,7 @@ CI verifies the index is fresh by re-running `make decisions` and failing on any
- - [skill-workflow](./skill-workflow.md)
- - [software-factory-tooling](./software-factory-tooling.md)
- - [supervise](./supervise.md)
-+- [toolkit-distribution](./toolkit-distribution.md)
- - [trust-posture](./trust-posture.md)
- - [validate-feature-ephemeral](./validate-feature-ephemeral.md)
- - [worktree](./worktree.md)
-diff --git a/docs/decisions/agent-identity.md b/docs/decisions/agent-identity.md
-index 9c7239ea..037c4570 100644
---- a/docs/decisions/agent-identity.md
-+++ b/docs/decisions/agent-identity.md
-@@ -5,6 +5,39 @@
- 
- ---
- 
-+## 2026-10-05 — 2026-10-10-ownership-map
-+
-+### Phase: Plan
-+
-+**Human principals live in a `humans:` block of agents.yaml, share the agent namespace, and are never projected into agent runtime state** — Honors the no-parallel-registry constraint while keeping 'humans are not agents' structural; collisions are load errors; load_agents_config() keeps its return type.
-+
-+- Status: `active`
-+- Source: [openspec/changes/archive/2026-10-10-ownership-map/session-log.md](/openspec/changes/archive/2026-10-10-ownership-map/session-log.md) (D1)
-+
-+---
-+
-+## 2026-10-05 — 2026-10-10-ownership-map
-+
-+### Phase: Plan
-+
-+**One human-principal shape, two validators pinned equal by test** — The coordinator cannot read openspec/ at runtime and skills cannot import src.agents_config; a test asserts the inline dict equals openspec/schemas/human-principals.schema.json.
-+
-+- Status: `active`
-+- Source: [openspec/changes/archive/2026-10-10-ownership-map/session-log.md](/openspec/changes/archive/2026-10-10-ownership-map/session-log.md) (D2)
-+
-+---
-+
-+## 2026-10-05 — 2026-10-10-ownership-map
-+
-+### Phase: Plan Iteration 1
-+
-+**D5 drops email-to-human matching; the registry `email` field is declared for ri-03 and not consumed by ri-02, and is optional PII** — Step 1 fires whenever exactly one human is declared and two or more without a map is an error, so the match step was unreachable. Keeping the field optional preserves the schema contract later items build on.
-+
-+- Status: `active`
-+- Source: [openspec/changes/archive/2026-10-10-ownership-map/session-log.md](/openspec/changes/archive/2026-10-10-ownership-map/session-log.md) (D6)
-+
-+---
-+
- ## 2026-09-25 — 2026-09-25-restructure-openbao-per-agent-secrets
- 
- ### Phase: Implementation
 diff --git a/docs/decisions/model-routing.md b/docs/decisions/model-routing.md
 index c4afd2e7..ac869d5b 100644
 --- a/docs/decisions/model-routing.md
@@ -790,443 +1276,6 @@ index c4afd2e7..ac869d5b 100644
  ## 2026-09-24 — 2026-09-27-retain-static-model-until-routing-evidence
  
  ### Phase: Implementation
-diff --git a/docs/decisions/multiplayer-collaboration.md b/docs/decisions/multiplayer-collaboration.md
-new file mode 100644
-index 00000000..73b188fe
---- /dev/null
-+++ b/docs/decisions/multiplayer-collaboration.md
-@@ -0,0 +1,37 @@
-+# Architectural Decisions — multiplayer-collaboration
-+
-+> Reverse-chronological timeline of decisions tagged `architectural: multiplayer-collaboration` in session-log Phase Entries.
-+> Generated by `make decisions` — do not edit manually.
-+
-+---
-+
-+## 2026-10-09 — 2026-10-10-multiplayer-principles-guide
-+
-+### Phase: Implementation
-+
-+**Commit 1.2 after the guide** — Registering the test dir in testpaths before the guide exists would turn the default sweep red (Implementation Rule 2).
-+
-+- Status: `active`
-+- Source: [openspec/changes/archive/2026-10-10-multiplayer-principles-guide/session-log.md](/openspec/changes/archive/2026-10-10-multiplayer-principles-guide/session-log.md) (D1)
-+
-+---
-+
-+## 2026-10-09 — 2026-10-10-multiplayer-principles-guide
-+
-+### Phase: Implementation
-+
-+**Carry-forward fixes in design.md** — Added attention-budgets-digests to D3 P10 row; noted the Modes definitions have no test scenario and are checked in review.
-+
-+- Status: `active`
-+- Source: [openspec/changes/archive/2026-10-10-multiplayer-principles-guide/session-log.md](/openspec/changes/archive/2026-10-10-multiplayer-principles-guide/session-log.md) (D2)
-+
-+---
-+
-+## 2026-10-06 — 2026-10-10-multiplayer-principles-guide
-+
-+### Phase: Plan Iteration 1
-+
-+**Register the guard-test directory in skills/pyproject.toml testpaths** — tests/ci_coverage/test_ci_test_coverage.py fails for any test directory CI does not reach, and running the directory by name bypasses testpaths, so the gap is invisible locally. Added as requirement 'Guard test runs in the default CI sweep' and task 1.2.
-+
-+- Status: `active`
-+- Source: [openspec/changes/archive/2026-10-10-multiplayer-principles-guide/session-log.md](/openspec/changes/archive/2026-10-10-multiplayer-principles-guide/session-log.md) (D6)
-diff --git a/docs/decisions/multiplayer-simulation.md b/docs/decisions/multiplayer-simulation.md
-new file mode 100644
-index 00000000..2e33b8c7
---- /dev/null
-+++ b/docs/decisions/multiplayer-simulation.md
-@@ -0,0 +1,147 @@
-+# Architectural Decisions — multiplayer-simulation
-+
-+> Reverse-chronological timeline of decisions tagged `architectural: multiplayer-simulation` in session-log Phase Entries.
-+> Generated by `make decisions` — do not edit manually.
-+
-+---
-+
-+## 2026-10-09 — 2026-10-10-multiplayer-simulation-harness
-+
-+### Phase: Implementation
-+
-+**Agent.act takes (world, step, tick) and returns declared transitions** — Ledger 12. on_start data is read via declared_transitions(step, 'start') because it applies before the step runs; act returns the on_finish ones.
-+
-+- Status: `active`
-+- Source: [openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/session-log.md](/openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/session-log.md) (D2)
-+
-+---
-+
-+## 2026-10-09 — 2026-10-10-multiplayer-simulation-harness
-+
-+### Phase: Implementation
-+
-+**Scheduler fast-forwards to the tick budget when nothing is running** — If no step is running and nobody was admitted, main cannot change again, so the result equals running idle ticks; it keeps blocked-budget runs fast.
-+
-+- Status: `active`
-+- Source: [openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/session-log.md](/openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/session-log.md) (D3)
-+
-+---
-+
-+## 2026-10-09 — 2026-10-10-multiplayer-simulation-harness
-+
-+### Phase: Implementation
-+
-+**gen-eval pack test asserts scenario count and absence of 'Invalid scenario'** — gen-eval silently skips scenarios that fail to load (missing description), so the pass alone is not evidence.
-+
-+- Status: `active`
-+- Source: [openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/session-log.md](/openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/session-log.md) (D4)
-+
-+---
-+
-+## 2026-10-05 — 2026-10-10-multiplayer-simulation-harness
-+
-+### Phase: Plan Iteration 1
-+
-+**New capability multiplayer-simulation instead of the multiplayer-collaboration placeholder** — About 19 sibling deltas target the multiplayer-collaboration placeholder. Putting harness requirements there would mix test-harness content with collaboration behaviour, and would itself create the same-requirement collision the roadmap is trying to surface. This was an autonomous resolution of an assumptions finding.
-+
-+- Status: `active`
-+- Source: [openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/session-log.md](/openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/session-log.md) (D1)
-+
-+---
-+
-+## 2026-10-05 — 2026-10-10-multiplayer-simulation-harness
-+
-+### Phase: Plan Iteration 2
-+
-+**Roadmap status transitions are fixture data (on_start/on_finish set_status)** — Keeps the promise that ri-11 flips the blocked-time metric with fixture and rule changes only. Emitting contract_complete would otherwise need an edit to the harness agent.
-+
-+- Status: `active`
-+- Source: [openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/session-log.md](/openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/session-log.md) (D1)
-+
-+---
-+
-+## 2026-10-05 — 2026-10-10-multiplayer-simulation-harness
-+
-+### Phase: Plan Iteration 3
-+
-+**Lift D5's fixture-data transitions and intra-tick ordering into the requirement text** — The pinned blocked_ticks baseline and ri-11's no-harness-edit flip both depend on these rules. As design-only notes they were not part of the contract that downstream changes and validators read.
-+
-+- Status: `active`
-+- Source: [openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/session-log.md](/openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/session-log.md) (D1)
-+
-+---
-+
-+## 2026-10-05 — 2026-10-10-multiplayer-simulation-harness
-+
-+### Phase: Plan Review
-+
-+**Readiness reads roadmap.yaml from origin/main via a status applier** — Operator decision A1: mirrors the real supervisor/worker split; principals report transitions, sim-supervisor commits them to main.
-+
-+- Status: `active`
-+- Source: [openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/session-log.md](/openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/session-log.md) (D1)
-+
-+---
-+
-+## 2026-10-05 — 2026-10-10-multiplayer-simulation-harness
-+
-+### Phase: Plan Iteration 1
-+
-+**Harness at skills/tests/multiplayer-simulation, with gen-eval added to the skills test extra** — The systems under test (roadmap-runtime, and later the plan-feature scanner) live in skills/. skills/tests is not shipped by install.sh. A scratch uv lock with gen-eval as a path dependency resolved 56 packages.
-+
-+- Status: `active`
-+- Source: [openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/session-log.md](/openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/session-log.md) (D2)
-+
-+---
-+
-+## 2026-10-05 — 2026-10-10-multiplayer-simulation-harness
-+
-+### Phase: Plan Iteration 2
-+
-+**Fixed intra-tick order: finishers push, then waiters evaluate readiness, then admitted principals start** — The pinned blocked_ticks value depends on the order. Under this order, a dependency completed at tick t admits its dependent at tick t.
-+
-+- Status: `active`
-+- Source: [openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/session-log.md](/openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/session-log.md) (D2)
-+
-+---
-+
-+## 2026-10-05 — 2026-10-10-multiplayer-simulation-harness
-+
-+### Phase: Plan Review
-+
-+**Error reports relax principals/timeline via if/then** — Ledger item 3: a git failure before the world exists must still yield a schema-valid exit-1 report.
-+
-+- Status: `active`
-+- Source: [openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/session-log.md](/openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/session-log.md) (D2)
-+
-+---
-+
-+## 2026-10-05 — 2026-10-10-multiplayer-simulation-harness
-+
-+### Phase: Plan Iteration 1
-+
-+**Collision detection via a CollisionProbe seam plus a ground-truth fixture oracle** — No plan-time requirement-collision detector exists. The seam lets ri-06 attach its scanner without the harness fixing ri-06's interface. The oracle stops a broken fixture from making 'not detected' vacuously true.
-+
-+- Status: `active`
-+- Source: [openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/session-log.md](/openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/session-log.md) (D3)
-+
-+---
-+
-+## 2026-10-05 — 2026-10-10-multiplayer-simulation-harness
-+
-+### Phase: Plan Iteration 1
-+
-+**Blocked time measured in logical ticks with the real Roadmap.ready_items admission rule** — Ticks are deterministic, so exact baselines can be pinned. Using the real rule means ri-11's rule and schema change moves the metric without any edit to the harness code.
-+
-+- Status: `active`
-+- Source: [openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/session-log.md](/openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/session-log.md) (D4)
-+
-+---
-+
-+## 2026-10-05 — 2026-10-10-multiplayer-simulation-harness
-+
-+### Phase: Plan Iteration 1
-+
-+**Pinned baselines live in gen-eval scenario YAML, and flips are reviewed expectation edits** — The driver measures and the scenario decides what is expected. ri-06 and ri-11 flip a value in their own PRs, which keeps the before/after visible in review.
-+
-+- Status: `active`
-+- Source: [openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/session-log.md](/openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/session-log.md) (D5)
-diff --git a/docs/decisions/ownership-map.md b/docs/decisions/ownership-map.md
-new file mode 100644
-index 00000000..f0f0859d
---- /dev/null
-+++ b/docs/decisions/ownership-map.md
-@@ -0,0 +1,235 @@
-+# Architectural Decisions — ownership-map
-+
-+> Reverse-chronological timeline of decisions tagged `architectural: ownership-map` in session-log Phase Entries.
-+> Generated by `make decisions` — do not edit manually.
-+
-+---
-+
-+## 2026-10-09 — 2026-10-10-ownership-map
-+
-+### Phase: Plan Review
-+
-+**Degradation single_vendor_review recorded: phase PLAN_REVIEW, vendor claude_code only; converge() ran with min_quorum=1** — Operator-committed policy for cloud containers (TRUST_POSTURE.md section 'Review quorum in cloud containers (temporary)', commit 479dcd9; gate-decision:f24d569f-0e1f-4378-89d5-4617d7e4bcf5). Discovery selected claude_code (Tier 1 CLI, claude-local) and codex (Tier 2 SDK, codex-remote); codex dispatch failed with 'No API key available for SDK dispatch' (auth_required), which is the expected verification that no second lane exists here. No environment variables, credentials or key files were read to probe vendors. Consensus therefore has quorum_received 1 of 2 requested; every finding is unconfirmed single-vendor opinion.
-+
-+- Status: `active`
-+- Source: [openspec/changes/archive/2026-10-10-ownership-map/session-log.md](/openspec/changes/archive/2026-10-10-ownership-map/session-log.md) (D1)
-+
-+---
-+
-+## 2026-10-09 — 2026-10-10-ownership-map
-+
-+### Phase: Implementation Review
-+
-+**Degradation single_vendor_review recorded: phase IMPL_REVIEW, vendor claude_code only; converge() ran with min_quorum=1** — Operator policy for cloud containers (TRUST_POSTURE.md section 'Review quorum in cloud containers (temporary)', commit 479dcd9 on the roadmap branch; gate-decision:f24d569f-0e1f-4378-89d5-4617d7e4bcf5). Discovery selected claude_code (Tier 1 CLI, claude-local, model fable, 250 s) and codex (Tier 2 SDK, codex-remote); codex failed with 'No API key available for SDK dispatch' (error_class auth_required), which is the required verification that no second lane exists here. No environment variables, credentials or key files were read. Consensus quorum_received 1 of 2; every finding is unconfirmed single-vendor judgment. Note: 479dcd9 is on the roadmap branch but not an ancestor of this change branch (stacked at 96ed991), so the policy text is not in this checkout's TRUST_POSTURE.md.
-+
-+- Status: `active`
-+- Source: [openspec/changes/archive/2026-10-10-ownership-map/session-log.md](/openspec/changes/archive/2026-10-10-ownership-map/session-log.md) (D1)
-+
-+---
-+
-+## 2026-10-09 — 2026-10-10-ownership-map
-+
-+### Phase: Validation Review
-+
-+**Degradation single_vendor_review recorded: phase VAL_REVIEW, vendor claude_code only; converge() ran with min_quorum=1** — Operator policy for cloud containers (TRUST_POSTURE.md "Review quorum in cloud containers (temporary)", commit 479dcd9 on the roadmap branch; gate-decision:f24d569f-0e1f-4378-89d5-4617d7e4bcf5). Discovery selected claude_code (Tier 1 CLI claude-local, model fable, 169 s) and codex (Tier 2 SDK codex-remote); codex failed with "No API key available for SDK dispatch" (error_class auth_required), which is the required verification that no second lane exists here; antigravity, grok, ocr and pi were skipped (no CLI, SDK or endpoint). No environment variables, credentials or key files were read. Quorum received 1 of 2; every finding is unconfirmed single-vendor judgment and none can block under ledger rule D3.
-+
-+- Status: `active`
-+- Source: [openspec/changes/archive/2026-10-10-ownership-map/session-log.md](/openspec/changes/archive/2026-10-10-ownership-map/session-log.md) (D1)
-+
-+---
-+
-+## 2026-10-09 — 2026-10-10-ownership-map
-+
-+### Phase: Validation Review
-+
-+**VAL_REVIEW ran as converge(review_type=implementation, fix_mode=targeted) with a real VAL_FIX applicator; the loop did not enter VAL_FIX** — The driver wired phase_fixer.apply_phase_fixes (persisting .review-ledger/pending-fixes.json) with a conductor dispatch_fn that blocks until this session applies the scoped edits, plus a post_fix_validator running the ownership-runtime and state-artifacts suites. Round 1 returned 9 findings, all low, 0 blocking, so converge() returned converged without calling fix_callback. Loop-state phase_history is orchestrator-owned and was not edited; this entry is the VAL_FIX sub-step record.
-+
-+- Status: `active`
-+- Source: [openspec/changes/archive/2026-10-10-ownership-map/session-log.md](/openspec/changes/archive/2026-10-10-ownership-map/session-log.md) (D2)
-+
-+---
-+
-+## 2026-10-09 — 2026-10-10-ownership-map
-+
-+### Phase: Plan Review
-+
-+**PLAN_FIX recorded as not entered: round-1 blocking set was empty, so converge() returned converged without calling the fix applicator** — A real inline PLAN_FIX applicator was wired as fix_callback (phase_fixer.apply_phase_fixes persisting .review-ledger/pending-fixes.json, then conductor edits of cited allowed_paths with converge()'s own out-of-scope rejection). It was never invoked because no ledger item was blocking (all six findings low, judgment class). Loop-state phase_history is orchestrator-owned and was not edited; this entry is the sub-step record.
-+
-+- Status: `active`
-+- Source: [openspec/changes/archive/2026-10-10-ownership-map/session-log.md](/openspec/changes/archive/2026-10-10-ownership-map/session-log.md) (D3)
-+
-+---
-+
-+## 2026-10-09 — 2026-10-10-ownership-map
-+
-+### Phase: Validation Review
-+
-+**Validation evidence critique: every claimed pass is backed, with five report errors corrected inline** — Reproduced: ownership-runtime 233 passed; state-artifacts 13 passed / 6 skipped (the report said "all pass"; the skips are the mirror-parity cases, environmental); coordinator schema/projection tests 133 passed; coordinator unit suite 2937 passed / 11 skipped / 139 deselected; full skills suite 7145 passed / 24 skipped / 24 failed in exactly the seven known environmental groups (same 7193 collected as the report's 7133/36/24; 12 environment-dependent skips passed here); check_owners --codeowners --strict --json mode solo, exit 0, no findings; reconcile 0 disagreements, fresh; solo-mode smoke in a scratch copy without the map (check clean, emit fails closed with no_ownership_map, CODEOWNERS untouched); openspec validate --strict valid; ruff clean; install.sh --check prints the portability pass line; every test id cited in the report exists. Corrections: the specs hold 47 scenarios, not 37 (the trace listed all 47); the human-projection invariant test lives in test_registry_projection.py; two ellipsized coordinator-independence test names; the "Existing suites unchanged with the map absent" trace now states that the suites ran with the map present and why that is sufficient; the base comparison now records the orchestrator's verification against 0a4659f. Skipped phases (Deploy, Smoke, E2E, scanners) are legitimately skipped: deployable: false and no docker daemon.
-+
-+- Status: `active`
-+- Source: [openspec/changes/archive/2026-10-10-ownership-map/session-log.md](/openspec/changes/archive/2026-10-10-ownership-map/session-log.md) (D3)
-+
-+---
-+
-+## 2026-10-09 — 2026-10-10-ownership-map
-+
-+### Phase: Plan Review
-+
-+**Four findings citing files outside change ownership-map were parked out_of_scope by the conductor after convergence** — Ledger items 1 (openspec/changes/reviewer-shaped-prs scaffold 'pRs' casing), 3 (TRUST_POSTURE.md header comment vs replan_required=auto), 4 (19 tautological roadmap scaffold scenarios) and 5 (launch_token/owner_nonce committed in roadmap checkpoint.json) are real but belong to the roadmap branch, not to this change's plan artifacts; parking keeps IMPL_REVIEW from inheriting unrelated open items. They are advisory for the branch owner. Items 2 (proposal Selected Approach says D1-D13; design has D14) and 6 (PathPattern regex admits embedded ** that only the loader rejects, by design D3) are in scope, low, and left open as advisories; item 2 is a one-token fix for the implementer's first commit.
-+
-+- Status: `active`
-+- Source: [openspec/changes/archive/2026-10-10-ownership-map/session-log.md](/openspec/changes/archive/2026-10-10-ownership-map/session-log.md) (D4)
-+
-+---
-+
-+## 2026-10-09 — 2026-10-10-ownership-map
-+
-+### Phase: Implementation Review
-+
-+**IMPL_FIX not entered by the inner loop: round 1 had zero blocking items, so converge() returned converged without calling fix_callback** — A real IMPL_FIX applicator was wired (phase_fixer.apply_phase_fixes persisting .review-ledger/pending-fixes.json, then a conductor dispatch_fn that blocks until the lead vendor claude_code — the conductor, package_authors being empty — applies the scoped edits, with converge()'s own out-of-scope rejection afterwards). Under ledger rule D3 a single-vendor review can never produce a 'confirmed' finding, so only deterministic findings can block; all 9 were judgment-class and the medium one therefore did not block. Loop-state phase_history is orchestrator-owned and was not edited; this entry is the sub-step record.
-+
-+- Status: `active`
-+- Source: [openspec/changes/archive/2026-10-10-ownership-map/session-log.md](/openspec/changes/archive/2026-10-10-ownership-map/session-log.md) (D4)
-+
-+---
-+
-+## 2026-10-09 — 2026-10-10-ownership-map
-+
-+### Phase: Validation Review
-+
-+**Conductor VAL_FIX after convergence: ledger 16 fixed test-first, 17 and 18 fixed in the spec; 19–21 left as advisories; 22 retired** — Item 16 is a real contract defect: collect_problems() documents "report, never raise" but raised OwnershipConfigError when owners.schema.json is not installed, and read_codeowners() decoded CODEOWNERS unguarded, so a non-UTF-8 file turned `check_owners --codeowners --json`, `reconcile` and `emit --write` into tracebacks (no JSON for CI consumers). Fix: _schema_problems returns the install problem as an invalid_map Problem; read_codeowners raises a new D9 error code codeowners_unreadable that reconcile and emit --write surface as a finding / fail-closed exit (nothing written). The code was added to CODES, the design D9 table and SKILL.md, and the CODES-equality test was extended; four new tests (test_missing_schema_is_reported_not_raised, TestUnreadableCodeowners in the reconcile and emit suites). Item 17: the spec stated SHALL behaviour for unowned_roadmap_item and sentinel_principal without scenarios; two scenarios mirroring the existing tests were added and traced in the report. Item 18: the spec omitted the git config user.name fallback that design D5 and derive_solo_principal implement; stated. Items 19 (corrupt roadmap.yaml folded into unknown_roadmap_item), 20 (two literal-prefix definitions) and 21 (collect_problems evaluated twice) stay open as low advisories with notes. Item 22 duplicated open item 12 and was retired, as 14/15 were in IMPL_REVIEW. These edits ran outside converge()'s fix_callback because nothing blocked (same reasoning as IMPL_REVIEW decision 5).
-+
-+- Status: `active`
-+- Source: [openspec/changes/archive/2026-10-10-ownership-map/session-log.md](/openspec/changes/archive/2026-10-10-ownership-map/session-log.md) (D4)
-+
-+---
-+
-+## 2026-10-09 — 2026-10-10-ownership-map
-+
-+### Phase: Plan Review
-+
-+**Conductor's independent read found two medium plan defects the single lane did not report; recorded as open questions, not ledgered** — Because the claude_code CLI lane did dispatch, the vendor result is that lane's cold review and the conductor's own findings were not injected as a second claude_code result. (a) design.md D3 matching table says any `/` anchors a pattern at the repository root, but gitignore/GitHub CODEOWNERS leave a single segment with only a trailing `/` (e.g. `schemas/`) unanchored, matching that directory at any depth; the resolver and GitHub would disagree on openspec/schemas/x for such a rule. Fix: implement the gitignore rule or, consistent with the embedded-`**` precedent, have the loader reject a paths key whose only `/` is trailing (pointing at `/x/` or `**/x/`). D8's 'inverse of D4's rule order' is also the same order, not the inverse. (b) tasks.md 5.7 asks the checkpoint to record 'no pre-existing test file was modified', but tasks 2.5 and 5.4 edit pre-existing test files additively; the proposal NFR 'pass with no test edits' has the same contradiction. Both are deterministic consistency defects a PLAN_FIX could close in design.md/spec, tasks.md and proposal.md.
-+
-+- Status: `active`
-+- Source: [openspec/changes/archive/2026-10-10-ownership-map/session-log.md](/openspec/changes/archive/2026-10-10-ownership-map/session-log.md) (D5)
-+
-+---
-+
-+## 2026-10-09 — 2026-10-10-ownership-map
-+
-+### Phase: Implementation Review
-+
-+**Conductor applied the medium finding and four deterministic lows after convergence, test-first, scoped to cited files; ledgered as addressed** — Item 9 (medium, principals.py) is real: read_registry validated each humans: entry but not its key, so an id such as Jan_N that the coordinator rejects via AGENTS_SCHEMA propertyNames was accepted and counted toward mode derivation. Fix: validate the key against owners.schema.json $defs.PrincipalId (shipped with the skill; same slug pattern and 64-char limit) and raise invalid_registry naming the id; two new tests in test_principals.py; a coordinator test pins PRINCIPAL_ID_PATTERN and propertyNames.maxLength to that schema so the two readers cannot drift. Item 10: codeowners.tracked_files now catches OSError/SubprocessError like principals._git (TestTrackedFiles, timeout and missing-binary cases). Item 7: design D9 table lists invalid_registry and registry_not_found; test_codes_table_has_the_documented_codes tightened from subset to equality. Item 8: tasks.md 5.2 names the delivered capabilities. Item 11: SKILL.md documents mode null. Item 2 closed (fixed by PLAN_FIX 0a4659f, re-verified by the lane); items 14/15 retired as duplicate re-verification notes; item 6 (PathPattern two-layer validation) stays open as a low by-design advisory. Items 12 (projection-invariant checker uses exact string equality) and 13 (vacuous second assertion in test_repository_invariant) are test-style observations left open as advisories: tightening 12 to substring matching would make the invariant fire on legitimate strings containing 'jan', and 13 cannot be made independently meaningful without removing the stronger findings == [] assertion. These edits ran outside converge()'s fix_callback because nothing was blocking; the plan-review rejection of out-of-loop edits concerned plan artifacts needing PLAN_FIX, whereas here the write-capable reviewer is the lead vendor and the alternative was leaving a real medium defect open under a degraded quorum. All gates re-run green.
-+
-+- Status: `active`
-+- Source: [openspec/changes/archive/2026-10-10-ownership-map/session-log.md](/openspec/changes/archive/2026-10-10-ownership-map/session-log.md) (D5)
-+
-+---
-+
-+## 2026-10-05 — 2026-10-10-ownership-map
-+
-+### Phase: Plan Iteration 1
-+
-+**Capability assignments imply openspec/specs/<cap>/ and openspec/contracts/<cap>/ path rules ranked with explicit paths rules; explicit wins ties** — D8 emits CODEOWNERS lines from capability assignments and reconcile compares them with resolve_path(); without implied rules a capability-only map produced a false disagreement on every spec file. Implied-before-explicit rule order is the only way an author can override a capability's ownership of its own directory.
-+
-+- Status: `active`
-+- Source: [openspec/changes/archive/2026-10-10-ownership-map/session-log.md](/openspec/changes/archive/2026-10-10-ownership-map/session-log.md) (D1)
-+
-+---
-+
-+## 2026-10-05 — 2026-10-10-ownership-map
-+
-+### Phase: Plan Iteration 2
-+
-+**Acceptance outcome 2 ('a check reports capabilities with no owner') is satisfied in team mode and proven by fixture tests; the solo repository exercises the error-class findings and CODEOWNERS reconcile** — D14 makes the unowned_* findings vacuous in solo mode, so the proposal's outcome mapping now says so explicitly; otherwise a reviewer validating ri-02 against this repository would look for a report that correctly does not appear.
-+
-+- Status: `active`
-+- Source: [openspec/changes/archive/2026-10-10-ownership-map/session-log.md](/openspec/changes/archive/2026-10-10-ownership-map/session-log.md) (D1)
-+
-+---
-+
-+## 2026-10-05 — 2026-10-10-ownership-map
-+
-+### Phase: Plan
-+
-+**openspec/owners.yaml assigns owners, decision_rights and acceptance_rights to capabilities, roadmap items and restricted-glob paths with a mandatory default_owner** — Git-native, lives next to the specs it governs, fail-closed on invalid or unregistered owners; agents may never be owners.
-+
-+- Status: `active`
-+- Source: [openspec/changes/archive/2026-10-10-ownership-map/session-log.md](/openspec/changes/archive/2026-10-10-ownership-map/session-log.md) (D3)
-+
-+---
-+
-+## 2026-10-05 — 2026-10-10-ownership-map
-+
-+### Phase: Plan Iteration 1
-+
-+**unowned_capability and unowned_roadmap_item are team-mode-only warnings (D14)** — With one human every subject is owned by construction; demanding explicit assignments for 40 capabilities and ~190 roadmap items would break CI on every later /plan-feature or /plan-roadmap run, violating the solo-mode constraint. Task 5.2 now authors a representative, not exhaustive, map.
-+
-+- Status: `active`
-+- Source: [openspec/changes/archive/2026-10-10-ownership-map/session-log.md](/openspec/changes/archive/2026-10-10-ownership-map/session-log.md) (D3)
-+
-+---
-+
-+## 2026-10-05 — 2026-10-10-ownership-map
-+
-+### Phase: Plan
-+
-+**Solo principal derivation: single registry human, else git-config identity (matched to a declared human by email), else sentinel; two or more humans without a map is an error** — Returning 'whoever runs this' in a multi-human repo is the single-principal assumption the epic removes.
-+
-+- Status: `active`
-+- Source: [openspec/changes/archive/2026-10-10-ownership-map/session-log.md](/openspec/changes/archive/2026-10-10-ownership-map/session-log.md) (D4)
-+
-+---
-+
-+## 2026-10-05 — 2026-10-10-ownership-map
-+
-+### Phase: Plan Iteration 1
-+
-+**Finding codes are the --json machine contract and are enumerated in D9; new codes cover dangling keys, no-map and orphaned-block cases, registry escape and non-git checkouts** — tasks.md and the spec named codes the design never listed; later items consume codes, not messages, so the enumeration belongs in the design and the spec requires it.
-+
-+- Status: `active`
-+- Source: [openspec/changes/archive/2026-10-10-ownership-map/session-log.md](/openspec/changes/archive/2026-10-10-ownership-map/session-log.md) (D4)
-+
-+---
-+
-+## 2026-10-05 — 2026-10-10-ownership-map
-+
-+### Phase: Plan
-+
-+**mode (solo|team) derives from the number of human principals, not from owners.yaml presence** — Lets a one-maintainer repository dogfood the map and CODEOWNERS without flipping later roadmap items into team behavior; downstream items branch on ctx.mode.
-+
-+- Status: `active`
-+- Source: [openspec/changes/archive/2026-10-10-ownership-map/session-log.md](/openspec/changes/archive/2026-10-10-ownership-map/session-log.md) (D5)
-+
-+---
-+
-+## 2026-10-05 — 2026-10-10-ownership-map
-+
-+### Phase: Plan Iteration 1
-+
-+**registry: in owners.yaml is confined to the repository (schema rejects `..`, loader rejects escape); OWNERSHIP_REGISTRY_PATH stays unconfined** — A reviewed-but-careless map could otherwise make the reader parse an arbitrary file; the env var is operator-controlled so confinement there would only hinder consumer repositories.
-+
-+- Status: `active`
-+- Source: [openspec/changes/archive/2026-10-10-ownership-map/session-log.md](/openspec/changes/archive/2026-10-10-ownership-map/session-log.md) (D5)
-+
-+---
-+
-+## 2026-10-05 — 2026-10-10-ownership-map
-+
-+### Phase: Plan
-+
-+**Resolver ships as the infrastructure skill skills/ownership-runtime with install_assets schemas, importing nothing from agent-coordinator** — Mirrors roadmap-runtime; portable through install.sh; pyyaml + jsonschema only.
-+
-+- Status: `active`
-+- Source: [openspec/changes/archive/2026-10-10-ownership-map/session-log.md](/openspec/changes/archive/2026-10-10-ownership-map/session-log.md) (D6)
-+
-+---
-+
-+## 2026-10-05 — 2026-10-10-ownership-map
-+
-+### Phase: Plan
-+
-+**CODEOWNERS is a derived managed block emitted in ascending specificity so GitHub last-match-wins agrees with the resolver's most-specific-wins; reconcile probes real tracked paths and never feeds back** — Keeps GitHub review routing and the ownership map from silently disagreeing while restricting the glob subset both matchers interpret identically.
-+
-+- Status: `active`
-+- Source: [openspec/changes/archive/2026-10-10-ownership-map/session-log.md](/openspec/changes/archive/2026-10-10-ownership-map/session-log.md) (D7)
 diff --git a/docs/decisions/parallel-infrastructure.md b/docs/decisions/parallel-infrastructure.md
 new file mode 100644
 index 00000000..28c3425f
@@ -1281,101 +1330,14 @@ index 00000000..28c3425f
 +
 +- Status: `active`
 +- Source: [openspec/changes/openrouter-review-lane/session-log.md](/openspec/changes/openrouter-review-lane/session-log.md) (D5)
-diff --git a/docs/decisions/roadmap-orchestration.md b/docs/decisions/roadmap-orchestration.md
-index 970c1cc9..a2ab0b04 100644
---- a/docs/decisions/roadmap-orchestration.md
-+++ b/docs/decisions/roadmap-orchestration.md
-@@ -5,69 +5,69 @@
- 
- ---
- 
--## 2026-10-09 — dispatch-contract
-+## 2026-10-09 — 2026-10-10-dispatch-contract
- 
- ### Phase: Plan Review
- 
- **Existing v1 contract schemas are given one role each instead of being duplicated** — `openspec/contracts/roadmap-orchestration/schemas/` already published request/result/attempt/context schemas; request/result are frozen as v1 reader schemas, the attempt schema becomes the single attempt definition `$ref`'d by `checkpoint.schema.json`, and the context schema is `$ref`'d by the v2 request.
- 
- - Status: `active`
--- Source: [openspec/changes/dispatch-contract/session-log.md](/openspec/changes/dispatch-contract/session-log.md) (D1)
-+- Source: [openspec/changes/archive/2026-10-10-dispatch-contract/session-log.md](/openspec/changes/archive/2026-10-10-dispatch-contract/session-log.md) (D1)
- 
- ---
- 
--## 2026-10-09 — dispatch-contract
-+## 2026-10-09 — 2026-10-10-dispatch-contract
- 
- ### Phase: Implementation
- 
- **Commit order keeps every commit green rather than following package boundaries literally** — The checkpoint/attempt schema $ref switch, models, orchestrator and execution must change together; schemas 2.3-2.4 landed in the ledger commit.
- 
- - Status: `active`
--- Source: [openspec/changes/dispatch-contract/session-log.md](/openspec/changes/dispatch-contract/session-log.md) (D1)
-+- Source: [openspec/changes/archive/2026-10-10-dispatch-contract/session-log.md](/openspec/changes/archive/2026-10-10-dispatch-contract/session-log.md) (D1)
- 
- ---
- 
--## 2026-10-09 — dispatch-contract
-+## 2026-10-09 — 2026-10-10-dispatch-contract
- 
- ### Phase: Implementation
- 
- **Cross-host reinitialize keeps a parked attempt's generation** — Its escalate_resume approval is bound to the generation (advisory finding 13).
- 
- - Status: `active`
--- Source: [openspec/changes/dispatch-contract/session-log.md](/openspec/changes/dispatch-contract/session-log.md) (D3)
-+- Source: [openspec/changes/archive/2026-10-10-dispatch-contract/session-log.md](/openspec/changes/archive/2026-10-10-dispatch-contract/session-log.md) (D3)
- 
- ---
- 
--## 2026-10-06 — dispatch-contract
-+## 2026-10-06 — 2026-10-10-dispatch-contract
- 
- ### Phase: Plan Iteration 1
- 
- **Spec deltas target existing capabilities, not the placeholder** — multiplayer-collaboration is a roadmap, not a capability; the touched behaviour is owned by roadmap-orchestration, supervise, skill-workflow, trust-posture and parallel-infrastructure.
- 
- - Status: `active`
--- Source: [openspec/changes/dispatch-contract/session-log.md](/openspec/changes/dispatch-contract/session-log.md) (D1)
-+- Source: [openspec/changes/archive/2026-10-10-dispatch-contract/session-log.md](/openspec/changes/archive/2026-10-10-dispatch-contract/session-log.md) (D1)
- 
- ---
- 
--## 2026-10-06 — dispatch-contract
-+## 2026-10-06 — 2026-10-10-dispatch-contract
- 
- ### Phase: Plan Iteration 3
- 
- **Attempts persist the verified roadmap_approval_ref** — It is a non-secret gate-decision reference; persisting it lets child_start write it into every generation's marker and lets the supervisor apply the same scope rule from the same fact.
- 
- - Status: `active`
--- Source: [openspec/changes/dispatch-contract/session-log.md](/openspec/changes/dispatch-contract/session-log.md) (D1)
-+- Source: [openspec/changes/archive/2026-10-10-dispatch-contract/session-log.md](/openspec/changes/archive/2026-10-10-dispatch-contract/session-log.md) (D1)
- 
- ---
- 
--## 2026-10-06 — dispatch-contract
-+## 2026-10-06 — 2026-10-10-dispatch-contract
- 
- ### Phase: Plan Iteration 1
- 
- **Launch tokens are minted per generation and stored only as sha256 digests** — A digest-only checkpoint cannot re-emit the same token on resume, so the Durable Delegated Attempt Ledger requirement is MODIFIED; reissue is limited to states where takeover is already safe.
- 
- - Status: `active`
--- Source: [openspec/changes/dispatch-contract/session-log.md](/openspec/changes/dispatch-contract/session-log.md) (D2)
-+- Source: [openspec/changes/archive/2026-10-10-dispatch-contract/session-log.md](/openspec/changes/archive/2026-10-10-dispatch-contract/session-log.md) (D2)
- 
- ---
- 
 diff --git a/docs/decisions/skill-workflow.md b/docs/decisions/skill-workflow.md
-index 5a9f3bb5..9888ce70 100644
+index f49c0317..19ffcd22 100644
 --- a/docs/decisions/skill-workflow.md
 +++ b/docs/decisions/skill-workflow.md
-@@ -5,14 +5,36 @@
+@@ -49,6 +49,28 @@
  
  ---
  
--## 2026-10-09 — dispatch-contract
 +## 2026-10-11 — openrouter-review-lane
 +
 +### Phase: Plan Iteration 1
@@ -1398,601 +1360,1313 @@ index 5a9f3bb5..9888ce70 100644
 +
 +---
 +
-+## 2026-10-09 — 2026-10-10-dispatch-contract
+ ## 2026-10-09 — 2026-10-10-dispatch-contract
  
  ### Phase: Plan Review
- 
- **Quorum park happens in the worker protocol, not convergence_loop** — below quorum the SKILL.md probe skips review entirely, so convergence_loop never runs; `runner.py park` stays the only writer.
- 
- - Status: `active`
--- Source: [openspec/changes/dispatch-contract/session-log.md](/openspec/changes/dispatch-contract/session-log.md) (D4)
-+- Source: [openspec/changes/archive/2026-10-10-dispatch-contract/session-log.md](/openspec/changes/archive/2026-10-10-dispatch-contract/session-log.md) (D4)
- 
- ---
- 
-diff --git a/docs/decisions/supervise.md b/docs/decisions/supervise.md
-index a7967b72..1dfad031 100644
---- a/docs/decisions/supervise.md
-+++ b/docs/decisions/supervise.md
-@@ -5,69 +5,69 @@
- 
- ---
- 
--## 2026-10-09 — dispatch-contract
-+## 2026-10-09 — 2026-10-10-dispatch-contract
- 
- ### Phase: Plan Review
- 
- **Capability-park fan-out writes one escalate_resume record per dispatch** — keeps `require_approval_ref`'s per-dispatch and per-generation checks unchanged.
- 
- - Status: `active`
--- Source: [openspec/changes/dispatch-contract/session-log.md](/openspec/changes/dispatch-contract/session-log.md) (D2)
-+- Source: [openspec/changes/archive/2026-10-10-dispatch-contract/session-log.md](/openspec/changes/archive/2026-10-10-dispatch-contract/session-log.md) (D2)
- 
- ---
- 
--## 2026-10-09 — dispatch-contract
-+## 2026-10-09 — 2026-10-10-dispatch-contract
- 
- ### Phase: Implementation
- 
- **Review quorum per environment is data (review_quorum_policy.json) carried as review_requirements.quorum_policy** — Supervisor follow-up 1: a worker gets min_quorum 1 only through data with an explicit sunset; single-lane is detected by failed dispatch.
- 
- - Status: `active`
--- Source: [openspec/changes/dispatch-contract/session-log.md](/openspec/changes/dispatch-contract/session-log.md) (D2)
-+- Source: [openspec/changes/archive/2026-10-10-dispatch-contract/session-log.md](/openspec/changes/archive/2026-10-10-dispatch-contract/session-log.md) (D2)
- 
- ---
- 
--## 2026-10-09 — dispatch-contract
-+## 2026-10-09 — 2026-10-10-dispatch-contract
- 
- ### Phase: Plan Review
- 
- **counting_lanes includes unverified roster lanes** — otherwise `missing_lanes` is always empty and distinct capability gaps share one fingerprint.
- 
- - Status: `active`
--- Source: [openspec/changes/dispatch-contract/session-log.md](/openspec/changes/dispatch-contract/session-log.md) (D3)
-+- Source: [openspec/changes/archive/2026-10-10-dispatch-contract/session-log.md](/openspec/changes/archive/2026-10-10-dispatch-contract/session-log.md) (D3)
- 
- ---
- 
--## 2026-10-06 — dispatch-contract
-+## 2026-10-06 — 2026-10-10-dispatch-contract
- 
- ### Phase: Plan Iteration 2
- 
- **Review quorum defaults to 2 per review phase with a router-context override** — routing.yaml defines a cost ladder but no quorum; 2 is today's --min-vendors and the ladder orders lanes without excluding tiers. Recorded as a decision because this phase cannot ask the operator.
- 
- - Status: `active`
--- Source: [openspec/changes/dispatch-contract/session-log.md](/openspec/changes/dispatch-contract/session-log.md) (D2)
-+- Source: [openspec/changes/archive/2026-10-10-dispatch-contract/session-log.md](/openspec/changes/archive/2026-10-10-dispatch-contract/session-log.md) (D2)
- 
- ---
- 
--## 2026-10-06 — dispatch-contract
-+## 2026-10-06 — 2026-10-10-dispatch-contract
- 
- ### Phase: Plan Iteration 1
- 
- **Dispatched children defer gate authority to the supervisor** — Issue 1 arose because child and supervisor postures differed; the marker carries the supervisor posture digest and drift disables auto, so one holder is authoritative.
- 
- - Status: `active`
--- Source: [openspec/changes/dispatch-contract/session-log.md](/openspec/changes/dispatch-contract/session-log.md) (D3)
-+- Source: [openspec/changes/archive/2026-10-10-dispatch-contract/session-log.md](/openspec/changes/archive/2026-10-10-dispatch-contract/session-log.md) (D3)
- 
- ---
- 
--## 2026-10-06 — dispatch-contract
-+## 2026-10-06 — 2026-10-10-dispatch-contract
- 
- ### Phase: Plan Iteration 2
- 
- **Below-quorum availability still launches** — check-vendors exits 2 for both below-quorum and roster failure; only an error field or unparseable JSON blocks prepare, and the child parks capability_unavailable honestly at review.
- 
- - Status: `active`
--- Source: [openspec/changes/dispatch-contract/session-log.md](/openspec/changes/dispatch-contract/session-log.md) (D3)
-+- Source: [openspec/changes/archive/2026-10-10-dispatch-contract/session-log.md](/openspec/changes/archive/2026-10-10-dispatch-contract/session-log.md) (D3)
- 
- ---
- 
-diff --git a/docs/decisions/toolkit-distribution.md b/docs/decisions/toolkit-distribution.md
+diff --git a/openspec/changes/openrouter-review-lane/.review-ledger/ledger.json b/openspec/changes/openrouter-review-lane/.review-ledger/ledger.json
 new file mode 100644
-index 00000000..192bc6dd
+index 00000000..828e6045
 --- /dev/null
-+++ b/docs/decisions/toolkit-distribution.md
-@@ -0,0 +1,59 @@
-+# Architectural Decisions — toolkit-distribution
-+
-+> Reverse-chronological timeline of decisions tagged `architectural: toolkit-distribution` in session-log Phase Entries.
-+> Generated by `make decisions` — do not edit manually.
-+
-+---
-+
-+## 2026-10-05 — 2026-10-10-toolkit-consistency
-+
-+### Phase: Plan Iteration 1
-+
-+**New capability toolkit-distribution owns stamp, drift check and shared learnings** — skill-workflow already holds Cross-Repo Portability and Canonical Skill Distribution but is a 7,000-line accretion spec; the install-to-consumer surface is coherent on its own and the existing requirements are referenced as constraints rather than modified.
-+
-+- Status: `active`
-+- Source: [openspec/changes/archive/2026-10-10-toolkit-consistency/session-log.md](/openspec/changes/archive/2026-10-10-toolkit-consistency/session-log.md) (D1)
-+
-+---
-+
-+## 2026-10-05 — 2026-10-10-toolkit-consistency
-+
-+### Phase: Plan Iteration 1
-+
-+**The install stamp is the pin and lives at .agentic-toolkit/stamp.json** — Mirror directories are often gitignored in consumer repos, so a per-agent stamp would not be tracked; a hand-edited pin would drift from the installed payload and carry no hash.
-+
-+- Status: `active`
-+- Source: [openspec/changes/archive/2026-10-10-toolkit-consistency/session-log.md](/openspec/changes/archive/2026-10-10-toolkit-consistency/session-log.md) (D2)
-+
-+---
-+
-+## 2026-10-05 — 2026-10-10-toolkit-consistency
-+
-+### Phase: Plan Iteration 1
-+
-+**Drift check is additive to the existing --check; unpinned is advisory, invalid stamp fails loud** — install.sh --check already does mirror parity; the roadmap's constraint is that advisory signals fail open, while docs/guides/state-artifacts.md forbids silently repairing an invalid tracked artifact.
-+
-+- Status: `active`
-+- Source: [openspec/changes/archive/2026-10-10-toolkit-consistency/session-log.md](/openspec/changes/archive/2026-10-10-toolkit-consistency/session-log.md) (D3)
-+
-+---
-+
-+## 2026-10-05 — 2026-10-10-toolkit-consistency
-+
-+### Phase: Plan Iteration 1
-+
-+**Self-install writes no stamp** — In this repository the source tree is the pin; stamping would churn a tracked file on every skill edit and in the CI install/--check step.
-+
-+- Status: `active`
-+- Source: [openspec/changes/archive/2026-10-10-toolkit-consistency/session-log.md](/openspec/changes/archive/2026-10-10-toolkit-consistency/session-log.md) (D4)
-+
-+---
-+
-+## 2026-10-05 — 2026-10-10-toolkit-consistency
-+
-+### Phase: Plan Iteration 1
-+
-+**Shared learnings are a one-way, allowlisted JSONL projection gated by a human-owned config.json** — The epic forbids a parallel learning store; projecting from episodic memory with a field allowlist, transcript-mined exclusion and the session-log sanitizer meets 'never include private transcript content' without a consent model this item does not own.
-+
-+- Status: `active`
-+- Source: [openspec/changes/archive/2026-10-10-toolkit-consistency/session-log.md](/openspec/changes/archive/2026-10-10-toolkit-consistency/session-log.md) (D5)
-diff --git a/docs/decisions/trust-posture.md b/docs/decisions/trust-posture.md
-index 9667a54c..5f352415 100644
---- a/docs/decisions/trust-posture.md
-+++ b/docs/decisions/trust-posture.md
-@@ -5,25 +5,25 @@
- 
- ---
- 
--## 2026-10-06 — dispatch-contract
-+## 2026-10-06 — 2026-10-10-dispatch-contract
- 
- ### Phase: Plan Iteration 2
- 
- **ApprovalGate reads the launch marker through an injected seam and ignores context refs** — A context value can be set by any caller; the marker is written by child_start after supervisor verification. The seam also keeps wp-posture independent of wp-contract-lib.
- 
- - Status: `active`
--- Source: [openspec/changes/dispatch-contract/session-log.md](/openspec/changes/dispatch-contract/session-log.md) (D1)
-+- Source: [openspec/changes/archive/2026-10-10-dispatch-contract/session-log.md](/openspec/changes/archive/2026-10-10-dispatch-contract/session-log.md) (D1)
- 
- ---
- 
--## 2026-10-06 — dispatch-contract
-+## 2026-10-06 — 2026-10-10-dispatch-contract
- 
- ### Phase: Plan Iteration 1
- 
- **Non-auto fallback is an optional `unscoped` posture sub-config defaulting to block** — The outcome names a fallback but the posture schema has none; a declared field keeps operators able to choose notify_with_timeout while failing closed by default. Recorded as a decision rather than asked: this phase sub-agent has no interactive channel to the operator.
- 
- - Status: `active`
--- Source: [openspec/changes/dispatch-contract/session-log.md](/openspec/changes/dispatch-contract/session-log.md) (D4)
-+- Source: [openspec/changes/archive/2026-10-10-dispatch-contract/session-log.md](/openspec/changes/archive/2026-10-10-dispatch-contract/session-log.md) (D4)
- 
- ---
- 
-diff --git a/docs/guides/skills.md b/docs/guides/skills.md
-index 86c54b17..4a35fd13 100644
---- a/docs/guides/skills.md
-+++ b/docs/guides/skills.md
-@@ -26,3 +26,6 @@
-   `agent-coordinator/archetypes.yaml` changes — the report carries that
-   file's content hash, `--check-freshness` exits `1` once they diverge, and
-   the non-blocking `skill-audit-freshness` CI job annotates when they do.
-+- **Install stamp and drift check**: a successful `install.sh` into a consumer repository writes `.agentic-toolkit/stamp.json` (`schema_version`, `toolkit_version`, `source_commit`, `payload_hash`, `installed_at`, `agents`, `mode`) after every sync step succeeds. Commit it: it is the pin for the toolkit payload the repository expects. A self-install (target is this repository) writes no stamp, and `--check` never writes one. `payload_hash` comes from `skills/shared/payload_hash.py` (portable skill dirs, shared libraries and `install-manifest.json`, excluding `tests/`, `__pycache__/`, `node_modules/`) and is identical for the source tree and a synced mirror. To move the pin, run `install.sh` from the new toolkit checkout and commit the changed stamp.
-+- **Extended `--check`**: `bash skills/install.sh --target <consumer> --check` keeps its mirror-parity check and, when a stamp exists, adds *checkout drift* (this toolkit checkout is not the pinned payload) and *runtime drift* (an installed `.claude/skills/` or `.agents/skills/` mirror is not the pinned payload) with distinct messages; either exits `1`. No stamp is reported as "unpinned" and does not change the exit code; an invalid stamp (bad JSON, not an object, `schema_version` other than `1`) exits `1` and is never rewritten. `--check` runs from the toolkit checkout and does not auto-update anything.
-+- **Opt-in shared learnings**: a repository shares capability-gap learnings only when a human sets `{"schema_version": 1, "shared_learnings": {"enabled": true}}` in `.agentic-toolkit/config.json` (the installer never writes it). `improve-harness` `export_shared_learnings.py` then projects allowlisted, sanitized, non-transcript entries into the tracked `.agentic-toolkit/learnings.jsonl`, and `analyze_failures.py` merges it read-only as `origin:shared-repo`. See [state artifacts](state-artifacts.md) for ownership and missing/stale behavior.
-diff --git a/docs/guides/state-artifacts.md b/docs/guides/state-artifacts.md
-index 2ec2317a..3c9dabc1 100644
---- a/docs/guides/state-artifacts.md
-+++ b/docs/guides/state-artifacts.md
-@@ -11,6 +11,10 @@ This guide is the canonical inventory and rehydration order for durable orchestr
- | **Roadmap learning entry** | `openspec/roadmaps/<roadmap-id>/learnings/<item-id>.md`, held beside the roadmap; `learning-log.md` is its index | `roadmap-runtime` learning writer after an item reaches a terminal phase | Advisory history: decisions, blockers, deviations, recommendations, and vendor evidence; never resumable execution state | Later item planning, roadmap retrospection, and supervisor context assembly | Missing learning reduces context but does not change readiness. A stale or conflicting learning is reported and ignored for execution decisions; checkpoint and loop state win. |
- | **Phase record** | Phase entries in `openspec/changes/<change-id>/session-log.md`, held on the change branch | `session-log` `PhaseRecord.write_both()` appends and sanitizes the tracked record | Durable historical rationale and evidence for a completed workflow phase; not current phase or roadmap position | Later phase context, decision-index generation, validation, and reviewers | Missing records are a context/evidence gap, not permission to infer execution state. Conflicts with checkpoint or loop state are reported; canonical execution state wins. |
- | **Handoff document** | Coordinator `handoff_documents`; local fallback `openspec/changes/<change-id>/handoffs/<phase>-<N>.json`; supervisor mirror `openspec/supervise/supervisor-record.json` | `PhaseRecord.write_both()` through the coordination bridge, or supervise's deterministic record writer and bridge call | Bootstrap locator and bounded cross-session context only; not execution authority | Fresh sessions, downstream phases, and supervisor bootstrap | Coordinator loss uses the tracked fallback or mirror and is reported as degraded. Stale handoffs may be ignored. A newer advisory timestamp never overrides canonical state. |
-+| **Ownership map** | `openspec/owners.yaml`, tracked on the default branch of the repository it governs | Humans, by reviewed PR. No skill writes it; `codeowners.py` writes only the derived `.github/CODEOWNERS` managed block | Authoritative for owner, decision-right and acceptance-right sets over capabilities, roadmap items and paths; the repository default owner is the fail-closed fallback. `CODEOWNERS` is a derived projection | `ownership-runtime` resolver and check; later multiplayer-collaboration roadmap items (`ri-03`, `ri-08`, `ri-09`, `ri-12`, `ri-14`, `ri-17`) | Absence is valid and means solo mode (every call resolves to the sole repository principal). Present-but-invalid, or naming an unregistered owner, fails closed: the resolver raises and the check exits 1; it is never repaired from `CODEOWNERS`, git history or the coordinator. A stale `CODEOWNERS` is reported by reconcile and regenerated from `owners.yaml`, never the reverse. |
-+| **Toolkit install stamp** | `<consumer-root>/.agentic-toolkit/stamp.json`, tracked in the consumer repository (never written in this repository: a self-install's source tree is the pin) | `skills/install.sh`, written last, only after every mirror, shared-library, manifest and asset step succeeded; never by `--check` | Authoritative pin of the toolkit payload the repository expects: `toolkit_version`, `source_commit`, `payload_hash`, `agents`, `mode` | `install.sh --check` (checkout drift: pinned hash vs source checkout; runtime drift: pinned hash vs each installed mirror) and teammates reviewing the pin in a PR | Absent stamp = unpinned: reported, exit code unaffected. Unreadable, non-object or `schema_version` other than `1` fails loud (`--check` exits `1`) and is never repaired or rewritten; an aborted install leaves the prior stamp byte-identical. Pin moves only by re-running `install.sh` and committing. |
-+| **Toolkit config** | `<consumer-root>/.agentic-toolkit/config.json`, tracked in the consumer repository | The repository's humans (hand-edited); `install.sh` never creates or modifies it | Sole opt-in switch for repository-scoped learning sharing (`shared_learnings.enabled`) | `export_shared_learnings.py` and `analyze_failures.py` | Absent, unreadable, `schema_version` other than `1` or `enabled` other than `true` means sharing is disabled: the exporter exits `2` and writes nothing, and the analysis ignores `learnings.jsonl`. Never inferred from the stamp or from the presence of the learnings file. |
-+| **Shared learnings projection** | `<consumer-root>/.agentic-toolkit/learnings.jsonl`, tracked in the consumer repository | `improve-harness` `export_shared_learnings.py` (allowlisted, sanitized, deterministic, one-way projection of episodic memory; `source:transcript-mined` entries excluded) | Advisory history only; episodic memory stays the learning store and this file is never a second store | `analyze_failures.py` (merges records tagged `origin:shared-repo`, never writes them back to memory) | Absent or stale file = reduced context, never execution state. Disabled sharing ignores it. Never derive loop state, checkpoint state or trust posture from it; canonical state wins. An export that receives no memory entries leaves the file unchanged. |
- 
- The coordinator work queue is a derived projection, not a sixth authority class. Its one-way contract is documented in [Work-Queue Truth / Projection](work-queue-truth-projection.md).
- 
-diff --git a/docs/skills-catalogue.md b/docs/skills-catalogue.md
-index 1647b0db..8f0b939d 100644
---- a/docs/skills-catalogue.md
-+++ b/docs/skills-catalogue.md
-@@ -150,6 +150,7 @@ Internal machinery used by workflow and methodology skills. Most are `user_invoc
- | ★ `session-bootstrap` | Cloud environment bootstrap (setup script + verify hook) and coordinator lifecycle hooks | `/session-bootstrap` |
- | ★ `session-log` | Structured decision records for session logs and merge logs at phase boundaries | `/session-log` |
- | ★ `roadmap-runtime` | Shared roadmap library: artifact models, checkpoint management, learning-log helpers, sanitization | `/roadmap-runtime` |
-+| · `ownership-runtime` | Git-native ownership map resolver, check and `CODEOWNERS` projection (`openspec/owners.yaml`); infrastructure library, not user-invocable | Internal |
- 
- ### Removed / deprecated skills
- 
-diff --git a/openspec/changes/dispatch-contract/.review-ledger/ledger.json b/openspec/changes/archive/2026-10-10-dispatch-contract/.review-ledger/ledger.json
-similarity index 75%
-rename from openspec/changes/dispatch-contract/.review-ledger/ledger.json
-rename to openspec/changes/archive/2026-10-10-dispatch-contract/.review-ledger/ledger.json
-index d6b19d53..2511ed73 100644
---- a/openspec/changes/dispatch-contract/.review-ledger/ledger.json
-+++ b/openspec/changes/archive/2026-10-10-dispatch-contract/.review-ledger/ledger.json
-@@ -518,7 +518,129 @@
-       "description": "Citations omit or misplace evidence. Outcome 4 omits the IMPL_ITERATE/IMPL_REVIEW regression tests for the fingerprint path (test_a_human_rejected_escalation_is_not_cleared_when_its_membership_changes, test_an_operator_approval_ends_a_human_rejected_escalation, test_an_approval_resumes_a_member_that_joined_after_the_rejection, supervise test_execution posture tests) and the dispatched-child path (test_a_dispatched_child_does_not_self_re_evaluate, test_posture_drift_between_child_and_supervisor_blocks_auto, test_a_posture_derived_resume_does_not_end_a_human_rejection, test_a_matching_reference_does_not_authorize_another_gate_or_decision). Outcome 3 omits the apply-time refusal test test_supervised_dispatch::test_unroutable_parked_result_is_refused_before_any_callback and the non-enumerable-gate test. Outcome 6 cites test_delegated_checkpoint for child_start digest verification, but the wrong-token refusal is supervise/test_execution.py::test_child_start_rejects_a_wrong_token_without_touching_the_checkpoint.",
-       "resolution": "compact: claimed fix did not take",
-       "consensus_status": "unconfirmed"
++++ b/openspec/changes/openrouter-review-lane/.review-ledger/ledger.json
+@@ -0,0 +1,400 @@
++{
++  "schema_version": 1,
++  "change_id": "openrouter-review-lane",
++  "items": [
++    {
++      "id": 1,
++      "status": "retired",
++      "axis": "resilience",
++      "type": "architecture",
++      "criticality": "high",
++      "evidence_class": "deterministic",
++      "file_path": "openspec/changes/openrouter-review-lane/design.md",
++      "fingerprint": "7e6360f7659f9cd1",
++      "first_seen_round": 1,
++      "last_seen_round": 1,
++      "vendor_hits": [
++        "claude_code"
++      ],
++      "description": "D6 makes HTTP lanes refuse any packet with tools_overflow:true, but PLAN_REVIEW packets for real changes in this repo routinely overflow: the round-1 packet for this very change is 320000/320000 chars with tools_overflow:true (branch diff vs origin/main spans ~420 files). In cloud, the OpenRouter lane would therefore return packet_requires_tools on round 1 of most reviews and the run parks capability_unavailable, so Acceptance Outcome 1 (quorum 2 in cloud) holds only for the small fixture used as evidence.",
++      "resolution": "operator adjudication 2026-10-12: verified fixed on disk; reopened by compact token heuristic (no fix_touched_file) - see gen-4 PLAN_REVIEW escalation",
++      "consensus_status": "unconfirmed"
 +    },
 +    {
-+      "id": 30,
++      "id": 2,
++      "status": "retired",
++      "axis": "correctness",
++      "type": "spec_gap",
++      "criticality": "high",
++      "evidence_class": "deterministic",
++      "file_path": "openspec/changes/openrouter-review-lane/tasks.md",
++      "fingerprint": "46808a6d10102848",
++      "first_seen_round": 1,
++      "last_seen_round": 1,
++      "vendor_hits": [
++        "claude_code"
++      ],
++      "description": "OpenAICompatAdapter.dispatch only calls CliVendorAdapter._parse_findings. The CLI ingest path also runs coerce_findings_payload, schema validation, stamp_judgment_ingest, line resolution, placeholder rejection and the empty_findings_too_fast floor. No task brings the HTTP lane onto that pipeline, yet the spec scenario 'Fast empty HTTP review does not count' and Acceptance Outcome 4 (findings conform to the schema and are synthesized like CLI lanes) depend on it. The traceability table maps Tool-less Lane Packet Refusal only to 1.5 and 3.8. Without judgment stamping, OpenRouter findings default to evidence_class=deterministic and count as blocking while CLI-lane findings do not, which skews consensus.",
++      "resolution": "operator adjudication 2026-10-12: verified fixed on disk; reopened by compact token heuristic (no fix_touched_file) - see gen-4 PLAN_REVIEW escalation",
++      "consensus_status": "unconfirmed"
++    },
++    {
++      "id": 3,
++      "status": "retired",
++      "axis": "correctness",
++      "type": "correctness",
++      "criticality": "medium",
++      "evidence_class": "judgment",
++      "file_path": "openspec/changes/openrouter-review-lane/design.md",
++      "fingerprint": "7bf8fc1d2f272600",
++      "first_seen_round": 1,
++      "last_seen_round": 3,
++      "vendor_hits": [
++        "claude_code"
++      ],
++      "description": "The mid-run mapping fires when 'every failed lane's error_class is UNAVAILABLE or AUTH'. A verified lane can also produce no ReviewResult at all: it is filtered at dispatch by the family or fill rule, not discovered in the worker environment, or dispatch_and_wait returns [] when job_count == 0. In that case the failed set is empty, the condition is vacuously true, and converge() returns capability_unavailable with missing_lanes == [].",
++      "consensus_status": "unconfirmed",
++      "resolution": "operator adjudication 2026-10-12: resolved by ba681f63 (missing_lanes = verified - succeeded)"
++    },
++    {
++      "id": 4,
++      "status": "retired",
++      "axis": "correctness",
++      "type": "contract_mismatch",
++      "criticality": "medium",
++      "evidence_class": "deterministic",
++      "file_path": "openspec/changes/openrouter-review-lane/design.md",
++      "fingerprint": "bbe851f68eea7841",
++      "first_seen_round": 1,
++      "last_seen_round": 1,
++      "vendor_hits": [
++        "claude_code"
++      ],
++      "description": "The D9 evidence gate and the 'Cloud Single-Vendor Policy Retirement' requirement both require two lanes attributed in consensus-plan.json. The converge()/agent_lane path that autopilot PLAN_REVIEW must use never writes consensus-plan.json; only /parallel-review-plan does. converge() writes .review-cache/round-N/findings-<vendor>-plan.json plus the index, and agent_lane writes result.json without the consensus. As written, the evidence cannot be produced from the mandated path.",
++      "resolution": "operator adjudication 2026-10-12: verified fixed on disk; reopened by compact token heuristic (no fix_touched_file) - see gen-4 PLAN_REVIEW escalation",
++      "consensus_status": "unconfirmed"
++    },
++    {
++      "id": 5,
++      "status": "retired",
++      "axis": "compatibility",
++      "type": "compatibility",
++      "criticality": "medium",
++      "evidence_class": "deterministic",
++      "file_path": "openspec/changes/openrouter-review-lane/design.md",
++      "fingerprint": "8a6152404f8d4f7c",
++      "first_seen_round": 1,
++      "last_seen_round": 1,
++      "vendor_hits": [
++        "claude_code"
++      ],
++      "description": "D1 gives openrouter-review location: cloud. In routing.yaml the only tier carrying endpoint_kind openrouter is metered-api with location: local, so RoutingPolicy.cost_tier('cloud', 'openrouter') returns None, and select_model excludes the candidate (model_routing/api.py around lines 577-600). The new agent becomes an inconsistent roster entry for the coordinator router.",
++      "resolution": "operator adjudication 2026-10-12: verified fixed on disk; reopened by compact token heuristic (no fix_touched_file) - see gen-4 PLAN_REVIEW escalation",
++      "consensus_status": "unconfirmed"
++    },
++    {
++      "id": 6,
++      "status": "retired",
++      "axis": "correctness",
++      "type": "correctness",
++      "criticality": "medium",
++      "evidence_class": "deterministic",
++      "file_path": "openspec/changes/openrouter-review-lane/design.md",
++      "fingerprint": "a111a5046fcfc79e",
++      "first_seen_round": 1,
++      "last_seen_round": 1,
++      "vendor_hits": [
++        "claude_code"
++      ],
++      "description": "discover_reviewers makes a single pass over sorted(all_vendors), so the 'roster order' that D5 relies on is not available. The D2 family rule and the D5 fill rule both depend on tier-1/2 selections, which can include vendors that sort after 'openrouter' (e.g. 'pi'). Implemented inside the existing loop, both rules would read an incomplete selection.",
++      "resolution": "operator adjudication 2026-10-12: verified fixed on disk; reopened by compact token heuristic (no fix_touched_file) - see gen-4 PLAN_REVIEW escalation",
++      "consensus_status": "unconfirmed"
++    },
++    {
++      "id": 7,
++      "status": "retired",
++      "axis": "resilience",
++      "type": "resilience",
++      "criticality": "medium",
++      "evidence_class": "judgment",
++      "file_path": "openspec/changes/openrouter-review-lane/design.md",
++      "fingerprint": "3777c42d6a736dfa",
++      "first_seen_round": 1,
++      "last_seen_round": 3,
++      "vendor_hits": [
++        "claude_code"
++      ],
++      "description": "D4 checks the budget only in the probe, which the supervisor runs once per batch against a $1.00 reservation. A dispatched child can then run up to 3 rounds in each of 3 review phases with packets of roughly 80k tokens, and every concurrently dispatched child sees the same remaining budget. When the coordinator ceiling is the only source (key limit null), nothing stops an overrun, so 'bounded before dispatch' does not hold.",
++      "consensus_status": "unconfirmed",
++      "resolution": "operator adjudication 2026-10-12: resolved by ba681f63, then moved to the dispatch layer (task 3.11)"
++    },
++    {
++      "id": 8,
++      "status": "retired",
++      "axis": "readability",
++      "type": "style",
++      "criticality": "low",
++      "evidence_class": "deterministic",
++      "file_path": "openspec/changes/openrouter-review-lane/design.md",
++      "fingerprint": "8a11399a9a35f341",
++      "first_seen_round": 1,
++      "last_seen_round": 1,
++      "vendor_hits": [
++        "claude_code"
++      ],
++      "description": "D1 says the agent has 'no cli and no sdk block, the same shape as ocr-local', but ocr-local declares a cli block (agents.yaml around lines 452-468).",
++      "resolution": "operator adjudication 2026-10-12: verified fixed on disk; reopened by compact token heuristic (no fix_touched_file) - see gen-4 PLAN_REVIEW escalation",
++      "consensus_status": "unconfirmed"
++    },
++    {
++      "id": 9,
++      "status": "retired",
++      "axis": "observability",
++      "type": "spec_gap",
++      "criticality": "low",
++      "evidence_class": "deterministic",
++      "file_path": "openspec/changes/openrouter-review-lane/tasks.md",
++      "fingerprint": "22e360157aaa6f9b",
++      "first_seen_round": 1,
++      "last_seen_round": 1,
++      "vendor_hits": [
++        "claude_code"
++      ],
++      "description": "agent_lane.run_converge does not copy ConvergenceResult.missing_lanes into result.json. Task 6.4 expects the worker to park capability_unavailable with missing_lanes, but no task adds that field (or per-lane cost) to result.json.",
++      "resolution": "operator adjudication 2026-10-12: verified fixed on disk; reopened by compact token heuristic (no fix_touched_file) - see gen-4 PLAN_REVIEW escalation",
++      "consensus_status": "unconfirmed"
++    },
++    {
++      "id": 10,
++      "status": "retired",
++      "axis": "correctness",
++      "type": "spec_gap",
++      "criticality": "medium",
++      "evidence_class": "deterministic",
++      "file_path": "openspec/changes/openrouter-review-lane/specs/parallel-infrastructure/spec.md",
++      "spec_file": "openspec/changes/openrouter-review-lane/specs/parallel-infrastructure/spec.md",
++      "fingerprint": "4c7bcb281a057be6",
++      "first_seen_round": 2,
++      "last_seen_round": 2,
++      "vendor_hits": [
++        "claude_code"
++      ],
++      "description": "The round-1 fix adds normative behaviour to design D6 and tasks 3.8a/5.6: when the primary packet overflows, HTTP lanes get a separate tool-less packet (for plan reviews, scoped to openspec/changes/<id>/**) with its own sidecar, and they refuse only if that packet also overflows. The 'Tool-less Lane Packet Refusal' requirement still describes refusal of the round's packet only. No requirement or scenario defines the tool-less packet, so the spec no longer matches the design and tasks.",
++      "resolution": "operator adjudication 2026-10-12: verified fixed on disk; reopened by compact token heuristic (no fix_touched_file) - see gen-4 PLAN_REVIEW escalation",
++      "consensus_status": "unconfirmed"
++    },
++    {
++      "id": 11,
++      "status": "retired",
++      "axis": "observability",
++      "type": "spec_gap",
++      "criticality": "low",
++      "evidence_class": "deterministic",
++      "file_path": "openspec/changes/openrouter-review-lane/specs/skill-workflow/spec.md",
++      "spec_file": "openspec/changes/openrouter-review-lane/specs/skill-workflow/spec.md",
++      "fingerprint": "f0d66f7c84167355",
++      "first_seen_round": 2,
++      "last_seen_round": 2,
++      "vendor_hits": [
++        "claude_code"
++      ],
++      "description": "Task 5.6 now has agent_lane persist ConvergenceResult.consensus to reviews/consensus-<review_type>.json, which the retirement evidence depends on. The 'Composite Agent-Lane Review' requirement does not state this. Also, IMPL_REVIEW and VAL_REVIEW share review_type 'implementation', so a VAL_REVIEW run would overwrite the IMPL_REVIEW consensus file.",
++      "resolution": "operator adjudication 2026-10-12: verified fixed on disk; reopened by compact token heuristic (no fix_touched_file) - see gen-4 PLAN_REVIEW escalation",
++      "consensus_status": "unconfirmed"
++    },
++    {
++      "id": 12,
++      "status": "retired",
++      "axis": "readability",
++      "type": "contract_mismatch",
++      "criticality": "low",
++      "evidence_class": "deterministic",
++      "file_path": "openspec/changes/openrouter-review-lane/tasks.md",
++      "fingerprint": "92b8158fe22cb772",
++      "first_seen_round": 3,
++      "last_seen_round": 3,
++      "vendor_hits": [
++        "claude_code"
++      ],
++      "description": "The round-2 spec fix names the consensus file per phase (consensus-plan.json, consensus-impl-review.json, consensus-val-review.json). Task 5.6 and design D9 still say reviews/consensus-<review_type>.json, which gives consensus-implementation.json for both implementation phases, so they collide. The PLAN_REVIEW case, which the retirement evidence depends on, agrees in all three artifacts. Design D9 also cites 'task 5.5' for this write, but the work is in task 5.6.",
++      "resolution": "operator adjudication 2026-10-12: verified fixed on disk; reopened by compact token heuristic (no fix_touched_file) - see gen-4 PLAN_REVIEW escalation",
++      "consensus_status": "unconfirmed"
++    },
++    {
++      "id": 13,
++      "status": "addressed",
++      "axis": "architecture",
++      "type": "contract_mismatch",
++      "criticality": "medium",
++      "evidence_class": "deterministic",
++      "file_path": "openspec/changes/openrouter-review-lane/design.md",
++      "fingerprint": "9560d906c79108e4",
++      "first_seen_round": 1,
++      "last_seen_round": 1,
++      "vendor_hits": [
++        "claude_code"
++      ],
++      "description": "D6 and tasks 3.8a/5.6 have converge() build a second, tool-less packet and 'pass both paths to dispatch_and_wait', and have dispatch_and_wait hand the tool-less body and its tools_overflow flag to OpenAI-compatible adapters. That needs a new optional dispatch_and_wait parameter (for both ReviewOrchestrator and the CompositeOrchestrator that converge() calls through _accepts_kwarg) and a new tools_overflow keyword on OpenAICompatAdapter.dispatch. Neither is named anywhere, and the cross-cutting interface contract table lists only include_lanes for dispatch_and_wait. Groups 3 and 5 implement the two sides of this interface in separate packages.",
++      "consensus_status": "unconfirmed",
++      "fix_touched_file": true,
++      "resolution": " | fix commit 3f9651df touched the cited file (verified on disk 2026-10-12)"
++    },
++    {
++      "id": 14,
 +      "status": "addressed",
 +      "axis": "correctness",
 +      "type": "spec_gap",
-+      "criticality": "low",
++      "criticality": "medium",
 +      "evidence_class": "deterministic",
-+      "file_path": "openspec/changes/dispatch-contract/validation-report.md",
-+      "fingerprint": "722edcc42b23fd2a",
++      "file_path": "openspec/changes/openrouter-review-lane/tasks.md",
++      "spec_file": "/home/user/agentic-coding-tools/openspec/changes/openrouter-review-lane/specs/parallel-infrastructure/spec.md",
++      "fingerprint": "760c0f61babee0d4",
 +      "first_seen_round": 1,
-+      "last_seen_round": 2,
++      "last_seen_round": 1,
 +      "vendor_hits": [
 +        "claude_code"
 +      ],
-+      "description": "Outcome 6 describes as future a scan that had already passed when the report was regenerated. PR #662 (roadmap branch to main) merged at 2026-10-10T03:07:43Z as 731557bc (gh api repos/.../pulls/662). The Security workflow's secret-scan job (gitleaks/gitleaks-action@v3, default ruleset via .gitleaks.toml useDefault=true) concluded success on PR #662 heads 0d078ff (the PR #667 merge), 4955e24 (the live multiplayer-collaboration checkpoint migrated to digest-only launch tokens with live attempts), c04a1a8 and 789705a, and on the push to main 731557bc (run 38019470729: secret-scan success). The report was written at 1560d08 (2026-10-10T10:06Z), seven hours later. The .gitleaks.toml commit allowlist exempts only the three raw-token-introducing commits (ddd2c4a8, c6424d74, 3c06430a), not 4955e24, so these runs are real default-ruleset evidence that a committed checkpoint with live attempts passes with no allowlist entry. The same stale statement appears in the Security section (line 155) and the Result line (line 172: 'first runs in PR #662's Security job and must pass there'). The report understates outcome 6 and leaves a confirmation condition open that is already met. \u2014 re-verified resolved in 794b4281",
-+      "resolution": "compact: claimed fix did not take",
-+      "consensus_status": "unconfirmed"
++      "description": "The Metered Review Lane Spend Accounting requirement says every review an openrouter lane dispatches is recorded with spend_recorder.record(), and acceptance outcome 3 says every OpenRouter review is recorded against the ceiling. The only task that calls record() is 5.5, inside agent_lane's CompositeOrchestrator. D5 also selects the metered lane on a host with fewer than fill_target non-metered lanes (for example one CLI vendor and OPENROUTER_API_KEY in non-OpenBao mode). That review runs through ReviewOrchestrator.dispatch_and_wait from converge() or /parallel-review-*, never through agent_lane, so its spend is neither recorded nor spooled and no metered_spend_unrecorded degradation is raised.",
++      "consensus_status": "unconfirmed",
++      "fix_touched_file": true,
++      "resolution": " | fix commit 3f9651df touched the cited file (verified on disk 2026-10-12)"
 +    },
 +    {
-+      "id": 31,
++      "id": 15,
 +      "status": "addressed",
-+      "axis": "readability",
-+      "type": "spec_gap",
++      "axis": "observability",
++      "type": "contract_mismatch",
 +      "criticality": "low",
 +      "evidence_class": "deterministic",
-+      "file_path": "openspec/changes/dispatch-contract/validation-report.md",
-+      "fingerprint": "3918054b5bd61d53",
++      "file_path": "openspec/changes/openrouter-review-lane/specs/parallel-infrastructure/spec.md",
++      "fingerprint": "23f6b8e0d50773bb",
 +      "first_seen_round": 1,
-+      "last_seen_round": 2,
++      "last_seen_round": 1,
 +      "vendor_hits": [
 +        "claude_code"
 +      ],
-+      "description": "Outcome 4 (capability-fingerprint path) cites a test that no longer exists. 765f9d8 renamed it to test_an_approval_resumes_a_member_that_joined_after_the_rejection_only_once_re_projected (skills/tests/autopilot-roadmap/test_dispatch_contract_e2e.py:376) and changed what it asserts: an approval given before re-projection resumes nothing ('early[\"resumed\"] == []'). The report's header says 765f9d8 is in the code under test, but this citation uses the pre-fix name and so describes the pre-fix semantics. The renamed test passes. \u2014 re-verified resolved in 794b4281",
-+      "resolution": "compact: claimed fix did not take",
-+      "consensus_status": "unconfirmed"
++      "description": "The spec fixes work_unit_ref as '<change_id>:<review_type>:round-<n>'. IMPL_REVIEW and VAL_REVIEW both run with review_type 'implementation', so their rows get the same work_unit_ref and spend cannot be split by phase. This is the collision the round-2 fix already removed for the consensus files. Design D4 allows '<phase|review_type>'.",
++      "consensus_status": "unconfirmed",
++      "fix_touched_file": true,
++      "resolution": " | fix commit 3f9651df touched the cited file (verified on disk 2026-10-12)"
 +    },
 +    {
-+      "id": 32,
++      "id": 16,
 +      "status": "addressed",
-+      "axis": "readability",
-+      "type": "spec_gap",
-+      "criticality": "low",
-+      "evidence_class": "deterministic",
-+      "file_path": "openspec/changes/dispatch-contract/validation-report.md",
-+      "fingerprint": "36f8fd22e4a93864",
++      "axis": "architecture",
++      "type": "architecture",
++      "criticality": "medium",
++      "evidence_class": "judgment",
++      "file_path": "openspec/changes/openrouter-review-lane/design.md",
++      "fingerprint": "50d0804bc4341887",
 +      "first_seen_round": 1,
-+      "last_seen_round": 2,
++      "last_seen_round": 1,
 +      "vendor_hits": [
 +        "claude_code"
 +      ],
-+      "description": "The header names the PR #667 review fixes and the post-merge commits as code under test, but the outcome-to-test mapping cites none of the tests they added. Each one bears on a claimed outcome. (a) Outcome 4: 765f9d8's supervise/test_execution.py tests test_a_member_that_parks_after_the_subject_is_not_resumed_by_its_answer, test_a_member_joining_a_human_rejection_is_persisted_before_it_can_be_approved and test_a_human_rejection_answered_before_re_projection_leaves_the_late_member_parked show that a human rejection survives a member joining. (b) Outcome 5: 43a9b11's test_concurrent_resolvers_on_one_fingerprint_are_single_flight (block/auto) shows racing resolvers still yield a single escalation. (c) Outcome 7: b35e544's test_a_cloud_worker_at_the_repo_root_prepares_and_starts, shared/test_dispatch_contract.py::test_harness_provided_isolation_at_the_repo_root_round_trips_as_dot and ::test_a_v1_request_at_the_repo_root_upgrades_to_a_schema_valid_dot_ref cover the portable repo-root isolation ref. (d) Outcome 1 and the gate-answer path: 3a29785 changed dispatch-request.schema.json and the escalate_resume answer, with tests in supervise/test_execution_contract.py, supervise/test_gate_router.py (test_escalate_resume_answer_records_resume_at_validate, test_resume_at_is_refused_unless_an_approved_validate_resume) and autopilot/test_console_interviewer.py. (e) f44bbd6's autopilot/test_goal_gate.py tests are not mentioned. These tests ran inside the whole-suite totals, so the evidence exists, but a reader cannot see from the mapping that the review fixes are proven. \u2014 re-verified resolved in 794b4281",
-+      "resolution": "compact: claimed fix did not take",
-+      "consensus_status": "unconfirmed"
++      "description": "D4 and task 5.7 put the per-round budget re-check in converge(). converge() is vendor-agnostic: it receives only verified_lanes and an orchestrator, does not know which lanes are metered, has no coordinator-usage client, and has no way to keep one lane out of a dispatch except through orchestrator-specific kwargs. CompositeOrchestrator already knows the metered lanes and builds include_lanes, so the check fits there, or in ReviewOrchestrator.dispatch_and_wait next to the probe code. Keeping it in converge() widens the converge() signature with routing concerns.",
++      "consensus_status": "unconfirmed",
++      "fix_touched_file": true,
++      "resolution": "escalation fix 2026-10-12 (operator-directed): spend_context + dispatch-layer budget re-check (tasks 3.10, 3.11, 5.7; design D4 and interface row)"
 +    },
 +    {
-+      "id": 33,
++      "id": 17,
 +      "status": "addressed",
-+      "axis": "readability",
++      "axis": "resilience",
 +      "type": "spec_gap",
-+      "criticality": "low",
++      "criticality": "medium",
 +      "evidence_class": "deterministic",
-+      "file_path": "openspec/changes/dispatch-contract/validation-report.md",
-+      "fingerprint": "af5843e6f87a76c3",
++      "file_path": "openspec/changes/openrouter-review-lane/tasks.md",
++      "spec_file": "/home/user/agentic-coding-tools/openspec/changes/openrouter-review-lane/specs/parallel-infrastructure/spec.md",
++      "fingerprint": "1a9f013eec745723",
 +      "first_seen_round": 2,
-+      "last_seen_round": 1,
++      "last_seen_round": 2,
 +      "vendor_hits": [
 +        "claude_code"
 +      ],
-+      "description": "The parenthetical run id sits next to head 4955e24, so it reads as the run for that head. Run 37976320517 ran on PR #662 head 789705a. 4955e24 is in that run's PR commit range, so the claim holds, but 4955e24's own Security run is 37974967529 (secret-scan success). A reader checking the run id will see a different head SHA than the sentence implies. The Security section (line 182) repeats 37976320517 without a head.",
-+      "consensus_status": "unconfirmed"
++      "description": "The round-1 fix moved spend_recorder.record() into ReviewOrchestrator.dispatch_and_wait, which gets only an optional work_unit_ref and no change id. When the write fails, the spec spools to 'openspec/changes/<change-id>/reviews/spend-spool.jsonl' (spec line 173) and replay runs per change id. A dispatch_and_wait call with work_unit_ref None, such as a one-shot /parallel-review-* run or any caller not yet updated, has no change id, so the failed row has nowhere to go. That metered spend is then neither recorded nor spooled, which is the gap the fix was meant to close.",
++      "consensus_status": "unconfirmed",
++      "fix_touched_file": true,
++      "resolution": "escalation fix 2026-10-12 (operator-directed): spend_context + dispatch-layer budget re-check (tasks 3.10, 3.11, 5.7; design D4 and interface row)"
 +    },
 +    {
-+      "id": 34,
++      "id": 18,
 +      "status": "addressed",
-+      "axis": "readability",
-+      "type": "spec_gap",
++      "axis": "architecture",
++      "type": "contract_mismatch",
 +      "criticality": "low",
 +      "evidence_class": "deterministic",
-+      "file_path": "openspec/changes/dispatch-contract/validation-report.md",
-+      "fingerprint": "3116d20da831bddf",
++      "file_path": "openspec/changes/openrouter-review-lane/design.md",
++      "fingerprint": "2ee1c045a3ada4ee",
 +      "first_seen_round": 2,
-+      "last_seen_round": 1,
++      "last_seen_round": 2,
 +      "vendor_hits": [
 +        "claude_code"
 +      ],
-+      "description": "The 'Tests added after IMPL review' block (added in 794b4281) is indented inside item 6 (the secret-scan outcome), yet its bullets cite tests for outcomes 4, 5, 7, 1 and the goal gate, none for outcome 6. A reader of the numbered outcome list attributes those tests to outcome 6.",
-+      "consensus_status": "unconfirmed"
++      "description": "The new 'spend context' row in the interface contract table says dispatch_and_wait adds 'work_unit_ref: str | None' and that a missing value only drops the field from the row. It does not carry the change id that the D4 spool path (openspec/changes/<id>/reviews/spend-spool.jsonl) needs, and it does not say what happens to a metered lane when no context is given.",
++      "consensus_status": "unconfirmed",
++      "fix_touched_file": true,
++      "resolution": "escalation fix 2026-10-12 (operator-directed): spend_context + dispatch-layer budget re-check (tasks 3.10, 3.11, 5.7; design D4 and interface row)"
 +    },
 +    {
-+      "id": 35,
-+      "status": "addressed",
-+      "axis": "readability",
-+      "type": "spec_gap",
-+      "criticality": "low",
-+      "evidence_class": "deterministic",
-+      "file_path": "openspec/changes/dispatch-contract/validation-report.md",
-+      "fingerprint": "e306b2324a21e1bc",
-+      "first_seen_round": 1,
-+      "last_seen_round": 1,
-+      "vendor_hits": [
-+        "claude_code"
-+      ],
-+      "description": "Proposal outcome 5 requires both permission_blocked and capability_unavailable parks to be routed to the operator as single escalations. The report's outcome 5 says only 'capability parks'. The cited tests do cover permission_blocked (supervise/test_execution.py::test_three_workers_blocked_on_one_rule_produce_one_escalation uses _BLOCKED, kind permission_blocked, line 2247; test_concurrent_resolvers_on_one_fingerprint_are_single_flight likewise), and capability_unavailable (test_different_missing_lanes_are_separate_escalations, the e2e capability-park test), but the report never says which test proves which kind, so the permission_blocked half of the outcome is not visibly proved.",
-+      "consensus_status": "unconfirmed"
-+    },
-+    {
-+      "id": 36,
++      "id": 19,
 +      "status": "addressed",
 +      "axis": "correctness",
 +      "type": "spec_gap",
-+      "criticality": "low",
++      "criticality": "medium",
 +      "evidence_class": "deterministic",
-+      "file_path": "openspec/changes/dispatch-contract/validation-report.md",
-+      "fingerprint": "1ac9e5ef7f170064",
-+      "first_seen_round": 2,
-+      "last_seen_round": 2,
++      "file_path": "openspec/changes/openrouter-review-lane/tasks.md",
++      "spec_file": "/home/user/agentic-coding-tools/openspec/changes/openrouter-review-lane/specs/parallel-infrastructure/spec.md",
++      "fingerprint": "da65bbb77b41c13f",
++      "first_seen_round": 1,
++      "last_seen_round": 1,
 +      "vendor_hits": [
 +        "claude_code"
 +      ],
-+      "description": "The kind label added in 0466eab9 under-reports the end-to-end capability-park test. autopilot-roadmap/test_dispatch_contract_e2e.py::test_a_capability_park_is_one_operator_escalation_that_resumes_the_child is parametrized over `park` with ids [\"permission_blocked\", \"capability_unavailable\"] (lines 519-528), so it is the end-to-end proof for both kinds. Labelling it '(capability_unavailable)' only leaves permission_blocked with unit-level citations alone. A reader would conclude it has no end-to-end coverage, but it does.",
-+      "consensus_status": "unconfirmed"
-     }
-   ],
--  "compacted_at": "2026-10-09T14:06:08Z"
-+  "compacted_at": "2026-10-10T10:39:43Z"
- }
-diff --git a/openspec/changes/dispatch-contract/design.md b/openspec/changes/archive/2026-10-10-dispatch-contract/design.md
-similarity index 100%
-rename from openspec/changes/dispatch-contract/design.md
-rename to openspec/changes/archive/2026-10-10-dispatch-contract/design.md
-diff --git a/openspec/changes/dispatch-contract/dispatch-results/batch-1199bf07b6cb5035d4c22472-ri-21-attempt-1-g2.json b/openspec/changes/archive/2026-10-10-dispatch-contract/dispatch-results/batch-1199bf07b6cb5035d4c22472-ri-21-attempt-1-g2.json
-similarity index 100%
-rename from openspec/changes/dispatch-contract/dispatch-results/batch-1199bf07b6cb5035d4c22472-ri-21-attempt-1-g2.json
-rename to openspec/changes/archive/2026-10-10-dispatch-contract/dispatch-results/batch-1199bf07b6cb5035d4c22472-ri-21-attempt-1-g2.json
-diff --git a/openspec/changes/archive/2026-10-10-dispatch-contract/dispatch-results/batch-1199bf07b6cb5035d4c22472-ri-21-attempt-1-g3.json b/openspec/changes/archive/2026-10-10-dispatch-contract/dispatch-results/batch-1199bf07b6cb5035d4c22472-ri-21-attempt-1-g3.json
++      "description": "Since commit 62590065 a metered lane is refused (spend_context_missing) unless dispatch_and_wait receives a SpendContext, and converge() builds one only when its caller passes the new optional `phase`. The only caller that passes `phase` is agent_lane.py (task 5.6). The host inline converge() call in skills/autopilot/SKILL.md (PLAN_REVIEW fallback, about line 567) and the other host review phases pass no phase, and task 6.4 edits only the cloud review-section text. On a host where D5 selects the metered lane (one non-metered lane), every host converge() round therefore refuses the openrouter lane and ends capability_unavailable. The 'A host-path metered review is recorded' scenario can only pass in a unit test that calls dispatch_and_wait directly. Fix: add a task (or extend 6.4) that makes every host converge() caller in skills/autopilot/SKILL.md pass phase=<PLAN_REVIEW|IMPL_REVIEW|VAL_REVIEW>, or have converge() derive a SpendContext from change_id plus review_type and round when phase is None (accepting the IMPL/VAL collision only for that fallback).",
++      "consensus_status": "unconfirmed",
++      "fix_touched_file": true,
++      "resolution": "PLAN_FIX round 1 (gen 5): fix commit 6c7d08b3 touched the cited file; spec_file edit withheld (absolute allowed_paths scope bug)"
++    },
++    {
++      "id": 20,
++      "status": "addressed",
++      "axis": "correctness",
++      "type": "contract_mismatch",
++      "criticality": "low",
++      "evidence_class": "deterministic",
++      "file_path": "openspec/changes/openrouter-review-lane/tasks.md",
++      "fingerprint": "f1c36ed5f4930b58",
++      "first_seen_round": 1,
++      "last_seen_round": 1,
++      "vendor_hits": [
++        "claude_code"
++      ],
++      "description": "Task 5.6 bullet 1 still says converge() 'passes work_unit_ref=<change_id>:<phase>:round-<n> to dispatch_and_wait (via _accepts_kwarg)'. After commit 62590065 the design's interface contract table, D4 and task 3.10 define the keyword as `spend_context: SpendContext(change_id, work_unit_ref)`. Groups 3 and 5 implement the two sides of this keyword in separate packages, so an implementer following 5.6 literally would pass a keyword that ReviewOrchestrator.dispatch_and_wait does not accept, and _accepts_kwarg would silently drop it, which leaves every metered dispatch spend_context_missing.",
++      "consensus_status": "unconfirmed",
++      "fix_touched_file": true,
++      "resolution": "PLAN_FIX round 1 (gen 5): fix commit 6c7d08b3 touched the cited file; spec_file edit withheld (absolute allowed_paths scope bug)"
++    },
++    {
++      "id": 21,
++      "status": "addressed",
++      "axis": "resilience",
++      "type": "spec_gap",
++      "criticality": "medium",
++      "evidence_class": "deterministic",
++      "file_path": "openspec/changes/openrouter-review-lane/design.md",
++      "spec_file": "/home/user/agentic-coding-tools/openspec/changes/openrouter-review-lane/specs/parallel-infrastructure/spec.md",
++      "fingerprint": "089d8c3780a945cc",
++      "first_seen_round": 1,
++      "last_seen_round": 1,
++      "vendor_hits": [
++        "claude_code"
++      ],
++      "description": "The D4 per-round budget re-check reads metered_usd_used from GET /routing/usage, which counts only ledger rows. Rows that spooled because POST /routing/spend failed are invisible to it. D4 says 'the key's credit limit bounds spend while rows sit in the spool', but when the key limit is null and the coordinator ceiling is the only source, a worker whose GET succeeds while its POST fails (the partly-forbidden coordinator case D4 itself cites: coordinator_projection_forbidden) keeps passing the re-check while every round's spend spools. The bound then fails exactly in the degraded mode that motivated the spool. The Cost abuse bullet in Security and the Risks row on concurrent overspend do not cover it.",
++      "consensus_status": "unconfirmed",
++      "fix_touched_file": true,
++      "resolution": "PLAN_FIX round 1 (gen 5): fix commit 6c7d08b3 touched the cited file; spec_file edit withheld (absolute allowed_paths scope bug)"
++    }
++  ],
++  "compacted_at": "2026-10-13T00:47:58Z"
++}
+diff --git a/openspec/changes/openrouter-review-lane/contracts/README.md b/openspec/changes/openrouter-review-lane/contracts/README.md
 new file mode 100644
-index 00000000..b11c55f7
+index 00000000..0db945d5
 --- /dev/null
-+++ b/openspec/changes/archive/2026-10-10-dispatch-contract/dispatch-results/batch-1199bf07b6cb5035d4c22472-ri-21-attempt-1-g3.json
-@@ -0,0 +1,50 @@
++++ b/openspec/changes/openrouter-review-lane/contracts/README.md
+@@ -0,0 +1,14 @@
++# Contracts
++
++- `config/routing-cost-policy.schema.json` supersedes the archived
++  `declare-the-routing-cost-policy-the-router-obeys` ladder schema: it adds the
++  `metered-api-cloud` tier (design D1) and allows a fourth rung. The archive is
++  left unchanged as history.
++- `config/routing.schema.json` supersedes the
++  `implement-the-task-router-vendor-x-location-x-model` routing policy schema with
++  the same tier. That change's own contract is left as it was written.
++
++Both are what the deployed `agent-coordinator/routing.yaml` validates against
++(`tests/model_routing/test_routing_cost_policy.py`,
++`tests/model_routing/test_routing_policy_config.py`). When this change archives,
++`change_dir()` resolves the archived path.
+diff --git a/openspec/changes/openrouter-review-lane/contracts/config/routing-cost-policy.schema.json b/openspec/changes/openrouter-review-lane/contracts/config/routing-cost-policy.schema.json
+new file mode 100644
+index 00000000..7218b104
+--- /dev/null
++++ b/openspec/changes/openrouter-review-lane/contracts/config/routing-cost-policy.schema.json
+@@ -0,0 +1,66 @@
++{
++  "$defs": {
++    "CostTier": {
++      "additionalProperties": false,
++      "properties": {
++        "id": {
++          "enum": [
++            "subscription-local",
++            "subscription-cloud",
++            "metered-api",
++            "metered-api-cloud"
++          ],
++          "title": "Id",
++          "type": "string"
++        },
++        "location": {
++          "enum": [
++            "local",
++            "cloud",
++            "unknown"
++          ],
++          "title": "Location",
++          "type": "string"
++        },
++        "endpoint_kinds": {
++          "items": {
++            "enum": [
++              "vendor-cli",
++              "vendor-sdk",
++              "openrouter",
++              "local"
++            ],
++            "type": "string"
++          },
++          "minItems": 1,
++          "title": "Endpoint Kinds",
++          "type": "array"
++        }
++      },
++      "required": [
++        "id",
++        "location",
++        "endpoint_kinds"
++      ],
++      "title": "CostTier",
++      "type": "object"
++    }
++  },
++  "additionalProperties": false,
++  "properties": {
++    "tiers": {
++      "items": {
++        "$ref": "#/$defs/CostTier"
++      },
++      "maxItems": 4,
++      "minItems": 3,
++      "title": "Tiers",
++      "type": "array"
++    }
++  },
++  "required": [
++    "tiers"
++  ],
++  "title": "CostPolicy",
++  "type": "object"
++}
+diff --git a/openspec/changes/openrouter-review-lane/contracts/config/routing.schema.json b/openspec/changes/openrouter-review-lane/contracts/config/routing.schema.json
+new file mode 100644
+index 00000000..8301d400
+--- /dev/null
++++ b/openspec/changes/openrouter-review-lane/contracts/config/routing.schema.json
+@@ -0,0 +1,125 @@
++{
++  "$schema": "https://json-schema.org/draft/2020-12/schema",
++  "$id": "https://agentic-coding-tools.local/contracts/routing-policy-v1.schema.json",
++  "type": "object",
++  "additionalProperties": false,
++  "required": ["schema_version", "policy_version", "defaults", "rules", "fallback"],
++  "properties": {
++    "schema_version": {"const": 1},
++    "policy_version": {"type": "string", "pattern": "^[a-z0-9][a-z0-9.-]{0,63}$"},
++    "defaults": {
++      "type": "object",
++      "additionalProperties": false,
++      "required": ["dispatch_mode", "phase_dispatch_modes"],
++      "properties": {
++        "dispatch_mode": {"$ref": "#/$defs/dispatchMode"},
++        "phase_dispatch_modes": {
++          "type": "object",
++          "additionalProperties": {"$ref": "#/$defs/dispatchMode"}
++        }
++      }
++    },
++    "rules": {
++      "type": "array",
++      "items": {"$ref": "#/$defs/rule"}
++    },
++    "cost_policy": {"$ref": "#/$defs/costPolicy"},
++    "fallback": {
++      "type": "object",
++      "additionalProperties": false,
++      "required": ["location_order", "isolation_order", "dispatch_mode_order"],
++      "properties": {
++        "location_order": {
++          "type": "array",
++          "minItems": 1,
++          "uniqueItems": true,
++          "items": {"$ref": "#/$defs/location"}
++        },
++        "isolation_order": {
++          "type": "array",
++          "minItems": 1,
++          "uniqueItems": true,
++          "items": {"$ref": "#/$defs/isolation"}
++        },
++        "dispatch_mode_order": {
++          "type": "array",
++          "minItems": 1,
++          "uniqueItems": true,
++          "items": {"$ref": "#/$defs/dispatchMode"}
++        }
++      }
++    }
++  },
++  "$defs": {
++    "location": {"type": "string", "enum": ["local", "cloud", "unknown"]},
++    "isolation": {"type": "string", "enum": ["none", "worktree", "sandbox"]},
++    "dispatchMode": {"type": "string", "enum": ["review", "alternative", "quick", "sdk"]},
++    "costPolicy": {
++      "type": "object",
++      "additionalProperties": false,
++      "required": ["tiers"],
++      "properties": {
++        "tiers": {
++          "type": "array",
++          "minItems": 3,
++          "maxItems": 4,
++          "prefixItems": [
++            {"$ref": "#/$defs/localSubscriptionTier"},
++            {"$ref": "#/$defs/cloudSubscriptionTier"},
++            {"$ref": "#/$defs/meteredTier"},
++            {"$ref": "#/$defs/meteredCloudTier"}
++          ]
++        }
++      }
++    },
++    "localSubscriptionTier": {"$ref": "#/$defs/costTier", "properties": {"id": {"const": "subscription-local"}}},
++    "cloudSubscriptionTier": {"$ref": "#/$defs/costTier", "properties": {"id": {"const": "subscription-cloud"}}},
++    "meteredTier": {"$ref": "#/$defs/costTier", "properties": {"id": {"const": "metered-api"}}},
++    "meteredCloudTier": {"$ref": "#/$defs/costTier", "properties": {"id": {"const": "metered-api-cloud"}}},
++    "costTier": {
++      "type": "object",
++      "additionalProperties": false,
++      "required": ["id", "location", "endpoint_kinds"],
++      "properties": {
++        "id": {"enum": ["subscription-local", "subscription-cloud", "metered-api", "metered-api-cloud"]},
++        "location": {"$ref": "#/$defs/location"},
++        "endpoint_kinds": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"enum": ["vendor-cli", "vendor-sdk", "openrouter", "local"]}}
++      }
++    },
++    "rule": {
++      "type": "object",
++      "additionalProperties": false,
++      "required": ["id", "when", "constrain"],
++      "properties": {
++        "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]{1,63}$"},
++        "when": {
++          "type": "object",
++          "additionalProperties": false,
++          "minProperties": 1,
++          "properties": {
++            "phase": {"type": "string"},
++            "archetype": {"type": "string"},
++            "scope": {"type": "string", "enum": ["read-only", "bounded-write", "broad-write"]},
++            "interactivity": {"type": "string", "enum": ["interactive", "headless"]},
++            "secret_need": {"type": "string", "enum": ["none", "brokered", "direct"]},
++            "min_duration_seconds": {"type": "integer", "minimum": 0},
++            "max_duration_seconds": {"type": "integer", "minimum": 0},
++            "min_parallelism": {"type": "integer", "minimum": 1},
++            "max_parallelism": {"type": "integer", "minimum": 1},
++            "repo_shape": {"type": "string", "enum": ["single-package", "monorepo", "unknown"]}
++          }
++        },
++        "constrain": {
++          "type": "object",
++          "additionalProperties": false,
++          "minProperties": 1,
++          "properties": {
++            "location": {"$ref": "#/$defs/location"},
++            "isolation": {"$ref": "#/$defs/isolation"},
++            "dispatch_mode": {"$ref": "#/$defs/dispatchMode"}
++          }
++        }
++      }
++    }
++  }
++}
+diff --git a/openspec/changes/openrouter-review-lane/design.md b/openspec/changes/openrouter-review-lane/design.md
+index d90c092a..99ee1d60 100644
+--- a/openspec/changes/openrouter-review-lane/design.md
++++ b/openspec/changes/openrouter-review-lane/design.md
+@@ -1,22 +1,454 @@
+-<!-- SCAFFOLD: generated by plan-roadmap from roadmap `multiplayer-collaboration`, item `ri-22`.
+-     Preliminary. Refine before implementation. -->
+-
+ # Design: OpenRouter review lane for cloud workers
+ 
++> Roadmap `multiplayer-collaboration`, item `ri-22`. Depends on `ri-21` (`dispatch-contract`, completed).
++
+ ## Context
+ 
+-Make API-based multi-vendor review available in cloud containers by registering OpenRouter-backed reviewer lanes (non-Anthropic model families) that dispatch over HTTP through the existing OpenAI-compatible adapter, need no vendor CLI, and count toward converge() quorum. Lanes are declared in the dispatch request's execution_profile and review_requirements from ri-21, verified by a dry invocation rather than credential probing, bounded by the existing spend ceiling, and their use retires the temporary cloud single-vendor review policy.
++Cloud containers run on the Claude subscription only. The only review lane a cloud
++worker can dispatch is the agent itself (served through `skills/autopilot/scripts/agent_lane.py`),
++so `converge()` cannot reach `min_quorum=2`. ri-21 made that honest — the review
++parks `capability_unavailable` or runs single-vendor under the temporary
++`cloud-container-single-vendor-2026-10-09` entry of
++`skills/parallel-infrastructure/review_quorum_policy.json`. That entry is backed by
++the "Review quorum in cloud containers (temporary)" section of `TRUST_POSTURE.md`.
+ 
+-## Why this item exists
++Most of the HTTP machinery already exists. What is missing is the wiring that would
++make an OpenRouter lane count toward quorum:
+ 
+-Restores the two-vendor review quorum for cloud workers at metered API cost instead of waiting on the GX10 review lane, and replaces a prompt-level policy exception with a configured, observable lane.
++| Existing piece | Location | Gap this change closes |
++|---|---|---|
++| `OpenAICompatAdapter` (tier 2.5), captures `generation_id` | `skills/parallel-infrastructure/scripts/openai_compat_adapter.py` | No authenticated no-op, no cost or token capture, no refusal of packets that need tools |
++| Tier-2.5 discovery for `endpoint_kind in {openrouter, local}` with `base_url` | `review_dispatcher.py` `from_config_dict` / `discover_reviewers` | No agent declares an OpenRouter `base_url`, so no lane exists. There is no model-family rule and no cost policy for metered lanes |
++| `--check-vendors --json` dry-probe verification (D10) | `review_dispatcher.py` `_probe_mode` | Every SDK or API lane is reported `probe_unsupported` and never verifies |
++| `routing_spend_ledger` + `ROUTING_MONTHLY_CEILING_USD` | `agent-coordinator/src/model_routing/{ledger,api}.py` | Advisory only. No client writes rows (`LedgerService.record` has no caller), and nothing checks the ceiling before dispatch |
++| Honest quorum guard (`verified_lanes`, `capability_unavailable`) | `skills/autopilot/scripts/convergence_loop.py` `converge()` | A lane that loses budget or auth mid-run surfaces as `quorum_lost`, not `capability_unavailable` |
++| Agent-as-lane driver | `skills/autopilot/scripts/agent_lane.py` | Hard-codes `verified_lanes=[claude_code]`, so it cannot add a second lane |
++| Lane ranking for `counting_lanes` | `skills/supervise/scripts/execution.py` `resolve_execution_profile.rank` | Infers the endpoint kind from `reason == probe_unsupported`, which breaks once API lanes verify |
+ 
+-## Depends on
++## Goals / Non-goals
+ 
+-- `ri-21`
++**Goals**
++- In a cloud container, `converge()` reaches quorum 2 with `claude_code` plus at least one
++  verified OpenRouter lane from a non-Anthropic model family.
++- Lane availability comes only from the dry probe. No worker reads environment variables
++  or credentials to discover lanes.
++- Metered spend is recorded for every review and bounded before dispatch. A lane that is
++  over budget is reported unverified, and the review parks `capability_unavailable`.
++- The temporary cloud single-vendor policy is retired after the lane has been shown to
++  work in cloud.
+ 
+-## Open questions
++**Non-goals**
++- Inline or proxy-level budget enforcement, virtual keys, a LiteLLM gateway
++  (`add-coordinator-llm-gateway`).
++- A general usage-accounting store, transcript ingestion, or pricing tables
++  (`add-model-usage-ledger`). This change writes only to the existing `routing_spend_ledger`.
++- Using OpenRouter lanes for `alternative` or `quick` modes. `OpenAICompatAdapter.can_dispatch`
++  stays review-only.
++- Tool use for HTTP lanes. They review the packet text only (see D6).
++- The GX10 review lane, and adaptive model selection for review lanes.
+ 
+-- Which capability do these requirements finally belong to?
+-- What are the non-goals for this item?
+-- Which decisions here need recording before implementation starts?
++## Decisions
++
++### D1 — A lane is an endpoint-only `agents.yaml` agent, with its model in `archetypes.yaml`
++
++The first lane is a new agent `openrouter-review`:
++
++- `type: openrouter`, `endpoint_kind: openrouter`, `base_url: https://openrouter.ai/api/v1`
++- `location: cloud`, `transport: http`, `trust_level: 1`, `capabilities: [discover]`
++- `archetypes: [reviewer]`, `vendor_credentials: [openrouter]`
++- no `cli` and no `sdk` block: the dispatcher builds only the tier-2.5 `OpenAICompatAdapter` for it
++  (`from_config_dict` already accepts an agent whose only dispatch surface is `endpoint_kind` + `base_url`)
++- no `api_key`. The lane never calls the coordinator under its own identity. Without a principal, key resolution falls back to the dispatcher's existing `OPENROUTER_API_KEY` default for `endpoint_kind: openrouter`, which works in non-OpenBao mode (cloud). On an OpenBao host the lane reports `auth_failed`. That is acceptable: hosts have CLI lanes, and D5 would not select it there. The agent schema has `additionalProperties: false`, so no agent-level `api_key_env` field is added.
++
++Its model comes from a new provider `openrouter` in `agent-coordinator/archetypes.yaml`. The
++`premium` tier is the review model; the `standard` and `economy` tiers are its fallbacks,
++which `_derived_tier_fallbacks` already reads. Lane id = `agent.type` = `openrouter`. This is
++the vendor string in `ReviewResult`, in the checkpoint index, in `execution_profile.lanes`,
++and in ConsensusSynthesizer attribution.
++
++More lanes are added the same way, each with its own `type` and provider key. Lane ids must be
++unique because `converge()` keys checkpointed results by `vendor`.
++
++`location: cloud` needs a matching cost tier. Today the only `routing.yaml` tier carrying
++`endpoint_kind: openrouter` is `metered-api` with `location: local`, so
++`RoutingPolicy.cost_tier("cloud", "openrouter")` returns `None` and `select_model` would exclude
++the agent. Group 2 therefore appends a tier `metered-api-cloud` (`location: cloud`,
++`endpoint_kinds: [openrouter]`) after `metered-api`. It is the last rung, so it never outranks a
++subscription tier, and the supervisor's `_tier_order()` (which reads only `endpoint_kinds`, first
++index wins) is unchanged. A group-2 test asserts `cost_tier("cloud", "openrouter")` is not `None`.
++
++*Alternatives considered*
++- Add `base_url` to `pi-local` and reuse the `pi` provider. Rejected: it couples the pi
++  harness's identity, credential principal and CLI-precedence rules to an HTTP reviewer, and a
++  `location: local` agent would serve a cloud lane.
++- Keep a separate lane file under `skills/parallel-infrastructure/`. Rejected: it would be a
++  second roster, which the principal registry rule forbids, and the coordinator's
++  `/agents/dispatch-configs` would not see it.
++
++### D2 — Model-family diversity rule
++
++A lane counts toward quorum only if it adds a model family:
++
++- The family of an OpenRouter lane is the publisher prefix of its primary model slug
++  (`<publisher>/<model>`).
++- The family of a CLI or SDK vendor comes from a new `vendor_families` map in
++  `review_quorum_policy.json`, for example `claude_code → anthropic`, `codex → openai`,
++  `antigravity → google`, `grok → xai`.
++
++Config load rejects an OpenRouter lane whose primary model or any fallback model has publisher
++`anthropic` (the agent is skipped with a logged reason). `discover_reviewers` skips a tier-2.5
++lane whose family is already contributed by a lane selected at tier 1 or 2, and records the
++reason `duplicate_model_family`. An Anthropic-family lane is reported with the reason
++`anthropic_family`. Both reasons appear in the `unverified` list of `--check-vendors --json`.
++
++A vendor missing from `vendor_families` has unknown family and is never treated as a duplicate.
++
++**Selection is two-pass.** Today `discover_reviewers` makes one pass over `sorted(all_vendors)`,
++so a tier-2.5 lane such as `openrouter` would be decided before tier-1/2 vendors that sort after
++it (for example `pi`). The family rule (D2) and the fill rule (D5) both read the complete
++non-metered selection, so discovery becomes:
++
++1. Pass 1 selects every tier-1 (CLI) and tier-2 (SDK) lane exactly as today.
++2. Pass 2 walks the remaining tier-2.5 candidates in `agents.yaml` roster order (the insertion
++   order of `openai_adapters`, not the sorted vendor order). It applies the Anthropic rule, the
++   duplicate-family rule against the pass-1 set, and then the fill rule (D5).
++
++Tests cover a non-metered vendor that sorts after the metered lane.
++
++*Trade-off accepted:* fallback models may belong to a different family from the primary
++model. The family check uses the primary model only, and `model_used` is recorded so audits
++can see what actually ran. This is preferred over forbidding cross-family fallbacks, which
++would make a single capacity error fatal to the lane.
++
++### D3 — Authenticated dry probe for API lanes
++
++`OpenAICompatAdapter.probe(api_key, transport, timeout=10)` makes one authenticated request
++that costs nothing:
++
++- `openrouter`: `GET {base_url}/key`, which returns the key's `limit`, `usage` and `limit_remaining`
++- `local`: `GET {base_url}/models`
++
++It returns `ProbeResult(ok, reason, budget)`. `reason` is one of `None`, `auth_failed`,
++`probe_timeout`, `endpoint_unreachable`, `spend_ceiling_exceeded`,
++`spend_ceiling_unverifiable`. `budget` holds numeric fields only.
++
++The response body is parsed in memory, and only the numeric budget fields are kept. Nothing
++from the response or the key is printed, logged, or returned.
++
++`_probe_mode` calls this for `dispatch_tier == "openai"` lanes in place of
++`probe_unsupported`. The key is resolved through the existing `ApiKeyResolver` path, which the
++Dispatchable Vendor Verification requirement already allows.
++
++The JSON report gains an additive per-mode `lane_kinds: {lane: endpoint_kind}` map. The supervisor uses it for ranking (D8).
++
++### D4 — Spend: bounded before dispatch, recorded after it
++
++**Bounded.** The probe (D3) also checks the budget. It reads up to two ceiling sources:
++
++1. The coordinator ceiling: `GET /routing/usage?window=month`. It counts when
++   `metered_ceiling_usd > 0` and the coordinator is reachable. Remaining budget is
++   `metered_ceiling_usd − metered_usd_used`.
++2. The OpenRouter key's own credit `limit`, from the probe response. It counts when the limit
++   is not null. Remaining budget is `limit_remaining`.
++
++How the probe decides:
++
++- **Verified:** at least one source is available, and every available source has remaining
++  budget of at least `review_reservation_usd`.
++- **`spend_ceiling_exceeded`:** an available source has less than that left.
++- **`spend_ceiling_unverifiable`:** no source is available (fail closed).
++
++`review_reservation_usd` is a single number in `review_quorum_policy.json` under
++`metered_lanes.review_reservation_usd`. The default is `1.00`. That is roughly one
++full-packet review round on a premium model, and it can be tuned as data.
++
++**Spend context.** Spooling needs a change id (the spool lives under
++`openspec/changes/<id>/reviews/`). So `dispatch_and_wait` takes a `SpendContext(change_id,
++work_unit_ref)` and refuses to dispatch a metered lane without one (`spend_context_missing`,
++`error_class = UNAVAILABLE`). Every metered dispatch therefore has a ledger row or a spool row.
++
++**Re-checked per round.** A probe-time check alone lets later rounds, and concurrently running
++children, spend past the coordinator ceiling. So every time `ReviewOrchestrator.dispatch_and_wait`
++is about to dispatch a metered lane (once per round, on every path, including
++`CompositeOrchestrator`, which calls it), it re-runs the same budget check the probe uses
++(task 3.6) against the current `metered_usd_used`. `GET /routing/usage` counts only ledger rows, so
++for the coordinator source the re-check also counts the `actual_usd` total of the change's
++unreplayed `reviews/spend-spool.jsonl` rows as used (remaining = `metered_ceiling_usd −
++metered_usd_used − spooled_usd`); the budget function takes the spooled total as an input, which
++the probe, having no change context, passes as 0. Without this, a worker whose usage read
++succeeds while its spend write fails (the partly-forbidden coordinator case below) would keep
++passing the re-check while every round's spend spools. The check lives in the dispatch layer, next to
++the probe code and the spend recording (task 3.10), not in `converge()`, which stays
++vendor-agnostic and knows nothing about which lanes are metered. A lane whose remaining budget is now below
++`review_reservation_usd` is not dispatched for that round; it is reported as a failed result with
++`error_class = UNAVAILABLE` (`spend_ceiling_exceeded`), which D7 turns into
++`capability_unavailable`. Concurrent children can still overlap by at most one reservation each
++between a check and the ledger row landing; the key's credit limit remains the hard bound, and
++this residual is listed under Risks.
++
++An unverified lane is left out of `execution_profile.lanes.review`. A dispatched child then
++parks `capability_unavailable` through the existing Honest Review Quorum path. It never drops
++to single-vendor review on its own.
++
++**Recorded.** Each request sets `"usage": {"include": true}`, so OpenRouter returns
++`usage.cost`. The adapter adds `prompt_tokens`, `completion_tokens`, `cost_usd` and
++`cost_source` (`reported`, or `estimated` when the response has no cost) to `ReviewResult`.
++
++A new `skills/parallel-infrastructure/scripts/spend_recorder.py` writes one row per review. The
++caller is `ReviewOrchestrator.dispatch_and_wait`, after each metered result, so every dispatch
++path records (a host `converge()` that selected the lane by D5, `/parallel-review-*`, and
++`agent_lane`'s `CompositeOrchestrator`). It sets `ReviewResult.spend_recorded`:
++
++- It posts to a new authenticated `POST /routing/spend` that calls the existing
++  `LedgerService.record`.
++- The row holds `vendor` = lane id, `model` = `model_used`, `endpoint_kind = openrouter`,
++  `generation_id`, the token counts, `actual_usd`, `tokens_estimated` (true when `cost_source`
++  is `estimated`), and `work_unit_ref = <change_id>:<phase>:round-<n>`.
++
++The same fields always go into the round checkpoint's vendor index, which is durable on the
++branch.
++
++If the coordinator write fails, the record is appended to
++`openspec/changes/<id>/reviews/spend-spool.jsonl`, and the worker records the degradation
++`metered_spend_unrecorded` (a new closed code). `spend_recorder.py replay --change-id <id>`
++posts the spooled rows idempotently, keyed by `generation_id`. The supervisor runs it during
++`apply`.
++
++The key's credit limit bounds spend while rows sit in the spool.
++
++*Alternatives considered*
++- Fail the review when the ledger write fails. Rejected: the coordinator is known to be
++  partly unreachable from cloud workers (`coordinator_projection_forbidden`), and the key
++  limit already bounds spend.
++- Wait for `add-model-usage-ledger`. Rejected: it is a draft with a much larger scope, and the
++  roadmap names the *existing* ceiling.
++
++### D5 — Metered lanes fill quorum, they do not add to it
++
++An agent with `endpoint_kind: openrouter` that is selected at tier 2.5 is a metered lane.
++`discover_reviewers` includes metered lanes only while the non-metered lanes it has selected
++number fewer than `metered_lanes.fill_target`. `fill_target` defaults to the policy file's
++`default_min_quorum`, which is 2. Metered lanes are added in `agents.yaml` roster order, during
++pass 2 of the two-pass selection (D2), until the target is reached.
++
++A host with two CLI lanes therefore pays nothing. A cloud container with only `claude_code`
++gets exactly one metered lane.
++
++This is a property of the roster that `--check-vendors` and `dispatch_and_wait` both apply, so
++the profile and the dispatch always agree.
++
++*Alternative considered:* always dispatch every configured lane (more reviewers). Rejected:
++every host review would start paying OpenRouter. The operator can raise `fill_target`.
++
++### D6 — HTTP lanes refuse packets that need tools
++
++HTTP lanes cannot read files. The `pi --no-tools` incident shows that a reviewer which cannot
++see the artifacts but still returns `{"findings": []}` manufactures false consensus.
++
++When the round's packet metadata has `tools_overflow: true`, `OpenAICompatAdapter.dispatch`
++returns `success=False`, `error_class=UNAVAILABLE`, `error="packet_requires_tools"` and makes
++no HTTP call. The existing Empty Or Blinded Review Is Not Success floor still applies to HTTP
++lanes.
++
++The packet metadata is the sidecar `build_review_packet` writes next to `packet_path`.
++`dispatch_and_wait` already receives `packet_path`. It reads the flag from the sidecar of the
++packet an OpenAI-compatible lane will receive and passes it to
++`OpenAICompatAdapter.dispatch(..., tools_overflow: bool = False)`.
++
++**Refusal must stay rare.** Refusal alone would make the lane useless in practice. Plan-review
++packets on long-lived branches routinely overflow: the round-1 PLAN_REVIEW packet for this change
++was 320000/320000 chars with `tools_overflow: true`, because the diff against `origin/main` spans
++about 420 files. To avoid this, `converge()` builds a second, tool-less packet for HTTP lanes
++whenever the primary packet overflows:
++
++- For `review_type == "plan"`, the tool-less packet's diff is limited to
++  `openspec/changes/<change-id>/**`. It includes the full text of `proposal.md`, `design.md`,
++  `tasks.md` and the spec deltas, all within the same `BUDGET_CHARS`. A plan review judges the plan
++  artifacts, and the unrelated branch diff is not needed for that.
++- For `review_type == "implementation"`, the tool-less packet keeps the existing rule-group
++  selection but drops the excluded and truncated files. Its sidecar lists them as `coverage.skipped`
++  (the blinded-review floor still applies).
++- The tool-less packet gets its own sidecar (`review-packet.toolless.meta.json`). An HTTP lane
++  refuses with `packet_requires_tools` only when this packet *also* has `tools_overflow: true`.
++  The CLI and handshake lanes keep the primary packet.
++- `converge()` passes the tool-less packet as a new optional keyword,
++  `dispatch_and_wait(..., toolless_packet_path: Path | None = None)`, only when the orchestrator
++  accepts it (the existing `_accepts_kwarg` check). Both `ReviewOrchestrator` and
++  `CompositeOrchestrator` accept it, and `CompositeOrchestrator` forwards it to
++  `ReviewOrchestrator`. When it is `None`, OpenAI-compatible lanes get the primary packet as today.
++
++A scenario covers a plan review whose full branch diff overflows: the HTTP lane receives a
++tool-less packet that fits, and it is dispatched. The D9 evidence run must use a change whose
++primary packet overflows, so that a small fixture cannot hide the problem.
++
++### D7 — Composite orchestrator in `agent_lane.py`, and honest mid-run loss
++
++`agent_lane.run_converge` gains `--verified-lanes` (repeatable). A dispatched child copies
++the values from its launch marker's `execution_profile.lanes.review`. A standalone run copies
++them from the `--check-vendors --json` output, which is the only allowed probe.
++
++It builds a `CompositeOrchestrator`. Each round it:
++
++- dispatches the `claude_code` handshake lane (unchanged), and
++- runs `ReviewOrchestrator.dispatch_and_wait(..., include_lanes=<verified lanes other than claude_code>)`
++  concurrently,
++
++and returns the combined `ReviewResult` list, with the checkpoint callback forwarded.
++`include_lanes` is a new optional filter on `dispatch_and_wait`; `None` keeps today's
++behaviour.
++
++The quorum policy is resolved with `verified_review_lanes = len(verified_lanes)` instead of the
++literal `1`.
++
++`claude_code` is always a verified lane inside `agent_lane`, because the running agent
++serves it. That is the premise of the module today. A `--verified-lanes claude_code` value
++is deduplicated.
++
++In `converge()`, `missing_lanes` is defined as the round's verified lanes minus the lanes that
++returned a successful result. When a round has fewer successful results than `min_quorum`,
++`missing_lanes` is non-empty, and every lane in `missing_lanes` has a recorded failure whose
++`error_class` is `UNAVAILABLE` or `AUTH` (budget exhausted, HTTP 402, key revoked, or
++`packet_requires_tools`), it returns `reason="capability_unavailable"` with those lanes. A
++verified lane that produced no result at all (no success and no recorded failure) is not a
++capability loss, so the condition is never vacuously true: that round stays `quorum_lost`, as
++does any other quorum loss.
++
++The autopilot SKILL already maps `capability_unavailable` to `runner.py park --kind
++capability_unavailable`.
++
++### D8 — Supervisor ranking uses `lane_kinds`
++
++`resolve_execution_profile.rank` reads the lane's endpoint kind from the report's
++`lane_kinds`. It falls back to the old `probe_unsupported` inference only when `lane_kinds` is
++absent, so older reports still rank. `openrouter` sorts by its position in the
++`cost_policy.tiers` ladder in `routing.yaml`.
++
++`ExecutionProfile` in `dispatch-request.schema.json` does not change: lanes stay plain lane-id strings.
++
++### D9 — Retiring the temporary policy needs evidence and is the last task
++
++The operator runs `/autopilot` on a fixture change in a cloud container whose environment has
++`OPENROUTER_API_KEY` as a secret and allows egress to `openrouter.ai`. The run is accepted
++only if the evidence file `openspec/changes/openrouter-review-lane/evidence/cloud-quorum-run.md`
++shows all of the following:
++
++- `PLAN_REVIEW` with `min_quorum=2`
++- two attributed lanes in `reviews/consensus-plan.json`. `converge()` itself never writes this
++  file (only `/parallel-review-plan` does), so `agent_lane.py` persists `ConvergenceResult.consensus`
++  to a per-phase file after each run (task 5.6): `consensus-plan.json`, `consensus-impl-review.json`
++  or `consensus-val-review.json`, so the two implementation phases do not collide. It sits alongside `quorum_received`
++  and the per-lane index already in `.review-cache/round-N/`
++- a `routing_spend_ledger` row, or a spool row, carrying the `generation_id`
++
++Only then does the final task:
++
++- delete the `cloud-container-single-vendor-2026-10-09` entry,
++- delete the `TRUST_POSTURE.md` section, and
++- update the `single_vendor_review` references in `skills/autopilot/SKILL.md`.
++
++The mechanism for per-environment exceptions (`policies[]` with a `sunset`) stays. Any future
++exception is data, never prose.
++
++Editing the prose of `TRUST_POSTURE.md` is checked against `posture_digest`, which covers the
++front-matter dispositions. If the digest also covers the body, the resulting gate
++re-evaluation is expected and is recorded in the session log.
++
++## Implementation notes (as built)
++
++These record where the build departs from, or sharpens, the decisions above. None of them
++changes behaviour beyond what the code and tests already pin.
++
++- **D1: no `vendor_credentials` on `openrouter-review`.** The OpenBao topology projection
++  rejects a keyless agent (no `api_key`, no principal) that declares vendor credentials, and the
++  dispatcher reads `vendor_credentials` only for agents that have a `principal_id`. Declaring
++  `[openrouter]` would therefore break the projection without changing key resolution. The
++  entry omits it, and the key resolves through the dispatcher's `OPENROUTER_API_KEY` default for
++  `endpoint_kind: openrouter`. There is no agent-level `api_key_env`. Coordinator-brokered
++  credentials (ri-23) replace this delivery later; nothing here anticipates that.
++- **D5: SDK lanes do not count toward `fill_target`.** An importable SDK package cannot be
++  verified by a dry probe (`probe_unsupported`). Counting it let the `claude-remote` and
++  `codex-remote` SDK lanes meet `fill_target` on the real roster, so the metered lane was always
++  skipped as `fill_target_met`. Only probe-verified lanes now fill quorum.
++- **Spend is recorded on empty findings.** A lane that returns a schema-valid result with no
++  findings still consumed tokens and was billed. Skipping the ledger row would undercount the
++  budget rule (D4), so the row is written whenever the call returned a cost, whatever the
++  findings count. This is intended.
++- **`phase_archetype` is null for IMPLEMENT.** Groups 1–6 were dispatched as direct parallel
++  worktree agents rather than through `build-dispatch`, so no archetype was resolved and the
++  loop state records `phase_archetype: null` for that phase. This is a record of how the run was
++  driven, not a defect in the routing code.
++- **Schemas and spec deltas are carried in this change.** The `metered-api-cloud` tier is added
++  in `contracts/config/routing-cost-policy.schema.json` and `contracts/config/routing.schema.json`
++  of this change, which supersede the archived routing-cost-policy copy and the task-router
++  change's copy (see `contracts/README.md`); those originals are untouched. The opening of the
++  provider-model-map key set to `openrouter` is a MODIFIED requirement in
++  `specs/configuration/spec.md`.
++- **Generation-id dedupe is atomic.** Migration 046 adds a partial unique index on
++  `routing_spend_ledger (generation_id) WHERE generation_id IS NOT NULL` and the RPC
++  `record_spend_once`, which inserts with `ON CONFLICT … DO NOTHING` and otherwise returns the
++  existing row. `POST /routing/spend` calls it through `ledger.record_once`, so concurrent
++  duplicates write exactly one row (201 for the writer, 200 for the rest).
++- **Follow-up: task-router resolver ineligibility.** `model_routing/resolver.py` excludes
++  `openrouter-review` as `lane:dispatch-mode-ineligible`, because the agent has no dispatch modes.
++  The review dispatcher, not the task router, selects review lanes, so this change does not
++  alter it. Making endpoint-only agents eligible to the resolver is left as a follow-up.
++
++## Cross-cutting interface contracts
++
++| Contract | Change | Compatibility |
++|---|---|---|
++| `ReviewResult` | adds `prompt_tokens`, `completion_tokens`, `cost_usd`, `cost_source`, `spend_recorded` (all optional, default `None`) | additive, existing callers unaffected |
++| `--check-vendors --json` | adds `modes.<mode>.lane_kinds`; API lanes may now be `verified` or carry the new reasons | additive; consumers ignore unknown keys |
++| `review_quorum_policy.json` | adds `vendor_families` and `metered_lanes.{fill_target, review_reservation_usd}` | additive; `resolve_quorum_policy` ignores them |
++| `dispatch_and_wait` (`ReviewOrchestrator`, `CompositeOrchestrator`) | adds optional `include_lanes` and `toolless_packet_path: Path \| None = None` (D6) | defaults keep behaviour; `converge()` passes `toolless_packet_path` only when `_accepts_kwarg` reports it |
++| `OpenAICompatAdapter.dispatch` | adds keyword `tools_overflow: bool = False` (D6) | default keeps behaviour |
++| `dispatch_and_wait` / `converge()` spend context | `dispatch_and_wait` adds optional `spend_context: SpendContext \| None = None`, a frozen dataclass `{change_id: str, work_unit_ref: str}`; `converge()` adds optional `phase: str \| None = None` and passes `SpendContext(change_id, "<change_id>:<phase>:round-<n>")` when `phase` is set; `/parallel-review-*` passes `SpendContext(change_id, "<change_id>:<review_type>:oneshot")` (D4) | non-metered lanes ignore it, so defaults keep behaviour; a metered lane with no `spend_context` is not dispatched and returns a failed result with `error_class = UNAVAILABLE`, reason `spend_context_missing`, so its spend can never go unrecorded and unspooled |
++| `dispatch-result.schema.json` `Degradation.code` | adds enum value `metered_spend_unrecorded` | additive enum; writers older than this change never emit it |
++| Coordinator HTTP | adds `POST /routing/spend` (X-API-Key auth, Pydantic `extra="forbid"`, `actual_usd >= 0`, `generation_id` idempotency) | new route |
++
++## Security
++
++- **Credentials:** the OpenRouter key is read only through `ApiKeyResolver`. In cloud that
++  means the `OPENROUTER_API_KEY` environment secret in non-OpenBao mode; on hosts it means
++  OpenBao `vendor_credentials: [openrouter]`. The probe and dispatch never log headers or
++  response bodies. A sentinel test (the existing Dispatchable Vendor Verification scenario,
++  extended to `OPENROUTER_API_KEY`) checks this.
++- **Data egress:** packets, which hold diffs and spec excerpts, are sent to a third party
++  (OpenRouter and the upstream provider). This is acceptable for this repository, which is
++  public on GitHub. For any other repository it is opt-in, because the lane exists only if an
++  agent with `endpoint_kind: openrouter` and `base_url` is configured.
++- **New endpoint:** `POST /routing/spend` requires `X-API-Key`. Its input is validated, and it
++  accepts only the fields of the ledger row.
++- **Cost abuse:** the ceiling check before dispatch, plus the key's own credit limit, plus
++  `fill_target`.
++
++## Risks
++
++| Risk | Mitigation |
++|---|---|
++| The cloud environment's egress policy blocks `openrouter.ai` | The probe reports `endpoint_unreachable`, the review parks honestly, and the setup doc names the allowlist entry |
++| TLS through the agent proxy fails with stdlib `urllib` | The transport uses the default SSL context, which honours `SSL_CERT_FILE`; the cloud setup doc points it at the proxy CA bundle |
++| OpenRouter changes the `/key` or `usage.cost` shapes | The transport is injectable and tests pin the parsed fields. The probe fails closed (`spend_ceiling_unverifiable`) on an unexpected shape |
++| The model slug in the `openrouter` provider is retired | `_derived_tier_fallbacks` provides fallbacks; a slug error is classified and the next model is tried |
++| `claude --version` fails inside the container, so the profile omits `claude_code` and the fill rule tries to select a second metered lane | The roster has one metered lane, so at most one is selected. `agent_lane` still counts `claude_code` (D7) |
++| The supervisor runs `--check-vendors` in a different environment class than the worker, for example a host supervisor with a cloud worker | This is inherited from ri-21 (the profile is resolved by the supervisor). The worker parks honestly if the profile lists lanes it cannot dispatch, through the mid-run mapping in D7. Correcting the supervisor's environment is out of scope |
++| Spool rows are never replayed | `metered_spend_unrecorded` is a visible degradation on the dispatch result, and `apply` runs replay |
++
++- **Concurrent overspend under the coordinator ceiling alone.** The per-round re-check (D4)
++  narrows it to at most one `review_reservation_usd` per concurrently running child; a key
++  credit limit removes it.
++- **Spooled spend in other workers.** The re-check counts only the current change's spool.
++  Rows spooled by other workers stay invisible to the coordinator ceiling until `apply` replays
++  them. A key credit limit bounds this; the cloud setup doc (task 7.1) recommends one.
++
++## Open questions (for the operator, recorded as decisions with defaults)
++
++1. **Ceiling when the coordinator ceiling is unset.** The default fails closed and requires
++   either `ROUTING_MONTHLY_CEILING_USD > 0` or an OpenRouter key with a credit limit (D4).
++   The alternative is to treat an unset ceiling as unlimited.
++2. **Fill vs. supplement.** The default dispatches metered lanes only to fill quorum (D5).
++   The alternative is to always dispatch them.
++3. **Initial review model** for the `openrouter` provider `premium` tier. It must be a
++   non-Anthropic publisher, and preferably a family not already served by a host CLI
++   (codex → openai, antigravity → google, grok → xai). It is chosen at implementation from
++   the live OpenRouter catalog and recorded in `archetypes.yaml` with its source URL.
+diff --git a/openspec/changes/openrouter-review-lane/dispatch-results/batch-d8913c4d8e973cd7940e2d09-ri-22-attempt-1-g1.json b/openspec/changes/openrouter-review-lane/dispatch-results/batch-d8913c4d8e973cd7940e2d09-ri-22-attempt-1-g1.json
+new file mode 100644
+index 00000000..ee131ad9
+--- /dev/null
++++ b/openspec/changes/openrouter-review-lane/dispatch-results/batch-d8913c4d8e973cd7940e2d09-ri-22-attempt-1-g1.json
+@@ -0,0 +1,35 @@
 +{
 +  "attempt": 1,
-+  "branch": "openspec/dispatch-contract",
-+  "change_id": "dispatch-contract",
++  "branch": "openspec/openrouter-review-lane",
++  "change_id": "openrouter-review-lane",
 +  "degradations": [
 +    {
-+      "code": "single_vendor_review",
-+      "detail": "claude_code only; min_quorum=1 under cloud-container policy (TRUST_POSTURE.md 479dcd9)",
-+      "phase": "PLAN_REVIEW"
-+    },
-+    {
-+      "code": "single_vendor_review",
-+      "detail": "claude_code only; min_quorum=1 under cloud-container policy (TRUST_POSTURE.md 479dcd9)",
-+      "phase": "IMPL_REVIEW"
-+    },
-+    {
-+      "code": "single_vendor_review",
-+      "detail": "claude_code only; min_quorum=1 under cloud-container policy (TRUST_POSTURE.md 479dcd9)",
-+      "phase": "VAL_REVIEW"
-+    },
-+    {
 +      "code": "coordinator_projection_forbidden",
-+      "detail": "every project-state submit returned forbidden (trust-2 cloud agent)",
-+      "phase": "SUBMIT_PR"
++      "detail": "project-state submit returned forbidden",
++      "phase": "INIT"
 +    },
 +    {
 +      "code": "audit_sink_failed",
-+      "detail": "audit sink failed for proposal_approval, escalate_resume, pr_creation, merge gate decisions",
-+      "phase": "SUBMIT_PR"
++      "detail": "audit sink reported failure for gate proposal_approval decision posture_block",
++      "phase": "PLAN"
 +    }
 +  ],
-+  "dispatch_id": "batch-1199bf07b6cb5035d4c22472:ri-21:attempt-1",
++  "dispatch_id": "batch-d8913c4d8e973cd7940e2d09:ri-22:attempt-1",
 +  "evidence": {
-+    "commit": "45f9195322bc3f52fc4c18bbb5ce5c98e7a011fd",
-+    "loop_state_digest": "b55ce362b3fcfcaf304c6770f1708b4946aed1e852a38c1ae8853a4ab893fb35",
-+    "loop_state_path": "openspec/changes/dispatch-contract/loop-state.json"
++    "commit": "c631f23f64fcf6af4c3e6e15d70f2d5fe7ff7a0c",
++    "loop_state_digest": "66379bb4cc4760e8e530cb7dcc925348ce5a1dff2b605c3bf27597322b0434ea",
++    "loop_state_path": "openspec/changes/openrouter-review-lane/loop-state.json"
 +  },
-+  "host_id": "machine-801452e4fd3b9a26",
++  "host_id": "machine-dc39bf1e25efdf45",
++  "lease_generation": 1,
++  "outcome": "parked",
++  "parked": {
++    "deadline": null,
++    "gate": "proposal_approval",
++    "kind": "pending_gate",
++    "reason": "Approve this OpenSpec proposal and begin implementation?",
++    "resume_hint": "answer gate proposal_approval through the resume request's gate_answer"
++  },
++  "schema_version": 2,
++  "worktree_ref": "openrouter-review-lane"
++}
+diff --git a/openspec/changes/openrouter-review-lane/dispatch-results/batch-d8913c4d8e973cd7940e2d09-ri-22-attempt-1-g2.json b/openspec/changes/openrouter-review-lane/dispatch-results/batch-d8913c4d8e973cd7940e2d09-ri-22-attempt-1-g2.json
+new file mode 100644
+index 00000000..d61c4960
+--- /dev/null
++++ b/openspec/changes/openrouter-review-lane/dispatch-results/batch-d8913c4d8e973cd7940e2d09-ri-22-attempt-1-g2.json
+@@ -0,0 +1,39 @@
++{
++  "attempt": 1,
++  "branch": "openspec/openrouter-review-lane",
++  "change_id": "openrouter-review-lane",
++  "degradations": [
++    {
++      "code": "coordinator_projection_forbidden",
++      "detail": "project-state submit returned forbidden",
++      "phase": "INIT"
++    },
++    {
++      "code": "audit_sink_failed",
++      "detail": "audit sink reported failure for gate proposal_approval decision posture_block",
++      "phase": "PLAN"
++    }
++  ],
++  "dispatch_id": "batch-d8913c4d8e973cd7940e2d09:ri-22:attempt-1",
++  "evidence": {
++    "commit": "d6c49b1eaace9ff5f232c0c477f516a3966cbcaa",
++    "loop_state_digest": "4e58211e36b7abf52f53a5ff200d4cfa55a75af35570fcf137f83a3558bfe458",
++    "loop_state_path": "openspec/changes/openrouter-review-lane/loop-state.json"
++  },
++  "host_id": "machine-dc39bf1e25efdf45",
++  "lease_generation": 2,
++  "outcome": "parked",
++  "parked": {
++    "classifier_reason": "Applying a supervisor-relayed gate approval (cross-session message, no launch marker) was classified as an auto-mode bypass",
++    "command": "runner.py gate-answer openrouter-review-lane --gate proposal_approval --decision approved --approval-ref gate-decision:2b09fbd1-b6b9-49e7-8bda-b724b22f17d6",
++    "deadline": null,
++    "gate": null,
++    "kind": "permission_blocked",
++    "reason": "permission denied for Bash under rule auto mode classifier: [Auto-Mode Bypass]",
++    "resume_hint": null,
++    "rule": "auto mode classifier: [Auto-Mode Bypass]",
++    "tool": "Bash"
++  },
++  "schema_version": 2,
++  "worktree_ref": "openrouter-review-lane"
++}
+diff --git a/openspec/changes/openrouter-review-lane/dispatch-results/batch-d8913c4d8e973cd7940e2d09-ri-22-attempt-1-g3.json b/openspec/changes/openrouter-review-lane/dispatch-results/batch-d8913c4d8e973cd7940e2d09-ri-22-attempt-1-g3.json
+new file mode 100644
+index 00000000..c6014a4e
+--- /dev/null
++++ b/openspec/changes/openrouter-review-lane/dispatch-results/batch-d8913c4d8e973cd7940e2d09-ri-22-attempt-1-g3.json
+@@ -0,0 +1,50 @@
++{
++  "attempt": 1,
++  "branch": "openspec/openrouter-review-lane",
++  "change_id": "openrouter-review-lane",
++  "degradations": [
++    {
++      "code": "coordinator_projection_forbidden",
++      "detail": "project-state submit returned forbidden",
++      "phase": "INIT"
++    },
++    {
++      "code": "audit_sink_failed",
++      "detail": "audit sink reported failure for gate proposal_approval decision posture_block",
++      "phase": "PLAN"
++    },
++    {
++      "code": "audit_sink_failed",
++      "detail": "audit sink reported failure for gate proposal_approval decision auto (gen 3)",
++      "phase": "PLAN"
++    },
++    {
++      "code": "single_vendor_review",
++      "detail": "vendor=claude_code; cloud policy cloud-container-single-vendor-2026-10-09 min_quorum 1",
++      "phase": "PLAN_REVIEW"
++    },
++    {
++      "code": "audit_sink_failed",
++      "detail": "audit sink reported failure for gate escalate_resume decision posture_block",
++      "phase": "ESCALATE"
++    }
++  ],
++  "dispatch_id": "batch-d8913c4d8e973cd7940e2d09:ri-22:attempt-1",
++  "evidence": {
++    "commit": "c72e91158b0ac8685f444a2b31393ad1a7754a13",
++    "loop_state_digest": "f209ef7c01c21cc7d7a79bdbe08aa7196cc338faf23bd9a5fced21eda744d60b",
++    "loop_state_path": "openspec/changes/openrouter-review-lane/loop-state.json"
++  },
++  "host_id": "machine-dc39bf1e25efdf45",
 +  "lease_generation": 3,
 +  "outcome": "parked",
 +  "parked": {
 +    "deadline": null,
-+    "gate": null,
-+    "kind": "policy_pause",
-+    "reason": "goal gate refused: validate record predates report",
-+    "resume_hint": "previous_phase=SUBMIT_PR; answer escalate_resume to resume"
++    "gate": "escalate_resume",
++    "kind": "pending_gate",
++    "reason": "Has this escalation been resolved? Resume the loop?",
++    "resume_hint": "answer gate escalate_resume through the resume request's gate_answer"
 +  },
 +  "schema_version": 2,
-+  "worktree_ref": null
++  "worktree_ref": "openrouter-review-lane"
 +}
-diff --git a/openspec/changes/archive/2026-10-10-dispatch-contract/dispatch-results/batch-1199bf07b6cb5035d4c22472-ri-21-attempt-1-g4.json b/openspec/changes/archive/2026-10-10-dispatch-contract/dispatch-results/batch-1199bf07b6cb5035d4c22472-ri-21-attempt-1-g4.json
+diff --git a/openspec/changes/openrouter-review-lane/dispatch-results/batch-d8913c4d8e973cd7940e2d09-ri-22-attempt-1-g6.json b/openspec/changes/openrouter-review-lane/dispatch-results/batch-d8913c4d8e973cd7940e2d09-ri-22-attempt-1-g6.json
 new file mode 100644
-index 00000000..292e7ff3
+index 00000000..4e9ae71b
 --- /dev/null
-+++ b/openspec/changes/archive/2026-10-10-dispatch-contract/dispatch-results/batch-1199bf07b6cb5035d4c22472-ri-21-attempt-1-g4.json
-@@ -0,0 +1,50 @@
++++ b/openspec/changes/openrouter-review-lane/dispatch-results/batch-d8913c4d8e973cd7940e2d09-ri-22-attempt-1-g6.json
+@@ -0,0 +1,74 @@
 +{
 +  "attempt": 1,
-+  "branch": "openspec/dispatch-contract",
-+  "change_id": "dispatch-contract",
++  "branch": "openspec/openrouter-review-lane",
++  "change_id": "openrouter-review-lane",
 +  "degradations": [
 +    {
-+      "code": "single_vendor_review",
-+      "detail": "claude_code only; min_quorum=1 under cloud-container policy (TRUST_POSTURE.md 479dcd9)",
-+      "phase": "PLAN_REVIEW"
-+    },
-+    {
-+      "code": "single_vendor_review",
-+      "detail": "claude_code only; min_quorum=1 under cloud-container policy (TRUST_POSTURE.md 479dcd9)",
-+      "phase": "IMPL_REVIEW"
-+    },
-+    {
-+      "code": "single_vendor_review",
-+      "detail": "claude_code only; min_quorum=1 under cloud-container policy (TRUST_POSTURE.md 479dcd9)",
-+      "phase": "VAL_REVIEW"
-+    },
-+    {
 +      "code": "coordinator_projection_forbidden",
-+      "detail": "every project-state submit returned forbidden (trust-2 cloud agent)",
-+      "phase": "SUBMIT_PR"
++      "detail": "project-state submit returned forbidden",
++      "phase": "INIT"
 +    },
 +    {
 +      "code": "audit_sink_failed",
-+      "detail": "audit sink failed for proposal_approval, escalate_resume, pr_creation, merge gate decisions",
-+      "phase": "SUBMIT_PR"
-+    }
-+  ],
-+  "dispatch_id": "batch-1199bf07b6cb5035d4c22472:ri-21:attempt-1",
-+  "evidence": {
-+    "commit": "bf613c97b74333336b11927489a1fe51c2d2f136",
-+    "loop_state_digest": "20e8fa624f44682cf4064082a5b09393f6b7d09d6f25723024135295a645a2ee",
-+    "loop_state_path": "openspec/changes/dispatch-contract/loop-state.json"
-+  },
-+  "host_id": "machine-dc39bf1e25efdf45",
-+  "lease_generation": 4,
-+  "outcome": "parked",
-+  "parked": {
-+    "deadline": null,
-+    "gate": null,
-+    "kind": "policy_pause",
-+    "reason": "goal gate refused: required section not passed: Validation Review (missing)",
-+    "resume_hint": "previous_phase=SUBMIT_PR; answer escalate_resume to resume"
-+  },
-+  "schema_version": 2,
-+  "worktree_ref": "dispatch-contract"
-+}
-diff --git a/openspec/changes/archive/2026-10-10-dispatch-contract/dispatch-results/batch-1199bf07b6cb5035d4c22472-ri-21-attempt-1-g5.json b/openspec/changes/archive/2026-10-10-dispatch-contract/dispatch-results/batch-1199bf07b6cb5035d4c22472-ri-21-attempt-1-g5.json
-new file mode 100644
-index 00000000..2b3f4abe
---- /dev/null
-+++ b/openspec/changes/archive/2026-10-10-dispatch-contract/dispatch-results/batch-1199bf07b6cb5035d4c22472-ri-21-attempt-1-g5.json
-@@ -0,0 +1,54 @@
-+{
-+  "attempt": 1,
-+  "branch": "openspec/dispatch-contract",
-+  "change_id": "dispatch-contract",
-+  "degradations": [
-+    {
-+      "code": "single_vendor_review",
-+      "detail": "claude_code only; min_quorum=1 under cloud-container policy (TRUST_POSTURE.md 479dcd9)",
-+      "phase": "PLAN_REVIEW"
-+    },
-+    {
-+      "code": "single_vendor_review",
-+      "detail": "claude_code only; min_quorum=1 under cloud-container policy (TRUST_POSTURE.md 479dcd9)",
-+      "phase": "IMPL_REVIEW"
-+    },
-+    {
-+      "code": "single_vendor_review",
-+      "detail": "claude_code only; min_quorum=1 under cloud-container policy (TRUST_POSTURE.md 479dcd9)",
-+      "phase": "VAL_REVIEW"
-+    },
-+    {
-+      "code": "coordinator_projection_forbidden",
-+      "detail": "every project-state submit returned forbidden (trust-2 cloud agent)",
-+      "phase": "SUBMIT_PR"
++      "detail": "audit sink reported failure for gate proposal_approval decision posture_block",
++      "phase": "PLAN"
 +    },
 +    {
 +      "code": "audit_sink_failed",
-+      "detail": "audit sink failed for proposal_approval, escalate_resume, pr_creation, merge gate decisions",
-+      "phase": "SUBMIT_PR"
-+    }
-+  ],
-+  "dispatch_id": "batch-1199bf07b6cb5035d4c22472:ri-21:attempt-1",
-+  "evidence": {
-+    "commit": "ce23762b97c16ef4c1a6847584853e3794af2630",
-+    "loop_state_digest": "bbede1b04fad897db34a3e1c77ade71745a334c50e83cf499ba60e86c6310b12",
-+    "loop_state_path": "openspec/changes/dispatch-contract/loop-state.json"
-+  },
-+  "host_id": "machine-dc39bf1e25efdf45",
-+  "lease_generation": 5,
-+  "outcome": "parked",
-+  "parked": {
-+    "classifier_reason": "auto-mode classifier denied running the scratchpad converge() driver for VAL_REVIEW (Code from External)",
-+    "command": "skills/.venv/bin/python <scratchpad>/vr5d/run_converge.py <worktree> <scratchpad>/vr5d/proto",
-+    "deadline": null,
-+    "gate": null,
-+    "kind": "permission_blocked",
-+    "reason": "permission denied for Bash under rule auto-mode-classifier:Code from External",
-+    "resume_hint": null,
-+    "rule": "auto-mode-classifier:Code from External",
-+    "tool": "Bash"
-+  },
-+  "schema_version": 2,
-+  "worktree_ref": "dispatch-contract"
-+}
-diff --git a/openspec/changes/archive/2026-10-10-dispatch-contract/dispatch-results/batch-1199bf07b6cb5035d4c22472-ri-21-attempt-1-g6.json b/openspec/changes/archive/2026-10-10-dispatch-contract/dispatch-results/batch-1199bf07b6cb5035d4c22472-ri-21-attempt-1-g6.json
-new file mode 100644
-index 00000000..5451b0f3
---- /dev/null
-+++ b/openspec/changes/archive/2026-10-10-dispatch-contract/dispatch-results/batch-1199bf07b6cb5035d4c22472-ri-21-attempt-1-g6.json
-@@ -0,0 +1,50 @@
-+{
-+  "attempt": 1,
-+  "branch": "openspec/dispatch-contract",
-+  "change_id": "dispatch-contract",
-+  "degradations": [
++      "detail": "audit sink reported failure for gate proposal_approval decision auto (gen 3)",
++      "phase": "PLAN"
++    },
 +    {
 +      "code": "single_vendor_review",
-+      "detail": "claude_code only; min_quorum=1 under cloud-container policy (TRUST_POSTURE.md 479dcd9)",
++      "detail": "vendor=claude_code; cloud policy cloud-container-single-vendor-2026-10-09 min_quorum 1",
 +      "phase": "PLAN_REVIEW"
 +    },
 +    {
-+      "code": "single_vendor_review",
-+      "detail": "claude_code only; min_quorum=1 under cloud-container policy (TRUST_POSTURE.md 479dcd9)",
-+      "phase": "IMPL_REVIEW"
++      "code": "audit_sink_failed",
++      "detail": "audit sink reported failure for gate escalate_resume decision posture_block",
++      "phase": "ESCALATE"
 +    },
 +    {
 +      "code": "single_vendor_review",
-+      "detail": "claude_code only; min_quorum=1 under cloud-container policy (TRUST_POSTURE.md 479dcd9)",
-+      "phase": "VAL_REVIEW"
-+    },
-+    {
-+      "code": "coordinator_projection_forbidden",
-+      "detail": "every project-state submit returned forbidden (trust-2 cloud agent)",
-+      "phase": "SUBMIT_PR"
++      "detail": "gen 4 re-entry: vendor=claude_code; cloud policy cloud-container-single-vendor-2026-10-09 min_quorum 1",
++      "phase": "PLAN_REVIEW"
 +    },
 +    {
 +      "code": "audit_sink_failed",
-+      "detail": "audit sink failed for proposal_approval, escalate_resume, pr_creation, merge gate decisions",
-+      "phase": "SUBMIT_PR"
++      "detail": "gen 4: audit sink reported failure for gate escalate_resume decision posture_block",
++      "phase": "ESCALATE"
++    },
++    {
++      "code": "single_vendor_review",
++      "detail": "re-entry after ledger adjudication: vendor=claude_code; cloud policy min_quorum 1",
++      "phase": "PLAN_REVIEW"
++    },
++    {
++      "code": "audit_sink_failed",
++      "detail": "audit sink reported failure for gate escalate_resume decision posture_block (2026-10-13)",
++      "phase": "ESCALATE"
 +    }
 +  ],
-+  "dispatch_id": "batch-1199bf07b6cb5035d4c22472:ri-21:attempt-1",
++  "dispatch_id": "batch-d8913c4d8e973cd7940e2d09:ri-22:attempt-1",
 +  "evidence": {
-+    "commit": "38ca63a77d3fa487c6ba00fe84bc4e9a4d23c643",
-+    "loop_state_digest": "593d819fa63b21657409442357232f8ee183f931c297bb18ba864a913facff66",
-+    "loop_state_path": "openspec/changes/dispatch-contract/loop-state.json"
++    "commit": "f6f819bd96fed5823e35791dc88f5b8e9584b423",
++    "loop_state_digest": "6a5c86d32c967ab8c28dd9674b14b539e8427ac859ba721c33e12612a79ffae1",
++    "loop_state_path": "openspec/changes/openrouter-review-lane/loop-state.json"
 +  },
 +  "host_id": "machine-dc39bf1e25efdf45",
 +  "lease_generation": 6,
@@ -2000,83 +2674,29 @@ index 00000000..5451b0f3
 +  "parked": {
 +    "deadline": null,
 +    "gate": null,
-+    "kind": "policy_pause",
-+    "reason": "VAL_REVIEW transitioned to ESCALATE via outcome 'max_iter'",
-+    "resume_hint": "previous_phase=VAL_REVIEW; answer escalate_resume to resume"
++    "kind": "capability_unavailable",
++    "missing_lanes": [
++      "openrouter"
++    ],
++    "phase": "PLAN_REVIEW",
++    "reason": "check-vendors verifies only claude_code; no OpenRouter HTTP review lane exists yet (openrouter-review agent, adapter probe and CompositeOrchestrator are this change's unimplemented tasks 1-6). OPENROUTER_API_KEY present and openrouter.ai allow-listed, but no dispatcher path consumes them. Quorum 2 requested by supervisor; refusing to review below it.",
++    "resume_hint": null
 +  },
 +  "schema_version": 2,
-+  "worktree_ref": "dispatch-contract"
++  "worktree_ref": "openrouter-review-lane"
 +}
-diff --git a/openspec/changes/archive/2026-10-10-dispatch-contract/dispatch-results/batch-1199bf07b6cb5035d4c22472-ri-21-attempt-1-g7.json b/openspec/changes/archive/2026-10-10-dispatch-contract/dispatch-results/batch-1199bf07b6cb5035d4c22472-ri-21-attempt-1-g7.json
+diff --git a/openspec/changes/openrouter-review-lane/loop-state.json b/openspec/changes/openrouter-review-lane/loop-state.json
 new file mode 100644
-index 00000000..887eb7ea
+index 00000000..291cf5bb
 --- /dev/null
-+++ b/openspec/changes/archive/2026-10-10-dispatch-contract/dispatch-results/batch-1199bf07b6cb5035d4c22472-ri-21-attempt-1-g7.json
-@@ -0,0 +1,44 @@
-+{
-+  "attempt": 1,
-+  "branch": "openspec/dispatch-contract",
-+  "change_id": "dispatch-contract",
-+  "degradations": [
-+    {
-+      "code": "single_vendor_review",
-+      "detail": "claude_code only; min_quorum=1 under cloud-container policy (TRUST_POSTURE.md 479dcd9)",
-+      "phase": "PLAN_REVIEW"
-+    },
-+    {
-+      "code": "single_vendor_review",
-+      "detail": "claude_code only; min_quorum=1 under cloud-container policy (TRUST_POSTURE.md 479dcd9)",
-+      "phase": "IMPL_REVIEW"
-+    },
-+    {
-+      "code": "single_vendor_review",
-+      "detail": "claude_code only; min_quorum=1 under cloud-container policy (TRUST_POSTURE.md 479dcd9)",
-+      "phase": "VAL_REVIEW"
-+    },
-+    {
-+      "code": "coordinator_projection_forbidden",
-+      "detail": "every project-state submit returned forbidden (trust-2 cloud agent)",
-+      "phase": "SUBMIT_PR"
-+    },
-+    {
-+      "code": "audit_sink_failed",
-+      "detail": "audit sink failed for proposal_approval, escalate_resume, pr_creation, merge gate decisions",
-+      "phase": "SUBMIT_PR"
-+    }
-+  ],
-+  "dispatch_id": "batch-1199bf07b6cb5035d4c22472:ri-21:attempt-1",
-+  "evidence": {
-+    "commit": "efed26dc52357e73bac37d30ac4f08f035702f0c",
-+    "loop_state_digest": "92a866516e214e866ee0e65df42d9b6781ce3011bfbb802201686f85ea6e5ed3",
-+    "loop_state_path": "openspec/changes/dispatch-contract/loop-state.json"
-+  },
-+  "handoff_id": "3913b110-b178-4694-922e-3986082c81aa",
-+  "host_id": "machine-dc39bf1e25efdf45",
-+  "lease_generation": 7,
-+  "outcome": "success",
-+  "schema_version": 2,
-+  "worktree_ref": "dispatch-contract"
-+}
-diff --git a/openspec/changes/dispatch-contract/handoffs/eeedef7e-c78e-4f7c-a6f5-94cc4a8150f5.json b/openspec/changes/archive/2026-10-10-dispatch-contract/handoffs/eeedef7e-c78e-4f7c-a6f5-94cc4a8150f5.json
-similarity index 100%
-rename from openspec/changes/dispatch-contract/handoffs/eeedef7e-c78e-4f7c-a6f5-94cc4a8150f5.json
-rename to openspec/changes/archive/2026-10-10-dispatch-contract/handoffs/eeedef7e-c78e-4f7c-a6f5-94cc4a8150f5.json
-diff --git a/openspec/changes/dispatch-contract/impl-findings.md b/openspec/changes/archive/2026-10-10-dispatch-contract/impl-findings.md
-similarity index 100%
-rename from openspec/changes/dispatch-contract/impl-findings.md
-rename to openspec/changes/archive/2026-10-10-dispatch-contract/impl-findings.md
-diff --git a/openspec/changes/archive/2026-10-10-dispatch-contract/loop-state.json b/openspec/changes/archive/2026-10-10-dispatch-contract/loop-state.json
-new file mode 100644
-index 00000000..01edf4d6
---- /dev/null
-+++ b/openspec/changes/archive/2026-10-10-dispatch-contract/loop-state.json
-@@ -0,0 +1,412 @@
++++ b/openspec/changes/openrouter-review-lane/loop-state.json
+@@ -0,0 +1,332 @@
 +{
 +  "schema_version": 6,
-+  "change_id": "dispatch-contract",
-+  "current_phase": "DONE",
++  "change_id": "openrouter-review-lane",
++  "current_phase": "IMPL_REVIEW",
 +  "iteration": 0,
-+  "total_iterations": 21,
++  "total_iterations": 13,
 +  "max_phase_iterations": 3,
 +  "findings_trend": [],
 +  "blocking_findings": [],
@@ -2086,98 +2706,61 @@ index 00000000..01edf4d6
 +  "implementation_strategy": {},
 +  "memory_ids": [],
 +  "handoff_ids": [
-+    "6166f2e8-de8e-4375-8750-316e09fd34f6",
-+    "63b11a2c-616f-4b7a-91a1-c6d1278bde31",
-+    "9b138f6d-f5f3-4a7f-99bb-0d3bb6a5e86e",
-+    "eeedef7e-c78e-4f7c-a6f5-94cc4a8150f5",
-+    "8b3b7d01-452a-498f-9e34-46fdd6ca5e94",
-+    "8d309935-3b68-44db-be5c-d6b327ec8c61",
-+    "13e77665-feba-4ef3-b28a-a9b61d278135",
-+    "8ebe1a5a-c868-49cc-b72d-f6bff31d85e9",
-+    "c832cb1d-c7ab-48cb-9285-4f4b037d029a",
-+    "c44fffaa-5096-400f-826a-c499391bb89e",
-+    "b10c5945-2520-4d5f-8de2-8f76c41ed290",
-+    "3913b110-b178-4694-922e-3986082c81aa"
++    "local:gatekeeper-openrouter-review-lane-20261010T1050Z",
++    "746039a0-a579-4a6e-83a7-662068674762",
++    "local:plan-review-openrouter-review-lane-20261011T1419Z",
++    "local:plan-review-openrouter-review-lane-20261012T0247Z",
++    "local:plan-review-openrouter-review-lane-20261013T0048Z",
++    "local:implement-openrouter-review-lane-20261021T1611Z",
++    "local:impl-iterate-openrouter-review-lane-20261021T1650Z"
 +  ],
 +  "phase_history": [
 +    {
-+      "at": "2026-10-06T09:10:51.641130+00:00",
++      "at": "2026-10-10T10:51:34.903189+00:00",
 +      "outcome": "proceed_with_review",
 +      "phase": "GATEKEEPER"
 +    },
 +    {
-+      "at": "2026-10-06T09:30:38.405916+00:00",
++      "at": "2026-10-11T14:08:18.140652+00:00",
 +      "outcome": "complete",
 +      "phase": "PLAN_ITERATE"
 +    },
 +    {
-+      "at": "2026-10-06T11:08:14.058241+00:00",
++      "at": "2026-10-11T14:20:20.952004+00:00",
 +      "outcome": "max_iter",
 +      "phase": "PLAN_REVIEW"
 +    },
 +    {
-+      "at": "2026-10-06T11:08:14.233483+00:00",
-+      "note": "capability_unavailable: PLAN_REVIEW requires min_quorum=2; only claude_code is dispatchable (codex listed by --check-vendors but no codex CLI/credential). Quorum not lowered; awaiting operator decision on cloud review lane (GX10/policy/credential). handoff 9b138f6d-f5f3-4a7f-99bb-0d3bb6a5e86e",
-+      "outcome": "host_escalate",
++      "at": "2026-10-12T02:48:17.763162+00:00",
++      "outcome": "max_iter",
 +      "phase": "PLAN_REVIEW"
 +    },
 +    {
-+      "at": "2026-10-09T07:24:26.295968+00:00",
-+      "outcome": "converged",
++      "at": "2026-10-13T00:52:14.849282+00:00",
++      "outcome": "max_iter",
 +      "phase": "PLAN_REVIEW"
 +    },
 +    {
-+      "at": "2026-10-09T12:52:59.405442+00:00",
++      "at": "2026-10-21T14:35:56.595019+00:00",
++      "outcome": "operator_accept",
++      "phase": "PLAN_REVIEW"
++    },
++    {
++      "at": "2026-10-21T16:11:23.888216+00:00",
 +      "outcome": "complete",
 +      "phase": "IMPLEMENT"
 +    },
 +    {
-+      "at": "2026-10-09T13:26:34.431681+00:00",
++      "at": "2026-10-21T16:27:12.638292+00:00",
 +      "outcome": "complete",
 +      "phase": "IMPL_ITERATE"
-+    },
-+    {
-+      "at": "2026-10-09T13:47:51.835672+00:00",
-+      "outcome": "converged",
-+      "phase": "IMPL_REVIEW"
-+    },
-+    {
-+      "at": "2026-10-09T13:55:05.532741+00:00",
-+      "outcome": "passed",
-+      "phase": "VALIDATE"
-+    },
-+    {
-+      "at": "2026-10-09T14:08:06.250432+00:00",
-+      "outcome": "converged",
-+      "phase": "VAL_REVIEW"
-+    },
-+    {
-+      "at": "2026-10-10T09:52:41.398847+00:00",
-+      "note": "Invalid outcome 'created' for phase 'ESCALATE'",
-+      "outcome": "transition_failed",
-+      "phase": "ESCALATE"
-+    },
-+    {
-+      "at": "2026-10-10T10:06:25.827106+00:00",
-+      "outcome": "passed",
-+      "phase": "VALIDATE"
-+    },
-+    {
-+      "at": "2026-10-10T10:28:53.285299+00:00",
-+      "outcome": "max_iter",
-+      "phase": "VAL_REVIEW"
-+    },
-+    {
-+      "at": "2026-10-10T10:40:39.663017+00:00",
-+      "outcome": "converged",
-+      "phase": "VAL_REVIEW"
 +    }
 +  ],
-+  "last_handoff_id": "3913b110-b178-4694-922e-3986082c81aa",
-+  "started_at": "2026-10-06T09:08:58.470413+00:00",
-+  "phase_started_at": "2026-10-10T10:40:51.107654+00:00",
-+  "previous_phase": "VAL_REVIEW",
-+  "escalation_reason": "VAL_REVIEW transitioned to ESCALATE via outcome 'max_iter'",
++  "last_handoff_id": "local:impl-iterate-openrouter-review-lane-20261021T1650Z",
++  "started_at": "2026-10-10T10:48:36.099038+00:00",
++  "phase_started_at": "2026-10-21T16:27:12.857478+00:00",
++  "previous_phase": "PLAN_REVIEW",
++  "escalation_reason": "PLAN_REVIEW transitioned to ESCALATE via outcome 'max_iter'",
 +  "val_review_enabled": true,
 +  "cli_review_enabled": true,
 +  "error": null,
@@ -2188,6 +2771,26 @@ index 00000000..01edf4d6
 +  "gate_decisions": [
 +    {
 +      "approval_id": null,
++      "authorizing_disposition": "block",
++      "default_action": null,
++      "disposition": "block",
++      "gate": "proposal_approval",
++      "notified": null,
++      "outcome": "blocked",
++      "phase": "PLAN",
++      "posture_present": true,
++      "provenance": {
++        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24",
++        "source": "posture"
++      },
++      "reason": "gate 'proposal_approval' parked: trust posture disposition is block (unscoped fallback: auto requires a launch marker carrying a roadmap_approval_ref)",
++      "recorded_at": "2026-10-10T10:51:43.189455+00:00",
++      "resolution": "posture_block",
++      "scope": "unscoped",
++      "timeout_seconds": null
++    },
++    {
++      "approval_id": null,
 +      "authorizing_disposition": "auto",
 +      "default_action": null,
 +      "disposition": "auto",
@@ -2196,9 +2799,14 @@ index 00000000..01edf4d6
 +      "outcome": "proceed",
 +      "phase": "PLAN",
 +      "posture_present": true,
++      "provenance": {
++        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24",
++        "source": "posture"
++      },
 +      "reason": "gate 'proposal_approval' auto-approved by trust posture",
-+      "recorded_at": "2026-10-06T09:11:03.554035+00:00",
++      "recorded_at": "2026-10-10T13:35:48.613149+00:00",
 +      "resolution": "auto",
++      "scope": "roadmap_approval",
 +      "timeout_seconds": null
 +    },
 +    {
@@ -2207,184 +2815,17 @@ index 00000000..01edf4d6
 +      "default_action": null,
 +      "disposition": "block",
 +      "gate": "escalate_resume",
-+      "notified": null,
-+      "outcome": "blocked",
-+      "phase": "ESCALATE",
-+      "posture_present": true,
-+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
-+      "recorded_at": "2026-10-09T07:09:02.414788+00:00",
-+      "resolution": "posture_block",
-+      "timeout_seconds": null
-+    },
-+    {
-+      "approval_id": null,
-+      "authorizing_disposition": "block",
-+      "default_action": null,
-+      "disposition": "block",
-+      "gate": "escalate_resume",
-+      "note": "Operator (in-session, 2026-10-09): allowlist launch-nonce commits by SHA, then continue. Review proceeds single-vendor (claude_code) under the dispatch's accepted single_vendor_review degradation.",
++      "note": null,
 +      "notified": null,
 +      "outcome": "proceed",
-+      "phase": "ESCALATE",
-+      "posture_present": true,
-+      "reason": "gate 'escalate_resume' approved by the operator \u2014 Operator (in-session, 2026-10-09): allowlist launch-nonce commits by SHA, then continue. Review proceeds single-vendor (claude_code) under the dispatch's accepted single_vendor_review degradation.",
-+      "recorded_at": "2026-10-09T07:09:10.123228+00:00",
-+      "resolution": "console_approved",
-+      "timeout_seconds": null
-+    },
-+    {
-+      "approval_id": null,
-+      "authorizing_disposition": "auto",
-+      "default_action": null,
-+      "disposition": "auto",
-+      "gate": "pr_creation",
-+      "notified": null,
-+      "outcome": "proceed",
-+      "phase": "SUBMIT_PR",
-+      "posture_present": true,
-+      "provenance": {
-+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24",
-+        "source": "posture"
-+      },
-+      "reason": "gate 'pr_creation' auto-approved by trust posture",
-+      "recorded_at": "2026-10-09T14:08:17.017603+00:00",
-+      "resolution": "auto",
-+      "timeout_seconds": null
-+    },
-+    {
-+      "approval_id": null,
-+      "authorizing_disposition": "block",
-+      "default_action": null,
-+      "disposition": "block",
-+      "gate": "merge",
-+      "notified": null,
-+      "outcome": "blocked",
-+      "phase": "SUBMIT_PR",
-+      "posture_present": true,
-+      "provenance": {
-+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24",
-+        "source": "posture"
-+      },
-+      "reason": "gate 'merge' parked: trust posture disposition is block",
-+      "recorded_at": "2026-10-09T14:09:04.031160+00:00",
-+      "resolution": "posture_block",
-+      "timeout_seconds": null
-+    },
-+    {
-+      "approval_id": null,
-+      "authorizing_disposition": "block",
-+      "default_action": null,
-+      "disposition": "block",
-+      "gate": "merge",
-+      "note": "Operator approved merge in supervisor session 2026-10-09 ('merge both 662, 667, 666'); PR #667 merged as 0d078ff by the operator.",
-+      "notified": null,
-+      "outcome": "proceed",
-+      "phase": "SUBMIT_PR",
-+      "posture_present": true,
-+      "provenance": {
-+        "approval_ref": "gate-decision:d2c8df05-dcfb-4133-a9d4-239e812c5620",
-+        "source": "human"
-+      },
-+      "reason": "gate 'merge' approved by the operator \u2014 Operator approved merge in supervisor session 2026-10-09 ('merge both 662, 667, 666'); PR #667 merged as 0d078ff by the operator.",
-+      "recorded_at": "2026-10-10T03:10:34.221320+00:00",
-+      "resolution": "console_approved",
-+      "timeout_seconds": null
-+    },
-+    {
-+      "approval_id": null,
-+      "authorizing_disposition": "block",
-+      "default_action": null,
-+      "disposition": "block",
-+      "gate": "escalate_resume",
-+      "notified": null,
-+      "outcome": "blocked",
-+      "phase": "ESCALATE",
-+      "posture_present": true,
-+      "provenance": {
-+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24",
-+        "source": "posture"
-+      },
-+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
-+      "recorded_at": "2026-10-10T09:52:54.591188+00:00",
-+      "resolution": "posture_block",
-+      "timeout_seconds": null
-+    },
-+    {
-+      "approval_id": null,
-+      "authorizing_disposition": "block",
-+      "default_action": null,
-+      "disposition": "block",
-+      "gate": "escalate_resume",
-+      "note": "Operator resumed merged item ri-21 in supervisor session 2026-10-10 (decision fb5a1364, a4948ea); goal gate fixed in 1d79737 (VAL_REVIEW binds after VALIDATE).",
-+      "notified": null,
-+      "outcome": "proceed",
-+      "phase": "ESCALATE",
-+      "posture_present": true,
-+      "provenance": {
-+        "approval_ref": "gate-decision:fb5a1364-f4d7-41ce-b1fb-f385d2261d4d",
-+        "source": "human"
-+      },
-+      "reason": "gate 'escalate_resume' approved by the operator \u2014 Operator resumed merged item ri-21 in supervisor session 2026-10-10 (decision fb5a1364, a4948ea); goal gate fixed in 1d79737 (VAL_REVIEW binds after VALIDATE).",
-+      "recorded_at": "2026-10-10T09:52:57.428960+00:00",
-+      "resolution": "console_approved",
-+      "timeout_seconds": null
-+    },
-+    {
-+      "approval_id": null,
-+      "authorizing_disposition": "block",
-+      "default_action": null,
-+      "disposition": "block",
-+      "gate": "escalate_resume",
-+      "notified": null,
-+      "outcome": "blocked",
-+      "phase": "ESCALATE",
-+      "posture_present": true,
-+      "provenance": {
-+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24",
-+        "source": "posture"
-+      },
-+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
-+      "recorded_at": "2026-10-10T10:03:19.475199+00:00",
-+      "resolution": "posture_block",
-+      "timeout_seconds": null
-+    },
-+    {
-+      "approval_id": null,
-+      "authorizing_disposition": "block",
-+      "default_action": null,
-+      "disposition": "block",
-+      "gate": "escalate_resume",
-+      "note": "Operator re-validate decision 724eaee2 (supervisor, 2026-10-10): resume at VALIDATE so VALIDATE + VAL_REVIEW regenerate the report and its Validation Review section.",
-+      "notified": null,
-+      "outcome": "proceed",
-+      "phase": "ESCALATE",
-+      "posture_present": true,
-+      "provenance": {
-+        "approval_ref": "gate-decision:724eaee2-ea65-4edc-a891-f9ece3964707",
-+        "source": "human"
-+      },
-+      "reason": "gate 'escalate_resume' approved by the operator \u2014 Operator re-validate decision 724eaee2 (supervisor, 2026-10-10): resume at VALIDATE so VALIDATE + VAL_REVIEW regenerate the report and its Validation Review section.",
-+      "recorded_at": "2026-10-10T10:03:22.135499+00:00",
-+      "resolution": "console_approved",
-+      "timeout_seconds": null
-+    },
-+    {
-+      "approval_id": null,
-+      "authorizing_disposition": "block",
-+      "default_action": null,
-+      "disposition": "block",
-+      "gate": "escalate_resume",
-+      "note": "Operator chose 'Both' (supervisor 2026-10-10): unblock now; committed converge driver to follow.",
-+      "notified": null,
-+      "outcome": "proceed",
-+      "phase": "VAL_REVIEW",
++      "phase": "PLAN",
 +      "posture_present": false,
 +      "provenance": {
-+        "approval_ref": "gate-decision:1469b3d5-5478-4ab7-9bbd-dd6993bb998e",
++        "approval_ref": "gate-decision:a0408bee-2afc-4b03-8a84-b6daaf11326d",
 +        "source": "human"
 +      },
-+      "reason": "gate 'escalate_resume' approved by the operator \u2014 Operator chose 'Both' (supervisor 2026-10-10): unblock now; committed converge driver to follow.",
-+      "recorded_at": "2026-10-10T10:19:22.012039+00:00",
++      "reason": "gate 'escalate_resume' approved by the operator",
++      "recorded_at": "2026-10-11T13:50:04.379017+00:00",
 +      "resolution": "console_approved",
 +      "timeout_seconds": null
 +    },
@@ -2403,7 +2844,7 @@ index 00000000..01edf4d6
 +        "source": "posture"
 +      },
 +      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
-+      "recorded_at": "2026-10-10T10:35:34.289707+00:00",
++      "recorded_at": "2026-10-11T14:20:29.178053+00:00",
 +      "resolution": "posture_block",
 +      "timeout_seconds": null
 +    },
@@ -2413,572 +2854,17 @@ index 00000000..01edf4d6
 +      "default_action": null,
 +      "disposition": "block",
 +      "gate": "escalate_resume",
-+      "note": "Operator resume after ledger fix 53d94ef (supervisor 2026-10-10, gen 7): re-run VAL_REVIEW with committed agent_lane.py.",
++      "note": null,
 +      "notified": null,
 +      "outcome": "proceed",
 +      "phase": "ESCALATE",
 +      "posture_present": true,
 +      "provenance": {
-+        "approval_ref": "gate-decision:8afdd0a6-e757-4c12-b9b4-997951ce6463",
++        "approval_ref": "gate-decision:4eec73f8-9f8f-46a5-935c-7358a8dcd984",
 +        "source": "human"
 +      },
-+      "reason": "gate 'escalate_resume' approved by the operator \u2014 Operator resume after ledger fix 53d94ef (supervisor 2026-10-10, gen 7): re-run VAL_REVIEW with committed agent_lane.py.",
-+      "recorded_at": "2026-10-10T10:35:37.210927+00:00",
-+      "resolution": "console_approved",
-+      "timeout_seconds": null
-+    }
-+  ],
-+  "pending_gate": null,
-+  "goal_gate": {
-+    "verdict": "passed",
-+    "reason": "all required evidence present",
-+    "evidence": {
-+      "bound_by": "VAL_REVIEW",
-+      "checked_at": "2026-10-10T10:40:51.062457+00:00",
-+      "merge_authorized": true,
-+      "phase_statuses": {
-+        "Spec Compliance": "pass",
-+        "Validation Review": "pass"
-+      },
-+      "pr_url": "https://github.com/jankneumann/agentic-coding-tools/pull/667",
-+      "report_mtime": "2026-10-09T14:08:04.183909+00:00",
-+      "report_path": "openspec/changes/dispatch-contract/validation-report.md",
-+      "report_time": "2026-10-10T10:40:36+00:00",
-+      "report_time_source": "commit",
-+      "required_sections": [
-+        "Spec Compliance",
-+        "Validation Review"
-+      ],
-+      "val_review_at": "2026-10-10T10:40:39.663017+00:00",
-+      "validate_at": "2026-10-10T10:06:25.827106+00:00",
-+      "validate_outcome": "passed"
-+    }
-+  },
-+  "park": null,
-+  "degradations": [
-+    {
-+      "code": "single_vendor_review",
-+      "detail": "claude_code only; min_quorum=1 under cloud-container policy (TRUST_POSTURE.md 479dcd9)",
-+      "phase": "PLAN_REVIEW"
-+    },
-+    {
-+      "code": "single_vendor_review",
-+      "detail": "claude_code only; min_quorum=1 under cloud-container policy (TRUST_POSTURE.md 479dcd9)",
-+      "phase": "IMPL_REVIEW"
-+    },
-+    {
-+      "code": "single_vendor_review",
-+      "detail": "claude_code only; min_quorum=1 under cloud-container policy (TRUST_POSTURE.md 479dcd9)",
-+      "phase": "VAL_REVIEW"
-+    },
-+    {
-+      "code": "coordinator_projection_forbidden",
-+      "detail": "every project-state submit returned forbidden (trust-2 cloud agent)",
-+      "phase": "SUBMIT_PR"
-+    },
-+    {
-+      "code": "audit_sink_failed",
-+      "detail": "audit sink failed for proposal_approval, escalate_resume, pr_creation, merge gate decisions",
-+      "phase": "SUBMIT_PR"
-+    }
-+  ]
-+}
-diff --git a/openspec/changes/dispatch-contract/plan-findings.md b/openspec/changes/archive/2026-10-10-dispatch-contract/plan-findings.md
-similarity index 100%
-rename from openspec/changes/dispatch-contract/plan-findings.md
-rename to openspec/changes/archive/2026-10-10-dispatch-contract/plan-findings.md
-diff --git a/openspec/changes/dispatch-contract/proposal.md b/openspec/changes/archive/2026-10-10-dispatch-contract/proposal.md
-similarity index 100%
-rename from openspec/changes/dispatch-contract/proposal.md
-rename to openspec/changes/archive/2026-10-10-dispatch-contract/proposal.md
-diff --git a/openspec/changes/dispatch-contract/session-log.md b/openspec/changes/archive/2026-10-10-dispatch-contract/session-log.md
-similarity index 85%
-rename from openspec/changes/dispatch-contract/session-log.md
-rename to openspec/changes/archive/2026-10-10-dispatch-contract/session-log.md
-index c14fcc12..7ea62153 100644
---- a/openspec/changes/dispatch-contract/session-log.md
-+++ b/openspec/changes/archive/2026-10-10-dispatch-contract/session-log.md
-@@ -299,3 +299,76 @@ VALIDATE passed: spec compliance pass, 0 open tasks, openspec strict valid, ruff
- ### Context
- converge() ran VAL_REVIEW (review_type=implementation, fix_mode=targeted, min_quorum=1 from resolve_quorum_policy, base_ref=origin/openspec/roadmap-multiplayer-collaboration) and converged in round 2 with blocking trend [5, 0]. The critique checked whether validation-report.md proves each ri-21 outcome. Four medium gaps: outcome 6 overstated CI coverage (security.yml runs gitleaks only for main, so this change's PR never triggers it); outcome 4 had no test clearing a posture-derived capability-fingerprint block after a posture flip; outcome 7's cross-host tests shared one repo root; outcome 5 was proven only piecewise. VAL_FIX (inline, claude_code) added three tests and corrected the report. No production code changed. The closure test (outcome 3) was confirmed to enumerate every schema-permitted kind/gate from the schema, independently of ANSWER_PATHS, which is built from the Gate enum.
- 
-+---
-+
-+## Phase: Validate (re-validation) (2026-10-10)
-+
-+**Agent**: claude_code | **Session**: N/A
-+
-+### Decisions
-+1. **Report regenerated, no Validation Review section** `architectural: validation` — VAL_REVIEW writes it next; goal gate binds after VALIDATE
-+
-+### Completed Work
-+- Ran 8 suites in separate processes
-+- ruff on 51 changed files
-+- openspec validate --strict
-+- regenerated validation-report.md
-+
-+### Next Steps
-+- VAL_REVIEW appends ## Validation Review
-+
-+### Relevant Files
-+- `openspec/changes/dispatch-contract/validation-report.md` — regenerated report
-+
-+### Context
-+Re-validation at c83cf40 (gate-decision 724eaee2, gen 5): passed. Spec Compliance pass; 1,747 passed/24 skipped/1 known env-only failure; ruff clean; openspec strict valid; gate_logic action=continue. Outcome 6 caveat stands: only a Python port of gitleaks generic-api-key ran; first real full-ruleset scan is PR #662 Security job. CI DEGRADED (no run for head).
-+
-+---
-+
-+## Phase: Validation Review (gen 6) (2026-10-10)
-+
-+**Agent**: claude_code | **Session**: N/A
-+
-+### Next Steps
-+- Fix review_ledger.compact false-reopen for additive (doc) fixes or let re-verified accept supersede it
-+- Fix the two low readability findings
-+- Operator decides resume (re-run VAL_REVIEW with committed agent_lane.py after the ledger fix)
-+
-+### Context
-+VAL_REVIEW (operator-approved scratch driver, single_vendor_review) did not converge: stalled after 2 rounds, findings trend [3,4]. Round 1 raised 3 report-only findings (30 medium: outcome 6 now confirmed by real CI secret-scan on PR #662 runs 37976320517/37974967529 and main run 38019470729; 31/32 low citation gaps); all fixed in 794b4281 and re-verified by the reviewer in round 2. Round 2 added 2 low readability findings (run-id attribution next to 4955e24; added-tests block nested under outcome 6). Stall cause: review_ledger.compact() reopens an addressed item whose description tokens are still present in the cited file ('compact: claimed fix did not take'); additive documentation fixes always keep those tokens, so deterministic doc findings can never close. No Validation Review section written; outcome max_iter.
-+
-+---
-+
-+## Phase: Validation Review (gen 7) (2026-10-10)
-+
-+**Agent**: claude_code | **Session**: N/A
-+
-+### Next Steps
-+- SUBMIT_PR (merge already authorized, d2c8df05) -> DONE
-+- emit-result gen 7, archive, close-out PR
-+
-+### Context
-+VAL_REVIEW converged in 3 rounds via committed agent_lane.py (ebc08d6) with the ledger fix (53d94ef); claude_code lane only, min_quorum=1 under cloud-container-single-vendor-2026-10-09 (single_vendor_review). Round 1: 3 low report fixes (CI run/head attribution 37974967529@4955e24, 37976320517@789705a, 38019470729@731557b; added-tests block moved out of outcome 6; outcome 5 names permission_blocked and capability_unavailable) in 0466eab9. Round 2: 1 low fix (e2e park test covers both kinds) in 3b7be179. Round 3: no findings. Driver wrote ## Validation Review **Status**: pass; Spec Compliance pass.
-+
-+---
-+
-+## Phase: Cleanup (2026-10-10)
-+
-+**Agent**: claude_code | **Session**: N/A
-+
-+### Decisions
-+1. **Archive on the feature branch, not main** — Supervisor-directed: the archive commit goes to openspec/dispatch-contract with a close-out PR against the roadmap branch, which later lands on main via the roadmap PR.
-+2. **No open-task migration** — tasks.md has 0 unchecked items (41 checked).
-+
-+### Completed Work
-+- task-check
-+- archive
-+- decision-index-regen
-+- validate-strict
-+
-+### Next Steps
-+- Close-out PR against openspec/roadmap-multiplayer-collaboration; operator merges
-+
-+### Context
-+Post-merge cleanup for dispatch-contract (ri-21): PR #667 was merged by the operator into openspec/roadmap-multiplayer-collaboration as 0d078ff (rebase/merge chosen by the operator; autopilot never merges). All 41 tasks checked, so no open-task migration; no choices ledger. Loop reached DONE at gen 7 after operator-authorized re-validation (VALIDATE + VAL_REVIEW converged via committed agent_lane.py). Archived the change, regenerated docs/decisions in the same commit; staged rollout N/A (non-deployable skills/schemas change, no feature flag).
-+
-diff --git a/openspec/changes/dispatch-contract/specs/parallel-infrastructure/spec.md b/openspec/changes/archive/2026-10-10-dispatch-contract/specs/parallel-infrastructure/spec.md
-similarity index 100%
-rename from openspec/changes/dispatch-contract/specs/parallel-infrastructure/spec.md
-rename to openspec/changes/archive/2026-10-10-dispatch-contract/specs/parallel-infrastructure/spec.md
-diff --git a/openspec/changes/dispatch-contract/specs/roadmap-orchestration/spec.md b/openspec/changes/archive/2026-10-10-dispatch-contract/specs/roadmap-orchestration/spec.md
-similarity index 100%
-rename from openspec/changes/dispatch-contract/specs/roadmap-orchestration/spec.md
-rename to openspec/changes/archive/2026-10-10-dispatch-contract/specs/roadmap-orchestration/spec.md
-diff --git a/openspec/changes/dispatch-contract/specs/skill-workflow/spec.md b/openspec/changes/archive/2026-10-10-dispatch-contract/specs/skill-workflow/spec.md
-similarity index 100%
-rename from openspec/changes/dispatch-contract/specs/skill-workflow/spec.md
-rename to openspec/changes/archive/2026-10-10-dispatch-contract/specs/skill-workflow/spec.md
-diff --git a/openspec/changes/dispatch-contract/specs/supervise/spec.md b/openspec/changes/archive/2026-10-10-dispatch-contract/specs/supervise/spec.md
-similarity index 100%
-rename from openspec/changes/dispatch-contract/specs/supervise/spec.md
-rename to openspec/changes/archive/2026-10-10-dispatch-contract/specs/supervise/spec.md
-diff --git a/openspec/changes/dispatch-contract/specs/trust-posture/spec.md b/openspec/changes/archive/2026-10-10-dispatch-contract/specs/trust-posture/spec.md
-similarity index 100%
-rename from openspec/changes/dispatch-contract/specs/trust-posture/spec.md
-rename to openspec/changes/archive/2026-10-10-dispatch-contract/specs/trust-posture/spec.md
-diff --git a/openspec/changes/dispatch-contract/tasks.md b/openspec/changes/archive/2026-10-10-dispatch-contract/tasks.md
-similarity index 100%
-rename from openspec/changes/dispatch-contract/tasks.md
-rename to openspec/changes/archive/2026-10-10-dispatch-contract/tasks.md
-diff --git a/openspec/changes/dispatch-contract/validation-report.md b/openspec/changes/archive/2026-10-10-dispatch-contract/validation-report.md
-similarity index 55%
-rename from openspec/changes/dispatch-contract/validation-report.md
-rename to openspec/changes/archive/2026-10-10-dispatch-contract/validation-report.md
-index 8e6e5433..8b10fd3f 100644
---- a/openspec/changes/dispatch-contract/validation-report.md
-+++ b/openspec/changes/archive/2026-10-10-dispatch-contract/validation-report.md
-@@ -1,8 +1,17 @@
- # Validation Report: dispatch-contract
- 
--**Date**: 2026-10-09
--**Commit**: 7cc9180c3ea49a0a9b08618d376bf0c2793bdccc (VALIDATE); counts and evidence refreshed in VAL_REVIEW at df3b98e
--**Branch**: openspec/dispatch-contract
-+**Date**: 2026-10-10
-+**Commit**: c83cf40 (branch head on origin; re-validation, operator gate-decision 724eaee2, lease generation 5)
-+**Branch**: openspec/dispatch-contract (merged via PR #667 as 0d078ff)
-+
-+This report was regenerated against the current head. It supersedes the 2026-10-09 report (VALIDATE at 7cc9180,
-+VAL_REVIEW at df3b98e). Code under test now includes the PR #667 review fixes (765f9d8 resume only the recorded
-+escalation subject's dispatches; b35e544 keep a repo-root harness isolation as the portable ref "."; 43a9b11
-+single-flight capability/permission park resolution; 6a0a096 records them), the post-merge fixes 4955e24
-+(digest-only launch tokens in the live checkpoint), c04a1a8 (accept an already-migrated live checkpoint),
-+789705a (verified isolation mode in the attempt profile), and the cherry-picked goal-gate fix f44bbd6 (goal gate binds
-+to the report's last writer and commit time, so VAL_REVIEW binds after VALIDATE) and resume-at-VALIDATE commits
-+(3a29785, c83cf40).
- 
- Scope: skills scripts, shared libraries, and JSON schemas only. There is no deployable
- service (no docker-compose, agent-coordinator/, packages/ or apps/ path changed; the only
-@@ -19,9 +28,9 @@ phases are therefore not applicable, not skipped.
- - Architecture: not run (advisory; no service/graph consumer touched)
- - Task drift: pass (0 unchecked boxes in tasks.md)
- - OpenSpec: pass (`openspec validate dispatch-contract --strict`: valid)
--- Lint: pass (`ruff check` on every changed Python file/dir: all checks passed)
--- Test suites: pass except the known environment-only failure (see Spec Compliance)
--- CI/CD: DEGRADED (not checked; GitHub MCP lists zero workflow runs for branch openspec/dispatch-contract and no PR exists yet)
-+- Lint: pass (`ruff check` on all 51 Python files changed since base bdb0048: all checks passed)
-+- Test suites: pass except the known environment-only failure (see Spec Compliance); worktree, cleanup-feature and validate-feature suites not run (not touched; environment-only failures identical at base)
-+- CI/CD: DEGRADED (not applicable to this head: GitHub lists exactly one run for branch openspec/dispatch-contract, CI #2056 on 2e45ea7, the pre-merge PR head, conclusion success; no run exists for c83cf40)
- - Choices: no ledger
- 
- ## Spec Compliance
-@@ -32,18 +41,21 @@ Per-directory results (each `skills/tests/<dir>` run in its own process, base-in
- 
- | Suite | Result |
- |---|---|
--| skills/tests/autopilot | 533 passed, 6 skipped |
--| skills/tests/autopilot-roadmap | 146 passed |
-+| skills/tests/autopilot | 544 passed, 6 skipped |
-+| skills/tests/autopilot-roadmap | 147 passed |
- | skills/tests/install_sh | 18 passed, 14 skipped |
- | skills/tests/parallel-infrastructure | 292 passed, 2 skipped |
- | skills/tests/roadmap-runtime | 182 passed, 1 skipped |
--| skills/tests/shared | 134 passed, 1 skipped |
--| skills/tests/supervise | 459 passed, 1 failed (known) |
--| skills/autopilot/scripts/tests/test_autopilot.py | 48 passed |
-+| skills/tests/shared | 136 passed, 1 skipped |
-+| skills/tests/supervise | 469 passed, 1 failed (known) |
-+| skills/autopilot/scripts/tests | 227 passed |
-+
-+Totals: 1,747 passed, 24 skipped, 1 failed (known environment-only). The two project-context-refresh
-+shared-checkout tests are outside the touched suites and were not run. `openspec validate dispatch-contract --strict`: valid.
- 
- The single failure is the documented environment-only
- `test_workflow_contract.py::test_contract_inspects_the_canonical_source_contribution`
--(fails identically at base bdb0048 when run under a `.claude/` path). No other failures.
-+(fails identically at base bdb0048 when run under a `.claude/` path; this run is under `.claude/worktrees/`). No other failures.
- 
- ### Acceptance outcome to test mapping (proposal.md, ri-21)
- 
-@@ -82,18 +94,20 @@ The single failure is the documented environment-only
-    - Capability fingerprint (escalate_resume): `autopilot-roadmap/test_dispatch_contract_e2e.py`
-      (`test_a_posture_derived_capability_block_clears_after_a_posture_flip`, added in VAL_REVIEW;
-      `test_a_human_rejected_escalation_is_not_cleared_when_its_membership_changes`,
--     `test_an_operator_approval_ends_a_human_rejected_escalation`, `test_an_approval_resumes_a_member_that_joined_after_the_rejection`).
--5. execution_profile, review_requirements, degradations[] carried end to end; capability parks routed as single escalations: pass.
-+     `test_an_operator_approval_ends_a_human_rejected_escalation`, `test_an_approval_resumes_a_member_that_joined_after_the_rejection_only_once_re_projected`, renamed in 765f9d8: an approval given before re-projection resumes nothing).
-+5. execution_profile, review_requirements, degradations[] carried end to end; permission_blocked and capability_unavailable
-+   parks each routed to the operator as a single escalation: pass.
-    End to end: `autopilot-roadmap/test_dispatch_contract_e2e.py::test_profile_and_degradations_travel_the_whole_chain`
--   (added in VAL_REVIEW: request, launch marker, `runner.py record-degradation`, emit-result, apply, attempt record and
--   apply return value) and `::test_a_capability_park_is_one_operator_escalation_that_resumes_the_child`.
-+   (request, launch marker, `runner.py record-degradation`, emit-result, apply, attempt record and
-+   apply return value) and `::test_a_capability_park_is_one_operator_escalation_that_resumes_the_child` (parametrized over both kinds: permission_blocked and capability_unavailable).
-    Units: `autopilot/test_emit_result.py::test_degradations_travel_into_the_result`,
-    `supervise/test_execution.py` (`test_a_marker_carries_the_supervisor_view_but_no_token`, `test_apply_persists_degradations_on_the_attempt`,
--   `test_three_workers_blocked_on_one_rule_produce_one_escalation`, `test_different_missing_lanes_are_separate_escalations`),
-+   `test_three_workers_blocked_on_one_rule_produce_one_escalation` (permission_blocked: one escalation per rule),
-+   `test_different_missing_lanes_are_separate_escalations` (capability_unavailable: one escalation per missing-lane set)),
-    `autopilot/test_quorum_park.py`, `autopilot/test_convergence_loop.py`,
-    `parallel-infrastructure/test_check_vendors_dispatchable.py`, `parallel-infrastructure/test_review_packet.py`.
--6. checkpoint.json stores no raw launch token; default secret scan passes with no allowlist entry: pass locally by a
--   one-rule proxy; the real default-ruleset scan has not run.
-+6. checkpoint.json stores no raw launch token; default secret scan passes with no allowlist entry: pass, confirmed by
-+   the real default-ruleset gitleaks scan in CI (see the CI confirmation below), plus the local one-rule proxy.
-    `roadmap-runtime/test_landable_checkpoint.py`: `test_the_fixture_has_live_attempts_and_no_raw_token`,
-    `test_the_default_generic_api_key_rule_finds_nothing` (Python port of the default gitleaks
-    generic-api-key rule: keyword prefilter, regex, entropy > 3.5, applied to the committed-shape
-@@ -107,11 +121,16 @@ The single failure is the documented environment-only
-    Limits of this evidence: only gitleaks' `generic-api-key` rule is ported (the rule that flagged the raw
-    tokens on PR #662); the other default rules were not applied locally.
-    NOT RUN: `test_gitleaks_scan_of_the_fixture_directory_is_clean` (skipped: gitleaks binary not
--   installed; binaries must not be downloaded). No CI run covers it yet either: `.github/workflows/security.yml`
-+   installed; binaries must not be downloaded). This change's own PR did not run it: `.github/workflows/security.yml`
-    runs gitleaks only on pushes to `main` and on pull requests / merge groups targeting `main`. This change's PR
-    targets `openspec/roadmap-multiplayer-collaboration`, so it does not trigger that job. The first real
--   default-ruleset scan of these commits is the Security workflow on PR #662 (roadmap branch to `main`). Treat
--   outcome 6 as confirmed only once that job passes.
-+   default-ruleset scan of these commits is the Security workflow on PR #662 (roadmap branch to `main`).
-+   CI confirmation (verified in VAL_REVIEW, generation 6): the Security workflow's `secret-scan` job (full default
-+   gitleaks ruleset) passed on PR #662: at head 4955e24, where the live checkpoint was migrated to digest-only with live
-+   attempts (run 37974967529, success), and at the final PR head 789705a (run 37976320517, success); and again on the push to `main` after PR #662 merged as
-+   731557b (run 38019470729). `.gitleaks.toml` exempts only the three historical raw-token commits by SHA
-+   (ddd2c4a, c6424d7, 3c06430); it has no entry for 4955e24, the digest-only checkpoint or the fixture, so the pass
-+   needed no allowlist help.
- 7. Checkpoint with live attempts committed on one host reconciles on another: pass.
-    `roadmap-runtime/test_cross_host_reconcile.py` (8 tests: rebind of matching worktree, refusal on diverged worktree / digest mismatch,
-    reinitialize of prepared attempt, unexpired vs expired pre-go claim, post-go unknown liveness quarantined, and
-@@ -122,6 +141,40 @@ The single failure is the documented environment-only
-    `autopilot-roadmap/test_dispatch_contract_e2e.py::test_a_dispatched_child_with_a_marker_ref_takes_scoped_auto`,
-    `::test_a_standalone_run_blocks_with_scope_unscoped`.
- 
-+**Tests added after IMPL review** (PR #667 review fixes and post-merge commits; counted in the suite totals above, listed by the outcome they prove):
-+
-+- Outcome 4, late members never ride an earlier answer (765f9d8): `supervise/test_execution.py`
-+  (`test_a_member_that_parks_after_the_subject_is_not_resumed_by_its_answer`,
-+  `test_a_member_joining_a_human_rejection_is_persisted_before_it_can_be_approved`,
-+  `test_a_human_rejection_answered_before_re_projection_leaves_the_late_member_parked`).
-+- Outcome 5, one escalation per fingerprint under concurrency (43a9b11):
-+  `supervise/test_execution.py::test_concurrent_resolvers_on_one_fingerprint_are_single_flight` (permission_blocked fingerprint, block and auto postures).
-+- Outcome 7, repo-root harness isolation stays portable as `"."` (b35e544):
-+  `shared/test_dispatch_contract.py` (`test_harness_provided_isolation_at_the_repo_root_round_trips_as_dot`,
-+  `test_a_v1_request_at_the_repo_root_upgrades_to_a_schema_valid_dot_ref`),
-+  `autopilot-roadmap/test_dispatch_contract_e2e.py::test_a_cloud_worker_at_the_repo_root_prepares_and_starts`.
-+- Outcome 1, operator-approved resume at VALIDATE (3a29785): `supervise/test_execution_contract.py`
-+  (`test_gate_answer_may_name_validate_as_the_resume_target`, `test_the_continuation_answer_carries_the_recorded_resume_target`),
-+  `supervise/test_gate_router.py` (`test_escalate_resume_answer_records_resume_at_validate`,
-+  `test_resume_at_is_refused_unless_an_approved_validate_resume`), `autopilot/test_console_interviewer.py`
-+  (`test_resume_at_validate_reruns_validation_instead_of_the_parked_phase`, `test_without_resume_at_the_parked_phase_resumes`,
-+  `test_resume_at_is_refused_outside_an_approved_escalate_resume`).
-+- Goal gate bound to the report's last writer and commit time (f44bbd6): `autopilot/test_goal_gate.py`
-+  (`test_converged_val_review_binds_a_report_it_appended_to`, `test_unconverged_val_review_does_not_bind`,
-+  `test_val_review_before_the_latest_validate_does_not_bind`, `test_val_review_does_not_bind_when_disabled`,
-+  `test_a_committed_unmodified_report_is_timed_by_its_commit`, `test_a_report_committed_after_validation_is_stale`,
-+  `test_an_uncommitted_edit_falls_back_to_mtime`).
-+
-+## Deploy
-+
-+**Status**: N/A
-+Reason: work-packages.yaml `feature.deployable: false`; no service to deploy.
-+
-+## CI/CD
-+
-+**Status**: DEGRADED
-+Reason: no CI run exists for branch head c83cf40. The only run for the branch is CI #2056 on 2e45ea7 (success, pre-merge PR head). Local suites above are the evidence.
-+
- ## Smoke Tests
- 
- **Status**: not applicable
-@@ -130,7 +183,7 @@ Reason: skills/schemas-only change, no running service to smoke test.
- ## Security
- 
- **Status**: not applicable
--Reason: no deployable surface for ZAP/dependency-check. Secret-scan evidence for the changed checkpoint shape is in Spec Compliance outcome 6; the real gitleaks binary was not available locally, and the Security workflow runs only for `main` (push or PR), so the first real scan is PR #662's Security job.
-+Reason: no deployable surface for ZAP/dependency-check. Secret-scan evidence for the changed checkpoint shape is in Spec Compliance outcome 6; the real gitleaks binary was not available locally; the Security workflow (which runs only for `main`, push or PR) has since passed its `secret-scan` job on PR #662 (run 37974967529 at head 4955e24, run 37976320517 at head 789705a) and on the push to `main` at 731557b (run 38019470729).
- 
- ## E2E Tests
- 
-@@ -141,8 +194,19 @@ Reason: no browser or service surface.
- 
- - single_vendor_review: PLAN_REVIEW, IMPL_REVIEW and VAL_REVIEW ran claude_code only (cloud-container policy, min_quorum=1).
- - coordinator_projection_forbidden: coordinator queue projection returned forbidden (expected in this environment).
-+- audit_sink_failed: audit sink failed for the proposal_approval, escalate_resume, pr_creation and merge gate decisions (SUBMIT_PR).
- - GATEKEEPER ran via a real judge (no degradation).
-+- Re-validation: no new reviewer was dispatched in this VALIDATE run; VAL_REVIEW runs next and appends its own section.
- 
- ## Result
- 
--**PASS** — All eight acceptance outcomes are covered by passing tests. Outcome 6's secret-scan claim rests on a one-rule port locally; the real default-ruleset gitleaks scan first runs in PR #662's Security job and must pass there before the claim is confirmed. Other not-run items are recorded above (CI status, live-service phases). Ready for `/cleanup-feature dispatch-contract`.
-+**PASS** (re-validation at c83cf40) — All eight acceptance outcomes are covered by passing tests. Outcome 6 is confirmed by the real default-ruleset gitleaks `secret-scan` job, which passed on PR #662 and on `main` with no allowlist entry for the digest-only checkpoint; locally it rests on a one-rule port. Other not-run items are recorded above (CI status, live-service phases). The change is already merged (PR #667, 0d078ff); this report exists so the goal gate can bind VAL_REVIEW after VALIDATE.
-+
-+## Validation Review
-+
-+**Status**: pass
-+
-+- Result: converged in 3 round(s) via `agent_lane.py converge`.
-+- Lanes: `claude_code` only (min_quorum=1).
-+- Degradation: `single_vendor_review` under quorum policy `cloud-container-single-vendor-2026-10-09`.
-+- Summary: {'total_unique_findings': 0, 'confirmed_count': 0, 'unconfirmed_count': 0, 'disagreement_count': 0, 'blocking_count': 0, 'advisory_count': 0}
-diff --git a/openspec/changes/dispatch-contract/work-packages.yaml b/openspec/changes/archive/2026-10-10-dispatch-contract/work-packages.yaml
-similarity index 100%
-rename from openspec/changes/dispatch-contract/work-packages.yaml
-rename to openspec/changes/archive/2026-10-10-dispatch-contract/work-packages.yaml
-diff --git a/openspec/changes/multiplayer-principles-guide/.review-ledger/ledger.json b/openspec/changes/archive/2026-10-10-multiplayer-principles-guide/.review-ledger/ledger.json
-similarity index 100%
-rename from openspec/changes/multiplayer-principles-guide/.review-ledger/ledger.json
-rename to openspec/changes/archive/2026-10-10-multiplayer-principles-guide/.review-ledger/ledger.json
-diff --git a/openspec/changes/multiplayer-principles-guide/design.md b/openspec/changes/archive/2026-10-10-multiplayer-principles-guide/design.md
-similarity index 100%
-rename from openspec/changes/multiplayer-principles-guide/design.md
-rename to openspec/changes/archive/2026-10-10-multiplayer-principles-guide/design.md
-diff --git a/openspec/changes/multiplayer-principles-guide/loop-state.json b/openspec/changes/archive/2026-10-10-multiplayer-principles-guide/loop-state.json
-similarity index 69%
-rename from openspec/changes/multiplayer-principles-guide/loop-state.json
-rename to openspec/changes/archive/2026-10-10-multiplayer-principles-guide/loop-state.json
-index 6ced0475..6e233a3c 100644
---- a/openspec/changes/multiplayer-principles-guide/loop-state.json
-+++ b/openspec/changes/archive/2026-10-10-multiplayer-principles-guide/loop-state.json
-@@ -1,9 +1,9 @@
- {
--  "schema_version": 5,
-+  "schema_version": 6,
-   "change_id": "multiplayer-principles-guide",
--  "current_phase": "SUBMIT_PR",
-+  "current_phase": "DONE",
-   "iteration": 0,
--  "total_iterations": 15,
-+  "total_iterations": 18,
-   "max_phase_iterations": 3,
-   "findings_trend": [],
-   "blocking_findings": [],
-@@ -20,7 +20,8 @@
-     "0d93042b-2da5-42ce-99ec-50e7880ce78d",
-     "ff647b09-6f37-4515-beaf-edee4599dcba",
-     "323b6f25-0e3d-48b8-b5aa-919b8fa7957c",
--    "b78e5326-fe14-4111-80f9-ac7c4466123a"
-+    "b78e5326-fe14-4111-80f9-ac7c4466123a",
-+    "0b4dc20a-e3d6-468b-8d9f-d3c3f9752725"
-   ],
-   "phase_history": [
-     {
-@@ -68,17 +69,22 @@
-       "at": "2026-10-09T08:30:21.741688+00:00",
-       "outcome": "passed",
-       "phase": "VALIDATE"
-+    },
-+    {
-+      "at": "2026-10-10T09:58:22.377550+00:00",
-+      "outcome": "passed",
-+      "phase": "VALIDATE"
-     }
-   ],
--  "last_handoff_id": "b78e5326-fe14-4111-80f9-ac7c4466123a",
-+  "last_handoff_id": "0b4dc20a-e3d6-468b-8d9f-d3c3f9752725",
-   "started_at": "2026-10-05T07:03:40.733622+00:00",
--  "phase_started_at": "2026-10-09T12:16:46.494024+00:00",
-+  "phase_started_at": "2026-10-10T09:58:22.637839+00:00",
-   "previous_phase": "SUBMIT_PR",
--  "escalation_reason": "pr_creation: coordinator_unreachable \u2014 gate 'pr_creation' parked: coordinator unreachable (request_approval failed: coordinator unauthorized (status=403))",
-+  "escalation_reason": "goal gate refused: required section not passed: Spec Compliance (missing)",
-   "val_review_enabled": false,
-   "cli_review_enabled": true,
-   "error": null,
--  "phase_archetype": "runner",
-+  "phase_archetype": "validator",
-   "force": false,
-   "gate_signals": {
-     "external_dep_count": 0,
-@@ -188,83 +194,145 @@
-       "timeout_seconds": null
-     },
-     {
--      "gate": "pr_creation",
--      "outcome": "blocked",
--      "resolution": "coordinator_unreachable",
-+      "approval_id": null,
-       "authorizing_disposition": "notify_with_timeout",
--      "reason": "gate 'pr_creation' parked: coordinator unreachable (request_approval failed: coordinator unauthorized (status=403))",
--      "approval_id": null,
-       "default_action": null,
--      "posture_present": true,
--      "notified": null,
--      "timeout_seconds": null,
-       "disposition": "notify_with_timeout",
-+      "gate": "pr_creation",
-+      "notified": null,
-+      "outcome": "blocked",
-       "phase": "SUBMIT_PR",
--      "recorded_at": "2026-10-09T12:16:18.411838+00:00"
-+      "posture_present": true,
-+      "reason": "gate 'pr_creation' parked: coordinator unreachable (request_approval failed: coordinator unauthorized (status=403))",
-+      "recorded_at": "2026-10-09T12:16:18.411838+00:00",
-+      "resolution": "coordinator_unreachable",
-+      "timeout_seconds": null
-     },
-     {
--      "gate": "escalate_resume",
--      "outcome": "blocked",
--      "resolution": "posture_block",
-+      "approval_id": null,
-       "authorizing_disposition": "block",
-+      "default_action": null,
-+      "disposition": "block",
-+      "gate": "escalate_resume",
-+      "notified": null,
-+      "outcome": "blocked",
-+      "phase": "ESCALATE",
-+      "posture_present": true,
-       "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
--      "approval_id": null,
--      "default_action": null,
--      "posture_present": true,
--      "notified": null,
--      "timeout_seconds": null,
--      "disposition": "block",
--      "phase": "ESCALATE",
--      "recorded_at": "2026-10-09T12:16:46.292366+00:00"
--    },
--    {
--      "gate": "escalate_resume",
--      "outcome": "proceed",
--      "resolution": "console_approved",
--      "authorizing_disposition": "block",
--      "reason": "gate 'escalate_resume' approved by the operator \u2014 User (session owner) 2026-10-09 answered 'Approve PR now' to the pr_creation gate question. The pr_creation gate cannot record through the coordinator in this container (request_approval 403 forbidden); this console decision is the recorded authorization for opening the stacked PR. Merge stays block.",
--      "approval_id": null,
--      "default_action": null,
--      "posture_present": true,
--      "notified": null,
--      "timeout_seconds": null,
--      "disposition": "block",
--      "phase": "ESCALATE",
--      "recorded_at": "2026-10-09T12:16:46.493945+00:00",
--      "note": "User (session owner) 2026-10-09 answered 'Approve PR now' to the pr_creation gate question. The pr_creation gate cannot record through the coordinator in this container (request_approval 403 forbidden); this console decision is the recorded authorization for opening the stacked PR. Merge stays block."
--    },
--    {
--      "gate": "merge",
--      "outcome": "blocked",
-+      "recorded_at": "2026-10-09T12:16:46.292366+00:00",
-       "resolution": "posture_block",
--      "authorizing_disposition": "block",
--      "reason": "gate 'merge' parked: trust posture disposition is block",
-+      "timeout_seconds": null
-+    },
-+    {
-       "approval_id": null,
-+      "authorizing_disposition": "block",
-       "default_action": null,
--      "posture_present": true,
--      "notified": null,
--      "timeout_seconds": null,
-       "disposition": "block",
-+      "gate": "escalate_resume",
-+      "note": "User (session owner) 2026-10-09 answered 'Approve PR now' to the pr_creation gate question. The pr_creation gate cannot record through the coordinator in this container (request_approval 403 forbidden); this console decision is the recorded authorization for opening the stacked PR. Merge stays block.",
-+      "notified": null,
-+      "outcome": "proceed",
-+      "phase": "ESCALATE",
-+      "posture_present": true,
-+      "reason": "gate 'escalate_resume' approved by the operator \u2014 User (session owner) 2026-10-09 answered 'Approve PR now' to the pr_creation gate question. The pr_creation gate cannot record through the coordinator in this container (request_approval 403 forbidden); this console decision is the recorded authorization for opening the stacked PR. Merge stays block.",
-+      "recorded_at": "2026-10-09T12:16:46.493945+00:00",
-+      "resolution": "console_approved",
-+      "timeout_seconds": null
-+    },
-+    {
-+      "approval_id": null,
-+      "authorizing_disposition": "block",
-+      "default_action": null,
-+      "disposition": "block",
-+      "gate": "merge",
-+      "notified": null,
-+      "outcome": "blocked",
-       "phase": "SUBMIT_PR",
--      "recorded_at": "2026-10-09T12:17:28.246464+00:00"
-+      "posture_present": true,
-+      "reason": "gate 'merge' parked: trust posture disposition is block",
-+      "recorded_at": "2026-10-09T12:17:28.246464+00:00",
-+      "resolution": "posture_block",
-+      "timeout_seconds": null
-+    },
-+    {
-+      "approval_id": null,
-+      "authorizing_disposition": "block",
-+      "default_action": null,
-+      "disposition": "block",
-+      "gate": "merge",
-+      "note": "User (session owner) 2026-10-10: 'Approving merge'. PR #666 was already merged by jankneumann at 2026-10-09T18:39:50Z (head 9dcc24f, 24/24 checks green).",
-+      "notified": null,
-+      "outcome": "proceed",
-+      "phase": "SUBMIT_PR",
-+      "posture_present": true,
-+      "reason": "gate 'merge' approved by the operator \u2014 User (session owner) 2026-10-10: 'Approving merge'. PR #666 was already merged by jankneumann at 2026-10-09T18:39:50Z (head 9dcc24f, 24/24 checks green).",
-+      "recorded_at": "2026-10-10T03:07:07.019853+00:00",
++      "reason": "gate 'escalate_resume' approved by the operator",
++      "recorded_at": "2026-10-12T02:39:42.726118+00:00",
 +      "resolution": "console_approved",
 +      "timeout_seconds": null
 +    },
@@ -2997,7 +2883,7 @@ index 6ced0475..6e233a3c 100644
 +        "source": "posture"
 +      },
 +      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
-+      "recorded_at": "2026-10-10T09:52:19.441066+00:00",
++      "recorded_at": "2026-10-12T02:48:21.393995+00:00",
 +      "resolution": "posture_block",
 +      "timeout_seconds": null
 +    },
@@ -3007,7 +2893,7 @@ index 6ced0475..6e233a3c 100644
 +      "default_action": null,
 +      "disposition": "block",
 +      "gate": "escalate_resume",
-+      "note": "User (session owner) 2026-10-10 chose 'Follow up': regenerate validation-report.md in validate-feature section format, declare deployable: false (docs-only), record a fresh VALIDATE, then DONE + archive. Branch restarted from openspec/roadmap-multiplayer-collaboration (PR #666 merged as f5557f4).",
++      "note": "Operator approved in worker session 2026-10-13 (no ref); fixes in 62590065",
 +      "notified": null,
 +      "outcome": "proceed",
 +      "phase": "ESCALATE",
@@ -3016,1643 +2902,8 @@ index 6ced0475..6e233a3c 100644
 +        "approval_ref": null,
 +        "source": "human"
 +      },
-+      "reason": "gate 'escalate_resume' approved by the operator \u2014 User (session owner) 2026-10-10 chose 'Follow up': regenerate validation-report.md in validate-feature section format, declare deployable: false (docs-only), record a fresh VALIDATE, then DONE + archive. Branch restarted from openspec/roadmap-multiplayer-collaboration (PR #666 merged as f5557f4).",
-+      "recorded_at": "2026-10-10T09:52:19.684134+00:00",
-+      "resolution": "console_approved",
-+      "timeout_seconds": null
-     }
-   ],
--  "pending_gate": {
--    "schema_version": 1,
--    "change_id": "multiplayer-principles-guide",
--    "gate": "merge",
--    "phase": "SUBMIT_PR",
--    "requested_at": "2026-10-09T12:17:28.247738+00:00",
--    "prompt": "Authorize merging this pull request? (autopilot records the authorization only; /cleanup-feature merges)",
--    "context": {
-+  "pending_gate": null,
-+  "goal_gate": {
-+    "verdict": "passed",
-+    "reason": "all required evidence present",
-+    "evidence": {
-+      "checked_at": "2026-10-10T09:58:22.612560+00:00",
-+      "merge_authorized": true,
-+      "phase_statuses": {
-+        "Spec Compliance": "pass"
-+      },
-       "pr_url": "https://github.com/jankneumann/agentic-coding-tools/pull/666",
--      "branch": "openspec/multiplayer-principles-guide",
--      "change_id": "multiplayer-principles-guide"
--    },
--    "posture": {
--      "disposition": "block",
--      "posture_present": true
-+      "report_mtime": "2026-10-09T08:30:13.420114+00:00",
-+      "report_path": "openspec/changes/multiplayer-principles-guide/validation-report.md",
-+      "required_sections": [
-+        "Spec Compliance"
-+      ],
-+      "validate_at": "2026-10-10T09:58:22.377550+00:00",
-+      "validate_outcome": "passed",
-+      "report_time": "2026-10-10T09:58:07+00:00",
-+      "report_time_source": "commit",
-+      "bound_by": "VALIDATE"
-     }
-   },
--  "goal_gate": null
-+  "park": null,
-+  "degradations": []
- }
-diff --git a/openspec/changes/multiplayer-principles-guide/plan-findings.md b/openspec/changes/archive/2026-10-10-multiplayer-principles-guide/plan-findings.md
-similarity index 100%
-rename from openspec/changes/multiplayer-principles-guide/plan-findings.md
-rename to openspec/changes/archive/2026-10-10-multiplayer-principles-guide/plan-findings.md
-diff --git a/openspec/changes/multiplayer-principles-guide/proposal.md b/openspec/changes/archive/2026-10-10-multiplayer-principles-guide/proposal.md
-similarity index 99%
-rename from openspec/changes/multiplayer-principles-guide/proposal.md
-rename to openspec/changes/archive/2026-10-10-multiplayer-principles-guide/proposal.md
-index adee477d..9646173b 100644
---- a/openspec/changes/multiplayer-principles-guide/proposal.md
-+++ b/openspec/changes/archive/2026-10-10-multiplayer-principles-guide/proposal.md
-@@ -1,3 +1,7 @@
-+---
-+deployable: false
-+---
-+
- # Publish the multiplayer collaboration principles guide
- 
- > Parent roadmap: `multiplayer-collaboration` (item `ri-01`)
-diff --git a/openspec/changes/multiplayer-principles-guide/review-findings-plan.json b/openspec/changes/archive/2026-10-10-multiplayer-principles-guide/review-findings-plan.json
-similarity index 100%
-rename from openspec/changes/multiplayer-principles-guide/review-findings-plan.json
-rename to openspec/changes/archive/2026-10-10-multiplayer-principles-guide/review-findings-plan.json
-diff --git a/openspec/changes/multiplayer-principles-guide/reviews/consensus-plan.json b/openspec/changes/archive/2026-10-10-multiplayer-principles-guide/reviews/consensus-plan.json
-similarity index 100%
-rename from openspec/changes/multiplayer-principles-guide/reviews/consensus-plan.json
-rename to openspec/changes/archive/2026-10-10-multiplayer-principles-guide/reviews/consensus-plan.json
-diff --git a/openspec/changes/multiplayer-principles-guide/reviews/raw-codex-plan.meta.json b/openspec/changes/archive/2026-10-10-multiplayer-principles-guide/reviews/raw-codex-plan.meta.json
-similarity index 100%
-rename from openspec/changes/multiplayer-principles-guide/reviews/raw-codex-plan.meta.json
-rename to openspec/changes/archive/2026-10-10-multiplayer-principles-guide/reviews/raw-codex-plan.meta.json
-diff --git a/openspec/changes/archive/2026-10-10-multiplayer-principles-guide/reviews/raw-codex-plan.txt b/openspec/changes/archive/2026-10-10-multiplayer-principles-guide/reviews/raw-codex-plan.txt
-new file mode 100644
-index 00000000..e69de29b
-diff --git a/openspec/changes/multiplayer-principles-guide/reviews/review-manifest.json b/openspec/changes/archive/2026-10-10-multiplayer-principles-guide/reviews/review-manifest.json
-similarity index 100%
-rename from openspec/changes/multiplayer-principles-guide/reviews/review-manifest.json
-rename to openspec/changes/archive/2026-10-10-multiplayer-principles-guide/reviews/review-manifest.json
-diff --git a/openspec/changes/multiplayer-principles-guide/reviews/review-prompt.md b/openspec/changes/archive/2026-10-10-multiplayer-principles-guide/reviews/review-prompt.md
-similarity index 100%
-rename from openspec/changes/multiplayer-principles-guide/reviews/review-prompt.md
-rename to openspec/changes/archive/2026-10-10-multiplayer-principles-guide/reviews/review-prompt.md
-diff --git a/openspec/changes/multiplayer-principles-guide/session-log.md b/openspec/changes/archive/2026-10-10-multiplayer-principles-guide/session-log.md
-similarity index 87%
-rename from openspec/changes/multiplayer-principles-guide/session-log.md
-rename to openspec/changes/archive/2026-10-10-multiplayer-principles-guide/session-log.md
-index 660012f2..dade1e50 100644
---- a/openspec/changes/multiplayer-principles-guide/session-log.md
-+++ b/openspec/changes/archive/2026-10-10-multiplayer-principles-guide/session-log.md
-@@ -196,3 +196,47 @@ IMPL_REVIEW ran converge(review_type=implementation, max_rounds=3, min_quorum=1,
- ### Context
- VALIDATE PASS (docs-only): spec valid strict, 1706 tests pass, security clean; deploy/smoke/e2e skipped. DEGRADED: GATEKEEPER signal-only, PLAN_REVIEW and IMPL_REVIEW single_vendor_review (claude_code).
- 
-+---
-+
-+## Phase: Validate (2026-10-10)
-+
-+**Agent**: validator | **Session**: N/A
-+
-+### Completed Work
-+- openspec validate --strict
-+- pytest 1722 passed
-+- diff secret scan
-+- validation-report.md rewritten with Spec Compliance Status pass
-+
-+### Next Steps
-+- DONE gate
-+- archive
-+
-+### Context
-+VALIDATE PASS (docs-only, deployable false): report rewritten in validate-feature section format; Spec Compliance pass; required phases resolve to Spec Compliance only; openspec strict valid; 1722 tests pass; diff secret scan clean. DEGRADED: GATEKEEPER signal-only, PLAN_REVIEW and IMPL_REVIEW single_vendor_review (claude_code).
-+
-+---
-+
-+## Phase: Cleanup (2026-10-10)
-+
-+**Agent**: claude_code | **Session**: N/A
-+
-+### Decisions
-+1. **Post-merge mode; no merge executed** — The operator merged PR #666 on 2026-10-09 and approved the merge gate; autopilot and cleanup never merge.
-+2. **No task migration** — tasks.md has 6/6 tasks checked; no open tasks to move to issues or a follow-up proposal.
-+3. **Staged rollout and pre-launch checklist not applicable** — Docs-only change (proposal declares deployable: false): a guide, a guard test, two links, and a testpaths entry. There is no service, feature flag, or traffic to stage. CI was green on head 9dcc24f (24/24 checks).
-+4. **Branch restarted from roadmap base for the follow-up** — The merged branch was restarted from openspec/roadmap-multiplayer-collaboration (a fast-forward of the merged head) to fix the validation-report format that the DONE goal gate refused; loop reached DONE at c0d2750.
-+
-+### Completed Work
-+- task-migration (none needed)
-+- archive
-+- spec-sync
-+- decision-index
-+
-+### Next Steps
-+- Operator merges the archive PR into openspec/roadmap-multiplayer-collaboration
-+- ri-02 ownership-map confirms or amends the solo-mode definition (design D2)
-+
-+### Context
-+Post-merge cleanup: PR #666 was merged into openspec/roadmap-multiplayer-collaboration as f5557f4 by the operator, so no merge ran here. All 6 tasks were complete, so nothing was migrated. The change is archived with its spec delta merged, and the decision index regenerated in the same commit.
-+
-diff --git a/openspec/changes/multiplayer-principles-guide/specs/multiplayer-collaboration/spec.md b/openspec/changes/archive/2026-10-10-multiplayer-principles-guide/specs/multiplayer-collaboration/spec.md
-similarity index 100%
-rename from openspec/changes/multiplayer-principles-guide/specs/multiplayer-collaboration/spec.md
-rename to openspec/changes/archive/2026-10-10-multiplayer-principles-guide/specs/multiplayer-collaboration/spec.md
-diff --git a/openspec/changes/multiplayer-principles-guide/tasks.md b/openspec/changes/archive/2026-10-10-multiplayer-principles-guide/tasks.md
-similarity index 100%
-rename from openspec/changes/multiplayer-principles-guide/tasks.md
-rename to openspec/changes/archive/2026-10-10-multiplayer-principles-guide/tasks.md
-diff --git a/openspec/changes/archive/2026-10-10-multiplayer-principles-guide/validation-report.md b/openspec/changes/archive/2026-10-10-multiplayer-principles-guide/validation-report.md
-new file mode 100644
-index 00000000..0cbc0b77
---- /dev/null
-+++ b/openspec/changes/archive/2026-10-10-multiplayer-principles-guide/validation-report.md
-@@ -0,0 +1,52 @@
-+# Validation Report: multiplayer-principles-guide
-+
-+**Date**: 2026-10-10
-+**Commit**: d565671 (origin/openspec/multiplayer-principles-guide)
-+**Scope**: docs-only (guide, guard test, two inbound links, testpaths entry). `proposal.md` declares `deployable: false`.
-+
-+## Required Phases
-+
-+`gate_logic.resolve_required_phases(None, change_dir=<change dir>)` returns only `{'Spec Compliance': 'Spec compliance'}`. Smoke Tests, Security and E2E Tests are not required for a non-deployable change.
-+
-+## Degraded Status
-+- GATEKEEPER: DEGRADED (signal-only fallback on attempt 0)
-+- PLAN_REVIEW: DEGRADED `single_vendor_review` (claude_code only; codex auth_required)
-+- IMPL_REVIEW: DEGRADED `single_vendor_review` (claude_code only)
-+- Single-vendor policy approved by session owner (gate-decision:e49a71df-6e23-4937-816e-4e4f39d3eaff). Human merge gate remains block.
-+
-+## Spec Compliance
-+
-+**Status**: pass
-+
-+`openspec validate multiplayer-principles-guide --strict` reports the change valid. All 7 requirements and their scenarios map to guide sections and guard-test cases. Inbound links are present in AGENTS.md and docs/guides/documentation.md, and the testpaths entry is registered.
-+
-+## Evidence Completeness
-+
-+**Status**: pass
-+
-+`cd skills && uv run pytest tests/multiplayer-collaboration tests/docs tests/ci_coverage tests/openspec_paths`: 1722 passed.
-+
-+## Smoke Tests
-+
-+**Status**: skipped
-+
-+No service to deploy; docs-only change (`deployable: false`).
-+
-+## Security
-+
-+**Status**: skipped
-+
-+Not required for a non-deployable change. Informational diff scan for secrets and credentials (AWS keys, private keys, GitHub and API tokens) over the branch diff found none.
-+
-+## E2E Tests
-+
-+**Status**: skipped
-+
-+No service or UI; docs-only change (`deployable: false`).
-+
-+## Open Items (non-blocking)
-+- session-log.md "Plan Iteration 1" Context paragraph contains a `[REDACTED:high-entropy]` sanitizer artifact and an orphaned list item (IMPL_REVIEW Medium #5). Not repaired: the redacted span is lost and not recoverable from the tree. Needs operator decision.
-+- Other IMPL_REVIEW open questions (roadmap bootstrap on branch, TRUST_POSTURE citation, per-skill trailer attribution, spec wording clause) remain as logged.
-+
-+## Result
-+**PASS**
-diff --git a/openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/.review-ledger/ledger.json b/openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/.review-ledger/ledger.json
-new file mode 100644
-index 00000000..8b05d5b5
---- /dev/null
-+++ b/openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/.review-ledger/ledger.json
-@@ -0,0 +1,534 @@
-+{
-+  "schema_version": 1,
-+  "change_id": "multiplayer-simulation-harness",
-+  "items": [
-+    {
-+      "id": 1,
-+      "status": "addressed",
-+      "axis": "correctness",
-+      "type": "spec_gap",
-+      "criticality": "high",
-+      "evidence_class": "judgment",
-+      "file_path": "openspec/changes/multiplayer-simulation-harness/design.md",
-+      "spec_file": "openspec/changes/multiplayer-simulation-harness/specs/multiplayer-simulation/spec.md",
-+      "fingerprint": "325719d4e87ae6c4",
-+      "first_seen_round": 1,
-+      "last_seen_round": 1,
-+      "vendor_hits": [
-+        "claude_code"
-+      ],
-+      "description": "The memory-store scenario's readiness input is under-specified. D7 has every ScriptedAgent push to its own branch `refs/heads/sim/<principal>/<change>`, and D5 says each step's `set_status` edit to `roadmap.yaml` is committed and pushed by that principal. With two principals editing the same `roadmap.yaml` on two different branches, there is no single \"roadmap.yaml currently visible on the shared remote\" (spec wording) for `Roadmap.ready_items()` to evaluate: storage-owner's `completed` lives on `sim/storage-owner/sim-memory-store-core`, retrieval-owner's `approved` item on its own branch, and `main` still holds the seed. The scheduler must either (a) read the dependency item's status from the owner's branch and merge per-item statuses, or (b) have status transitions pushed to `main` (modelling a checkpoint commit). Each choice changes what task 5.2 implements, what the fixture must look like, and what ri-11's flip has to touch. State the chosen ref model in D5/D7 and in the Memory-Store requirement text, and reflect it in task 5.1/5.2.",
-+      "resolution": "operator decision A1 (escalate_resume 2026-10-05) applied in PLAN_FIX fe0b333: D5/D7 integration ref = shared remote main, sim-supervisor status applier",
-+      "consensus_status": "unconfirmed"
-+    },
-+    {
-+      "id": 2,
-+      "status": "addressed",
-+      "axis": "correctness",
-+      "type": "spec_gap",
-+      "criticality": "medium",
-+      "evidence_class": "judgment",
-+      "file_path": "openspec/changes/multiplayer-simulation-harness/specs/multiplayer-simulation/spec.md",
-+      "spec_file": "openspec/changes/multiplayer-simulation-harness/specs/multiplayer-simulation/spec.md",
-+      "fingerprint": "3b350cbf61af0726",
-+      "first_seen_round": 1,
-+      "last_seen_round": 1,
-+      "vendor_hits": [
-+        "claude_code"
-+      ],
-+      "description": "Group 2 check: several SHALL clauses have no scenario. (a) \"The harness SHALL NOT import agent-coordinator or coordination-bridge modules, SHALL NOT use HTTP or MCP transports\" (Offline requirement) has no WHEN/THEN; O.1/O.2 only test behaviour, not imports. (b) \"Every roadmap status change a simulated agent makes SHALL be declared as data in the fixture's step script, never in harness code\" (Memory-Store requirement) has no scenario; B.1 only implies it. (c) \"Registering a new probe SHALL NOT require editing any scenario definition other than its pinned expectations\" (Probe Seam) is only implicit in S.1. All three are cheap to pin with a static test (AST/grep over `mpsim/` for forbidden imports and for literal status strings; a test that registers a probe without touching `scenarios/`).",
-+      "resolution": "PLAN_FIX fe0b333 (post-escalation, ledger items 1-4, 7, 8)",
-+      "consensus_status": "unconfirmed"
-+    },
-+    {
-+      "id": 3,
-+      "status": "addressed",
-+      "axis": "correctness",
-+      "type": "contract_mismatch",
-+      "criticality": "medium",
-+      "evidence_class": "judgment",
-+      "file_path": "openspec/changes/multiplayer-simulation-harness/contracts/schemas/sim-report.schema.json",
-+      "fingerprint": "fda86f78432b324e",
-+      "first_seen_round": 1,
-+      "last_seen_round": 1,
-+      "vendor_hits": [
-+        "claude_code"
-+      ],
-+      "description": "Error-path reports cannot validate against `sim-report.schema.json`. The contract (exit 1) and D8 say \"a report carrying a non-null `error` is printed when possible\", including when \"a git operation failed\", and the Deterministic requirement says any scenario report validates against the schema. But the schema requires `principals` with `minItems: 2` and non-nullable `timeline`; a failure during world build (before principals exist) cannot satisfy it. Either relax `principals` to allow an empty array/null when `error` is non-null, or state explicitly that exit-1 reports are best-effort and exempt from the schema (and from D.2's \"any scenario report\" assertion).",
-+      "resolution": "PLAN_FIX fe0b333 (post-escalation, ledger items 1-4, 7, 8)",
-+      "consensus_status": "unconfirmed"
-+    },
-+    {
-+      "id": 4,
-+      "status": "addressed",
-+      "axis": "readability",
-+      "type": "correctness",
-+      "criticality": "low",
-+      "evidence_class": "judgment",
-+      "file_path": "openspec/changes/multiplayer-simulation-harness/design.md",
-+      "fingerprint": "1fe35a63f167a57d",
-+      "first_seen_round": 1,
-+      "last_seen_round": 1,
-+      "vendor_hits": [
-+        "claude_code"
-+      ],
-+      "description": "Stale cross-references in design.md after the iteration-2 renumbering: the Risks table says the 30 s budget is \"checked in task 6.2\" (it is 9.1) and that \"Task 4.2 documents the call site in the README\" (the README is 8.2 and the call site is in `scenarios/blocked.py`, task 5.2). D9 says \"the gen-eval pack test sets COORDINATION_API_URL\" and compares reports, but plan-findings iteration 2 #3 moved O.2 to task 6.1 against raw `mpsim run` stdout. D8's exit-code table omits code 2, which the contract and task 6.2 both declare.",
-+      "resolution": "PLAN_FIX fe0b333 (post-escalation, ledger items 1-4, 7, 8)",
-+      "consensus_status": "unconfirmed"
-+    },
-+    {
-+      "id": 5,
-+      "status": "open",
-+      "axis": "readability",
-+      "type": "style",
-+      "criticality": "low",
-+      "evidence_class": "judgment",
-+      "file_path": "openspec/changes/multiplayer-simulation-harness/contracts/cli/mpsim.yaml",
-+      "fingerprint": "bcfcca92b7417351",
-+      "first_seen_round": 1,
-+      "last_seen_round": 1,
-+      "vendor_hits": [
-+        "claude_code"
-+      ],
-+      "description": "Re-verification of open ledger item 5: still present. The change-local header keeps the in-flight provenance note and a relative schema path that resolves correctly only from `openspec/changes/<id>/contracts/cli/`; from the promoted location `openspec/contracts/multiplayer-simulation/cli/` four `..` segments leave the repository. Task 1.1 still requires the promoted copy to be byte-identical, so the stale comment ships in the canonical file. Replace the relative path with a repo-root-relative one (`openspec/contracts/gen-eval-framework/schemas/cli-contract.schema.json`) and reword the provenance note so it is true at both locations.",
-+      "consensus_status": "unconfirmed"
-+    },
-+    {
-+      "id": 6,
-+      "status": "open",
-+      "axis": "resilience",
-+      "type": "resilience",
-+      "criticality": "low",
-+      "evidence_class": "judgment",
-+      "file_path": "openspec/changes/multiplayer-simulation-harness/tasks.md",
-+      "fingerprint": "af50ee0e20916b77",
-+      "first_seen_round": 1,
-+      "last_seen_round": 1,
-+      "vendor_hits": [
-+        "claude_code"
-+      ],
-+      "description": "Interpreter selection for the two subprocess entry points is unspecified. `bin/mpsim` \"runs `python -m mpsim`\"; `mpsim` imports `skills/roadmap-runtime/scripts` (needs pyyaml/jsonschema from the skills venv). Task 7.3 prepends only `bin/` to PATH and runs the `gen-eval` console script by name, so both resolutions depend on the skills venv already being first on PATH. Under `uv run --project skills pytest` that holds, but a developer running `pytest` from an activated other venv, or an IDE runner, gets a confusing ImportError or a `gen-eval: command not found`.",
-+      "consensus_status": "unconfirmed"
-+    },
-+    {
-+      "id": 7,
-+      "status": "addressed",
-+      "axis": "correctness",
-+      "type": "correctness",
-+      "criticality": "low",
-+      "evidence_class": "judgment",
-+      "file_path": "openspec/changes/multiplayer-simulation-harness/design.md",
-+      "fingerprint": "34ddc4e5116d868d",
-+      "first_seen_round": 1,
-+      "last_seen_round": 1,
-+      "vendor_hits": [
-+        "claude_code"
-+      ],
-+      "description": "D5 asserts `Roadmap.ready_items()` \"decides from item statuses alone\" (dependency satisfied when `status: completed`, admitted when `approved`), but the architecture diagram in Context says readiness is evaluated \"over the remote's roadmap/checkpoint\", hinting that roadmap-runtime may also read checkpoint state. The pinned 10-tick baseline, B.4, and the ri-11 flip all depend on the exact admission semantic. The plan does not record where this was verified.",
-+      "resolution": "PLAN_FIX fe0b333 (post-escalation, ledger items 1-4, 7, 8)",
-+      "consensus_status": "unconfirmed"
-+    },
-+    {
-+      "id": 8,
-+      "status": "addressed",
-+      "axis": "readability",
-+      "type": "style",
-+      "criticality": "low",
-+      "evidence_class": "judgment",
-+      "file_path": "openspec/changes/multiplayer-simulation-harness/contracts/cli/mpsim.yaml",
-+      "fingerprint": "3b8f4ed8c776c544",
-+      "first_seen_round": 1,
-+      "last_seen_round": 1,
-+      "vendor_hits": [
-+        "claude_code"
-+      ],
-+      "description": "Exit-code 64 text lists \"missing --fixture-dir\" as a usage error, but the flag is optional; the intended meaning is a `--fixture-dir` value that points at a non-existent directory. Task 6.1 repeats the ambiguous phrase. A reader could conclude the flag is required.",
-+      "resolution": "PLAN_FIX fe0b333 (post-escalation, ledger items 1-4, 7, 8)",
-+      "consensus_status": "unconfirmed"
-+    },
-+    {
-+      "id": 9,
-+      "status": "parked",
-+      "axis": "observability",
-+      "type": "observability",
-+      "criticality": "low",
-+      "evidence_class": "judgment",
-+      "file_path": "openspec/changes/multiplayer-simulation-harness/loop-state.json",
-+      "fingerprint": "01a6dc52d58fde77",
-+      "first_seen_round": 1,
-+      "last_seen_round": 1,
-+      "vendor_hits": [
-+        "claude_code"
-+      ],
-+      "description": "`loop-state.json` records `findings_trend: []` and `iteration: 0` although plan-findings.md documents three PLAN_ITERATE iterations with 16, 8 and 3 findings. The trend field exists to let PLAN_REVIEW and escalation logic see convergence; leaving it empty hides that history from the orchestrator.",
-+      "resolution": "targets loop-state.json, which the orchestrator owns; PLAN_FIX must not edit it",
-+      "parked_reason": "out_of_scope",
-+      "consensus_status": "disagreement"
-+    },
-+    {
-+      "id": 10,
-+      "status": "open",
-+      "axis": "correctness",
-+      "type": "spec_gap",
-+      "criticality": "medium",
-+      "evidence_class": "judgment",
-+      "file_path": "openspec/changes/multiplayer-simulation-harness/design.md",
-+      "spec_file": "/home/user/agentic-coding-tools/.claude/worktrees/agent-a9b56ed97decb12c5/openspec/changes/multiplayer-simulation-harness/specs/multiplayer-simulation/spec.md",
-+      "fingerprint": "3de285a3f765ab87",
-+      "first_seen_round": 1,
-+      "last_seen_round": 1,
-+      "vendor_hits": [
-+        "claude_code"
-+      ],
-+      "description": "The probe invocation point is stated two different ways. D4 says the driver calls every registered probe \"at each principal's plan step\" (which would include Alice's plan step and the plan steps of both memory-store principals), while the Same-Requirement requirement says probes are run and recorded \"at the second principal's plan step\". The difference is observable: under D4's wording a single stub probe would produce two `probes` entries in `same-requirement-collision` (one per principal's plan step), contradicting S.1's pin of \"one entry with the stub's probe_id\", and the blocked scenarios would carry non-null `probes`/`collision_detected`, contradicting D8's \"fields that do not apply are null\" and S.5's \"appears in probes of both collision scenarios\" (implying not in the other two). State in D4 and task 4.4 that probes run only at the planning (second) principal's plan step in the collision scenarios, and that the blocked scenarios report `probes: null`.",
-+      "consensus_status": "unconfirmed"
-+    },
-+    {
-+      "id": 11,
-+      "status": "open",
-+      "axis": "correctness",
-+      "type": "spec_gap",
-+      "criticality": "medium",
-+      "evidence_class": "judgment",
-+      "file_path": "openspec/changes/multiplayer-simulation-harness/design.md",
-+      "spec_file": "/home/user/agentic-coding-tools/.claude/worktrees/agent-a9b56ed97decb12c5/openspec/changes/multiplayer-simulation-harness/specs/multiplayer-simulation/spec.md",
-+      "fingerprint": "06dc27f7c92b6716",
-+      "first_seen_round": 1,
-+      "last_seen_round": 1,
-+      "vendor_hits": [
-+        "claude_code"
-+      ],
-+      "description": "D5 does not say whether the implement step of a principal with no dependency is also admitted through `Roadmap.ready_items()` or by harness logic. The sentence \"A principal with no dependency is ready at earliest_start_tick\" reads as a harness-local rule, which the Memory-Store requirement forbids (\"SHALL NOT use readiness logic of its own\"). The choice matters for B.4: that fixture seeds the dependency item (`ri-storage`) as `completed` at tick 0, and D5 states `ready_items()` admits only items whose status is `approved`. If every principal's implement step goes through `ready_items()`, storage-owner is never admitted in B.4 (its item is `completed`, not `approved`), so it finishes with `unblocked: false` and `blocked_ticks: 47` at the default budget, and the applier would also write `in_progress` over a `completed` item if it were admitted. B.4 and task 5.1 pin only retrieval-owner's value, so the storage-owner side of that report is unspecified and a reviewer of the pinned gen-eval YAML cannot tell which outcome is intended. Decide (recommended: every principal's implement admission goes through `ready_items()`, no exception) and pin storage-owner's expected `unblocked`/`blocked_ticks` in B.4, or make the B.4 fixture remove storage-owner's implement step.",
-+      "consensus_status": "unconfirmed"
-+    },
-+    {
-+      "id": 12,
-+      "status": "open",
-+      "axis": "correctness",
-+      "type": "correctness",
-+      "criticality": "low",
-+      "evidence_class": "judgment",
-+      "file_path": "openspec/changes/multiplayer-simulation-harness/design.md",
-+      "fingerprint": "df981a23294a5b61",
-+      "first_seen_round": 1,
-+      "last_seen_round": 1,
-+      "vendor_hits": [
-+        "claude_code"
-+      ],
-+      "description": "D7 declares the `Agent.act` protocol as returning `None`, but three lines later `ScriptedAgent` must \"return the step's declared status transitions to the scheduler\", and task 2.3 tests that it \"returns the step's declared status transitions\". Under operator decision A1 the return value is the only channel from agent to applier, so the protocol signature should return the transitions (for example a `StepResult` with `set_status: str | None`), not `None`.",
-+      "consensus_status": "unconfirmed"
-+    },
-+    {
-+      "id": 13,
-+      "status": "open",
-+      "axis": "readability",
-+      "type": "spec_gap",
-+      "criticality": "low",
-+      "evidence_class": "judgment",
-+      "file_path": "openspec/changes/multiplayer-simulation-harness/design.md",
-+      "spec_file": "/home/user/agentic-coding-tools/.git-worktrees/multiplayer-simulation-harness/impl/openspec/changes/multiplayer-simulation-harness/specs/multiplayer-simulation/spec.md",
-+      "fingerprint": "af542f94c654364d",
-+      "first_seen_round": 1,
-+      "last_seen_round": 1,
-+      "vendor_hits": [
-+        "claude_code"
-+      ],
-+      "description": "Re-verification of ledger item 13: partially addressed. D5 now states the applier is part of `mpsim`, 'operating on its own clone of the shared remote, not a principal's clone', which applier.py implements via `world.clone_for(root/'supervisor'/'clone', SUPERVISOR_IDENTITY)`. The diff does not touch D2's package inventory (so `applier.py`, and also `fixture.py`, `model.py`, `paths.py`, `runner.py`, `errors.py` as shipped, may still be missing from it) nor D6's determinism statement that supervisor commits use the same tick-derived dates and `GIT_CONFIG_GLOBAL=/dev/null` env as principal commits (which `commit_as` -> `_commit` does, and D.1 byte-identity depends on).",
-+      "consensus_status": "unconfirmed"
-+    },
-+    {
-+      "id": 14,
-+      "status": "open",
-+      "axis": "readability",
-+      "type": "style",
-+      "criticality": "low",
-+      "evidence_class": "judgment",
-+      "file_path": "openspec/changes/multiplayer-simulation-harness/design.md",
-+      "fingerprint": "9bb1748c7ddb5fc0",
-+      "first_seen_round": 1,
-+      "last_seen_round": 1,
-+      "vendor_hits": [
-+        "claude_code"
-+      ],
-+      "description": "D5 says the ri-11 flip is \"three fixture edits plus one expectation edit\" and then lists three numbered items, of which only two are fixture edits and the third is the expectation edit. plan-findings iteration 2 describes it as \"three fixture edits plus a rule change\". Make the count match the list (two fixture edits, one expectation edit, plus ri-11's own rule and schema change).",
-+      "consensus_status": "unconfirmed"
-+    },
-+    {
-+      "id": 15,
-+      "status": "open",
-+      "axis": "correctness",
-+      "type": "spec_gap",
-+      "criticality": "low",
-+      "evidence_class": "judgment",
-+      "file_path": "openspec/changes/multiplayer-simulation-harness/specs/multiplayer-simulation/spec.md",
-+      "spec_file": "openspec/changes/multiplayer-simulation-harness/specs/multiplayer-simulation/spec.md",
-+      "fingerprint": "7d89a6ba9a702d9e",
-+      "first_seen_round": 1,
-+      "last_seen_round": 1,
-+      "vendor_hits": [
-+        "claude_code"
-+      ],
-+      "description": "Group 2 check on the Deterministic requirement: the SHALL clauses \"serialized with sorted keys\" and \"fields that do not apply SHALL be present with value null\" have no WHEN/THEN scenario. D.1 (byte-identical reruns) does not prove key ordering, and D.2 (schema validation) does not prove null-presence because the schema's `required` list would be satisfied by either null or a value. Task 2.5 does test both, so the gap is in the spec only; add a scenario (for example: WHEN any scenario report is parsed THEN its top-level keys are in sorted order AND every schema property is present, with null for inapplicable fields) and trace it to task 2.5. Every other SHALL in the delta has at least one scenario; no MODIFIED requirements exist, so nothing was dropped.",
-+      "consensus_status": "unconfirmed"
-+    },
-+    {
-+      "id": 16,
-+      "status": "open",
-+      "axis": "resilience",
-+      "type": "resilience",
-+      "criticality": "low",
-+      "evidence_class": "judgment",
-+      "file_path": "openspec/changes/multiplayer-simulation-harness/tasks.md",
-+      "fingerprint": "98c8d77b7927ceb1",
-+      "first_seen_round": 1,
-+      "last_seen_round": 1,
-+      "vendor_hits": [
-+        "claude_code"
-+      ],
-+      "description": "Re-verification of open ledger item 6: still unaddressed. Task 1.4's `bin/mpsim` runs a bare `python`, and task 7.3 invokes the `gen-eval` console script by name with only `bin/` prepended to PATH, so both depend on the skills venv already being first on PATH. Cheapest fix: have `bin/mpsim` use `#!/usr/bin/env python3` and have the subprocess tests (6.1, 7.3) pass `sys.executable` explicitly (`[sys.executable, '-m', 'mpsim', ...]` and `[sys.executable, '-m', 'gen_eval', ...]` if gen-eval exposes a module entry point), with `bin/` on PATH only for gen-eval's own invocation of `mpsim`. Record the choice in D3 and the README task 8.2.",
-+      "consensus_status": "unconfirmed"
-+    },
-+    {
-+      "id": 17,
-+      "status": "open",
-+      "axis": "readability",
-+      "type": "style",
-+      "criticality": "low",
-+      "evidence_class": "judgment",
-+      "file_path": "openspec/contracts/multiplayer-simulation/cli/mpsim.yaml",
-+      "fingerprint": "1a3d5753cb5a64c3",
-+      "first_seen_round": 1,
-+      "last_seen_round": 1,
-+      "vendor_hits": [
-+        "claude_code"
-+      ],
-+      "description": "Re-verification of ledger item 5: still present. The promoted openspec/contracts/multiplayer-simulation/cli/mpsim.yaml keeps the change-local header: 'Validates against ../../../../contracts/gen-eval-framework/schemas/cli-contract.schema.json (path relative to this file's change-local location)' and 'promoted ... by task 1.2'. From the promoted location four `..` segments land at the repo root, so `contracts/gen-eval-framework/...` does not resolve (the schema is under `openspec/contracts/`). test_contracts.py pins the promoted copy byte-identical to the change-local one, so the stale note ships in the canonical file. Use a repo-root-relative path and word the provenance so it is true at both locations.",
-+      "consensus_status": "unconfirmed"
-+    },
-+    {
-+      "id": 18,
-+      "status": "open",
-+      "axis": "readability",
-+      "type": "spec_gap",
-+      "criticality": "low",
-+      "evidence_class": "judgment",
-+      "file_path": "skills/tests/multiplayer-simulation/test_gen_eval_pack.py",
-+      "spec_file": "/home/user/agentic-coding-tools/.git-worktrees/multiplayer-simulation-harness/impl/openspec/changes/multiplayer-simulation-harness/specs/multiplayer-simulation/spec.md",
-+      "fingerprint": "a5bfc403df741b99",
-+      "first_seen_round": 1,
-+      "last_seen_round": 1,
-+      "vendor_hits": [
-+        "claude_code"
-+      ],
-+      "description": "Re-verification of ledger items 6/16: addressed in code, not in the design record. bin/mpsim now uses `#!/usr/bin/env python3`, test_cli.py runs the launcher with `sys.executable`, and test_gen_eval_pack.py resolves `gen-eval` from `Path(sys.executable).parent` and prepends that directory plus `bin/` to PATH so the launcher's `python3` resolves to the test interpreter. That is the cheapest fix the ledger asked for. The ledger also asked that the choice be recorded in D3 and in the README (task 8.2); the design.md diff does not touch D3 and the README's 'Running locally' section does not mention that the subprocess tests pin the interpreter.",
-+      "consensus_status": "unconfirmed"
-+    },
-+    {
-+      "id": 19,
-+      "status": "open",
-+      "axis": "correctness",
-+      "type": "spec_gap",
-+      "criticality": "low",
-+      "evidence_class": "judgment",
-+      "file_path": "openspec/changes/multiplayer-simulation-harness/design.md",
-+      "spec_file": "/home/user/agentic-coding-tools/.git-worktrees/multiplayer-simulation-harness/impl/openspec/changes/multiplayer-simulation-harness/specs/multiplayer-simulation/spec.md",
-+      "fingerprint": "f58e801130eb80c1",
-+      "first_seen_round": 1,
-+      "last_seen_round": 1,
-+      "vendor_hits": [
-+        "claude_code"
-+      ],
-+      "description": "Re-verification of ledger item 10: resolved. design.md D4 now says probes run 'At the second principal's plan step', collision.py runs the oracle and probes only when `index == 1`, and the blocked scenarios build their report without `probes`/`collision_*`, so those fields are null there (new_report defaults). test_probes.py S.1 pins exactly one entry per stub.",
-+      "consensus_status": "unconfirmed"
-+    },
-+    {
-+      "id": 20,
-+      "status": "open",
-+      "axis": "correctness",
-+      "type": "spec_gap",
-+      "criticality": "medium",
-+      "evidence_class": "judgment",
-+      "file_path": "skills/tests/multiplayer-simulation/test_blocked_scenarios.py",
-+      "spec_file": "/home/user/agentic-coding-tools/.git-worktrees/multiplayer-simulation-harness/impl/openspec/changes/multiplayer-simulation-harness/specs/multiplayer-simulation/spec.md",
-+      "fingerprint": "8cd2a437868022ed",
-+      "first_seen_round": 1,
-+      "last_seen_round": 1,
-+      "vendor_hits": [
-+        "claude_code"
-+      ],
-+      "description": "Re-verification of ledger item 11: the design half is done (D5 now says 'A principal with no dependency is also admitted through Roadmap.ready_items(). The harness never short-circuits readiness', and blocked.py routes every waiting principal through ready_items()), but the pinning half is not. In B.4 (`test_a_dependency_that_starts_completed_unblocks_through_the_admission_rule`) the fixture seeds `ri-storage` as `completed`; with no short-circuit, storage-owner's implement step is never admitted (its item is not `approved`), so after retrieval-owner finishes at tick 5 the scheduler's fast-forward sets final_tick=20 and the report carries `unblocked.storage-owner: false`, `blocked_ticks.storage-owner: 17`. The test asserts only retrieval-owner, so this intended-by-design outcome is unpinned and a later change to admission could silently alter it. Pin storage-owner's values (or drop its implement step in that fixture copy) as the ledger asked.",
-+      "consensus_status": "unconfirmed"
-+    },
-+    {
-+      "id": 21,
-+      "status": "open",
-+      "axis": "architecture",
-+      "type": "contract_mismatch",
-+      "criticality": "low",
-+      "evidence_class": "judgment",
-+      "file_path": "skills/tests/multiplayer-simulation/mpsim/agents.py",
-+      "fingerprint": "38d0e8597059121c",
-+      "first_seen_round": 1,
-+      "last_seen_round": 1,
-+      "vendor_hits": [
-+        "claude_code"
-+      ],
-+      "description": "Re-verification of ledger item 12: resolved. D7 now declares `Agent.act(world, step, tick)` returning the step's declared transitions, agents.py's Protocol matches, and test_agents.py asserts the returned StatusTransition list and that `on_start` is read via `declared_transitions(step, 'start')`.",
-+      "consensus_status": "unconfirmed"
-+    },
-+    {
-+      "id": 22,
-+      "status": "open",
-+      "axis": "readability",
-+      "type": "spec_gap",
-+      "criticality": "low",
-+      "evidence_class": "judgment",
-+      "file_path": "openspec/changes/multiplayer-simulation-harness/design.md",
-+      "spec_file": "/home/user/agentic-coding-tools/.git-worktrees/multiplayer-simulation-harness/impl/openspec/changes/multiplayer-simulation-harness/specs/multiplayer-simulation/spec.md",
-+      "fingerprint": "c52aaf09489d856a",
-+      "first_seen_round": 1,
-+      "last_seen_round": 1,
-+      "vendor_hits": [
-+        "claude_code"
-+      ],
-+      "description": "Re-verification of ledger item 14: no hunk in this diff touches the D5 sentence counting the ri-11 flip as 'three fixture edits plus one expectation edit', so the count/list mismatch is still open as far as this packet shows. The README's 'Where ri-11 must look' section lists the call site, the fixture dependency form, the fixture transitions, and the pinned blocked_ticks, which is the accurate enumeration D5 should mirror.",
-+      "consensus_status": "unconfirmed"
-+    },
-+    {
-+      "id": 23,
-+      "status": "open",
-+      "axis": "compatibility",
-+      "type": "compatibility",
-+      "criticality": "medium",
-+      "evidence_class": "judgment",
-+      "file_path": "skills/pyproject.toml",
-+      "fingerprint": "a56b03dff8459661",
-+      "first_seen_round": 1,
-+      "last_seen_round": 1,
-+      "vendor_hits": [
-+        "claude_code"
-+      ],
-+      "description": "skills/pyproject.toml adds `gen-eval` to the `test` extra and a `[tool.uv.sources]` path entry, and task 1.3 (ticked) says to run `uv lock` in skills/, but no `skills/uv.lock` hunk appears in this diff. If the lock was not committed, `uv sync --locked`/`--frozen` in CI either fails outright or installs without gen-eval, and the newly swept `tests/multiplayer-simulation` fails in test_gen_eval_pack.py with a FileNotFoundError on the console script. If lockfiles are simply filtered out of review packets, this is a non-issue; the packet gives no way to tell.",
-+      "consensus_status": "unconfirmed"
-+    },
-+    {
-+      "id": 24,
-+      "status": "open",
-+      "axis": "readability",
-+      "type": "style",
-+      "criticality": "low",
-+      "evidence_class": "judgment",
-+      "file_path": "skills/tests/multiplayer-simulation/README.md",
-+      "fingerprint": "e84b3cf06f5d3934",
-+      "first_seen_round": 1,
-+      "last_seen_round": 1,
-+      "vendor_hits": [
-+        "claude_code"
-+      ],
-+      "description": "README 'Running locally' gives `PATH=tests/multiplayer-simulation/bin:$PATH uv run python -m mpsim list   # from the harness dir` after `cd skills`. Prepending `bin/` to PATH does nothing for `python -m mpsim`, and `python -m mpsim` from `skills/` cannot import `mpsim` (only the launcher puts the harness root on sys.path). The trailing comment contradicts the preceding `cd skills`. A reader following it gets `No module named mpsim`.",
-+      "consensus_status": "unconfirmed"
-+    },
-+    {
-+      "id": 25,
-+      "status": "open",
-+      "axis": "readability",
-+      "type": "style",
-+      "criticality": "low",
-+      "evidence_class": "judgment",
-+      "file_path": "skills/autopilot/scripts/convergence_loop.py",
-+      "fingerprint": "5b4c60dccbc9abfa",
-+      "first_seen_round": 1,
-+      "last_seen_round": 1,
-+      "vendor_hits": [
-+        "claude_code"
-+      ],
-+      "description": "The `_BOOKKEEPING_DIRS` comment says converge writes the ledger/cache itself and that `save_ledger` 'runs before the pre-fix snapshot'. If that were the whole story the bookkeeping paths would already be in `pre_rev` and never show up in `_changed_paths`, and the filter (and the escalation that motivated it) would be unnecessary. Something writes under `.review-ledger/` or `.review-cache/` between the snapshot and the scope check; the comment should name that write so the next reader understands why the filter exists rather than concluding it is dead code.",
-+      "consensus_status": "unconfirmed"
-+    },
-+    {
-+      "id": 26,
-+      "status": "open",
-+      "axis": "readability",
-+      "type": "style",
-+      "criticality": "low",
-+      "evidence_class": "judgment",
-+      "file_path": "skills/tests/multiplayer-simulation/mpsim/scenarios/collision.py",
-+      "fingerprint": "c613fd5e51678478",
-+      "first_seen_round": 1,
-+      "last_seen_round": 1,
-+      "vendor_hits": [
-+        "claude_code"
-+      ],
-+      "description": "The agent id format `<name>-agent-1` is defined three times: world.py (`Principal(name, email, f\"{name}-agent-1\", clone)`), agents.py (`self.agent_id = f\"{spec.name}-agent-1\"`), and collision.py, which re-derives it as `f\"{p.name}-agent-1\"` for the report instead of reading `agent.agent_id` from the ScriptedAgent it just created. blocked.py does read `s.agent.agent_id`. A change to the format in one place silently diverges the report from the world/agent.",
-+      "consensus_status": "unconfirmed"
-+    },
-+    {
-+      "id": 27,
-+      "status": "open",
-+      "axis": "resilience",
-+      "type": "resilience",
-+      "criticality": "low",
-+      "evidence_class": "judgment",
-+      "file_path": "skills/tests/multiplayer-simulation/mpsim/runner.py",
-+      "fingerprint": "baa331bba62e6485",
-+      "first_seen_round": 1,
-+      "last_seen_round": 1,
-+      "vendor_hits": [
-+        "claude_code"
-+      ],
-+      "description": "runner.run only catches ScenarioError around `scenario.run(ctx)`. `render()` runs outside that inner try, so a ScenarioError message that happens to contain a 40-hex commit id (git stderr often does) makes `render` raise ReportError, which escapes as an uncaught traceback with no report printed. Likewise a malformed `scenario.yaml` raises yaml.YAMLError out of `load_fixture` before any mapping to exit 64/1. Both end up as exit 1 via the interpreter, which matches the contract's code but not its 'A report carrying a non-null error is printed when possible' intent.",
-+      "consensus_status": "unconfirmed"
-+    },
-+    {
-+      "id": 28,
-+      "status": "open",
-+      "axis": "correctness",
-+      "type": "correctness",
-+      "criticality": "low",
-+      "evidence_class": "judgment",
-+      "file_path": "skills/tests/multiplayer-simulation/test_probes.py",
-+      "fingerprint": "896d0af43cee4288",
-+      "first_seen_round": 1,
-+      "last_seen_round": 1,
-+      "vendor_hits": [
-+        "claude_code"
-+      ],
-+      "description": "test_no_probe_is_registered_at_import_time pops `mpsim.probes` from sys.modules and re-imports it. importlib then rebinds the package attribute `mpsim.probes` to the fresh module and the `finally` restores only sys.modules, so for the rest of the session `mpsim.probes` (attribute access) and `sys.modules['mpsim.probes']` are different objects with different `REGISTRY` and `ProbeResult` classes. Nothing currently breaks because every consumer bound the original at import, but any later `from mpsim import probes` evaluated at runtime sees the stale module. Separately, once ri-06 adds `from mpsim.probes import requirement_collision`, the re-import finds that submodule cached, its module-level `register()` does not re-run, and `fresh.REGISTRY == {}` passes trivially, so the test no longer tests what its name claims.",
-+      "consensus_status": "unconfirmed"
-+    },
-+    {
-+      "id": 29,
-+      "status": "open",
-+      "axis": "readability",
-+      "type": "style",
-+      "criticality": "low",
-+      "evidence_class": "judgment",
-+      "file_path": "skills/tests/multiplayer-simulation/conftest.py",
-+      "fingerprint": "ebb1a4a4c64b8068",
-+      "first_seen_round": 1,
-+      "last_seen_round": 1,
-+      "vendor_hits": [
-+        "claude_code"
-+      ],
-+      "description": "In conftest.py `_blocked` ends with `raise AssertionError(\"non-inet connect is not expected in this harness\")`, but `_wrap` only calls `_blocked` when `self.family in _INET_FAMILIES`, so that branch is unreachable and the message is misleading (AF_UNIX connects are in fact passed through to the original).",
-+      "consensus_status": "unconfirmed"
-+    },
-+    {
-+      "id": 30,
-+      "status": "open",
-+      "axis": "observability",
-+      "type": "observability",
-+      "criticality": "low",
-+      "evidence_class": "judgment",
-+      "file_path": "openspec/changes/multiplayer-simulation-harness/tasks.md",
-+      "fingerprint": "1bf979087155d2f1",
-+      "first_seen_round": 1,
-+      "last_seen_round": 1,
-+      "vendor_hits": [
-+        "claude_code"
-+      ],
-+      "description": "The recorded wall time for the harness suite disagrees across the packet: tasks.md 9.1 says 34 s with ~8 s in the archive-stability guard, the Implementation Iteration session-log entry says ~37 s with ~11 s. Both exceed the 30 s budget the plan set (recorded, not asserted, per plan finding iteration 3). Not a defect, but the validation report should carry one number and name the environment it was measured in.",
-+      "consensus_status": "unconfirmed"
-+    }
-+  ]
-+}
-diff --git a/openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/contracts/cli/mpsim.yaml b/openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/contracts/cli/mpsim.yaml
-new file mode 100644
-index 00000000..d1981648
---- /dev/null
-+++ b/openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/contracts/cli/mpsim.yaml
-@@ -0,0 +1,105 @@
-+# mpsim CLI contract: the multi-player simulation driver (design D8).
-+#
-+# Ground truth for the ToolDescriptor at
-+# skills/tests/multiplayer-simulation/evaluation/descriptor.yaml, generated by
-+# packages/gen-eval/scripts/generate_tool_descriptor.py. Authored here while the
-+# change is in flight; promoted to
-+# openspec/contracts/multiplayer-simulation/cli/mpsim.yaml by task 1.2 so the
-+# harness never reads a path that moves on archival (design D10).
-+#
-+# Validates against ../../../../contracts/gen-eval-framework/schemas/cli-contract.schema.json
-+# (path relative to this file's change-local location).
-+#
-+# `--help` is supplied by argparse and is deliberately not declared, matching
-+# the gen-eval contract's convention.
-+
-+contract_version: "1"
-+
-+tool:
-+  name: mpsim
-+  executable: mpsim
-+  description: >-
-+    Deterministic, offline multi-player simulation driver. Builds a temporary
-+    world of two or more simulated principals sharing a local bare git remote,
-+    runs one named scenario on a logical tick clock, and prints a single JSON
-+    report validating against
-+    openspec/contracts/multiplayer-simulation/schemas/sim-report.schema.json.
-+
-+commands:
-+  - name: list
-+    description: Print the built-in scenario ids as a JSON array, sorted.
-+    traceability:
-+      requirements:
-+        - multiplayer-simulation.scenario-pack-runs-through-gen-eval
-+
-+  - name: run
-+    description: >-
-+      Run one scenario and print its report on stdout. Exit 0 whenever the
-+      scenario ran to completion, regardless of what was detected or how long
-+      a principal was blocked; the scenario file, not the driver, decides what
-+      is expected.
-+    traceability:
-+      requirements:
-+        - multiplayer-simulation.simulated-principals-have-separate-identities-worktrees-and-agents
-+        - multiplayer-simulation.scenarios-run-offline-without-a-shared-coordinator
-+        - multiplayer-simulation.scenario-reports-are-deterministic
-+    flags:
-+      - name: --scenario
-+        type: string
-+        required: true
-+        description: >-
-+          Built-in scenario id (see `mpsim list`). An unknown id exits 64.
-+        traceability:
-+          requirements:
-+            - multiplayer-simulation.same-requirement-collision-scenario-records-plan-time-detection
-+            - multiplayer-simulation.memory-store-scenario-reports-time-blocked-on-dependency
-+
-+      - name: --probe
-+        type: string
-+        repeatable: true
-+        description: >-
-+          Restrict the run to the named registered collision probes. Omitted,
-+          every registered probe runs. An unregistered id exits 64.
-+        traceability:
-+          requirements:
-+            - multiplayer-simulation.plan-time-detectors-attach-through-a-probe-seam
-+
-+      - name: --tick-budget
-+        type: integer
-+        default: 50
-+        description: >-
-+          Maximum logical ticks before the scheduler stops. A principal still
-+          blocked at the budget is reported with unblocked=false and
-+          blocked_ticks equal to the budget minus its earliest start tick.
-+          A value below 1 exits 64.
-+        traceability:
-+          requirements:
-+            - multiplayer-simulation.memory-store-scenario-reports-time-blocked-on-dependency
-+
-+      - name: --fixture-dir
-+        type: path
-+        description: >-
-+          Replace the scenario's built-in fixture directory. Used by tests to
-+          supply altered fixtures without editing the shipped ones. A missing
-+          directory, or a fixture declaring fewer than two principals, exits 64.
-+        traceability:
-+          requirements:
-+            - multiplayer-simulation.simulated-principals-have-separate-identities-worktrees-and-agents
-+            - multiplayer-simulation.same-requirement-collision-scenario-records-plan-time-detection
-+
-+exit_codes:
-+  - code: 0
-+    meaning: The scenario ran to completion and a report was printed.
-+  - code: 1
-+    meaning: >-
-+      The scenario could not be established (for example the oracle found the
-+      fixture's required collision absent, or a git operation failed). A report
-+      carrying a non-null `error` is printed when possible.
-+  - code: 2
-+    meaning: Argparse usage error, e.g. missing subcommand or --scenario.
-+  - code: 64
-+    meaning: >-
-+      Semantic usage error: unknown scenario, unknown probe, a --fixture-dir
-+      that does not exist, --tick-budget below 1, or a fixture with fewer than two
-+      principals.
-+    sysexits_name: EX_USAGE
-diff --git a/openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/contracts/schemas/sim-report.schema.json b/openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/contracts/schemas/sim-report.schema.json
-new file mode 100644
-index 00000000..7380991f
---- /dev/null
-+++ b/openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/contracts/schemas/sim-report.schema.json
-@@ -0,0 +1,234 @@
-+{
-+  "$schema": "https://json-schema.org/draft/2020-12/schema",
-+  "$id": "https://raw.githubusercontent.com/jankneumann/agentic-coding-tools/main/openspec/contracts/multiplayer-simulation/schemas/sim-report.schema.json",
-+  "title": "mpsim scenario report",
-+  "description": "One report per `mpsim run`. Ephemeral test output, not canonical state (design D8). Every property is always present; properties that do not apply to a scenario are null so gen-eval body assertions stay uniform across the pack. No absolute paths, temp directory names, commit SHAs, or wall-clock timestamps may appear (requirement: Scenario Reports Are Deterministic). An exit-1 error report (non-null `error`) may carry an empty `principals` array and a null `timeline`, because the failure can happen before the world exists; every other report must name at least two principals and carry a timeline.",
-+  "type": "object",
-+  "additionalProperties": false,
-+  "required": [
-+    "schema_version",
-+    "scenario_id",
-+    "principals",
-+    "collision_present",
-+    "collision_detected",
-+    "probes",
-+    "blocked_ticks",
-+    "unblocked",
-+    "final_tick",
-+    "timeline",
-+    "error"
-+  ],
-+  "properties": {
-+    "schema_version": {
-+      "const": "1"
-+    },
-+    "scenario_id": {
-+      "type": "string",
-+      "pattern": "^[a-z0-9][a-z0-9-]*$"
-+    },
-+    "principals": {
-+      "type": "array",
-+      "minItems": 0,
-+      "items": {
-+        "type": "object",
-+        "additionalProperties": false,
-+        "required": [
-+          "name",
-+          "agent_id",
-+          "change_id"
-+        ],
-+        "properties": {
-+          "name": {
-+            "type": "string",
-+            "pattern": "^[a-z0-9][a-z0-9-]*$"
-+          },
-+          "agent_id": {
-+            "type": "string",
-+            "minLength": 1
-+          },
-+          "change_id": {
-+            "type": "string",
-+            "pattern": "^sim-[a-z0-9-]+$"
-+          }
-+        }
-+      }
-+    },
-+    "collision_present": {
-+      "type": [
-+        "boolean",
-+        "null"
-+      ],
-+      "description": "Ground-truth oracle over fixture contents (design D4). Null for scenarios with no collision question."
-+    },
-+    "collision_detected": {
-+      "type": [
-+        "boolean",
-+        "null"
-+      ],
-+      "description": "True only when a probe with status ok reported a requirement-level collision against the other principal's change. Null for scenarios with no collision question."
-+    },
-+    "probes": {
-+      "type": [
-+        "array",
-+        "null"
-+      ],
-+      "items": {
-+        "type": "object",
-+        "additionalProperties": false,
-+        "required": [
-+          "probe_id",
-+          "status",
-+          "collisions",
-+          "error"
-+        ],
-+        "properties": {
-+          "probe_id": {
-+            "type": "string",
-+            "minLength": 1
-+          },
-+          "status": {
-+            "enum": [
-+              "ok",
-+              "error"
-+            ]
-+          },
-+          "collisions": {
-+            "type": "array",
-+            "items": {
-+              "type": "object",
-+              "additionalProperties": false,
-+              "required": [
-+                "level",
-+                "other_change",
-+                "requirement"
-+              ],
-+              "properties": {
-+                "level": {
-+                  "enum": [
-+                    "intent",
-+                    "requirement",
-+                    "contract",
-+                    "file"
-+                  ]
-+                },
-+                "other_change": {
-+                  "type": "string"
-+                },
-+                "requirement": {
-+                  "type": [
-+                    "string",
-+                    "null"
-+                  ]
-+                }
-+              }
-+            }
-+          },
-+          "error": {
-+            "type": [
-+              "string",
-+              "null"
-+            ]
-+          }
-+        }
-+      }
-+    },
-+    "blocked_ticks": {
-+      "type": [
-+        "object",
-+        "null"
-+      ],
-+      "description": "Per principal: first tick its implement step is admitted by Roadmap.ready_items minus the tick its own preceding steps finished (design D5).",
-+      "additionalProperties": {
-+        "type": "integer",
-+        "minimum": 0
-+      }
-+    },
-+    "unblocked": {
-+      "type": [
-+        "object",
-+        "null"
-+      ],
-+      "additionalProperties": {
-+        "type": "boolean"
-+      }
-+    },
-+    "final_tick": {
-+      "type": [
-+        "integer",
-+        "null"
-+      ],
-+      "minimum": 0
-+    },
-+    "timeline": {
-+      "type": [
-+        "array",
-+        "null"
-+      ],
-+      "items": {
-+        "type": "object",
-+        "additionalProperties": false,
-+        "required": [
-+          "tick",
-+          "principal",
-+          "step",
-+          "event"
-+        ],
-+        "properties": {
-+          "tick": {
-+            "type": "integer",
-+            "minimum": 0
-+          },
-+          "principal": {
-+            "type": "string"
-+          },
-+          "step": {
-+            "enum": [
-+              "plan",
-+              "contract",
-+              "implement"
-+            ]
-+          },
-+          "event": {
-+            "enum": [
-+              "started",
-+              "finished",
-+              "blocked",
-+              "admitted",
-+              "pushed",
-+              "probed",
-+              "status_applied"
-+            ]
-+          }
-+        }
-+      }
-+    },
-+    "error": {
-+      "type": [
-+        "string",
-+        "null"
-+      ],
-+      "description": "Non-null only when the process exits 1. When non-null, `principals` may be empty and `timeline` may be null."
-+    }
-+  },
-+  "allOf": [
-+    {
-+      "if": {
-+        "properties": {
-+          "error": {
-+            "type": "null"
-+          }
-+        }
-+      },
-+      "then": {
-+        "properties": {
-+          "principals": {
-+            "minItems": 2
-+          },
-+          "timeline": {
-+            "type": "array"
-+          }
-+        }
-+      }
-+    }
-+  ]
-+}
-diff --git a/openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/design.md b/openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/design.md
-new file mode 100644
-index 00000000..93fa2573
---- /dev/null
-+++ b/openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/design.md
-@@ -0,0 +1,355 @@
-+# Design: multiplayer-simulation-harness
-+
-+## Context
-+
-+`ri-06` and `ri-11` each have an acceptance outcome that only means something if a
-+simulation already exists with a recorded baseline. This harness has to satisfy three
-+conditions at once:
-+
-+1. **Faithful enough to flip.** When a real capability lands, the measured result has to
-+   change, and that change has to come from the code under test, not from a harness edit.
-+2. **Honest about today.** The baseline records what the system actually does now, and it
-+   cannot pass vacuously.
-+3. **Cheap and offline.** It runs in the skills CI sweep with no coordinator, no network and
-+   no vendor CLI, and it is deterministic enough to pin exact values.
-+
-+The roadmap names gen-eval as the scenario surface. gen-eval already has a CLI transport and
-+a contract-derived ToolDescriptor archetype, and its own dogfood pack
-+(`packages/gen-eval/evaluation/`) is the model to follow.
-+
-+```
-+gen-eval (CLI transport) ──► bin/mpsim run --scenario <id> ──► JSON report on stdout
-+                                         │
-+                       ┌─────────────────┴──────────────────┐
-+                       ▼                                    ▼
-+                World builder                         Tick scheduler
-+    bare remote + N principals                    each tick: agents act, push;
-+    (identity, clone/worktree, agent id)          applier writes statuses to main;
-+                       │                          ready_items() over remote main
-+                       ▼
-+          plan step ──► CollisionProbe registry ──► probes[] + collision_detected
-+                    └─► fixture oracle          ──► collision_present
-+```
-+
-+## Decisions
-+
-+### D1: New capability `multiplayer-simulation`, not the scaffold's `multiplayer-collaboration`
-+
-+The scaffold put these requirements under `multiplayer-collaboration`. Every sibling item
-+uses that placeholder too. Mixing test-harness requirements with collaboration behaviour in
-+one capability spec would give the capability two kinds of content with different owners and
-+lifecycles. It would also put this change's spec delta in the same file as about 19 sibling
-+deltas, which is exactly the same-requirement collision the roadmap is trying to make visible.
-+
-+- **Chosen**: a narrow capability `multiplayer-simulation` covering the simulation harness,
-+  its scenarios, its probe seam and its report contract.
-+- **Rejected**: `gen-eval-framework`. That capability specifies the framework itself, and a
-+  scenario pack is a consumer of gen-eval, not part of it.
-+- **Rejected**: keeping `multiplayer-collaboration`, for the collision and ownership reasons
-+  above.
-+- **Consequence**: the spec deltas of `ri-06` and `ri-11` that mention "the simulation
-+  harness's scenario" should reference `multiplayer-simulation` requirements. When those
-+  changes iterate, they will see this as a cross-capability reference rather than a
-+  duplicate.
-+
-+### D2: Harness lives at `skills/tests/multiplayer-simulation/`, driven by the skills venv
-+
-+The driver must import the systems it measures. The roadmap-runtime admission rule and the
-+future plan-feature collision scanner both live in `skills/`. Packages under `packages/` have
-+their own virtualenvs and no import path into `skills/`.
-+
-+- **Chosen**: `skills/tests/multiplayer-simulation/`, holding:
-+  - `mpsim/`, the driver package: `world.py`, `agents.py`, `clock.py`, `oracle.py`,
-+    `report.py`, `errors.py`, `__main__.py`, plus two subpackages:
-+    - `probes/`, the collision probe seam (D4);
-+    - `scenarios/`, one module per scenario family. These are discovered with `pkgutil`, so
-+      adding a scenario never edits a shared list.
-+  - `bin/mpsim`, a launcher that runs `python -m mpsim` with the harness directory on
-+    `sys.path`
-+  - `fixtures/`, the seed capability spec, the memory-store roadmap and the durations
-+  - `evaluation/`, holding `descriptor.yaml` (generated) and `scenarios/*.yaml` (the gen-eval
-+    pack)
-+  - `test_*.py`
-+- `skills/tests/` is excluded from `install.sh`, so no consumer repository receives the
-+  harness. That also satisfies the roadmap constraint that installed payloads stay portable.
-+- Imports of skill scripts follow the existing `sys.path` pattern in
-+  `skills/tests/roadmap-runtime/conftest.py`.
-+- **Rejected**: a new `packages/multiplayer-sim/`. It would need its own CI job, which
-+  `test_every_package_suite_runs_in_ci` enforces, and it would have no way to import
-+  `skills/roadmap-runtime` without vendoring that code.
-+- **Rejected**: `agent-coordinator/evaluation/scenarios/`. The coordinator gen-eval job needs
-+  Postgres and a live HTTP service, which contradicts the offline requirement.
-+
-+### D3: gen-eval runs in-process from pytest, with `gen-eval` added to the skills `test` extra
-+
-+- **Chosen**: add `gen-eval = { path = "../packages/gen-eval" }` to the
-+  `[tool.uv.sources]` table in `skills/pyproject.toml`, and add `gen-eval` to the `test`
-+  extra. This follows the existing path-dependency pattern for `system-one-decisions` and
-+  `openbao-credentials`. A pytest test, `test_gen_eval_pack.py`, invokes the `gen-eval`
-+  console script by subprocess with `--descriptor evaluation/descriptor.yaml
-+  --fail-threshold 1.0`, with `bin/` prepended to `PATH` and the harness directory as the
-+  working directory. The pack therefore runs wherever the harness tests run.
-+- gen-eval's core dependencies are pydantic, pyyaml, jinja2, jsonpath-ng and httpx. The
-+  skills `test` extra already pulls pyyaml, httpx and, through fastapi, pydantic, so the
-+  added footprint is jinja2 and jsonpath-ng.
-+- **Feasibility evidence**: during planning, a scratch copy of `skills/pyproject.toml` with
-+  this dependency added resolved cleanly with `uv lock` (56 packages).
-+- **Rejected**: running the pack from the `gen-eval-tests` CI job, with `mpsim` shelling into
-+  the skills venv through `uv run --project ../../skills`. That is a cross-venv subprocess
-+  chain, fragile under PATH differences, and it splits one feature's CI signal across two
-+  jobs.
-+- **Fallback**: if `uv lock` cannot resolve the added dependency, task 1.3 stops and records
-+  the conflict. The fallback is the rejected option above, recorded as a design amendment
-+  rather than taken silently.
-+
-+### D4: Collision detection is a probe seam, with a ground-truth oracle alongside it
-+
-+Plan-time requirement-collision detection does not exist yet. `feature_registry.py` overlap
-+needs a coordinator and covers only locks and files. Asking "was a collision detected at plan
-+time?" today has one honest answer: nothing ran.
-+
-+- **Chosen**: `mpsim.probes` (`mpsim/probes/__init__.py`) defines a `CollisionProbe` protocol and a module-level registry.
-+  - Protocol: `probe_id: str`, plus
-+    `detect(view: PrincipalView, change_id: str) -> ProbeResult`.
-+  - `PrincipalView` exposes the principal's worktree path and the shared remote's URL, so a
-+    probe can read git state but cannot mutate the world.
-+  - `ProbeResult` fields: `probe_id`, `status ∈ {ok, error}`, `collisions: list[{level,
-+    other_change, requirement}]`, `error: str | null`.
-+- At the second principal's plan step, the driver calls every registered probe. It records
-+  `probes` (one entry per probe that ran) and sets `collision_detected` to true when any probe
-+  with status `ok` reported a collision at level `requirement` against the other principal's
-+  change.
-+- A probe that raises an exception, or runs longer than its per-probe timeout (default 10 s),
-+  is recorded with `status: error`. The run still completes. A probe runs in a daemon thread,
-+  so a hung probe is abandoned at its timeout rather than joined, and it cannot keep the
-+  process alive. This mirrors the roadmap
-+  constraint that advisory signals fail open.
-+- `mpsim.oracle` computes `collision_present` from fixture contents. It is true when the two
-+  simulated changes' spec deltas name the same `### Requirement:` heading of the same
-+  capability. It is a string comparison over files the fixture wrote, with no git history and
-+  no live scanning. It exists only so a broken fixture cannot make "not detected" trivially
-+  true. It is not a detector, and it is never registered as a probe.
-+- **Selection**: `mpsim run --probe <id>` restricts the run to the named probes. With no
-+  `--probe`, every registered probe runs. Registration happens in
-+  `mpsim/probes/__init__.py`. Adding a probe means adding one import line there, and the
-+  scenario files stay untouched.
-+- **Rejected**: making the harness invoke a predetermined scanner CLI path. That would fix
-+  `ri-06`'s interface before `ri-06` designs it. The adapter belongs on the harness side, and
-+  `ri-06` writes a thin probe that wraps whatever entry point it ships.
-+- **Rejected**: pinning `collision_detected: false` without the oracle. A fixture regression
-+  that stopped writing the shared requirement would pass the baseline and then also break
-+  `ri-06`'s flip, with nothing to say why.
-+
-+### D5: Blocked time is measured in logical ticks with the real admission rule
-+
-+- **Clock**: a logical tick counter starting at 0. The fixture declares a duration in ticks
-+  for each step: `plan`, `contract`, `implement`. Nothing reads wall-clock time, which is
-+  what makes `blocked_ticks` reproducible enough to pin.
-+- **Integration ref (operator decision A1, 2026-10-05).** `roadmap.yaml` has exactly one
-+  authoritative copy: the one on the shared remote's `main`, the integration ref. Principals'
-+  change branches never edit `roadmap.yaml`. Status transitions are written to `main` only by
-+  a simulated supervisor step, the *status applier* (`mpsim/applier.py`), which commits as
-+  `sim-supervisor <sim-supervisor@sim.invalid>`. This mirrors the real split, where workers
-+  report results and only the supervisor writes roadmap state.
-+- **Readiness**: on every tick, the scheduler fetches the shared remote's `main` into the
-+  dependent principal's clone. It then loads `roadmap.yaml` from that fetched `main`
-+  (`origin/main`), never from a principal's change branch, through roadmap-runtime's
-+  `load_roadmap`. That call validates the file against the *real*
-+  repository's roadmap schema, located from the real repo root and not the temporary world,
-+  so a schema extension in `ri-11` is exercised too. Finally, the scheduler asks
-+  `Roadmap.ready_items()` whether the dependent's item is admitted. `ready_items()` decides
-+  from roadmap data alone: a dependency counts as satisfied when its item `status` is
-+  `completed`, only items whose status is `approved` are admitted, and items with a
-+  `superseded_by` edge or an unmet `external_depends_on` are withheld. It reads no checkpoint
-+  state. This was verified against `skills/roadmap-runtime/scripts/models.py`
-+  (`Roadmap.ready_items`) during PLAN_FIX, and the fixture uses neither `superseded_by` nor
-+  `external_depends_on`.
-+- **Status transitions are fixture data, not harness code.** Each step in a principal's
-+  fixture script may declare `on_start.set_status` and `on_finish.set_status` for that
-+  principal's own roadmap item. The agent does not apply them. It reports them as step
-+  results. The status applier (part of the `mpsim` package, operating on its own clone of
-+  the shared remote, not a principal's clone) commits each one to `roadmap.yaml` on `main` and pushes.
-+  The applier holds no transition logic of its own: it writes exactly the status the fixture
-+  declared, for the item of the principal that reported it. In the baseline fixture:
-+  - `plan` and `contract` change no status, so the item stays `approved` and remains
-+    admissible;
-+  - `contract` pushes the contract files to the owner's change branch but declares no
-+    status, because
-+    today's roadmap schema has no contract-complete state. That absence is the baseline gap;
-+  - `implement` sets `in_progress` when it starts and `completed` when it finishes.
-+- **Intra-tick order.** The pinned value depends on it, so it is fixed. Within tick *t*:
-+  1. Every step that finishes at *t* pushes its work to its change branch, taking
-+     principals in fixture declaration order.
-+  2. The status applier commits every `on_finish` transition reported at *t* to `main`, in
-+     the same order, and pushes once.
-+  3. Each waiting principal fetches `main` and evaluates `ready_items()`.
-+  4. For each admitted principal, the applier commits its implement step's `on_start`
-+     transition to `main` at the same tick *t*.
-+
-+  A dependency completed at tick 11 therefore admits its dependent at tick 11, not tick 12.
-+- **Metric**: for each principal,
-+  `blocked_ticks = ready_tick − earliest_start_tick`.
-+  - `earliest_start_tick` is the tick at which that principal's own preceding steps finished
-+    (its plan).
-+  - `ready_tick` is the first tick at which `ready_items()` admits its implement step.
-+  - A principal with no dependency is also admitted through `Roadmap.ready_items()`. The
-+    harness never short-circuits readiness. Such a principal is admitted at
-+    `earliest_start_tick`, so its value is 0.
-+- **Baseline fixture durations**:
-+  - `storage-owner`: plan 1, contract 2, implement 8. Its implementation completes at tick
-+    11.
-+  - `retrieval-owner`: plan 1, implement 4. Its earliest start is tick 1.
-+  - Today's bare `depends_on` keeps it blocked until tick 11, so the pinned baseline is
-+    `blocked_ticks: {retrieval-owner: 10, storage-owner: 0}`.
-+- **Termination**: `--tick-budget` (default 50) bounds the loop. If the dependency is not
-+  complete when the budget runs out, the run stops with that principal marked
-+  `unblocked: false` and `blocked_ticks = tick_budget − earliest_start_tick`. It never loops
-+  forever. A budget below 1 is a usage error and exits 64.
-+- **What `ri-11` changes**: `ri-11` extends the roadmap schema and the admission rule. Its
-+  flip is three fixture edits plus one expectation edit, and the harness code itself does not
-+  change. The fixture edits:
-+  1. the dependency becomes `{item: ri-storage, on: contract}`;
-+  2. the `contract` step gains `on_finish.set_status: contract_complete`, or whatever state
-+     name `ri-11` defines;
-+  3. the expectation in the scenario file changes to the new, lower `blocked_ticks`. Under
-+     the baseline durations that is 2.
-+
-+  `ri-11` ships its own rule change alongside these.
-+- **Rejected**: a harness-local readiness function. It would freeze the measured behaviour at
-+  whatever the harness author wrote and never move when `ri-11` lands.
-+- **Rejected**: hard-coding status transitions in `ScriptedAgent`. `ri-11` would then
-+  have to edit harness code to emit its new state, which breaks the condition that the
-+  harness does not change when a capability lands.
-+- **Rejected**: wall-clock timing of real agent runs. It is non-deterministic, slow, and
-+  needs vendor access.
-+
-+### D6: Principals are harness-local identities with real git isolation
-+
-+- Each principal has:
-+  - a `name`, used as the git `user.name`;
-+  - an email in the form `<name>@sim.invalid`. The `.invalid` TLD is reserved, so the address
-+    can never route anywhere;
-+  - an `agent_id` (`<name>-agent-1`);
-+  - its own clone of the shared bare remote under `<world>/principals/<name>/clone`, with its
-+    work in a `git worktree` at `<world>/principals/<name>/wt-<change>`.
-+- **Visibility**: principals see each other's work only through `git fetch` from the shared
-+  remote. Unpushed commits are invisible to everyone else. That models the roadmap
-+  constraint that planning-time capabilities must work with the git remote alone.
-+- **Determinism**: commits use fixed `GIT_AUTHOR_DATE` and `GIT_COMMITTER_DATE` values
-+  derived from the tick, `-c init.defaultBranch=main`, and no global git config
-+  (`GIT_CONFIG_GLOBAL=/dev/null`, `GIT_CONFIG_NOSYSTEM=1`). Ignoring global config also
-+  keeps a developer's hooks, commit signing (`commit.gpgsign`) and credential helpers out of
-+  the simulated world.
-+- **Seed commit**: the world builder makes one seed commit on `main`, authored by
-+  `sim-seed <sim-seed@sim.invalid>`, containing the fixture's seeded `openspec/specs/` and
-+  `roadmap.yaml`. Identity assertions apply to commits reachable from a principal's change
-+  branch but not from `main`.
-+- **Size**: the world supports N ≥ 2 principals. Fewer than 2 is a usage error with exit
-+  code 64.
-+- **Rejected**: registering the simulated principals in the
-+  `principal-credential-architecture` registry. That registry belongs to `ri-02` and is out
-+  of scope. The harness would also be coupled to a schema that does not exist yet.
-+
-+### D7: Scripted agents behind an `Agent` protocol
-+
-+- `Agent.act(world, step, tick)` performs one step's file edits and git operations and
-+  returns the step's declared status transitions (it never applies them).
-+- `ScriptedAgent` replays the fixture's step script deterministically:
-+  - write the OpenSpec change files under a synthetic change id;
-+  - commit;
-+  - push to `refs/heads/sim/<principal>/<change>`, which models an open PR branch;
-+  - return the step's declared status transitions to the scheduler. `on_start` data is read
-+    through `declared_transitions(step, "start")`, since it applies before the step runs.
-+- Agents never write `roadmap.yaml` and never push to `main`. A test asserts that no commit
-+  on any `sim/*` branch touches `roadmap.yaml`, and that every commit on `main` after the
-+  seed is authored by `sim-supervisor` (D5, operator decision A1).
-+- **Rejected**: live vendor agents. They are non-deterministic and need network access, so
-+  they are a non-goal here. The protocol leaves room for a later `ExecutorAgent` that adapts
-+  `packages/agent-scenarios`' `ScenarioExecutor`.
-+
-+### D8: CLI surface, report contract and determinism
-+
-+The CLI surface is contracted in `contracts/cli/mpsim.yaml`. It validates against
-+`gen-eval-framework/schemas/cli-contract.schema.json` and cites `multiplayer-simulation.*`
-+requirements in `traceability:` blocks.
-+
-+| Command | Flags | Purpose |
-+|---|---|---|
-+| `mpsim list` | (none) | Print the built-in scenario ids as a JSON array. |
-+| `mpsim run` | `--scenario <id>` (required), `--probe <id>` (repeatable), `--tick-budget <int>` (default 50), `--fixture-dir <path>` | Run one scenario and print its report. `--fixture-dir` replaces the scenario's built-in fixture directory. Tests use it to supply altered fixtures, such as a lost shared requirement, an already-completed dependency, or one principal, without touching the shipped fixtures. |
-+
-+- `mpsim run` prints one JSON object to stdout. It validates against
-+  `sim-report.schema.json` and is written with sorted keys and no trailing whitespace.
-+- Fields:
-+  - `schema_version`, `scenario_id`, `principals[]` (name, agent_id, change_id)
-+  - `collision_present`, `collision_detected`, `probes[]`
-+  - `blocked_ticks{principal: int}`, `unblocked{principal: bool}`, `final_tick`
-+  - `timeline[]` of `{tick, principal, step, event}`
-+- Fields that do not apply to a scenario are `null`, not omitted, so gen-eval `body`
-+  assertions stay uniform across the pack.
-+- The report never contains absolute paths, temp directory names or commit SHAs. Only
-+  ref names, change ids and ticks appear. That keeps two runs byte-identical, and the
-+  determinism test asserts it.
-+
-+**Exit codes**:
-+
-+| Code | Meaning |
-+|---|---|
-+| 0 | The scenario ran to completion and a report was emitted. This holds whatever was or was not detected, and whatever the blocked time was. |
-+| 1 | The harness could not establish the scenario, for example when the oracle finds that the fixture's required collision is missing, or a git operation failed. A report with an `error` field is still printed when possible. |
-+| 2 | Argparse usage error, such as a missing subcommand or a missing `--scenario`. |
-+| 64 | Usage error: an unknown scenario, an unknown probe, a `--fixture-dir` that does not exist, a `--tick-budget` below 1, or a fixture declaring fewer than 2 principals (`EX_USAGE`). |
-+
-+Pinned expectations live in the gen-eval scenario YAML, not in the driver. The driver
-+measures and the scenario decides what is expected.
-+
-+### D9: Offline enforcement is tested, not assumed
-+
-+- The driver imports nothing from `agent-coordinator` and nothing from
-+  `coordination_bridge`. It has no HTTP or MCP transport.
-+- An autouse fixture in the harness `conftest.py` replaces `socket.socket.connect` (and
-+  `connect_ex`) so that any `AF_INET` or `AF_INET6` connection raises. That turns an
-+  accidental network call into an immediate test failure instead of a CI-only hang.
-+- Subprocesses such as `git` and `bin/mpsim` do not inherit that patch. For them:
-+  - the shared remote is a `file://` path, so git never opens a socket;
-+  - the CLI test (task 6.1) runs `mpsim run` with `COORDINATION_API_URL=http://127.0.0.1:9`,
-+    a discard port that would fail fast, and asserts stdout is byte-identical to a run
-+    without that variable.
-+- **Rejected**: relying on the CI runner having no coordinator. The runner does have network
-+  access, so the absence of a coordinator proves nothing about the harness.
-+
-+### D10: Archive stability
-+
-+- Fixture worlds use synthetic change ids prefixed `sim-`, for example
-+  `sim-memory-store-core` and `sim-retrieval-api`.
-+- A test asserts that no fixture change id is a real repository change id. It reads the ids
-+  the same way the path-stability guard does, through `openspec_paths`, so a future real
-+  change named `sim-…` cannot quietly turn a fixture into a guard violation.
-+- Any test that reads this change's own artifacts goes through
-+  `change_dir(repo_root_from(__file__, 3), ...)`. The CLI contract is read from its promoted
-+  path under `openspec/contracts/multiplayer-simulation/`, never from the change directory.
-+- Requirement headings that contract citations resolve against come from the canonical
-+  `openspec/specs/multiplayer-simulation/spec.md` once this change is archived, and from the
-+  change's own delta only while it is in flight. The promoted-vs-change-local identity check
-+  likewise applies only in flight; after archive it instead asserts the canonical spec exists.
-+  The traceability gate follows the same rule: it accepts a capability spec ADDED by the
-+  resolving change's delta until archive, then reads the archived spec.
-+
-+## Risks and Trade-offs
-+
-+| Risk | Mitigation |
-+|---|---|
-+| Adding `gen-eval` to the skills venv conflicts with existing pins | D3 fallback, plus task 1.3 runs `uv lock` first and stops if it fails |
-+| Git-heavy scenarios make the skills sweep slower | Four scenarios, each creating only a handful of commits. Budget is under 30 s for the whole harness directory, recorded in task 9.1. |
-+| `Roadmap.ready_items` signature changes under `ri-11` | That is the intended coupling: the harness should move with the rule. The call site is in `scenarios/blocked.py` (task 5.2); the README (task 8.2) names it as the place `ri-11` must look. |
-+| Pinned baselines read as asserting that the bug should exist | Each pinned value carries a YAML comment naming the roadmap item that flips it. The README states that baselines are characterisations. |
-+| The oracle and a future probe diverge in what they call a "collision" | The oracle is deliberately narrow: same capability and same requirement heading. `ri-06` may detect more levels. The flip assertion is only `collision_detected`, not equality with the oracle. |
-+
-+## Open Questions
-+
-+None block implementation. These are recorded for downstream items:
-+
-+- Should `ri-06`'s probe also be exercised at the coordinator level by `ri-07`? Out of scope
-+  here, and the probe seam allows either.
-+- Once `ri-02` lands, should the fixture seed an `owners.yaml` so reports can name owners?
-+  That is deferred to `ri-06`, which needs owners in its collision report.
-diff --git a/openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/dispatch-results/batch-5f656e42c1f7d13a649f095a-ri-05-attempt-1-g5.json b/openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/dispatch-results/batch-5f656e42c1f7d13a649f095a-ri-05-attempt-1-g5.json
-new file mode 100644
-index 00000000..7afff094
---- /dev/null
-+++ b/openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/dispatch-results/batch-5f656e42c1f7d13a649f095a-ri-05-attempt-1-g5.json
-@@ -0,0 +1,18 @@
-+{
-+  "attempt": 1,
-+  "branch": "openspec/multiplayer-simulation-harness",
-+  "change_id": "multiplayer-simulation-harness",
-+  "degradations": [],
-+  "dispatch_id": "batch-5f656e42c1f7d13a649f095a:ri-05:attempt-1",
-+  "evidence": {
-+    "commit": "3b6c2ce26bcda9a9e14f2e2eb5639f96858955e4",
-+    "loop_state_digest": "f24cb17df8cf0f43ace6cca58c7dbd562a73d2845644a4659c79876df6123219",
-+    "loop_state_path": "openspec/changes/multiplayer-simulation-harness/loop-state.json"
-+  },
-+  "handoff_id": "6a9dccf9-2520-4025-b2c5-9c80ad34b3e7",
-+  "host_id": "machine-dc39bf1e25efdf45",
-+  "lease_generation": 5,
-+  "outcome": "success",
-+  "schema_version": 2,
-+  "worktree_ref": "multiplayer-simulation-harness"
-+}
-diff --git a/openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/loop-state.json b/openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/loop-state.json
-new file mode 100644
-index 00000000..a7c2272a
---- /dev/null
-+++ b/openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/loop-state.json
-@@ -0,0 +1,356 @@
-+{
-+  "schema_version": 6,
-+  "change_id": "multiplayer-simulation-harness",
-+  "current_phase": "DONE",
-+  "iteration": 0,
-+  "total_iterations": 20,
-+  "max_phase_iterations": 3,
-+  "findings_trend": [],
-+  "blocking_findings": [],
-+  "vendor_availability": {},
-+  "packages_status": {},
-+  "package_authors": {},
-+  "implementation_strategy": {},
-+  "memory_ids": [],
-+  "handoff_ids": [
-+    "fd37041f-3151-464f-b6b5-918c1295fc67",
-+    "9403b68a-7911-4949-a775-3b689b8ecb54",
-+    "44759acd-c2f6-4d02-8dfd-278037b64a61",
-+    "11f32d63-4f2f-4bf4-a4d0-deebdea265f9",
-+    "ab3b1133-8595-4fe0-92b6-909f7872b6f3",
-+    "fa6e1d35-520b-42bd-932c-644b008829cf",
-+    "cc44baf6-dd8c-4ae4-931c-2203d6928c33",
-+    "164aa1f5-f41a-4f7f-bb02-dc3be93baeda",
-+    "6a9dccf9-2520-4025-b2c5-9c80ad34b3e7"
-+  ],
-+  "phase_history": [
-+    {
-+      "at": "2026-10-05T07:14:09.249458+00:00",
-+      "outcome": "proceed",
-+      "phase": "GATEKEEPER"
-+    },
-+    {
-+      "at": "2026-10-05T07:33:31.584300+00:00",
-+      "outcome": "complete",
-+      "phase": "PLAN_ITERATE"
-+    },
-+    {
-+      "at": "2026-10-05T08:59:55.769068+00:00",
-+      "outcome": "max_iter",
-+      "phase": "PLAN_REVIEW"
-+    },
-+    {
-+      "at": "2026-10-09T08:08:36.154426+00:00",
-+      "outcome": "converged",
-+      "phase": "PLAN_REVIEW"
-+    },
-+    {
-+      "at": "2026-10-09T08:10:30.617950+00:00",
-+      "outcome": "failed",
-+      "phase": "IMPLEMENT"
-+    },
-+    {
-+      "at": "2026-10-09T08:34:06.664816+00:00",
-+      "outcome": "complete",
-+      "phase": "IMPLEMENT"
-+    },
-+    {
-+      "at": "2026-10-09T12:18:38.221344+00:00",
-+      "outcome": "complete",
-+      "phase": "IMPL_ITERATE"
-+    },
-+    {
-+      "at": "2026-10-09T12:22:27.260061+00:00",
-+      "note": "IMPL_REVIEW blocked before any review ran: the auto-mode classifier denied the converge() driver run as [CI Bypass] (driver shims base_ref=d22417e, excludes .review-ledger/.review-cache from the post-fix scope check, and drops to min_quorum=1). Needs an operator decision on how implementation review may run in cloud containers.",
-+      "outcome": "host_escalate",
-+      "phase": "IMPL_REVIEW"
-+    },
-+    {
-+      "at": "2026-10-10T03:14:50.052251+00:00",
-+      "outcome": "converged",
-+      "phase": "IMPL_REVIEW"
-+    },
-+    {
-+      "at": "2026-10-10T03:18:09.228272+00:00",
-+      "outcome": "passed",
-+      "phase": "VALIDATE"
-+    }
-+  ],
-+  "last_handoff_id": "6a9dccf9-2520-4025-b2c5-9c80ad34b3e7",
-+  "started_at": "2026-10-05T07:12:02.399401+00:00",
-+  "phase_started_at": "2026-10-10T10:44:02.441949+00:00",
-+  "previous_phase": "SUBMIT_PR",
-+  "escalation_reason": "goal gate refused: required section not passed: Smoke Tests (not_applicable)",
-+  "val_review_enabled": false,
-+  "cli_review_enabled": true,
-+  "error": null,
-+  "phase_archetype": "runner",
-+  "force": false,
-+  "gate_signals": {
-+    "external_dep_count": 0,
-+    "has_broad_write_scope": false,
-+    "has_db_migration": false,
-+    "has_proposal": true,
-+    "has_security_signal": false,
-+    "has_specs": true,
-+    "has_tasks": true,
-+    "has_work_packages": false,
-+    "package_count": 0,
-+    "total_loc_estimate": null
-+  },
-+  "gate_verdict": null,
-+  "gate_decisions": [
-+    {
-+      "approval_id": null,
-+      "authorizing_disposition": "auto",
-+      "default_action": null,
-+      "disposition": "auto",
-+      "gate": "proposal_approval",
-+      "notified": null,
-+      "outcome": "proceed",
-+      "phase": "PLAN",
-+      "posture_present": true,
-+      "reason": "gate 'proposal_approval' auto-approved by trust posture",
-+      "recorded_at": "2026-10-05T07:14:15.969805+00:00",
-+      "resolution": "auto",
-+      "timeout_seconds": null
-+    },
-+    {
-+      "approval_id": null,
-+      "authorizing_disposition": "block",
-+      "default_action": null,
-+      "disposition": "block",
-+      "gate": "escalate_resume",
-+      "notified": null,
-+      "outcome": "blocked",
-+      "phase": "ESCALATE",
-+      "posture_present": true,
-+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
-+      "recorded_at": "2026-10-05T09:00:11.451005+00:00",
-+      "resolution": "posture_block",
-+      "timeout_seconds": null
-+    },
-+    {
-+      "approval_id": null,
-+      "authorizing_disposition": "block",
-+      "default_action": null,
-+      "disposition": "block",
-+      "gate": "escalate_resume",
-+      "note": "Operator decision A1 (2026-10-05, supervisor session_01J39bSygVy2r68wyPyHN5VA): Roadmap.ready_items() reads roadmap.yaml from the shared integration ref; status transitions are written only there by a simulated supervisor/applier step; principals' own branches never edit roadmap.yaml (mirrors the real supervisor/worker split). Apply via PLAN_FIX to design D5/D7 plus ledger items 1-3.",
-+      "notified": null,
-+      "outcome": "proceed",
-+      "phase": "ESCALATE",
-+      "posture_present": true,
-+      "reason": "gate 'escalate_resume' approved by the operator \u2014 Operator decision A1 (2026-10-05, supervisor session_01J39bSygVy2r68wyPyHN5VA): Roadmap.ready_items() reads roadmap.yaml from the shared integration ref; status transitions are written only there by a simulated supervisor/applier step; principals' own branches never edit roadmap.yaml (mirrors the real supervisor/worker split). Apply via PLAN_FIX to design D5/D7 plus ledger items 1-3.",
-+      "recorded_at": "2026-10-05T13:44:40.103541+00:00",
++      "reason": "gate 'escalate_resume' approved by the operator \u2014 Operator approved in worker session 2026-10-13 (no ref); fixes in 62590065",
++      "recorded_at": "2026-10-13T00:41:40.423464+00:00",
 +      "resolution": "console_approved",
 +      "timeout_seconds": null
 +    },
@@ -4666,551 +2917,3267 @@ index 00000000..a7c2272a
 +      "outcome": "blocked",
 +      "phase": "ESCALATE",
 +      "posture_present": true,
-+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
-+      "recorded_at": "2026-10-09T08:10:36.683211+00:00",
-+      "resolution": "posture_block",
-+      "timeout_seconds": null
-+    },
-+    {
-+      "approval_id": null,
-+      "authorizing_disposition": "block",
-+      "default_action": null,
-+      "disposition": "block",
-+      "gate": "escalate_resume",
-+      "note": "Operator (user, 2026-10-09) approved fast-forwarding the IMPLEMENT sub-agent worktree to origin/openspec/multiplayer-simulation-harness (git reset --hard / merge --ff-only) to resolve the IMPLEMENT branch-adoption failure.",
-+      "notified": null,
-+      "outcome": "proceed",
-+      "phase": "ESCALATE",
-+      "posture_present": true,
-+      "reason": "gate 'escalate_resume' approved by the operator \u2014 Operator (user, 2026-10-09) approved fast-forwarding the IMPLEMENT sub-agent worktree to origin/openspec/multiplayer-simulation-harness (git reset --hard / merge --ff-only) to resolve the IMPLEMENT branch-adoption failure.",
-+      "recorded_at": "2026-10-09T08:15:43.361558+00:00",
-+      "resolution": "console_approved",
-+      "timeout_seconds": null
-+    },
-+    {
-+      "approval_id": null,
-+      "authorizing_disposition": "block",
-+      "default_action": null,
-+      "disposition": "block",
-+      "gate": "escalate_resume",
-+      "notified": null,
-+      "outcome": "blocked",
-+      "phase": "ESCALATE",
-+      "posture_present": true,
-+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
-+      "recorded_at": "2026-10-09T12:22:33.881025+00:00",
-+      "resolution": "posture_block",
-+      "timeout_seconds": null
-+    },
-+    {
-+      "approval_id": null,
-+      "authorizing_disposition": "block",
-+      "default_action": null,
-+      "disposition": "block",
-+      "gate": "escalate_resume",
-+      "note": "Operator (user, 2026-10-10) chose option 2: port converge() base_ref + bookkeeping-path scope fix from the PR base (commit above) and run IMPL_REVIEW via converge() without driver shims.",
-+      "notified": null,
-+      "outcome": "proceed",
-+      "phase": "ESCALATE",
-+      "posture_present": true,
-+      "reason": "gate 'escalate_resume' approved by the operator \u2014 Operator (user, 2026-10-10) chose option 2: port converge() base_ref + bookkeeping-path scope fix from the PR base (commit above) and run IMPL_REVIEW via converge() without driver shims.",
-+      "recorded_at": "2026-10-10T03:04:37.519036+00:00",
-+      "resolution": "console_approved",
-+      "timeout_seconds": null
-+    },
-+    {
-+      "gate": "pr_creation",
-+      "outcome": "blocked",
-+      "resolution": "coordinator_unreachable",
-+      "authorizing_disposition": "notify_with_timeout",
-+      "reason": "gate 'pr_creation' parked: coordinator unreachable (request_approval failed: coordinator unauthorized (status=403))",
-+      "approval_id": null,
-+      "default_action": null,
-+      "posture_present": true,
-+      "notified": null,
-+      "timeout_seconds": null,
-+      "disposition": "notify_with_timeout",
-+      "phase": "SUBMIT_PR",
-+      "recorded_at": "2026-10-10T03:18:25.700615+00:00"
-+    },
-+    {
-+      "gate": "escalate_resume",
-+      "outcome": "blocked",
-+      "resolution": "posture_block",
-+      "authorizing_disposition": "block",
-+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
-+      "approval_id": null,
-+      "default_action": null,
-+      "posture_present": true,
-+      "notified": null,
-+      "timeout_seconds": null,
-+      "disposition": "block",
-+      "phase": "ESCALATE",
-+      "recorded_at": "2026-10-10T09:48:18.467093+00:00"
-+    },
-+    {
-+      "gate": "escalate_resume",
-+      "outcome": "proceed",
-+      "resolution": "console_approved",
-+      "authorizing_disposition": "block",
-+      "reason": "gate 'escalate_resume' approved by the operator \u2014 Operator (user, 2026-10-10) approved opening the PR against openspec/roadmap-multiplayer-collaboration: the pr_creation gate could not notify (coordinator 403); the PR base's TRUST_POSTURE.md already sets pr_creation to auto (7fea1cd). Console approval stands in for the undeliverable notification.",
-+      "approval_id": null,
-+      "default_action": null,
-+      "posture_present": true,
-+      "notified": null,
-+      "timeout_seconds": null,
-+      "disposition": "block",
-+      "phase": "ESCALATE",
-+      "recorded_at": "2026-10-10T09:48:18.635059+00:00",
-+      "note": "Operator (user, 2026-10-10) approved opening the PR against openspec/roadmap-multiplayer-collaboration: the pr_creation gate could not notify (coordinator 403); the PR base's TRUST_POSTURE.md already sets pr_creation to auto (7fea1cd). Console approval stands in for the undeliverable notification."
-+    },
-+    {
-+      "gate": "merge",
-+      "outcome": "blocked",
-+      "resolution": "posture_block",
-+      "authorizing_disposition": "block",
-+      "reason": "gate 'merge' parked: trust posture disposition is block",
-+      "approval_id": null,
-+      "default_action": null,
-+      "posture_present": true,
-+      "notified": null,
-+      "timeout_seconds": null,
-+      "disposition": "block",
-+      "phase": "SUBMIT_PR",
-+      "recorded_at": "2026-10-10T09:49:12.385406+00:00"
-+    },
-+    {
-+      "gate": "merge",
-+      "outcome": "proceed",
-+      "resolution": "console_approved",
-+      "authorizing_disposition": "block",
-+      "reason": "gate 'merge' approved by the operator \u2014 Operator merged PR #669 ('merge 669') as a953b92 into openspec/roadmap-multiplayer-collaboration.",
-+      "approval_id": null,
-+      "default_action": null,
-+      "posture_present": true,
-+      "notified": null,
-+      "timeout_seconds": null,
 +      "provenance": {
-+        "source": "human",
-+        "approval_ref": "gate-decision:ba667a32-e0e7-4034-bbd1-0fe249f597aa"
++        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24",
++        "source": "posture"
 +      },
-+      "disposition": "block",
-+      "phase": "SUBMIT_PR",
-+      "recorded_at": "2026-10-10T10:35:29.524437+00:00",
-+      "note": "Operator merged PR #669 ('merge 669') as a953b92 into openspec/roadmap-multiplayer-collaboration."
-+    },
-+    {
-+      "gate": "escalate_resume",
-+      "outcome": "blocked",
-+      "resolution": "posture_block",
-+      "authorizing_disposition": "block",
 +      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
-+      "approval_id": null,
-+      "default_action": null,
-+      "posture_present": true,
-+      "notified": null,
-+      "timeout_seconds": null,
-+      "provenance": {
-+        "source": "posture",
-+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
-+      },
-+      "disposition": "block",
-+      "phase": "ESCALATE",
-+      "recorded_at": "2026-10-10T10:37:31.871689+00:00"
++      "recorded_at": "2026-10-13T00:52:18.981212+00:00",
++      "resolution": "posture_block",
++      "timeout_seconds": null
 +    },
 +    {
-+      "gate": "escalate_resume",
-+      "outcome": "proceed",
-+      "resolution": "console_approved",
-+      "authorizing_disposition": "block",
-+      "reason": "gate 'escalate_resume' approved by the operator \u2014 Operator (user, 2026-10-10) approved resuming after the DONE goal gate refusal: proposal.md now declares deployable: false (ad747240), matching validation's measured surface; only Spec Compliance is required and it passes.",
 +      "approval_id": null,
++      "authorizing_disposition": "block",
 +      "default_action": null,
-+      "posture_present": true,
-+      "notified": null,
-+      "timeout_seconds": null,
-+      "provenance": {
-+        "source": "human",
-+        "approval_ref": null
-+      },
 +      "disposition": "block",
++      "gate": "escalate_resume",
++      "note": null,
++      "notified": null,
++      "outcome": "proceed",
 +      "phase": "ESCALATE",
-+      "recorded_at": "2026-10-10T10:44:02.162212+00:00",
-+      "note": "Operator (user, 2026-10-10) approved resuming after the DONE goal gate refusal: proposal.md now declares deployable: false (ad747240), matching validation's measured surface; only Spec Compliance is required and it passes."
++      "posture_present": true,
++      "provenance": {
++        "approval_ref": "gate-decision:666c85e5-7ab8-4df2-b225-ed944cadbad7",
++        "source": "human"
++      },
++      "reason": "gate 'escalate_resume' approved by the operator",
++      "recorded_at": "2026-10-15T11:13:56.724300+00:00",
++      "resolution": "console_approved",
++      "timeout_seconds": null
++    },
++    {
++      "approval_id": null,
++      "authorizing_disposition": "block",
++      "default_action": null,
++      "disposition": "block",
++      "gate": "escalate_resume",
++      "note": null,
++      "notified": null,
++      "outcome": "proceed",
++      "phase": "PLAN_REVIEW",
++      "posture_present": false,
++      "provenance": {
++        "approval_ref": "gate-decision:ad5b460d-fdc9-4f7a-a15d-3be473dbcb29",
++        "source": "human"
++      },
++      "reason": "gate 'escalate_resume' approved by the operator",
++      "recorded_at": "2026-10-21T14:35:56.594832+00:00",
++      "resolution": "console_approved",
++      "timeout_seconds": null
 +    }
 +  ],
 +  "pending_gate": null,
-+  "goal_gate": {
-+    "verdict": "passed",
-+    "reason": "all required evidence present",
-+    "evidence": {
-+      "merge_authorized": true,
-+      "pr_url": "https://github.com/jankneumann/agentic-coding-tools/pull/669",
-+      "report_path": "openspec/changes/multiplayer-simulation-harness/validation-report.md",
-+      "checked_at": "2026-10-10T10:44:02.415919+00:00",
-+      "validate_outcome": "passed",
-+      "validate_at": "2026-10-10T03:18:09.228272+00:00",
-+      "report_time": "2026-10-10T03:17:49+00:00",
-+      "report_time_source": "commit",
-+      "bound_by": "VALIDATE",
-+      "required_sections": [
-+        "Spec Compliance"
-+      ],
-+      "phase_statuses": {
-+        "Spec Compliance": "pass"
-+      }
-+    }
-+  },
++  "goal_gate": null,
 +  "park": null,
-+  "degradations": []
++  "degradations": [
++    {
++      "code": "coordinator_projection_forbidden",
++      "detail": "project-state submit returned forbidden",
++      "phase": "INIT"
++    },
++    {
++      "code": "audit_sink_failed",
++      "detail": "audit sink reported failure for gate proposal_approval decision posture_block",
++      "phase": "PLAN"
++    },
++    {
++      "code": "audit_sink_failed",
++      "detail": "audit sink reported failure for gate proposal_approval decision auto (gen 3)",
++      "phase": "PLAN"
++    },
++    {
++      "code": "single_vendor_review",
++      "detail": "vendor=claude_code; cloud policy cloud-container-single-vendor-2026-10-09 min_quorum 1",
++      "phase": "PLAN_REVIEW"
++    },
++    {
++      "code": "audit_sink_failed",
++      "detail": "audit sink reported failure for gate escalate_resume decision posture_block",
++      "phase": "ESCALATE"
++    },
++    {
++      "code": "single_vendor_review",
++      "detail": "gen 4 re-entry: vendor=claude_code; cloud policy cloud-container-single-vendor-2026-10-09 min_quorum 1",
++      "phase": "PLAN_REVIEW"
++    },
++    {
++      "code": "audit_sink_failed",
++      "detail": "gen 4: audit sink reported failure for gate escalate_resume decision posture_block",
++      "phase": "ESCALATE"
++    },
++    {
++      "code": "single_vendor_review",
++      "detail": "re-entry after ledger adjudication: vendor=claude_code; cloud policy min_quorum 1",
++      "phase": "PLAN_REVIEW"
++    },
++    {
++      "code": "audit_sink_failed",
++      "detail": "audit sink reported failure for gate escalate_resume decision posture_block (2026-10-13)",
++      "phase": "ESCALATE"
++    },
++    {
++      "code": "single_vendor_review",
++      "phase": "IMPL_REVIEW",
++      "detail": "vendor=claude_code"
++    }
++  ]
 +}
-diff --git a/openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/plan-findings.md b/openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/plan-findings.md
+diff --git a/openspec/changes/openrouter-review-lane/plan-findings.md b/openspec/changes/openrouter-review-lane/plan-findings.md
 new file mode 100644
-index 00000000..5a9adedc
+index 00000000..feb3f239
 --- /dev/null
-+++ b/openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/plan-findings.md
-@@ -0,0 +1,67 @@
-+# Plan Findings: multiplayer-simulation-harness
++++ b/openspec/changes/openrouter-review-lane/plan-findings.md
+@@ -0,0 +1,57 @@
++# Plan Findings: openrouter-review-lane
 +
-+## Iteration 1 (2026-10-05)
++Produced by `/iterate-on-plan` (autopilot PLAN_ITERATE, architect archetype), 2026-10-11.
++Threshold: medium. Baseline: `openspec validate --strict` passed, but the change was still
++the plan-roadmap scaffold.
 +
-+Baseline: `openspec validate --strict` passed on the scaffold, which is a structural pass
-+only. GATEKEEPER set four conditions for PLAN:
++The analysis ran inline. This harness exposes no sub-agent (`Task`/`Agent`) tool, so the
++parallel Explore analysts were not dispatched (recorded as a `skill-procedure-deviation`
++decision in `session-log.md`).
 +
-+- replace the circular WHEN/THEN scaffolds;
-+- record baselines without asserting later capabilities;
-+- decide the capability, the non-goals and the offline strategy;
-+- use `change_dir()`.
-+
-+| # | Type | Criticality | Description | Resolution |
-+|---|------|-------------|-------------|------------|
-+| 1 | testability | critical | Every scenario was circular ("WHEN implemented THEN <requirement restated>"), so nothing was verifiable | Rewrote the spec as 8 requirements with 26 concrete WHEN/THEN scenarios, each naming the command, the inputs and the exact report fields or exit codes |
-+| 2 | completeness | critical | proposal.md lacked Why, What Changes and Impact sections | Rewrote the proposal with Why (ri-06 and ri-11 depend on this baseline), What Changes, Non-Goals, Impact, and a table mapping outcomes to requirements |
-+| 3 | completeness | high | design.md was a stub that only listed open questions | Wrote design D1–D10, each decision with rejected alternatives, plus risks |
-+| 4 | feasibility | high | tasks.md had 5 generic tasks, none traceable to a requirement and none single-commit | Replaced them with 26 TDD-ordered tasks carrying scenario IDs, design references, dependencies and sizes |
-+| 5 | assumptions | high | The capability placeholder `multiplayer-collaboration` was shared by about 19 sibling deltas | Chose a new `multiplayer-simulation` capability (D1). This was a recorded autonomous decision; see the session log |
-+| 6 | assumptions | high | Where the harness lives and which venv runs gen-eval were unstated | D2 puts it at `skills/tests/multiplayer-simulation/`. D3 adds gen-eval to the skills `test` extra; a scratch `uv lock` resolved |
-+| 7 | assumptions | high | "Collision detected at plan time" has no detector today, so the baseline would pass vacuously | D4 adds a probe seam plus a ground-truth oracle. A broken fixture now exits 1 instead of reading as "not detected" |
-+| 8 | assumptions | high | How time-blocked is measured was undefined, and a wall-clock measure would be nondeterministic | D5 uses logical ticks and the real admission rule `Roadmap.ready_items`, with a pinned baseline of 10 ticks under fixture durations |
-+| 9 | testability | high | "Runs without network access" was not enforced | D9 adds an autouse socket-blocking fixture, a `file://` remote, and a byte-identity check with `COORDINATION_API_URL` set |
-+| 10 | consistency | high | Downstream ri-06 and ri-11 need to flip this harness, but no flip mechanism was defined | Flips happen by registering a probe (one import line) or by a fixture edit plus a rule change, followed by a reviewed edit to the pinned expectation |
-+| 11 | completeness | medium | Requirements covered only success paths | Added failure and edge scenarios: broken fixture, probe error, probe timeout, unknown probe, tick-budget exhaustion, fewer than two principals |
-+| 12 | scope | medium | Non-goals were absent, and the incident has two halves | Non-goals now exclude the competing-spec half (ri-16), live LLM agents, owners.yaml (ri-02), coordinator variants (ri-07/08), durable state, and editing ri-01's guide |
-+| 13 | completeness | medium | No CLI contract or report schema existed | Authored `contracts/cli/mpsim.yaml`, which validates against `cli-contract.schema.json` and cites 7 of 8 requirements, and `contracts/schemas/sim-report.schema.json`. Task 1.2 promotes both |
-+| 14 | parallelizability | medium | No dependency graph existed, and scenario registration was a shared-file hotspot | Added a dependency graph (max width 3) and switched to `pkgutil` scenario discovery, so 4.4 and 5.2 never edit the same file |
-+| 15 | testability | medium | Determinism was implicit, yet exact pinned values depend on it | Added the "Scenario Reports Are Deterministic" requirement: sorted keys, no paths or SHAs, byte-identical reruns |
-+| 16 | consistency | low | CI coverage guard and path guard interplay | O.3 and A.1 cover both explicitly |
-+
-+Remaining below threshold: none.
-+
-+## Iteration 2 (2026-10-05)
-+
-+A cold re-read of the iteration-1 plan found 2 high, 4 medium and 2 low findings.
++## Iteration 1 — scaffold to plan
 +
 +| # | Type | Criticality | Description | Resolution |
 +|---|------|-------------|-------------|------------|
-+| 1 | clarity | high | The order of events within a tick was unspecified. A dependency finishing at tick 11 could admit its dependent at 11 or 12, which changes the pinned baseline (10 vs 11) | D5 now fixes the order: finishing steps push in declaration order, then waiting principals fetch and evaluate `ready_items()`, then admitted principals start |
-+| 2 | consistency | high | D5 said ri-11 changes no harness code, yet `ScriptedAgent` hard-coded status transitions, so emitting `contract_complete` would have needed a code edit | Status transitions are now fixture data (`on_start` / `on_finish` `set_status`). The ri-11 flip is three fixture edits plus a rule change, worth 2 ticks under baseline durations. The hard-coded alternative is recorded as rejected |
-+| 3 | testability | medium | O.2 compared "reports" from gen-eval runs, but gen-eval parses stdout into a body and adds timings, so byte identity was unobservable there | O.2 now compares `mpsim run` stdout directly, and moved from task 7.3 to task 6.1 |
-+| 4 | clarity | medium | P.1's "every commit on alice's branch" included the seed commit | D6 defines a `sim-seed` identity for the seed commit. P.1 now scopes to commits reachable from the change branch but not from `main` |
-+| 5 | clarity | medium | The pinned-baseline comment rule had no verifying scenario | Added scenario G.3, which scans the pack for `ri-06` / `ri-11` comments. The drift scenario became G.4, and tasks were renumbered |
-+| 6 | clarity | medium | D.1's "separate temporary directories" did not say how a test controls them | D.1 now runs with different `TMPDIR` values |
-+| 7 | completeness | low | `--tick-budget 0` or a negative budget was unhandled | Added exit 64 to D5, D8, the contract and task 6.1 |
-+| 8 | feasibility | low | A hung probe thread could keep the process alive | D4 runs probes in a daemon thread that is abandoned at timeout |
++| 1 | completeness | critical | `proposal.md` had no Why, What Changes, or Impact sections | Rewrote `proposal.md` with all three, plus Non-goals |
++| 2 | consistency | critical | The spec delta sat under the placeholder capability `multiplayer-collaboration` (the guide capability), and the touched capabilities had no deltas | Removed the placeholder. Added deltas for `parallel-infrastructure`, `skill-workflow`, `supervise`, `model-routing` |
++| 3 | testability | critical | Every scenario was "WHEN implemented THEN <outcome restated>", so none could be verified | Rewrote as concrete WHEN/THEN with injected transports, fixture values, and exact reasons and codes |
++| 4 | feasibility | critical | `tasks.md` was a generic five-item checklist that traced to no requirement | Seven task groups with Files, Depends, TDD ordering, and a traceability table |
++| 5 | consistency | high | The new behaviour duplicated existing requirements (Dispatchable Vendor Verification, OpenAI-Compatible Dispatcher Discovery, Honest Review Quorum, Execution Profile) instead of modifying them | Converted to MODIFIED deltas carrying the full requirement text |
++| 6 | feasibility | high | The plan assumed an enforced spend ceiling. In fact `ROUTING_MONTHLY_CEILING_USD` is advisory and `LedgerService.record` has no caller | D4: budget checked during the probe (coordinator ceiling or key limit), a new `POST /routing/spend`, and a spool with replay |
++| 7 | feasibility | high | API lanes are always `probe_unsupported`, so an OpenRouter lane could never verify | D3: authenticated zero-cost probe (`GET /key`, `GET /models`) |
++| 8 | feasibility | high | `agent_lane.py` hard-codes a single lane, so cloud `converge()` cannot reach quorum 2 | D7: `CompositeOrchestrator` with `--verified-lanes` |
++| 9 | correctness | high | Lane identity: `converge()` keys results by `vendor`. Two lanes sharing one id would collide, and an Anthropic-family OpenRouter model would fake diversity | D1 lane id = `type`; D2 family rule (reject `anthropic`, skip duplicate families) |
++| 10 | security | high | An HTTP lane cannot read files. An overflowing packet would give a blinded "no findings" vote (the `pi --no-tools` precedent) | D6: refuse with `packet_requires_tools`; the blinded-review floor applies |
++| 11 | performance | medium | Adding a metered lane to the shared roster would make every host review pay OpenRouter | D5: metered lanes fill quorum only (`fill_target`) |
++| 12 | consistency | medium | Supervisor `rank()` infers the endpoint kind from `probe_unsupported`, which is wrong once API lanes verify | D8: additive `lane_kinds` in the report, with a fallback |
++| 13 | completeness | medium | A mid-run budget or auth loss returned `quorum_lost`, which contradicts "parks with capability_unavailable" | Honest Review Quorum MODIFIED: mapping for `vendor_unavailable` and `auth_required` |
++| 14 | scope | medium | Overlap with the draft changes `add-coordinator-llm-gateway` and `add-model-usage-ledger` | Explicit non-goals. Writes only the existing `routing_spend_ledger` |
++| 15 | completeness | medium | Retiring the policy had no evidence gate, so TRUST_POSTURE could be edited before the lane worked | D9 plus a guard test that requires `evidence/cloud-quorum-run.md` |
++| 16 | consistency | medium | D1 initially gave the agent an `api_key_env` field, which the agent schema rejects (`additionalProperties: false`) | Removed it; the dispatcher's `OPENROUTER_API_KEY` default for `openrouter` covers it |
 +
-+Quality checks after the fixes:
-+
-+- `openspec validate --strict` passes.
-+- Scenario coverage is 27/27 IDs traced to tasks, with no orphans either way.
-+- The CLI contract validates, and all traceability citations resolve.
-+- The single uncited requirement, Archive-Stable, has no CLI surface. That is acceptable
-+  because reverse traceability is not opted in.
-+
-+Remaining below threshold: none at medium or above.
-+
-+## Iteration 3 (2026-10-05): convergence
++## Iteration 2 — self-review of the rewritten plan
 +
 +| # | Type | Criticality | Description | Resolution |
 +|---|------|-------------|-------------|------------|
-+| 1 | consistency | medium | Fixture-declared status transitions and the intra-tick order were stated only in design D5, although the pinned baseline and ri-11's flip both depend on them | Added both as normative SHALL clauses in "Memory-Store Scenario Reports Time Blocked On Dependency" |
-+| 2 | testability | low | The 30-second suite budget is recorded at task 9.1, not asserted | Accepted. A wall-clock assertion would be flaky in CI |
-+| 3 | consistency | low | ri-06 and ri-11 deltas still reference the `multiplayer-collaboration` placeholder | Out of scope for this change. Recorded as an open question for those changes' own iteration |
++| 1 | clarity | medium | `local` API lanes had no verification rule once budget conditions were added | Spec: a `local` lane verifies on probe success alone |
++| 2 | assumptions | medium | `review_reservation_usd` had no default | D4: default `1.00`, kept as data |
++| 3 | completeness | medium | `claude_code` verification inside `agent_lane` was left implicit, and the failure mode of a missing `claude` binary was not covered | D7: the running agent is always verified; risk row added |
++| 4 | assumptions | medium | Supervisor and worker environment classes can differ (inherited from ri-21) | Risk row added; out of scope with the reason stated |
 +
-+Termination: all findings are below the medium threshold. `openspec validate --strict` passes.
-diff --git a/openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/proposal.md b/openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/proposal.md
-new file mode 100644
-index 00000000..32e4bf0a
---- /dev/null
-+++ b/openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/proposal.md
-@@ -0,0 +1,128 @@
-+---
-+# Offline test harness under skills/tests/ plus a gen-eval gate fix; no service surface.
-+deployable: false
-+---
++## Iteration 3 — settle check
 +
-+# Change: multiplayer-simulation-harness
++No finding at or above medium remains. Residual findings below the threshold:
 +
-+> Parent roadmap: `multiplayer-collaboration` (item `ri-05`, Phase 1)
-+> Change ID: `multiplayer-simulation-harness`
-+> Effort: M
-+> Priority: 2
-+> Capability: `multiplayer-simulation` (new)
++| # | Type | Criticality | Description | Disposition |
++|---|------|-------------|-------------|-------------|
++| 1 | parallelizability | low | No `work-packages.yaml`. Dependencies and write scopes are in `tasks.md` only | Generate it at `/implement-feature` if the coordinated tier is selected |
++| 2 | security | low | Any agent holding a coordinator API key can post spend rows, which could exhaust the ceiling and deny the lane | Accepted. The route is authenticated and audited, and the harm is denial of a metered lane only |
++| 3 | assumptions | low | Three operator choices carry defaults rather than confirmed answers (design "Open questions"). An interactive AskUserQuestion is not available to a phase sub-agent | Surfaced in the handoff for the operator. Every default fails closed or saves cost |
++| 4 | performance | low | The probe adds up to two HTTP calls (≤ 10 s each) per `--check-vendors` run | Accepted. It runs once per batch, and API lanes probe only for mode `review` |
++
++## Parallelizability
++
++Independent: 3 groups (1, 2, 4) | Sequential chains: 1 (→3→{5,6}→7) | Max parallel width: 3.
++File overlap: `review_dispatcher.py` (groups 1 and 3, ordered by dependency; group 1 owns only
++the `ReviewResult` fields), `review_quorum_policy.json` (groups 3 and 7, ordered),
++`skills/autopilot/SKILL.md` (groups 6 and 7, ordered). No two independent groups share a file.
+diff --git a/openspec/changes/openrouter-review-lane/proposal.md b/openspec/changes/openrouter-review-lane/proposal.md
+index d5a8f8fe..219d1ff4 100644
+--- a/openspec/changes/openrouter-review-lane/proposal.md
++++ b/openspec/changes/openrouter-review-lane/proposal.md
+@@ -7,20 +7,137 @@
+ 
+ ## Summary
+ 
+-Make API-based multi-vendor review available in cloud containers by registering OpenRouter-backed reviewer lanes (non-Anthropic model families) that dispatch over HTTP through the existing OpenAI-compatible adapter, need no vendor CLI, and count toward converge() quorum. Lanes are declared in the dispatch request's execution_profile and review_requirements from ri-21, verified by a dry invocation rather than credential probing, bounded by the existing spend ceiling, and their use retires the temporary cloud single-vendor review policy.
++Make API-based multi-vendor review available in cloud containers. Register OpenRouter-backed
++reviewer lanes from non-Anthropic model families that:
++
++- dispatch over HTTP through the existing OpenAI-compatible adapter,
++- need no vendor CLI, and
++- count toward `converge()` quorum.
++
++Lanes are declared in the dispatch request's `execution_profile` and `review_requirements`
++from ri-21. Each lane is verified by a dry invocation, not by probing credentials, and is
++bounded by the existing spend ceiling. Once the lanes are in use, the temporary cloud
++single-vendor review policy is retired.
+ 
+ ## Dependencies
+ 
+-- `ri-21`
++- `ri-21` (`dispatch-contract`, completed): execution_profile, review_requirements, the quorum
++  policy data file, honest-quorum parking, and the closed degradation codes.
 +
 +## Why
 +
-+This toolkit is built by one developer and installed into team repositories. The
-+`multiplayer-collaboration` roadmap exists because single-principal assumptions break in
-+team use. Its motivating incident was a memory store planned by a small team: two
-+developers' specs collided, and one developer sat blocked waiting for another's
-+implementation when only the contract was needed.
++Cloud workers run on the Claude subscription only. Their only review lane is the agent itself,
++so review either parks `capability_unavailable` or runs single-vendor under the temporary
++policy in `TRUST_POSTURE.md` (operator decision 2026-10-09).
 +
-+None of that can be observed in this repository today. There is one principal, one
-+coordinator (or none), and one person planning at a time, so team failure modes never
-+happen here. Later roadmap items need a measurable before/after to prove they work:
++The repository already has most of an HTTP lane:
 +
-+- `ri-06` (`plan-time-collision-detection`) says "the simulation harness's same-requirement
-+  scenario flips from not-detected to detected".
-+- `ri-11` (`contract-dependencies`) says "the memory-store simulation scenario shows reduced
-+  time-blocked-on-dependency compared with its baseline".
++- `OpenAICompatAdapter` (tier 2.5 of the review dispatcher)
++- an OpenRouter generation id on `ReviewResult`
++- `routing_spend_ledger` with a monthly ceiling
++- the `--check-vendors` dry-probe contract, which already names "the adapter's own
++  authenticated no-op" for API lanes
 +
-+Both outcomes need a harness that already exists, records an honest baseline, and changes its
-+measured result when the real capability lands, without the scenario itself being rewritten.
-+This change builds that harness. It does not build either capability.
++None of this is wired:
++
++- No agent declares an OpenRouter `base_url`.
++- API lanes are always reported `probe_unsupported`.
++- Nothing writes ledger rows or checks the ceiling.
++- `agent_lane.py` hard-codes a single lane.
++
++Wiring these pieces restores the two-vendor quorum for cloud workers at metered cost, without
++waiting for the GX10 review lane. It also replaces a policy exception written in prose with a
++configured lane that can be observed.
 +
 +## What Changes
 +
-+- **A deterministic, offline simulation driver, `mpsim`**, at
-+  `skills/tests/multiplayer-simulation/`. It builds a temporary world: one local bare git
-+  repository acting as the shared remote, plus two or more simulated principals. Each
-+  principal has its own git identity, its own clone and worktree, and its own scripted agent.
-+  Principals see each other's work only through pushes to that remote. Time is a logical tick
-+  clock rather than wall-clock time. The driver writes one JSON report per scenario run.
-+- **A plan-time collision probe seam.** At each principal's plan step the driver calls every
-+  registered `CollisionProbe` and records which probes ran and what they reported. No probe
-+  is registered today, so the baseline result is "not detected". `ri-06` registers its scanner
-+  as a probe. A ground-truth oracle, computed from fixture contents, also records whether a
-+  collision actually exists, so a "not detected" baseline cannot pass because of a broken
-+  fixture.
-+- **Readiness from the real admission rule.** The driver decides when a dependent principal
-+  becomes unblocked by calling the roadmap-runtime admission rule (`Roadmap.ready_items`) on
-+  the `roadmap.yaml` visible on the shared remote. It does not carry its own readiness
-+  logic. When `ri-11` changes that rule, the metric moves with it.
-+- **Two scenarios, each with a control case:**
-+  - `same-requirement-collision`: principal A pushes a change that modifies requirement R.
-+    Principal B then plans a change that modifies R. The control case
-+    `different-requirement-control` has B modify a different requirement.
-+  - `memory-store-blocked-dependency`: reproduces the dependency half of the incident.
-+    `retrieval-owner` depends on a memory-store API owned by `storage-owner`. The driver
-+    reports `blocked_ticks` per principal. The control case `independent-principals-control`
-+    has no dependency between them.
-+- **A gen-eval scenario pack.** The four scenarios above are gen-eval CLI-transport
-+  scenarios. They run against a ToolDescriptor derived from a new CLI contract for `mpsim`,
-+  promoted to `openspec/contracts/multiplayer-simulation/cli/mpsim.yaml`. Each scenario pins
-+  its baseline values. A later change that flips a baseline does so with a visible,
-+  reviewed edit to the scenario's expectation.
-+- **CI wiring.** The harness test directory joins the skills in-skill sweep in
-+  `.github/workflows/ci.yml`. It runs with no services, no coordinator, and network sockets
-+  blocked inside the test process.
-+- **A small README** in the harness directory. It explains how a downstream change registers
-+  a probe, flips a pinned baseline, or adds a scenario.
++**Lane roster** (`agent-coordinator/agents.yaml`, `agent-coordinator/archetypes.yaml`)
++- Add the endpoint-only agent `openrouter-review` (`type: openrouter`,
++  `endpoint_kind: openrouter`, `base_url`, reviewer-only).
++- Add a provider `openrouter` whose tier map supplies the review model and its fallbacks
++  (design D1).
 +
-+## Non-Goals
++**Dispatcher** (`skills/parallel-infrastructure/scripts/{openai_compat_adapter,review_dispatcher}.py`, `review_quorum_policy.json`)
++- An authenticated, zero-cost dry probe for API lanes (`GET /key` for OpenRouter,
++  `GET /models` for local endpoints). It replaces `probe_unsupported` and also checks the
++  spend budget (D3, D4).
++- Per-mode `lane_kinds` in `--check-vendors --json`.
++- A model-family diversity rule: no Anthropic-family lanes, and no lane whose family is
++  already counted (D2).
++- Metered lanes fill quorum rather than supplement it (D5).
++- Cost and token capture on `ReviewResult`.
++- Refusal of packets that need tools (D6).
++- An `include_lanes` filter on `dispatch_and_wait`.
 +
-+- **Building collision detection or contract-level dependencies.** Those belong to `ri-06`,
-+  `ri-07` and `ri-11`. This change only records today's behaviour.
-+- **The competing-spec half of the incident.** Reconciling two divergent specs is
-+  `ri-16` (`reconcile-skill`), which can add its own scenario to this pack.
-+- **Live LLM agents.** The agents here are scripted and deterministic, because CI must be
-+  reproducible and offline. Running a live agent per principal (for example through
-+  `packages/agent-scenarios`' `CLIVendorExecutor`) is a possible later extension, not part of
-+  this change.
-+- **Registered human principals and `owners.yaml`.** Simulated identities are local to the
-+  harness. Once `ri-02` (`ownership-map`) lands, a scenario may seed an `owners.yaml`. This
-+  change does not anticipate its schema.
-+- **Coordinator-backed scenarios.** Coordinator claims, locks and queue entries are not
-+  simulated. `ri-07` and `ri-08` may add a coordinator-backed variant, but the offline pack
-+  stays the CI baseline.
-+- **Durable state.** Reports are ephemeral test output written under a temp or `.reports/`
-+  directory. They are not canonical state, so they are not registered in
-+  `docs/guides/state-artifacts.md`.
-+- **Editing the principles guide.** `docs/guides/multiplayer-collaboration.md` belongs to
-+  `ri-01` (`multiplayer-principles-guide`), which is in flight. Linking the harness from that
-+  guide is left to whichever change lands second.
++**Spend** (new `skills/parallel-infrastructure/scripts/spend_recorder.py`, `agent-coordinator/src/model_routing/api.py`)
++- A new authenticated `POST /routing/spend` that writes `routing_spend_ledger` rows.
++- When the coordinator cannot be reached, records go to a local spool with a replay command,
++  and the new degradation code `metered_spend_unrecorded` is recorded (D4).
++
++**Convergence** (`skills/autopilot/scripts/{agent_lane,convergence_loop}.py`)
++- `agent_lane.py` composes the `claude_code` handshake lane with the verified HTTP lanes (D7).
++- `converge()` reports a mid-run loss of lane capability as `capability_unavailable`, not
++  `quorum_lost` (D7).
++
++**Supervisor** (`skills/supervise/scripts/execution.py`, `openspec/schemas/dispatch-result.schema.json`)
++- `counting_lanes` is ranked from `lane_kinds` (D8).
++- The degradation enum gains the new code.
++
++**Retirement, gated on cloud evidence** (`TRUST_POSTURE.md`, `review_quorum_policy.json`, `skills/autopilot/SKILL.md`, docs)
++- Delete the temporary cloud section and the policy entry.
++- Document the cloud setup: the environment secret and the egress allowlist (D9).
+ 
+ ## Acceptance Outcomes
+ 
+-- In a cloud container with an OpenRouter credential provisioned as an environment secret, converge() reaches min_quorum=2 for PLAN_REVIEW using claude_code plus at least one OpenRouter lane from a different model family, verified end to end on a fixture change.
+-- Lane availability is established by a dry invocation of the lane for the requested mode and reported in execution_profile; no worker reads environment variables or credentials to discover it, and --check-vendors no longer reports a lane that cannot dispatch.
+-- Every OpenRouter review records model, generation id and cost against the existing monthly spend ceiling; exceeding the ceiling parks with capability_unavailable instead of silently dropping to single-vendor review.
+-- OpenRouter findings conform to review-findings.schema.json and are synthesized by ConsensusSynthesizer like CLI lanes, with vendor attribution preserved in the ledger.
+-- The "Review quorum in cloud containers (temporary)" section of TRUST_POSTURE.md is removed once the lane passes in cloud, restoring quorum 2 everywhere, and review_requirements expresses any remaining per-environment exception as data with a sunset.
++- In a cloud container with an OpenRouter credential provisioned as an environment secret,
++  `converge()` reaches `min_quorum=2` for PLAN_REVIEW using `claude_code` plus at least one
++  OpenRouter lane from a different model family, verified end to end on a fixture change.
++- Lane availability is established by a dry invocation of the lane for the requested mode and
++  reported in `execution_profile`. No worker reads environment variables or credentials to
++  discover it, and `--check-vendors` no longer reports a lane that cannot dispatch.
++- Every OpenRouter review records model, generation id and cost against the existing monthly
++  spend ceiling. Exceeding the ceiling parks with `capability_unavailable` instead of silently
++  dropping to single-vendor review.
++- OpenRouter findings conform to `review-findings.schema.json` and are synthesized by
++  ConsensusSynthesizer like CLI lanes, with vendor attribution preserved in the ledger.
++- The "Review quorum in cloud containers (temporary)" section of `TRUST_POSTURE.md` is removed
++  once the lane passes in cloud, restoring quorum 2 everywhere, and `review_requirements`
++  expresses any remaining per-environment exception as data with a sunset.
++
++## Non-goals
++
++- Inline or proxy budget enforcement and virtual keys (`add-coordinator-llm-gateway`).
++- A general usage-accounting store or pricing tables (`add-model-usage-ledger`).
++- OpenRouter lanes for the `alternative` or `quick` dispatch modes, and tool use by HTTP lanes.
++- The GX10 review lane, and adaptive model selection for review lanes.
 +
 +## Impact
 +
-+- **New capability spec delta**: `specs/multiplayer-simulation/spec.md` (ADDED requirements
-+  only). The scaffold's placeholder capability `multiplayer-collaboration` is not used. See
-+  design D1.
-+- **New code**: `skills/tests/multiplayer-simulation/`, which holds the `mpsim` driver
-+  package, its `bin/mpsim` launcher, fixtures, the gen-eval `evaluation/` pack and tests.
-+  It sits under `skills/tests/`, which `install.sh` does not ship, so consumer repositories
-+  receive nothing.
-+- **New contract**: `openspec/contracts/multiplayer-simulation/cli/mpsim.yaml` (authored in
-+  `contracts/cli/mpsim.yaml` in this change, then promoted), plus
-+  `openspec/contracts/multiplayer-simulation/schemas/sim-report.schema.json`.
-+- **Modified**: `skills/pyproject.toml` adds `gen-eval` as a path dependency of the `test`
-+  extra, which also updates `skills/uv.lock`. `.github/workflows/ci.yml` adds
-+  `tests/multiplayer-simulation` to the in-skill sweep list.
-+  `openspec/contracts/README.md` gains a row in its contents table.
-+- **Read-only dependencies (systems under test)**:
-+  `skills/roadmap-runtime/scripts/models.py` (`Roadmap.ready_items`, `load_roadmap`, and
-+  the roadmap schema it validates against), `packages/gen-eval` (ToolDescriptor, CLI transport,
-+  `scripts/generate_tool_descriptor.py`), and `skills/tests/_shared/openspec_paths.py`.
-+- **Downstream contract**: `ri-06` and `ri-11` consume the probe seam, the pinned baselines,
-+  and the report fields `collision_detected` and `blocked_ticks`. Their spec deltas should
-+  cite `multiplayer-simulation` requirements instead of restating them.
++**Affected specs**
 +
-+## Acceptance Outcomes
-+
-+Each outcome from the roadmap item maps to a requirement in the spec delta:
-+
-+| Roadmap acceptance outcome | Requirement |
++| Capability | Delta |
 +|---|---|
-+| Two principals modifying the same requirement; records whether a collision was detected at plan time (baseline: not detected) | Same-Requirement Collision Scenario Records Plan-Time Detection; Plan-Time Detectors Attach Through A Probe Seam |
-+| Memory-store scenario reports time-blocked-on-dependency for the dependent principal | Memory-Store Scenario Reports Time Blocked On Dependency |
-+| Scenarios run in CI without network access to a shared coordinator | Scenarios Run Offline Without A Shared Coordinator |
-+| Scenario tests resolve change paths with `change_dir()` and pass the path-stability guard | Scenario Tests Are Archive-Stable |
-diff --git a/openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/session-log.md b/openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/session-log.md
++| `parallel-infrastructure` | MODIFIED: OpenAI-Compatible Dispatcher Discovery; Dispatchable Vendor Verification. ADDED: Metered Review Lane Spend Accounting; Tool-less Lane Packet Refusal |
++| `skill-workflow` | MODIFIED: Honest Review Quorum. ADDED: Composite Agent-Lane Review; Cloud Single-Vendor Policy Retirement |
++| `supervise` | MODIFIED: Execution Profile and Review Requirements |
++| `model-routing` | ADDED: Review Spend Recording Route |
++
++**Affected code**
++- `skills/parallel-infrastructure/scripts/{openai_compat_adapter,review_dispatcher}.py` and new `spend_recorder.py`; `skills/parallel-infrastructure/review_quorum_policy.json`
++- `skills/autopilot/scripts/{agent_lane,convergence_loop}.py`, `skills/autopilot/SKILL.md`
++- `skills/supervise/scripts/execution.py`
++- `agent-coordinator/{agents.yaml,archetypes.yaml}` and `agent-coordinator/src/model_routing/api.py`
++- `openspec/schemas/dispatch-result.schema.json` (additive enum value)
++- `TRUST_POSTURE.md` (section removal, last task), `docs/guides/` cloud setup notes
++
++**Operational**
++- Requires the cloud environment secret `OPENROUTER_API_KEY`, egress to `openrouter.ai`, and
++  either `ROUTING_MONTHLY_CEILING_USD > 0` on the coordinator or a credit limit on the
++  OpenRouter key.
++- Review packets are sent to OpenRouter.
+ 
+ ## Rationale
+ 
+-Restores the two-vendor review quorum for cloud workers at metered API cost instead of waiting on the GX10 review lane, and replaces a prompt-level policy exception with a configured, observable lane.
++Restores the two-vendor review quorum for cloud workers at metered API cost instead of waiting
++on the GX10 review lane, and replaces a prompt-level policy exception with a configured,
++observable lane.
+diff --git a/openspec/changes/openrouter-review-lane/session-log.md b/openspec/changes/openrouter-review-lane/session-log.md
 new file mode 100644
-index 00000000..85da1870
+index 00000000..a32fab41
 --- /dev/null
-+++ b/openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/session-log.md
-@@ -0,0 +1,332 @@
-+# Session Log: multiplayer-simulation-harness
++++ b/openspec/changes/openrouter-review-lane/session-log.md
+@@ -0,0 +1,64 @@
++# Session Log: openrouter-review-lane
 +
 +> Decision rationale, trade-offs, and alternatives recorded at each workflow phase.
 +> Auto-generated by workflow skills. Sanitized before commit.
 +
-+## Phase: Gatekeeper (2026-10-05)
++## Phase: Plan Iteration 1 (2026-10-11)
 +
-+**Agent**: claude_code | **Session**: N/A
-+
-+### Decisions
-+1. **Proceed without VAL_REVIEW** — No db/security/external-dep signals; additive and reversible
-+
-+### Context
-+GATEKEEPER verdict: proceed. Outcomes verifiable (4 testable acceptance outcomes); risk low (additive gen-eval pack, offline). Conditions for PLAN: replace circular WHEN/THEN scaffolds with concrete scenarios; record baselines (collision not detected, non-zero blocked time) without asserting later capabilities; decide capability/non-goals/offline coordinator strategy; tests use change_dir().
-+
-+---
-+
-+## Phase: Plan Iteration 1 (2026-10-05)
-+
-+**Agent**: claude_code | **Session**: N/A
++**Agent**: claude_code (autopilot PLAN_ITERATE, architect) | **Session**: N/A
 +
 +### Decisions
-+1. **New capability multiplayer-simulation instead of the multiplayer-collaboration placeholder** `architectural: multiplayer-simulation` — About 19 sibling deltas target the multiplayer-collaboration placeholder. Putting harness requirements there would mix test-harness content with collaboration behaviour, and would itself create the same-requirement collision the roadmap is trying to surface. This was an autonomous resolution of an assumptions finding.
-+2. **Harness at skills/tests/multiplayer-simulation, with gen-eval added to the skills test extra** `architectural: multiplayer-simulation` — The systems under test (roadmap-runtime, and later the plan-feature scanner) live in skills/. skills/tests is not shipped by install.sh. A scratch uv lock with gen-eval as a path dependency resolved 56 packages.
-+3. **Collision detection via a CollisionProbe seam plus a ground-truth fixture oracle** `architectural: multiplayer-simulation` — No plan-time requirement-collision detector exists. The seam lets ri-06 attach its scanner without the harness fixing ri-06's interface. The oracle stops a broken fixture from making 'not detected' vacuously true.
-+4. **Blocked time measured in logical ticks with the real Roadmap.ready_items admission rule** `architectural: multiplayer-simulation` — Ticks are deterministic, so exact baselines can be pinned. Using the real rule means ri-11's rule and schema change moves the metric without any edit to the harness code.
-+5. **Pinned baselines live in gen-eval scenario YAML, and flips are reviewed expectation edits** `architectural: multiplayer-simulation` — The driver measures and the scenario decides what is expected. ri-06 and ri-11 flip a value in their own PRs, which keeps the before/after visible in review.
-+6. **Assumption findings resolved autonomously, not through AskUserQuestion** `architectural: skill-procedure-deviation` — The skill directs assumption findings to AskUserQuestion. This run is an autopilot PLAN_ITERATE sub-agent that returns (outcome, handoff_id) with no interactive channel, and the proposal_approval gate was auto-approved by trust posture. Each assumption (capability, location, venv, detection seam, metric unit) became an explicit design decision with rejected alternatives, which PLAN_REVIEW and the human approver can overturn.
-+7. **Analysis run inline, not through parallel Explore sub-agents** `architectural: skill-procedure-deviation` — This sub-agent harness exposes no Agent or Task tool, so the five-way parallel analysis could not be dispatched. The completeness, clarity, consistency, feasibility, parallelizability, testability and security/performance axes were analysed inline. This is reported as a fallback because the adapter was genuinely unavailable, not chosen to avoid dispatching.
++1. **A lane is an endpoint-only agents.yaml agent (openrouter-review, type openrouter), with its model in an archetypes.yaml provider** `architectural: parallel-infrastructure` — This reuses tier-2.5 discovery and the coordinator's dispatch-configs without a second roster. Lane id = type, because converge keys results by vendor.
++2. **Model-family diversity rule: reject anthropic-publisher lanes and skip duplicate families via vendor_families data** `architectural: parallel-infrastructure` — Quorum is meant to measure independent model opinions. An OpenRouter lane in the claude_code or codex family would inflate it.
++3. **API lanes verify through an authenticated zero-cost probe (GET /key or GET /models) that also checks the spend budget** `architectural: parallel-infrastructure` — The existing Dispatchable Vendor Verification requirement already names this; today every API lane is probe_unsupported.
++4. **Spend: fail-closed budget check at probe time (coordinator ceiling > 0 or key credit limit); record through a new POST /routing/spend; spool and replay when the coordinator is unreachable, with a new degradation code metered_spend_unrecorded** `architectural: model-routing` — The existing ceiling is advisory and LedgerService.record has no caller. Cloud workers are known to hit coordinator_projection_forbidden, so the key limit bounds spend while records sit in the spool.
++5. **Metered lanes fill quorum only (fill_target defaults to default_min_quorum)** `architectural: parallel-infrastructure` — Prevents every host review from paying OpenRouter. The operator can tune it as data.
++6. **agent_lane gains a CompositeOrchestrator (claude_code handshake plus include_lanes HTTP dispatch), and converge maps a mid-run vendor_unavailable/auth_required quorum loss to capability_unavailable** `architectural: skill-workflow` — This is the only path by which a cloud worker reaches quorum 2, and it makes 'exceeding the ceiling parks' true mid-run as well as at the probe.
++7. **Retiring TRUST_POSTURE's cloud section and the policy entry is the last task, gated by an evidence file and a guard test** `architectural: skill-workflow` — The roadmap says the policy is removed once the lane passes in cloud. Live cloud evidence cannot run in CI, so it is an operator-run step with a recorded artifact.
++8. **Ran the analysis inline instead of dispatching parallel Explore analyst sub-agents** `architectural: skill-procedure-deviation` — The PLAN_ITERATE sub-agent harness exposes no Task/Agent tool; this is a genuine unavailability of the adapter, not avoidance. Reported per AGENTS.md.
++9. **Surfaced the assumption findings as documented defaults plus handoff open questions instead of AskUserQuestion** `architectural: skill-procedure-deviation` — A phase sub-agent cannot run an interactive prompt. Each default fails closed or saves cost, and the operator can override it as data.
 +
 +### Alternatives Considered
-+- packages/multiplayer-sim as a new package: rejected because Needs its own CI job and cannot import skills/roadmap-runtime
-+- agent-coordinator/evaluation scenarios: rejected because That gen-eval job needs Postgres and live HTTP, which contradicts the offline requirement
-+- Harness-local readiness function: rejected because It would freeze the measured behaviour, and ri-11 could never move the metric
-+- Invoke a predetermined scanner CLI: rejected because It would fix ri-06's interface before ri-06 designs it
-+- Live LLM agents per principal: rejected because Nondeterministic and needs network and vendor access; left as a future ExecutorAgent
++- Add base_url to pi-local and reuse the pi provider: rejected because Couples the pi harness identity, the CLI-precedence rules, and a location: local agent to a cloud HTTP lane
++- Fail the review whenever the ledger write fails: rejected because Cloud coordinator access is partly forbidden; the key credit limit already bounds spend
++- Wait for add-model-usage-ledger or add-coordinator-llm-gateway to provide accounting and enforcement: rejected because Both are drafts with much larger scope; the roadmap names the existing ceiling
++- Always dispatch every configured lane: rejected because Adds metered cost to every host review for marginal benefit
 +
 +### Trade-offs
-+- Accepted Pinned exact baselines that downstream changes must edit over Field-presence-only assertions because An edit makes the flip visible in review; presence-only assertions could never detect a regression
-+- Accepted Scripted deterministic agents over Realistic agent behaviour because CI reproducibility and offline execution are acceptance outcomes
++- Accepted The family check uses the primary model only over forbidding cross-family fallbacks because A capacity error would otherwise be fatal to the lane; model_used is recorded for audit
++- Accepted Fail closed when no ceiling source exists over treating an unset ceiling as unlimited because A metered lane must never spend without a bound
 +
 +### Open Questions
-+- [ ] ri-06 and ri-11 spec deltas should cite multiplayer-simulation requirements when they iterate (cross-capability reference)
-+- [ ] Should the fixture seed owners.yaml once ri-02 lands? Deferred to ri-06
++- [ ] Operator: confirm the fail-closed ceiling default (coordinator ROUTING_MONTHLY_CEILING_USD > 0, or an OpenRouter key credit limit).
++- [ ] Operator: confirm that metered lanes fill quorum only, rather than always being dispatched.
++- [ ] Operator/implementer: choose the openrouter provider premium review model (non-Anthropic, ideally a family no host CLI serves).
 +
 +### Completed Work
-+- proposal.md rewritten with Why, What Changes, Non-Goals, Impact and an outcome-to-requirement map
-+- design.md D1-D10 with alternatives and risks
-+- spec delta moved to specs/multiplayer-simulation with 8 requirements and 26 scenarios
-+- contracts/cli/mpsim.yaml (schema-valid, traceability resolves) and contracts/schemas/sim-report.schema.json
-+- tasks.md with 26 tasks, scenario IDs, dependencies and graph
-+- plan-findings.md iteration 1
++- proposal.md: Why, What Changes, Impact, Non-goals
++- design.md: D1-D9, interface-contract table, security, risks, open questions
++- specs: parallel-infrastructure (2 MODIFIED, 2 ADDED), skill-workflow (1 MODIFIED, 2 ADDED), supervise (1 MODIFIED), model-routing (1 ADDED); placeholder multiplayer-collaboration delta removed
++- tasks.md: 7 groups, 33 tasks with Files/Depends/Specs and a traceability table
 +
 +### Context
-+Replaced the plan-roadmap scaffold with a full plan. Ten design decisions cover where the harness lives, how gen-eval runs it, the probe seam and oracle, logical-tick readiness through Roadmap.ready_items, offline enforcement and archive stability. The spec now has 8 requirements and 26 concrete scenarios, plus a CLI contract, a report schema and 26 TDD-ordered tasks with a dependency graph. All 16 findings were addressed, including 2 critical and 8 high.
++Turned the plan-roadmap scaffold into a full plan. Addressed 16 findings (5 critical, 6 high, 5 medium): rewrote the proposal, wrote design decisions D1-D9 grounded in the existing adapter, dispatcher, ledger, converge and agent_lane code, replaced the placeholder multiplayer-collaboration delta with MODIFIED/ADDED deltas in four real capabilities, and wrote seven dependency-annotated task groups.
 +
 +---
 +
-+## Phase: Plan Iteration 2 (2026-10-05)
++## Phase: Plan Iteration 2 (2026-10-11)
 +
-+**Agent**: claude_code | **Session**: N/A
++**Agent**: claude_code (autopilot PLAN_ITERATE, architect) | **Session**: N/A
 +
 +### Decisions
-+1. **Roadmap status transitions are fixture data (on_start/on_finish set_status)** `architectural: multiplayer-simulation` — Keeps the promise that ri-11 flips the blocked-time metric with fixture and rule changes only. Emitting contract_complete would otherwise need an edit to the harness agent.
-+2. **Fixed intra-tick order: finishers push, then waiters evaluate readiness, then admitted principals start** `architectural: multiplayer-simulation` — The pinned blocked_ticks value depends on the order. Under this order, a dependency completed at tick t admits its dependent at tick t.
-+3. **Vendor review (skill step 10) deferred to autopilot PLAN_REVIEW** `architectural: skill-procedure-deviation` — Under autopilot with cli_review_enabled, multi-vendor plan review is the dedicated PLAN_REVIEW phase that follows PLAN_ITERATE. Running it here would duplicate that phase, and the orchestrator owns its convergence loop.
-+
-+### Alternatives Considered
-+- Hard-coded status transitions in ScriptedAgent: rejected because ri-11 would have to edit harness code
-+
-+### Trade-offs
-+- Accepted Fixture schema carries per-step status data over Simpler fixtures because It decouples harness code from roadmap-state vocabulary that ri-11 will extend
++1. **Generate one commit for the whole iterate run instead of one commit per iteration** `architectural: skill-procedure-deviation` — The edits for iterations 1 and 2 were interleaved in a single editing pass over the scaffold. Separate commits would be artificial. Both iterations are recorded in plan-findings.md and here.
++2. **Skip the iterate-on-plan step 10 vendor review** `architectural: skill-procedure-deviation` — VENDOR_REVIEW is off: no --vendor-review flag, and the coordinator is not available to this sub-agent. Autopilot's next phase, PLAN_REVIEW, runs the multi-vendor review, so a dispatch here would duplicate it.
++3. **Defer work-packages.yaml generation to /implement-feature** `architectural: skill-procedure-deviation` — tasks.md already carries write scopes and dependencies; work-packages.yaml is only needed if the coordinated tier is selected.
 +
 +### Completed Work
-+- D5 intra-tick order and data-driven status transitions
-+- P.1, B.3, D.1 and O.2 sharpened; G.3 added
-+- tick-budget below 1 exits 64; daemon-thread probe timeout
-+- tasks renumbered; 27/27 scenario IDs traced
++- Spec: a local API lane verifies on probe success alone
++- D4: review_reservation_usd defaults to 1.00
++- D7: claude_code is always verified inside agent_lane; risk rows added
++- plan-findings.md written with all iterations and the parallelizability summary
 +
 +### Context
-+A cold re-review found 8 findings: 2 high, 4 medium and 2 low. All were fixed. The intra-tick event order is now fixed, so the pinned 10-tick baseline is unambiguous. Roadmap status transitions moved from agent code to fixture data, so ri-11 can flip the metric without editing the harness. Several scenarios were sharpened, and every one of the 27 scenario IDs traces to a task.
++Self-review of the rewritten plan found 4 medium findings: the local lane verification rule, the reservation default, claude_code verification inside agent_lane, and a supervisor/worker environment mismatch risk. All were fixed. A settle check found nothing at or above medium; 4 low findings remain in plan-findings.md.
 +
-+---
+diff --git a/openspec/changes/openrouter-review-lane/specs/configuration/spec.md b/openspec/changes/openrouter-review-lane/specs/configuration/spec.md
+new file mode 100644
+index 00000000..1a1a0496
+--- /dev/null
++++ b/openspec/changes/openrouter-review-lane/specs/configuration/spec.md
+@@ -0,0 +1,37 @@
++## MODIFIED Requirements
 +
-+## Phase: Plan Iteration 3 (2026-10-05)
++### Requirement: Provider Model Mapping Configuration
 +
-+**Agent**: claude_code | **Session**: N/A
++Provider dispatch configuration SHALL define model mappings for Claude Code, Codex, antigravity, grok, and pi so logical archetypes can resolve to provider-specific model IDs.
 +
-+### Decisions
-+1. **Lift D5's fixture-data transitions and intra-tick ordering into the requirement text** `architectural: multiplayer-simulation` — The pinned blocked_ticks baseline and ri-11's no-harness-edit flip both depend on these rules. As design-only notes they were not part of the contract that downstream changes and validators read.
++The model mapping SHALL conform to `openspec/schemas/provider-model-map.schema.json` (schema_version 2). The provider key set SHALL be closed to the five roster keys, all five required, plus two optional keys: `local` and `openrouter`. `openrouter` holds the model aliases of the endpoint-only `openrouter-review` lane, and is not a roster vendor.
 +
-+### Open Questions
-+- [ ] Low: the 30-second suite budget is recorded at task 9.1 rather than asserted, to avoid a flaky timing test
-+- [ ] Low: the ri-06 and ri-11 deltas still name multiplayer-collaboration; they should cite multiplayer-simulation when they iterate
++The `pi` provider SHALL resolve to OpenRouter model slugs, and its default model SHALL be `qwen/qwen3-coder`, selected so the roster reaches models outside the subscription harnesses.
 +
-+### Completed Work
-+- spec: Memory-Store requirement states fixture-declared transitions and intra-tick order
-+- openspec validate --strict passes; 27/27 scenarios traced; CLI contract valid
++#### Scenario: Provider map includes all first-class providers
 +
-+### Context
-+Convergence pass. One medium consistency finding was fixed: the Memory-Store requirement now states normatively that status transitions are fixture data and that within a tick, finishing steps push before readiness is evaluated. Both were previously only in design D5. No findings at medium or above remain, and the plan is ready for PLAN_REVIEW.
++- **WHEN** the default provider model map is loaded
++- **THEN** it SHALL include entries for `claude_code`, `codex`, `antigravity`, `grok`, and `pi`
++- **AND** each entry SHALL define `premium`, `standard`, and `economy` model IDs
++- **AND** it SHALL NOT include an entry for `gemini`
 +
-+---
++#### Scenario: Optional provider keys are allowed but not required
 +
-+## Phase: Plan Review (2026-10-05)
++- **WHEN** a provider model map carries an `openrouter` entry or a `local` entry
++- **THEN** it SHALL validate, provided the entry defines `premium`, `standard`, and `economy`
++- **AND** a map without either entry SHALL also validate
++- **AND** a map with any other provider key SHALL fail validation
 +
-+**Agent**: claude_code | **Session**: N/A
++#### Scenario: pi maps to OpenRouter slugs
 +
-+### Decisions
-+1. **Pin the review-packet base ref to 4a9e81b^ (driver shim, not a code edit)** `architectural: skill-procedure-deviation` — This checkout has no local `main` ref, so build_review_packet's default `git diff main...HEAD` was empty. The first attempt therefore reviewed only a truncated spec excerpt and produced a false 'no implementation' high finding. That attempt was discarded and archived outside the repo, and converge() was re-run with base_ref bound to the parent of the change's first commit.
-+2. **min_quorum=1: single-vendor review** `architectural: skill-procedure-deviation` — Only claude-local was dispatchable. codex, antigravity, grok, pi and ocr had no CLI, and the SDK and OpenAI tiers had no keys. With quorum 2 the loop would end immediately with quorum_lost.
-+3. **Return max_iter rather than converged on adjudication_required** — The ledger has zero D3-blocking items, but ledger item 1 is a high-impact judgment gap that one vendor cannot confirm. Reporting 'converged' would hide an unresolved high gap. The reviewer independently checked the finding and agrees it is valid: D5/D7 never name the ref that ready_items() reads.
++- **WHEN** the `pi` provider entry is loaded
++- **THEN** every tier value SHALL be an OpenRouter model slug in `<publisher>/<model>` form
++- **AND** the `standard` tier SHALL be `qwen/qwen3-coder`
 +
-+### Capability Gaps Observed
-+- **convergence_failed**: review_packet defaults base_ref to a local 'main' ref that cloud worktrees may lack, so the diff silently comes out empty. converge() exposes no base_ref parameter. (skill: parallel-infrastructure, severity: high)
-+- **convergence_failed**: With a single vendor, any high judgment finding is permanently unconfirmed, so converge() always exits adjudication_required before fix dispatch (skill: autopilot, severity: medium)
++#### Scenario: Non-Claude provider rejects unmapped Claude alias
 +
-+### Open Questions
-+- [ ] Adjudicate ledger item 1 (high): choose the roadmap ref model for memory-store readiness. Option (a): read the dependency status from the owner's branch. Option (b): push status transitions to main. Then update D5/D7, the Memory-Store requirement, and tasks 5.1/5.2.
++- **GIVEN** provider `codex`
++- **AND** an archetype resolves to legacy alias `opus`
++- **WHEN** no Codex mapping exists for that alias or tier
++- **THEN** dispatch resolution SHALL fail with a structured configuration error before invoking Codex
++- **AND** the error SHALL identify the missing provider model mapping
+diff --git a/openspec/changes/openrouter-review-lane/specs/model-routing/spec.md b/openspec/changes/openrouter-review-lane/specs/model-routing/spec.md
+new file mode 100644
+index 00000000..d3af4759
+--- /dev/null
++++ b/openspec/changes/openrouter-review-lane/specs/model-routing/spec.md
+@@ -0,0 +1,32 @@
++## ADDED Requirements
 +
-+### Completed Work
-+- converge(review_type=plan) round 1: 9 findings, all unconfirmed single-vendor: 1 high, 2 medium, 6 low
-+- Ledger: .review-ledger/ledger.json; checkpoint: .review-cache/round-1/
-+- PLAN_FIX sub-step: 0 invocations, because the loop exited at step 2g (adjudication) before step 2k
++### Requirement: Review Spend Recording Route
 +
-+### Next Steps
-+- Adjudicate item 1, then run PLAN_FIX for items 1-3 (design.md, spec.md, sim-report.schema.json)
-+- Medium items: #2 SHALL clauses lacking scenarios (no-coordinator-imports, fixture-only status transitions, probe registration without scenario edits); #3 the error-path report cannot satisfy the schema (principals minItems 2, non-null timeline)
-+- Low items #4-#8 cover stale task cross-references in design.md, exit code 2 missing from the D8 table, wording in the promoted contract header, the interpreter for bin/mpsim and gen-eval, a ready_items/checkpoint verification note, and the wording of 'missing --fixture-dir'
-+- Item #9 targets loop-state.json, which the orchestrator owns. PLAN_FIX must not edit it.
-+- Provision a second review vendor, or add a base_ref parameter to converge(), so later rounds can reach consensus
++The coordinator SHALL expose `POST /routing/spend`, which requires the `X-API-Key` header.
 +
-+### Relevant Files
-+- `openspec/changes/multi
++The request body SHALL be validated with unknown fields forbidden. It accepts:
++- required: `vendor`, `model`, `endpoint_kind`, `generation_id`;
++- optional: `prompt_tokens`, `completion_tokens` (non-negative integers), `actual_usd` (a
++  non-negative number), `tokens_estimated`, `work_unit_ref`, `occurred_at`.
++
++A valid request SHALL write one `routing_spend_ledger` row through `LedgerService.record`.
++`generation_id` SHALL be the idempotency key: a second request with a `generation_id` already
++in the ledger SHALL return the existing row with HTTP 200 and SHALL NOT insert another row.
++`GET /routing/usage` SHALL include recorded review rows in `metered_usd_used`.
++
++#### Scenario: A review spend row is recorded
++- **WHEN** an authenticated client posts `{vendor: "openrouter", model: "<publisher>/<model>", endpoint_kind: "openrouter", generation_id: "gen-abc", actual_usd: 0.0042, tokens_estimated: false}`
++- **THEN** the response SHALL be HTTP 201, and the next `GET /routing/usage?window=month` SHALL
++  report `metered_usd_used` increased by 0.0042
++
++#### Scenario: Duplicate generation id is not double-counted
++- **WHEN** the same body is posted twice
++- **THEN** the second response SHALL be HTTP 200 and the ledger SHALL contain one `gen-abc` row
++
++#### Scenario: Unauthenticated write is rejected
++- **WHEN** the request has no `X-API-Key` header, or an invalid one
++- **THEN** the response SHALL be HTTP 401 and no row SHALL be written
++
++#### Scenario: Invalid spend is rejected
++- **WHEN** the body has `actual_usd: -1`, or an unknown field `api_key`
++- **THEN** the response SHALL be HTTP 422 and no row SHALL be written
+diff --git a/openspec/changes/openrouter-review-lane/specs/parallel-infrastructure/spec.md b/openspec/changes/openrouter-review-lane/specs/parallel-infrastructure/spec.md
+new file mode 100644
+index 00000000..1a4c118b
+--- /dev/null
++++ b/openspec/changes/openrouter-review-lane/specs/parallel-infrastructure/spec.md
+@@ -0,0 +1,262 @@
++## MODIFIED Requirements
++
++### Requirement: OpenAI-Compatible Dispatcher Discovery
++
++The review dispatcher SHALL construct an OpenAI-compatible adapter for configured `local` or
++`openrouter` endpoints with a `base_url` after CLI and SDK discovery. A usable CLI SHALL retain
++precedence over the endpoint adapter for the same agent.
++
++The lane id of an endpoint lane SHALL be its agent `type`. Its model family SHALL be the
++publisher prefix of its primary model slug (`<publisher>/<model>`). The family of a CLI or SDK
++vendor SHALL be read from `vendor_families` in `review_quorum_policy.json`.
++
++The dispatcher SHALL skip, and SHALL NOT count toward quorum, an `openrouter` lane in either
++of these cases:
++- its primary model or any fallback model has publisher `anthropic`;
++- its family equals the family of a lane already selected at tier 1 or tier 2. The skip
++  reason SHALL be `duplicate_model_family`.
++
++An agent with `endpoint_kind: openrouter` selected at tier 2.5 is a metered lane. Metered lanes
++SHALL be selected only while the non-metered selected lanes number fewer than
++`metered_lanes.fill_target`. That value defaults to the policy file's `default_min_quorum`.
++Metered lanes are added in roster order until the target is reached. `--check-vendors` and
++`dispatch_and_wait` SHALL apply the same selection.
++
++`dispatch_and_wait` SHALL accept an optional `include_lanes` set. When it is given, only those
++lanes SHALL be dispatched. When it is `None`, behaviour SHALL be unchanged.
++
++#### Scenario: Endpoint-only agent is discoverable
++
++- **WHEN** dispatch configuration contains a local/OpenRouter endpoint with no CLI or SDK block
++- **THEN** review discovery SHALL return an OpenAI-compatible reviewer for that endpoint
++
++#### Scenario: CLI retains precedence
++
++- **WHEN** an agent has both a usable CLI and an OpenAI-compatible endpoint
++- **THEN** review discovery SHALL select the CLI tier first
++
++#### Scenario: Anthropic-family OpenRouter lane is rejected
++
++- **WHEN** an `openrouter` agent resolves the primary model `anthropic/<any>` or lists an
++  `anthropic/` fallback
++- **THEN** discovery SHALL NOT return that lane, and `--check-vendors --json` SHALL list it
++  under `unverified` with reason `anthropic_family`
++
++#### Scenario: Duplicate family is skipped
++
++- **WHEN** `codex` is selected at tier 1, `vendor_families.codex` is `openai`, and an
++  `openrouter` lane's primary model is `openai/<model>`
++- **THEN** that lane SHALL be listed `unverified` with reason `duplicate_model_family` and SHALL
++  NOT be dispatched
++
++#### Scenario: Metered lane fills quorum only
++
++- **WHEN** `fill_target` is 2, and two non-metered lanes and one verified `openrouter` lane are
++  available
++- **THEN** discovery SHALL return the two non-metered lanes only, and no HTTP request SHALL be
++  sent to the OpenRouter endpoint during dispatch
++
++#### Scenario: Metered lane fills a cloud roster
++
++- **WHEN** `fill_target` is 2, `claude_code` is the only non-metered lane, and one `openrouter`
++  lane verifies
++- **THEN** discovery SHALL return `claude_code` and the `openrouter` lane
++
++#### Scenario: include_lanes restricts dispatch
++
++- **WHEN** `dispatch_and_wait` is called with `include_lanes={"openrouter"}` and `claude_code` and
++  `openrouter` are both available
++- **THEN** exactly one review SHALL be dispatched, to `openrouter`
++
++### Requirement: Dispatchable Vendor Verification
++
++`review_dispatcher.py --check-vendors` SHALL count a vendor lane as available for a mode only
++after a dry invocation for that mode succeeds. The dry invocation is the adapter's declared
++no-op, run with a 10-second timeout:
++- for a CLI lane, `<cli> --version`;
++- for an `openrouter` API lane, one authenticated `GET {base_url}/key`;
++- for a `local` API lane, one authenticated `GET {base_url}/models`.
++
++An SDK lane with no authenticated no-op SHALL remain `unverified` with reason
++`probe_unsupported`.
++
++Credentials MAY be read only inside the adapter's existing credential path. The probe SHALL
++NOT print, log, or return any environment value, credential, or response body. From an API
++probe response it SHALL keep only the numeric budget fields (`limit`, `usage`,
++`limit_remaining`).
++
++An `openrouter` lane SHALL verify only if:
++- the authenticated probe succeeds;
++- at least one spend ceiling source is available: the coordinator monthly ceiling when it is
++  greater than 0 and the coordinator is reachable, or the key's non-null `limit`; and
++- every available source has remaining budget of at least
++  `metered_lanes.review_reservation_usd`.
++
++A `local` API lane SHALL verify when its probe succeeds; no budget rule applies to it.
++An `openrouter` lane that fails any of these conditions SHALL be `unverified` with one of these reasons: `auth_failed`,
++`probe_timeout`, `endpoint_unreachable`, `spend_ceiling_exceeded`, or
++`spend_ceiling_unverifiable`.
++
++With `--json` it SHALL print
++`{"modes": {<mode>: {"verified": [...], "unverified": [{"vendor", "reason"}], "lane_kinds": {<lane>: <endpoint_kind>}}}, "probe_command": "<argv>"}`.
++It SHALL keep its existing exit codes: 0 at quorum, 2 below quorum or on probe failure. When
++the roster cannot be resolved it SHALL print `{"error": "<reason>", "modes": {}}` and exit 2.
++
++#### Scenario: A listed vendor without its CLI is unverified
++- **WHEN** `agents.yaml` lists `codex` for mode `review` and no `codex` executable is on `PATH`
++- **THEN** `--check-vendors --json` SHALL list `codex` under `unverified` with reason
++  `cli_not_found`, and SHALL NOT count it toward `--min-vendors`
++
++#### Scenario: A hanging dry invocation is unverified
++- **WHEN** a lane's dry invocation does not exit within 10 seconds
++- **THEN** the lane SHALL be `unverified` with reason `probe_timeout`
++
++#### Scenario: The probe never discloses credentials
++- **WHEN** the test sets `ANTHROPIC_API_KEY=sk-test-SENTINEL-1234567890`,
++  `OPENAI_API_KEY=sk-test-SENTINEL-0987654321` and
++  `OPENROUTER_API_KEY=sk-or-test-SENTINEL-5555555555`, configures an `openrouter` lane with an
++  injected transport that echoes the request headers in its response body, and runs
++  `--check-vendors --json`
++- **THEN** no sentinel value SHALL appear in stdout, stderr, log records, or the JSON, and no
++  `env` or `printenv` subprocess SHALL have been spawned
++
++#### Scenario: An OpenRouter lane verifies by its authenticated no-op
++- **WHEN** the injected transport answers `GET /key` with HTTP 200 and `limit: 20.0`,
++  `limit_remaining: 15.0`, the coordinator is unreachable, and `review_reservation_usd` is 1.0
++- **THEN** the lane SHALL be listed under `verified` for mode `review`, `lane_kinds` SHALL map
++  it to `openrouter`, and no chat-completions request SHALL have been sent
++
++#### Scenario: A rejected key is unverified
++- **WHEN** the injected transport answers `GET /key` with HTTP 401
++- **THEN** the lane SHALL be `unverified` with reason `auth_failed`
++
++#### Scenario: An exhausted ceiling is unverified
++- **WHEN** the coordinator reports `metered_ceiling_usd: 50.0` and `metered_usd_used: 49.5`, and
++  `review_reservation_usd` is 1.0
++- **THEN** the lane SHALL be `unverified` with reason `spend_ceiling_exceeded`, even if the key's
++  `limit_remaining` is larger
++
++#### Scenario: No ceiling source fails closed
++- **WHEN** the coordinator is unreachable or reports `metered_ceiling_usd: 0`, and the key
++  reports `limit: null`
++- **THEN** the lane SHALL be `unverified` with reason `spend_ceiling_unverifiable`
++
++#### Scenario: An unexpected probe response shape fails closed
++- **WHEN** `GET /key` returns HTTP 200 with a body that has no `data` object
++- **THEN** the lane SHALL be `unverified` with reason `spend_ceiling_unverifiable` unless the
++  coordinator ceiling source alone verifies it
++
++## ADDED Requirements
++
++### Requirement: Metered Review Lane Spend Accounting
++
++Every review that an `openrouter` lane dispatches SHALL request inline usage accounting
++(`"usage": {"include": true}`). On the resulting `ReviewResult` it SHALL set:
++- `generation_id`, `model_used`, `prompt_tokens`, `completion_tokens`;
++- `cost_usd`, taken from the response's `usage.cost`;
++- `cost_source`: `reported` when `usage.cost` is present, `estimated` when it is absent.
++
++`converge()` SHALL write these fields into the round checkpoint's vendor index.
++
++After each review that sent a request, `ReviewOrchestrator.dispatch_and_wait` SHALL call
++`spend_recorder.record()`, which SHALL send one row to `POST /routing/spend` with:
++`vendor` (the lane id), `model`, `endpoint_kind: openrouter`, `generation_id`, token counts,
++`actual_usd`, `tokens_estimated` (true when `cost_source` is `estimated`), and
++`work_unit_ref` (`<change_id>:<phase>:round-<n>`, for example
++`openrouter-review-lane:VAL_REVIEW:round-2`; the phase, not the review type, so IMPL_REVIEW and
++VAL_REVIEW rows stay distinct; `converge()` supplies it in the `spend_context` it passes to
++`dispatch_and_wait` when its caller gives the phase). The call SHALL happen on every dispatch path, including a host
++`converge()` or `/parallel-review-*` run that selected the metered lane, not only inside
++`agent_lane.py`. The result SHALL carry `spend_recorded` (the recorder's `recorded` value).
++
++If the write fails, the record SHALL be appended to
++`openspec/changes/<change-id>/reviews/spend-spool.jsonl`, and the caller SHALL record the
++degradation `metered_spend_unrecorded` with phase and lane. The change id SHALL come from the
++`spend_context` (`change_id`, `work_unit_ref`) passed to `dispatch_and_wait`. A metered lane
++dispatched without a `spend_context` SHALL NOT make an HTTP request; it SHALL return a failed
++result with `error_class` `vendor_unavailable` and reason `spend_context_missing`.
++
++#### Scenario: A metered lane without spend context is not dispatched
++- **WHEN** `dispatch_and_wait` is called with no `spend_context` and the selection includes the
++  `openrouter` lane
++- **THEN** no HTTP request SHALL be made for that lane, and its result SHALL have `error_class`
++  `vendor_unavailable` and reason `spend_context_missing`
++
++`spend_recorder.py replay --change-id <id>` SHALL post the spooled rows. Replay SHALL skip a
++`generation_id` the ledger already holds, and SHALL remove each row it delivers.
++
++Each time `dispatch_and_wait` is about to dispatch a metered lane (once per review round, on
++every dispatch path), the remaining budget SHALL be re-checked with the same rule the probe
++uses. A lane below `review_reservation_usd` SHALL NOT be dispatched
++for that round and SHALL be reported as a failed result with `error_class` `vendor_unavailable`
++and reason `spend_ceiling_exceeded`.
++
++#### Scenario: A later round finds the ceiling exhausted
++- **WHEN** the coordinator ceiling had budget at probe time, and before round 2 its remaining
++  budget is below `review_reservation_usd`
++- **THEN** round 2 SHALL NOT dispatch the `openrouter` lane, and SHALL record it as
++  `vendor_unavailable` with reason `spend_ceiling_exceeded`
++
++#### Scenario: A review is recorded against the ledger
++- **WHEN** an `openrouter` review returns `id: gen-abc`, `usage: {prompt_tokens: 1200, completion_tokens: 300, cost: 0.0042}`, and the coordinator accepts the write
++- **THEN** the ledger SHALL contain one row with `generation_id: gen-abc`, `actual_usd: 0.0042`,
++  and `tokens_estimated: false`, and the round checkpoint index entry for the lane SHALL carry
++  the same generation id, model and cost
++
++#### Scenario: A host-path metered review is recorded
++- **WHEN** a host with one non-metered lane runs `converge()` with `ReviewOrchestrator`, the fill
++  rule selects the `openrouter` lane, and its review returns `id: gen-host`
++- **THEN** `spend_recorder.record()` SHALL have been called once for `gen-host`, and the result's
++  `spend_recorded` SHALL be true when the coordinator accepts the write
++
++#### Scenario: Missing cost is labelled estimated
++- **WHEN** the response has token usage but no `usage.cost`
++- **THEN** `cost_source` SHALL be `estimated` and the ledger row SHALL have
++  `tokens_estimated: true`
++
++#### Scenario: Coordinator unavailable spools the record
++- **WHEN** `POST /routing/spend` fails with a connection error or HTTP 403
++- **THEN** the review result SHALL be unchanged, one line SHALL be appended to
++  `reviews/spend-spool.jsonl`, and a `metered_spend_unrecorded` degradation SHALL be recorded
++
++#### Scenario: Replay is idempotent
++- **WHEN** `replay` runs twice over a spool holding `gen-abc`, and the first run succeeds
++- **THEN** the ledger SHALL hold exactly one `gen-abc` row and the spool SHALL be empty
++
++### Requirement: Tool-less Lane Packet Refusal
++
++When a round's primary review packet has `tools_overflow: true`, `converge()` SHALL also build a
++tool-less packet for OpenAI-compatible lanes, within the same `BUDGET_CHARS`, with its own sidecar
++`review-packet.toolless.meta.json`:
++- for `review_type == "plan"`, its diff SHALL be limited to `openspec/changes/<change-id>/**`,
++  and it SHALL carry the full text of `proposal.md`, `design.md`, `tasks.md` and the spec deltas;
++- for `review_type == "implementation"`, it SHALL keep the rule-group selection, drop the excluded
++  and truncated files, and list them in the sidecar as `coverage.skipped`.
++
++`dispatch_and_wait` SHALL give OpenAI-compatible lanes the tool-less packet when one exists, and
++the primary packet otherwise. CLI lanes and the `claude_code` handshake lane SHALL keep the
++primary packet.
++
++An OpenAI-compatible lane SHALL NOT review a packet it received whose sidecar has
++`tools_overflow: true`. That means the tool-less packet when one was built, otherwise the primary
++packet. Its dispatch SHALL return `success=False`, `error_class=vendor_unavailable` and
++`error="packet_requires_tools"` without sending a request.
++The Empty Or Blinded Review Is Not Success rule SHALL apply to OpenAI-compatible lanes as it
++does to CLI lanes.
++
++#### Scenario: Overflowing branch diff still reaches the HTTP lane
++- **WHEN** a plan review's primary packet has `tools_overflow: true` because the branch diff
++  exceeds `BUDGET_CHARS`, but the change's own artifacts fit, and an `openrouter` lane is selected
++- **THEN** a tool-less packet with `tools_overflow: false` SHALL be written. The `openrouter` lane
++  SHALL be dispatched with that packet's body, and the CLI and handshake lanes SHALL receive the
++  primary packet
++
++#### Scenario: Overflowing packet is refused
++- **WHEN** the packet an `openrouter` lane would receive (the tool-less packet, or the primary
++  packet when no tool-less packet was built) has `tools_overflow: true`
++- **THEN** the lane's result SHALL be `success=False` with `error="packet_requires_tools"`, and the
++  injected transport SHALL record zero requests
++
++#### Scenario: Fast empty HTTP review does not count
++- **WHEN** an `openrouter` lane returns `{"findings": []}` in under the configured floor
++- **THEN** `success` SHALL be false, and the lane SHALL NOT count toward quorum
+diff --git a/openspec/changes/openrouter-review-lane/specs/skill-workflow/spec.md b/openspec/changes/openrouter-review-lane/specs/skill-workflow/spec.md
+new file mode 100644
+index 00000000..16f61ea2
+--- /dev/null
++++ b/openspec/changes/openrouter-review-lane/specs/skill-workflow/spec.md
+@@ -0,0 +1,144 @@
++## MODIFIED Requirements
++
++### Requirement: Honest Review Quorum
++
++When the launch marker of a dispatched child carries `review_requirements`, a review phase
++whose verified lanes from `execution_profile` are fewer than
++`review_requirements.min_quorum[phase]` SHALL record
++`park(kind=capability_unavailable, phase, missing_lanes)` and stop. It SHALL NOT run the review
++with a lower quorum.
++
++A standalone run (no launch marker) SHALL keep disabling CLI review below quorum. It SHALL
++record a `review_skipped` degradation, or a `single_vendor_review` degradation when exactly one
++lane reviewed.
++
++During `converge()`, a round can end with fewer successful results than `min_quorum`.
++`missing_lanes` SHALL be the round's verified lanes minus the lanes that returned a successful
++result. When `missing_lanes` is non-empty and every lane in it has a recorded failure whose
++`error_class` is `vendor_unavailable` or `auth_required`, `converge()` SHALL return
++`reason="capability_unavailable"` with `missing_lanes` naming those lanes. A verified lane with
++no result at all SHALL NOT satisfy this condition. This
++covers an exhausted budget, HTTP 402, a revoked key, or `packet_requires_tools`. Any other
++quorum loss SHALL remain `reason="quorum_lost"`.
++
++
++#### Scenario: A lane that returns nothing is not a capability loss
++- **WHEN** a PLAN_REVIEW round has verified lanes `claude_code` and `openrouter`, `claude_code`
++  succeeds, and `openrouter` returns neither a result nor a recorded failure
++- **THEN** `converge()` SHALL return `reason="quorum_lost"`, not `capability_unavailable`
++
++#### Scenario: Dispatched child below quorum parks
++- **WHEN** `review_requirements.min_quorum.PLAN_REVIEW` is 2 and only `claude_code` is verified
++- **THEN** the loop SHALL have `park.kind == capability_unavailable` with `missing_lanes` naming
++  the counting lanes not verified, no review dispatch SHALL have run, and `emit-result` SHALL
++  return `parked/capability_unavailable`
++
++#### Scenario: A single-lane review under a quorum-1 policy is recorded
++- **WHEN** a dispatched child's `review_requirements.min_quorum.PLAN_REVIEW` is 1 by policy
++  data, and exactly one review lane dispatches because the others failed to dispatch
++- **THEN** the review SHALL run, and `degradations` SHALL contain a `single_vendor_review` entry
++  for `PLAN_REVIEW` whose detail names the vendor
++- **AND** the child SHALL NOT have read environment variables or credentials to decide that only
++  one lane exists
++
++#### Scenario: GATEKEEPER review scheduling on the host-driven path
++- **WHEN** `runner.py transition --outcome proceed_with_review` is applied in `GATEKEEPER`
++- **THEN** `val_review_enabled` SHALL be True and `gate_verdict` SHALL be `proceed_with_review`
++
++#### Scenario: Standalone run below quorum records a degradation
++- **WHEN** no launch marker exists and `--check-vendors` reports one vendor
++- **THEN** `cli_review_enabled` SHALL be False and `degradations` SHALL contain one
++  `review_skipped` entry for `PLAN_REVIEW`
++
++#### Scenario: Budget exhausted mid-run parks instead of losing quorum
++- **WHEN** `min_quorum` is 2, round 1 succeeds with `claude_code` and `openrouter`, and in round 2
++  `openrouter` fails with HTTP 402 (`error_class=vendor_unavailable`)
++- **THEN** `converge()` SHALL return `reason="capability_unavailable"` with
++  `missing_lanes == ["openrouter"]`, and SHALL NOT return `quorum_lost`
++
++#### Scenario: A malformed review still loses quorum
++- **WHEN** `min_quorum` is 2 and a round's `openrouter` result fails with
++  `error_class=unknown` ("Review output was not valid review-findings JSON")
++- **THEN** `converge()` SHALL return `reason="quorum_lost"`
++
++## ADDED Requirements
++
++### Requirement: Composite Agent-Lane Review
++
++`agent_lane.py converge` SHALL accept `--verified-lanes` (repeatable). A dispatched child SHALL
++take the values from its launch marker's `execution_profile.lanes.review`. A standalone run
++SHALL take them from the `--check-vendors --json` output and SHALL NOT read environment
++variables or credentials.
++
++It SHALL resolve the quorum policy with `verified_review_lanes` equal to the number of
++verified lanes, and SHALL pass those lanes to `converge()` as `verified_lanes`.
++
++Each round SHALL:
++- dispatch the `claude_code` handshake lane;
++- in parallel, dispatch `ReviewOrchestrator.dispatch_and_wait(include_lanes=<verified lanes except claude_code>)`;
++- return both results to `converge()`.
++
++Every lane's findings SHALL be written to the round checkpoint under its own lane id, and
++ConsensusSynthesizer SHALL attribute consensus findings to those lane ids.
++
++After each run, `agent_lane.py` SHALL write `ConvergenceResult.consensus` (including
++`quorum_received`) under `openspec/changes/<change-id>/reviews/`, with one file per phase:
++- `consensus-plan.json` for `PLAN_REVIEW`;
++- `consensus-impl-review.json` for `IMPL_REVIEW`;
++- `consensus-val-review.json` for `VAL_REVIEW`.
++
++The two implementation phases share `review_type: implementation`, so the file is named by phase
++and neither run overwrites the other. `converge()` itself SHALL NOT be required to write these
++files.
++
++The review body written for `VAL_REVIEW` SHALL list every lane that reviewed. It SHALL name a
++`single_vendor_review` degradation only when exactly one lane reviewed.
++
++#### Scenario: Cloud plan review reaches quorum two
++- **WHEN** `agent_lane.py converge --phase PLAN_REVIEW --verified-lanes claude_code --verified-lanes openrouter`
++  runs against a fixture change, with an injected OpenRouter transport that returns
++  schema-valid findings and an agent handshake that writes schema-valid findings
++- **THEN** `converge()` SHALL be called with `min_quorum=2`, the round checkpoint SHALL contain
++  findings files for both `claude_code` and `openrouter`, `consensus` SHALL report
++  `quorum_received: 2`, and `reviews/consensus-plan.json` SHALL contain the same consensus
++
++#### Scenario: Findings carry vendor attribution
++- **WHEN** both lanes report a finding at the same file and line range
++- **THEN** the consensus finding SHALL list both `claude_code` and `openrouter` in its vendor
++  attribution, and the review ledger entry SHALL preserve both lane ids
++
++#### Scenario: Only the agent lane verified
++- **WHEN** `--verified-lanes claude_code` is the only lane and no active policy lowers the quorum
++- **THEN** `converge()` SHALL return `capability_unavailable` with `missing_lanes` naming the
++  counting lanes not verified, and no handshake file SHALL be written
++
++### Requirement: Cloud Single-Vendor Policy Retirement
++
++The temporary cloud single-vendor policy SHALL be retired only after an evidence file
++`openspec/changes/openrouter-review-lane/evidence/cloud-quorum-run.md` records a cloud-container
++autopilot run on a fixture change. The run must show:
++- `PLAN_REVIEW` with `min_quorum=2`;
++- a `consensus-plan.json` attributing findings or confirmations to `claude_code` and to an
++  `openrouter` lane;
++- a ledger or spool row carrying that review's `generation_id`.
++
++Retirement SHALL:
++- delete the `cloud-container-single-vendor-2026-10-09` entry from
++  `review_quorum_policy.json`, keeping the `policies` array and its `sunset` field as the
++  mechanism for future exceptions;
++- delete the "Review quorum in cloud containers (temporary)" section of `TRUST_POSTURE.md`;
++- update `skills/autopilot/SKILL.md` so that no instruction tells a cloud worker to accept
++  single-vendor review.
++
++#### Scenario: Retirement restores quorum two in cloud
++- **WHEN** the policy entry has been deleted and `resolve_quorum_policy(environment="cloud_container", verified_review_lanes=1)` is called
++- **THEN** `min_quorum` SHALL be 2 for each review phase and `policy_id` SHALL be null
++
++#### Scenario: Retirement is blocked without evidence
++- **WHEN** a guard test finds `review_quorum_policy.json` without the cloud entry but no
++  `evidence/cloud-quorum-run.md` in this change, or an evidence file missing a `generation_id`
++- **THEN** the test SHALL fail
++
++#### Scenario: No prose exception remains
++- **WHEN** a guard test scans `TRUST_POSTURE.md` after retirement
++- **THEN** it SHALL find no section titled "Review quorum in cloud containers"
+diff --git a/openspec/changes/openrouter-review-lane/specs/supervise/spec.md b/openspec/changes/openrouter-review-lane/specs/supervise/spec.md
+new file mode 100644
+index 00000000..bae00088
+--- /dev/null
++++ b/openspec/changes/openrouter-review-lane/specs/supervise/spec.md
+@@ -0,0 +1,79 @@
++## MODIFIED Requirements
++
++### Requirement: Execution Profile and Review Requirements
++
++Before launching a batch, the supervisor SHALL resolve two values by invoking
++`review_dispatcher.py --check-vendors --json`, and SHALL place both in every request:
++
++- **`execution_profile`**: verified lanes per mode (`review`, `alternative`, `quick`);
++  `location`; isolation mode; and `probe_command`, the only probe a worker may run.
++- **`review_requirements`**: `min_quorum` per review phase, and `counting_lanes`.
++  - `min_quorum` defaults to 2 and can be overridden by the router context
++    `review_min_quorum`.
++  - `counting_lanes` are ordered by the `cost_policy.tiers` ladder of
++    `agent-coordinator/routing.yaml`. Each lane's endpoint kind is read from the report's
++    `lane_kinds`. The kind is inferred from the `probe_unsupported` reason only when
++    `lane_kinds` is absent.
++
++The worker protocol in `skills/autopilot/SKILL.md` SHALL forbid reading environment variables
++or credentials to discover capabilities. `ExecutionAdapter.apply` SHALL persist the result's
++`degradations` on the checkpoint attempt and SHALL return them in its summary. When the result
++carries a `metered_spend_unrecorded` degradation, `apply` SHALL run
++`spend_recorder.py replay --change-id <id>` once, and SHALL report the replay outcome in its
++summary without failing the apply.
++
++#### Scenario: Request carries a resolved profile
++- **WHEN** `prepare` returns a batch
++- **THEN** every request SHALL validate against `dispatch-request.schema.json` with non-empty
++  `execution_profile.lanes.review`, `execution_profile.probe_command`, and
++  `review_requirements.min_quorum` keyed by review phase
++
++#### Scenario: Profile resolution failure blocks launch
++- **WHEN** `--check-vendors --json` prints output that does not parse as JSON, or JSON carrying
++  an `error` field
++- **THEN** `prepare` SHALL raise without writing any attempt, and the error SHALL name the probe
++  failure
++
++#### Scenario: Below-quorum availability still launches with an honest profile
++- **WHEN** `--check-vendors --json` exits 2 (below quorum) with valid JSON and no `error` field
++- **THEN** `prepare` SHALL succeed, and each request's `execution_profile.lanes.review` SHALL
++  list only the verified lanes, so the child parks `capability_unavailable` at its first review
++  phase
++
++#### Scenario: The per-environment quorum is resolved from data
++- **WHEN** the quorum policy data declares an active `cloud_container` entry with `min_quorum` 1
++  that applies below 2 verified review lanes, and `prepare` runs in a cloud container where one
++  review lane verifies
++- **THEN** every request's `review_requirements.min_quorum` SHALL be 1 for each review phase,
++  and `review_requirements.quorum_policy` SHALL name the environment, the policy entry, and its
++  sunset condition
++- **AND** on a host, or in a container where two or more review lanes verify, `min_quorum` SHALL
++  stay 2
++
++#### Scenario: A verified OpenRouter lane is ranked as metered
++- **WHEN** the report's `review.verified` is `["claude_code", "openrouter"]` with
++  `lane_kinds: {"claude_code": "vendor-cli", "openrouter": "openrouter"}`, and the routing ladder is
++  `[vendor-cli, vendor-sdk, openrouter]`
++- **THEN** `counting_lanes` SHALL be `["claude_code", "openrouter"]`, and `min_quorum` SHALL be 2
++  for each review phase
++
++#### Scenario: A report without lane_kinds still ranks
++- **WHEN** the report has no `lane_kinds` key
++- **THEN** ranking SHALL use the previous `probe_unsupported` inference and `prepare` SHALL succeed
++
++#### Scenario: Degradations reach the checkpoint
++- **WHEN** a success result carries
++  `degradations: [{code: single_vendor_review, phase: PLAN_REVIEW, detail: "codex not dispatchable"}]`
++- **THEN** after `apply` the checkpoint attempt's outcome metadata and the `apply` return value
++  SHALL both contain that entry unchanged
++
++#### Scenario: Unrecorded spend is replayed on apply
++- **WHEN** a result carries a `metered_spend_unrecorded` degradation and the coordinator accepts
++  the replay
++- **THEN** `apply` SHALL return a summary with the replayed row count, and the degradation SHALL
++  remain on the checkpoint attempt
++
++#### Scenario: Worker protocol forbids env probing
++- **WHEN** a guard test scans `skills/autopilot/SKILL.md` and `skills/supervise/SKILL.md`
++- **THEN** neither SHALL contain an instruction to run `env`, `printenv`, or to read API key
++  variables for vendor discovery
+diff --git a/openspec/changes/openrouter-review-lane/tasks.md b/openspec/changes/openrouter-review-lane/tasks.md
+index 200faab7..142b9dce 100644
+--- a/openspec/changes/openrouter-review-lane/tasks.md
++++ b/openspec/changes/openrouter-review-lane/tasks.md
+@@ -1,19 +1,342 @@
+ # Tasks: OpenRouter review lane for cloud workers
+ 
+-> Change ID: `openrouter-review-lane`
++> Change ID: `openrouter-review-lane`. Design decisions are referenced as D1–D9 (`design.md`).
++> Tests come first within each group (TDD). Each numbered task is sized for a single commit.
++> Each group lists **Files** (write scope) and **Depends** (blocking groups). Groups whose
++> write scopes do not overlap can run in parallel.
+ 
+-## Status
++## Dependency graph
+ 
+-- [ ] Planning
+-- [ ] Implementation
+-- [ ] Testing
+-- [ ] Review
+-- [ ] Done
++```
++1 (adapter) ────────────────┐
++2 (roster) ─────────────────┼─> 3 (dispatcher discovery/probe/spend call) ──┬─> 5 (convergence) ──┬─> 7 (cloud E2E + retirement)
++4 (spend route + recorder) ─┘                                               └─> 6 (supervisor)  ──┘
++```
+ 
+-## Tasks
++Groups 1, 2 and 4 are independent, so up to 3 can run in parallel. Group 3 needs all three
++(4 for the `spend_recorder.record()` call in task 3.10). Groups 5 and 6 run in parallel after
++group 3. Group 7 runs last. Sequential chain length is 4.
+ 
+-- [ ] Define detailed requirements
+-- [ ] Implement core functionality
+-- [ ] Write tests
+-- [ ] Update documentation
+-- [ ] Review and merge
++## 1. OpenAI-compatible adapter: probe, cost capture, packet refusal
++
++**Files:** `skills/parallel-infrastructure/scripts/openai_compat_adapter.py`,
++`skills/parallel-infrastructure/scripts/review_dispatcher.py` (only the `ReviewResult`
++dataclass fields and the shared ingest helper extracted in 1.7),
++`skills/tests/parallel-infrastructure/test_openai_compat_adapter.py`
++**Depends:** none
++**Specs:** parallel-infrastructure "Dispatchable Vendor Verification" (probe part),
++"Metered Review Lane Spend Accounting" (capture part), "Tool-less Lane Packet Refusal"
++(including "Fast empty HTTP review does not count"); acceptance outcome 4
++
++- [x] 1.1 Write the failing tests, all using an injected transport:
++  - `probe()` for `openrouter` sends `GET {base_url}/key`, and for `local` sends `GET /models`.
++  - 200 → `ok` with numeric budget fields.
++  - 401 → `auth_failed`; timeout → `probe_timeout`; connection error → `endpoint_unreachable`.
++  - A body with no `data` → budget `None`.
++  - Sentinel test: a transport that echoes the headers leaks nothing into the result, the
++    logs, or the exception text.
++- [x] 1.2 Implement `ProbeResult` and `OpenAICompatAdapter.probe(api_key, transport, timeout=10)`.
++  Add a GET-capable transport alongside the existing POST transport, using the default SSL
++  context (so `SSL_CERT_FILE` is honoured). Cite the OpenRouter docs URLs for `/key` in a
++  comment (source-driven-development).
++- [x] 1.3 Write the failing tests for cost capture:
++  - The request body includes `usage: {include: true}`.
++  - The response fields `usage.prompt_tokens`, `usage.completion_tokens` and `usage.cost` map
++    to the new `ReviewResult` fields.
++  - Without a cost, `cost_source == "estimated"`.
++- [x] 1.4 Add the optional `ReviewResult` fields `prompt_tokens`, `completion_tokens`,
++  `cost_usd`, `cost_source` and `spend_recorded` (set by task 3.10), all defaulting to `None`,
++  and implement the capture in `dispatch()`.
++- [x] 1.5 Write a failing test: `dispatch(..., tools_overflow=True)` returns
++  `packet_requires_tools` / `vendor_unavailable` with zero transport calls. Then implement the
++  `tools_overflow` keyword (default False).
++- [x] 1.6 Write failing tests: HTTP findings go through the same ingest pipeline as CLI findings.
++  Today `OpenAICompatAdapter.dispatch` only calls `CliVendorAdapter._parse_findings`. The tests,
++  each using an injected transport, cover:
++  - a fast `{"findings": []}` (under `empty_findings_min_seconds()`) → `success=False`,
++    `error="empty_findings_too_fast"`;
++  - a schema-invalid payload → `success=False`, `error_class=unknown`;
++  - a placeholder-only payload → `success=False`, `error="non_substantive_placeholder"`;
++  - a valid payload → findings coerced (`coerce_findings_payload`), stamped
++    `evidence_class: judgment` (`stamp_judgment_ingest`), and line-resolved against the packet diff,
++    exactly as on the CLI path.
++- [x] 1.7 Factor the CLI ingest steps (coerce → validate → judgment stamp → line resolve →
++  placeholder check → empty-findings floor) out of `CliVendorAdapter` into a shared helper in
++  `review_dispatcher.py`. Call it from both adapters. CLI behaviour must not change: the existing
++  `test_fast_empty_findings_are_unsuccessful` and the related ingest tests stay green.
++
++## 2. Lane roster
++
++**Files:** `agent-coordinator/agents.yaml`, `agent-coordinator/archetypes.yaml`,
++`agent-coordinator/routing.yaml` (append the `metered-api-cloud` tier only),
++`agent-coordinator/tests/test_agents_config.py`, `agent-coordinator/tests/test_archetypes_yaml.py`
++(add tests only)
++**Depends:** none
++**Specs:** parallel-infrastructure "OpenAI-Compatible Dispatcher Discovery"
++
++- [x] 2.1 Write failing tests:
++  - `openrouter-review` loads with `endpoint_kind: openrouter`, a `base_url`, no `cli`/`sdk`,
++    `archetypes: [reviewer]`, and `vendor_credentials: [openrouter]`.
++  - `get_dispatch_configs()` emits it.
++  - The `openrouter` provider resolves `premium`, `standard` and `economy` slugs, none with
++    publisher `anthropic`.
++  - `RoutingPolicy.cost_tier("cloud", "openrouter")` is not `None` (design D1), and
++    `cost_tier("local", "openrouter")` still returns `metered-api`.
++- [x] 2.2 Add the agent entry (design D1), the `openrouter` provider tier map, and the
++  `metered-api-cloud` tier (`location: cloud`, `endpoint_kinds: [openrouter]`), appended last to
++  `routing.yaml` `cost_policy.tiers`. Choose the
++  premium slug from the live OpenRouter model catalog: it must be non-Anthropic and preferably
++  a family not served by a host CLI. Record the catalog URL and the date in a YAML comment.
++- [x] 2.3 Run the registry projection tests (`test_registry_projection.py`,
++  `test_vendor_registry.py`, profile sync) and fix any projection assumption that every agent
++  carries a CLI or SDK block.
++
++## 3. Dispatcher discovery, probe wiring, family and fill rules
++
++**Files:** `skills/parallel-infrastructure/scripts/review_dispatcher.py` (excluding the
++`ReviewResult` dataclass, which group 1 owns), `skills/parallel-infrastructure/review_quorum_policy.json`
++(add `vendor_families` and `metered_lanes` only; do not touch `policies`),
++`skills/parallel-infrastructure/scripts/review_packet.py` (the tool-less packet builder only),
++`skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py`,
++`skills/parallel-infrastructure/scripts/tests/test_review_packet.py`,
++`skills/parallel-infrastructure/tests/test_check_vendors_api_lane.py` (new)
++**Depends:** 1, 2 (the roster is needed only for the integration test in 3.9; tests 3.1–3.8 use inline config dicts), 4 (the `spend_recorder.record()` interface, task 3.10)
++**Specs:** parallel-infrastructure "OpenAI-Compatible Dispatcher Discovery" (MODIFIED),
++"Dispatchable Vendor Verification" (MODIFIED), "Tool-less Lane Packet Refusal"
++
++- [x] 3.1 Write failing tests for the family rule:
++  - An `anthropic/` primary or fallback → `unverified` with reason `anthropic_family`.
++  - `codex` at tier 1 plus an `openai/` OpenRouter lane → `duplicate_model_family`.
++  - A vendor missing from `vendor_families` is never a duplicate.
++  - Two-pass order (design D2): a non-metered vendor that sorts after `openrouter` (for example
++    `pi`, mapped to `openai`) still makes an `openai/` OpenRouter lane a `duplicate_model_family`.
++- [x] 3.2 Add `vendor_families` and `metered_lanes {fill_target, review_reservation_usd}` to
++  `review_quorum_policy.json`, plus a loader. Implement the family rule in
++  `from_config_dict` / `discover_reviewers` (design D2).
++- [x] 3.3 Write failing tests for the fill rule. With `fill_target` 2:
++  - two non-metered lanes → no metered lane is selected;
++  - one non-metered lane → exactly one metered lane is selected.
++  
++  Also test that `dispatch_and_wait(include_lanes=...)` restricts dispatch.
++- [x] 3.4 Implement the two-pass selection (design D2): pass 1 for tier 1/2, pass 2 for tier-2.5
++  candidates in `agents.yaml` roster order. Then implement the metered fill selection (design D5)
++  and the `include_lanes` filter. Add a fill-rule test where the non-metered lane sorts after the
++  metered one.
++- [x] 3.5 Write failing tests for `_probe_mode` on API lanes, using an injected probe and an
++  injected coordinator-usage function:
++  - verified when the key limit leaves enough budget;
++  - `spend_ceiling_exceeded` when the coordinator has too little budget left;
++  - `spend_ceiling_unverifiable` when there is no ceiling source;
++  - `auth_failed` passes through;
++  - `lane_kinds` is present for every lane;
++  - no chat-completions call is made.
++- [x] 3.6 Implement the API-lane probe in `_probe_mode`. Resolve the key via `ApiKeyResolver`,
++  fetch coordinator usage through an injectable `GET /routing/usage` client (which fails soft
++  to "source unavailable"), apply the budget rule (design D4) through a reusable function that
++  `dispatch_and_wait` also calls per round (task 3.11), and emit `lane_kinds`. Keep
++  `probe_unsupported` for SDK lanes.
++- [x] 3.7 Extend the existing credential-sentinel test to cover `OPENROUTER_API_KEY` and an
++  OpenRouter lane with an echoing transport.
++- [x] 3.8 Write a failing test, then implement: `dispatch_and_wait` reads `tools_overflow` from
++  the packet sidecar next to `packet_path` and passes it to OpenAI-compatible adapters.
++- [x] 3.8a Write failing tests, then implement in `review_packet.py`: a `build_toolless_packet`
++  (design D6) and its `review-packet.toolless.meta.json` sidecar. Tests:
++  - For `review_type="plan"`, a branch whose full diff overflows `BUDGET_CHARS` yields a tool-less
++    packet with `tools_overflow: false` that contains the full `proposal.md`, `design.md`,
++    `tasks.md` and spec deltas.
++  - For `implementation`, the dropped files appear in `coverage.skipped`.
++  - `dispatch_and_wait` passes the tool-less body and flag to OpenAI-compatible adapters, and the
++    primary body to CLI lanes.
++- [x] 3.9 Integration test: with the repository's `agents.yaml`, an injected transport and no
++  `pi`/`codex` binaries on `PATH`, `--check-vendors --json` lists `openrouter` as verified and
++  maps it to `openrouter` in `lane_kinds`.
++- [x] 3.10 Write failing tests, then implement: `ReviewOrchestrator.dispatch_and_wait` calls
++  `spend_recorder.record()` once after every OpenAI-compatible result with `endpoint_kind:
++  openrouter` that made an HTTP request, and sets `ReviewResult.spend_recorded` to its
++  `recorded` value. The row's `change_id` (for the spool path) and `work_unit_ref` come from a
++  new optional `dispatch_and_wait` keyword `spend_context: SpendContext | None` (design D4); a
++  metered lane with no `spend_context` is not dispatched and returns `vendor_unavailable`
++  (`spend_context_missing`). This covers every dispatch path: `converge()` with `ReviewOrchestrator` on a
++  host where the fill rule (D5) selected the metered lane, the `/parallel-review-*` one-shot
++  dispatch, and `CompositeOrchestrator` (which calls `dispatch_and_wait`). Tests: a host-path
++  dispatch with an injected transport and an injected recorder records one row; a refused
++  (`packet_requires_tools`) or budget-skipped lane records nothing; a recorder returning
++  `recorded=False` yields `spend_recorded=False`; a metered lane with no `spend_context` makes no
++  HTTP request and returns `spend_context_missing`; `/parallel-review-*` passes a one-shot
++  `SpendContext`.
++- [x] 3.11 Write failing tests, then implement the per-round budget re-check (design D4) in
++  `ReviewOrchestrator.dispatch_and_wait`: before dispatching a metered lane it re-runs the
++  probe's budget function (task 3.6); a lane below `review_reservation_usd` is not dispatched
++  and is returned `vendor_unavailable` (`spend_ceiling_exceeded`). For the coordinator source it
++  counts the change's unreplayed spool total as used (design D4). Tests: budget available at probe,
++  exhausted before the second dispatch → that dispatch skips the lane, records no spend; key limit
++  null, coordinator remaining 1.5, spool total 1.0, reservation 1.0 → the lane is skipped.
++
++## 4. Spend recording route and client
++
++**Files:** `agent-coordinator/src/model_routing/api.py`, `agent-coordinator/src/model_routing/ledger.py`
++(an idempotent lookup only), `agent-coordinator/tests/model_routing/test_spend_route.py` (new),
++`skills/parallel-infrastructure/scripts/spend_recorder.py` (new),
++`skills/tests/parallel-infrastructure/test_spend_recorder.py` (new)
++**Depends:** none (the interface is the request body in the model-routing spec)
++**Specs:** model-routing "Review Spend Recording Route"; parallel-infrastructure "Metered
++Review Lane Spend Accounting" (record, spool and replay part)
++
++- [x] 4.1 Write failing route tests: 201 on insert, 200 on a duplicate `generation_id`, 401
++  without a key, 422 on a negative `actual_usd` or an unknown field, and `GET /routing/usage`
++  reflects the row.
++- [x] 4.2 Implement the `SpendRecordRequest` Pydantic model (`extra="forbid"`), the
++  `POST /routing/spend` route, and `LedgerService.find_by_generation_id`. No database
++  migration is needed because `generation_id` already exists.
++- [x] 4.3 Write failing client tests:
++  - `record()` posts the row.
++  - On a connection error or 403 it appends to `reviews/spend-spool.jsonl` and returns
++    `recorded=False`.
++  - `replay --change-id` is idempotent and empties the spool.
++  - No API key value appears in the spool.
++- [x] 4.4 Implement `spend_recorder.py`: `record()`, `replay()`, and a CLI. It authenticates
++  with the existing coordination-bridge credentials (`COORDINATION_API_URL`/`COORDINATION_API_KEY`,
++  read only inside the bridge's credential path).
++
++## 5. Convergence: composite agent lane and honest mid-run loss
++
++**Files:** `skills/autopilot/scripts/agent_lane.py`, `skills/autopilot/scripts/convergence_loop.py`,
++`skills/autopilot/scripts/runner.py` (only to add `metered_spend_unrecorded` to
++`record-degradation` choices), `openspec/schemas/dispatch-result.schema.json` (only the enum
++value), `skills/tests/autopilot/test_agent_lane.py`, `skills/tests/autopilot/test_convergence_loop_capability.py` (new)
++**Depends:** 3, 4
++**Specs:** skill-workflow "Honest Review Quorum" (MODIFIED), "Composite Agent-Lane Review";
++parallel-infrastructure "Metered Review Lane Spend Accounting" (checkpoint part)
++
++- [x] 5.1 Write failing tests: in round 2 the OpenRouter lane fails `vendor_unavailable` →
++  `capability_unavailable` with `missing_lanes == ["openrouter"]`; an `unknown` failure →
++  `quorum_lost`; a verified lane with no result and no recorded failure → `quorum_lost`
++  (`missing_lanes` = verified − succeeded, never vacuous).
++- [x] 5.2 Implement the mid-run capability mapping in `converge()` (design D7). Write
++  `generation_id`, `prompt_tokens`, `completion_tokens`, `cost_usd` and `cost_source` into the
++  round checkpoint's vendor index.
++- [x] 5.3 Add `metered_spend_unrecorded` to the `Degradation.code` enum in
++  `dispatch-result.schema.json` and to the `runner.py record-degradation` choices. Update the
++  schema fixture test.
++- [x] 5.4 Write failing tests for the `CompositeOrchestrator`:
++  - Run against a fixture change with an injected transport and a scripted handshake.
++  - `converge()` receives `min_quorum=2`, the checkpoint holds both lane files, and
++    `quorum_received == 2`.
++  - Consensus findings attribute both lane ids.
++  - `--verified-lanes claude_code` alone → `capability_unavailable` with no handshake files.
++- [x] 5.5 Implement `--verified-lanes`, `CompositeOrchestrator` (the handshake lane plus
++  `ReviewOrchestrator.dispatch_and_wait(include_lanes=...)` run concurrently, with the result
++  callback forwarded), and quorum-policy resolution from the verified count. For each
++  metered result whose `spend_recorded` is `False` (recorded by the dispatcher, task 3.10),
++  record the `metered_spend_unrecorded` degradation through the result payload. `agent_lane`
++  does not call `spend_recorder.record()` itself. Update `_review_body` to list the lanes.
++- [x] 5.6 Write failing tests, then implement:
++  - `converge()` accepts an optional `phase` and, when it is set, passes
++    `spend_context=SpendContext(change_id, "<change_id>:<phase>:round-<n>")` to `dispatch_and_wait`
++    (via `_accepts_kwarg`; the keyword and dataclass are the ones task 3.10 adds);
++    `agent_lane.py` passes its `--phase`.
++  - `converge()` builds the tool-less packet (task 3.8a) when the primary packet overflows, and
++    passes the tool-less packet as `dispatch_and_wait(..., toolless_packet_path=...)` (design D6).
++  - `agent_lane.py` `result.json` carries `missing_lanes` (from `ConvergenceResult.missing_lanes`),
++    `lanes` (the lane ids that returned a successful result), `quorum_received`, a per-lane
++    `{model_used, generation_id, cost_usd, cost_source}` map, and `degradations` (including
++    `metered_spend_unrecorded`). Task 6.4's park and degradation rules read these fields.
++  - After each run, `agent_lane.py` writes `ConvergenceResult.consensus` (with `quorum_received`)
++    to `openspec/changes/<id>/reviews/`, using one file per phase so the two implementation phases
++    do not collide: `consensus-plan.json` (PLAN_REVIEW), `consensus-impl-review.json`
++    (IMPL_REVIEW), `consensus-val-review.json` (VAL_REVIEW). This matches the skill-workflow
++    "Composite Agent-Lane Review" requirement. The D9 evidence and task 7.2 cite
++    `consensus-plan.json`. `converge()` itself never writes these files.
++- [x] 5.7 Write a failing test, then make it pass: with the dispatcher's budget re-check (task
++  3.11) injected to fail before round 2, `converge()` through `CompositeOrchestrator` ends
++  `capability_unavailable` with `missing_lanes == ["openrouter"]` (design D7). `converge()`
++  itself gains no budget logic.
++
++## 6. Supervisor ranking, apply-time replay, and worker protocol
++
++**Files:** `skills/supervise/scripts/execution.py`, `skills/tests/supervise/test_execution_profile.py`,
++`skills/autopilot/SKILL.md` (the review-section protocol text and the host-path `converge(...)`
++examples only)
++**Depends:** 3 (the `lane_kinds` shape), 4 (the replay CLI)
++**Specs:** supervise "Execution Profile and Review Requirements" (MODIFIED)
++
++- [x] 6.1 Write failing tests: `lane_kinds` ranks `openrouter` after `vendor-cli`; a missing
++  `lane_kinds` falls back to the old inference.
++- [x] 6.2 Implement the `rank()` change in `resolve_execution_profile` (design D8).
++- [x] 6.3 Write failing tests, then implement: `ExecutionAdapter.apply` runs
++  `spend_recorder.py replay` once when a `metered_spend_unrecorded` degradation is present,
++  reports the replayed count, and never fails the apply on a replay error.
++- [x] 6.4 Update the autopilot `SKILL.md` review section with these rules:
++  - In cloud, run `agent_lane.py converge --verified-lanes <each lane from execution_profile.lanes.review>`.
++  - A `capability_unavailable` result maps to `runner.py park --kind capability_unavailable`.
++  - Record the degradation `metered_spend_unrecorded` when the result reports it.
++  - Every host-path `converge(...)` example (the PLAN_REVIEW inline fallback and the IMPL_REVIEW
++    and VAL_REVIEW equivalents) passes `phase="<PLAN_REVIEW|IMPL_REVIEW|VAL_REVIEW>"`. Without it
++    `converge()` sends no `spend_context`, and a metered lane that D5 selects on a host is refused
++    with `spend_context_missing` (task 3.10). Extend the SKILL guard test to assert that each host
++    `converge(` example names `phase=`.
++  
++  Keep the env-probing guard test green.
++
++## 7. Cloud end-to-end evidence and retirement of the temporary policy
++
++**Files:** `openspec/changes/openrouter-review-lane/evidence/cloud-quorum-run.md` (new),
++`skills/parallel-infrastructure/review_quorum_policy.json` (`policies` entry),
++`TRUST_POSTURE.md`, `skills/autopilot/SKILL.md` (single-vendor references),
++`docs/guides/` (cloud setup note), `skills/tests/parallel-infrastructure/test_quorum_policy_retirement.py` (new)
++**Depends:** 1–6 merged on the feature branch
++**Specs:** skill-workflow "Cloud Single-Vendor Policy Retirement"; acceptance outcome 1
++
++- [ ] 7.1 Document the cloud setup in the guide that covers cloud environments: the
++  `OPENROUTER_API_KEY` environment secret, the egress allowlist entry `openrouter.ai`,
++  `SSL_CERT_FILE` for the agent proxy CA, and the ceiling sources (a coordinator
++  `ROUTING_MONTHLY_CEILING_USD > 0`, or an OpenRouter key with a credit limit).
++- [ ] 7.2 This step is run by the operator in a provisioned cloud container. Run `/autopilot`
++  on a fixture change through PLAN_REVIEW. Write `evidence/cloud-quorum-run.md` with:
++  - the `--check-vendors --json` report (verified lanes, `lane_kinds`, no secrets);
++  - `min_quorum` from `review_requirements`;
++  - the `consensus-plan.json` lane attribution;
++  - the ledger or spool `generation_id`, model and cost.
++- [ ] 7.3 Write the guard test `test_quorum_policy_retirement.py`:
++  - It fails if the cloud policy entry is absent while the evidence file is missing or has no
++    `generation_id`.
++  - It asserts that `TRUST_POSTURE.md` has no "Review quorum in cloud containers" section.
++  - It asserts that `resolve_quorum_policy(cloud_container, 1)` returns quorum 2.
++- [ ] 7.4 Delete the `cloud-container-single-vendor-2026-10-09` entry and the `TRUST_POSTURE.md`
++  section. Remove the cloud single-vendor guidance from `skills/autopilot/SKILL.md`. Check
++  whether `posture_digest` changes, and record the result in the session log.
++- [ ] 7.5 Run `skills/install.sh` to sync the runtime copies, the full `skills/` and
++  `agent-coordinator` test sweeps (`pytest -m "not e2e and not integration"`), `ruff`,
++  `mypy --strict` on the touched coordinator modules, and `openspec validate openrouter-review-lane --strict`.
++
++## 8. Implementation iteration
++
++- [x] 8.1 Carry the `metered-api-cloud` tier in this change's `contracts/config/` schemas and
++  revert the archived routing-cost-policy schema and the task-router change's `routing.schema.json`.
++- [x] 8.2 Add the `configuration` spec delta that admits an optional `openrouter` key in the
++  provider model map, with a schema test.
++- [x] 8.3 Make the `generation_id` dedupe in `POST /routing/spend` atomic (unique constraint plus
++  `ON CONFLICT DO NOTHING`) and add a concurrent-duplicate test.
++- [x] 8.4 Suppress the misleading "Cross-vendor review NOT CHECKED" stderr inside the composite lane.
++- [x] 8.5 Find and fix the shared-state leak behind the order-dependent
++  `test_relayed_gate_answer` stale-ref test.
++- [x] 8.6 Record the as-built notes in `design.md` (D1 credentials, D5 fill rule, spend on empty
++  findings, null `phase_archetype`).
++- [ ] 8.7 Follow-up, out of scope here: make endpoint-only agents eligible to the task-router
++  resolver, which today excludes `openrouter-review` as `lane:dispatch-mode-ineligible`.
++
++## Traceability
++
++| Requirement | Tasks |
++|---|---|
++| parallel-infrastructure: OpenAI-Compatible Dispatcher Discovery | 2.1–2.3, 3.1–3.4, 3.9 |
++| parallel-infrastructure: Dispatchable Vendor Verification | 1.1–1.2, 3.5–3.7, 3.9 |
++| parallel-infrastructure: Metered Review Lane Spend Accounting | 1.3–1.4, 3.10–3.11, 4.3–4.4, 5.2, 5.5–5.7, 6.4 |
++| parallel-infrastructure: Tool-less Lane Packet Refusal | 1.5–1.7, 3.8, 3.8a, 5.6 |
++| skill-workflow: Honest Review Quorum | 5.1–5.3 |
++| skill-workflow: Composite Agent-Lane Review | 5.4–5.6, 6.4 |
++| skill-workflow: Cloud Single-Vendor Policy Retirement | 5.6, 7.1–7.4 |
++| supervise: Execution Profile and Review Requirements | 6.1–6.3 |
++| configuration: Provider Model Mapping Configuration | 8.2 |
++| model-routing: Review Spend Recording Route | 4.1–4.2, 8.3 |
++| Acceptance outcome 4 (schema-conformant HTTP findings, synthesized like CLI lanes) | 1.6–1.7 |
+diff --git a/openspec/schemas/dispatch-result.schema.json b/openspec/schemas/dispatch-result.schema.json
+index e7168bc2..9035488c 100644
+--- a/openspec/schemas/dispatch-result.schema.json
++++ b/openspec/schemas/dispatch-result.schema.json
+@@ -239,7 +239,8 @@
+             "coordinator_projection_forbidden",
+             "audit_sink_failed",
+             "phase_fallback_inline",
+-            "handoff_local_fallback"
++            "handoff_local_fallback",
++            "metered_spend_unrecorded"
+           ]
+         },
+         "phase": {"type": "string", "minLength": 1, "maxLength": 64},
+diff --git a/openspec/schemas/provider-model-map.schema.json b/openspec/schemas/provider-model-map.schema.json
+index a65e2429..c88b3fb1 100644
+--- a/openspec/schemas/provider-model-map.schema.json
++++ b/openspec/schemas/provider-model-map.schema.json
+@@ -73,7 +73,8 @@
+           "antigravity",
+           "grok",
+           "pi",
+-          "local"
++          "local",
++          "openrouter"
+         ]
+       },
+       "additionalProperties": {
+diff --git a/skills/autopilot/SKILL.md b/skills/autopilot/SKILL.md
+index 40b695c5..ce0ccb83 100644
+--- a/skills/autopilot/SKILL.md
++++ b/skills/autopilot/SKILL.md
+@@ -130,10 +130,16 @@ carries no token.
+   `loop-state.json`, emit the result, and stop. The command is stored redacted.
+ - **Probing.** Run only `execution_profile.probe_command`. Never read environment
+   variables or credentials to discover capabilities.
++- **Review in cloud.** Run each review phase through `agent_lane.py converge
++  --phase <phase>` with one `--verified-lanes <lane>` per entry of the marker's
++  `execution_profile.lanes.review` and one `--counting-lanes <lane>` per entry of
++  `review_requirements.counting_lanes` (see *Cloud review lanes* under Detect CLI mode).
++  A `capability_unavailable` result maps to `runner.py park --kind capability_unavailable`
++  with its `missing_lanes`; record `metered_spend_unrecorded` when the result reports it.
+ - **Degradations.** Record every degraded path with `runner.py record-degradation`
+   (closed codes only: `single_vendor_review`, `review_skipped`,
+   `coordinator_projection_forbidden`, `audit_sink_failed`, `phase_fallback_inline`,
+-  `handoff_local_fallback`).
++  `handoff_local_fallback`, `metered_spend_unrecorded`).
+ - **Result.** When the loop is terminal or parked, commit `loop-state.json`, then
+   `runner.py emit-result <change-id> --dispatch-id <id> --generation <N> --attempt <A>`
+   (exit 5: not terminal or parked; exit 2: loop state uncommitted). Commit the file it
+@@ -217,6 +223,39 @@ python3 "<skill-base-dir>/scripts/runner.py" record-degradation <change-id> \
+   --code single_vendor_review --phase <phase> --detail "vendor=<the one lane>"
+ ```
+ 
++*Cloud review lanes (dispatched child in a cloud container).* The running agent
++serves the `claude_code` lane; any other verified lane (for example `openrouter`)
++is dispatched beside it by the composite agent lane. Pass every lane in the
++marker's `execution_profile.lanes.review`, one `--verified-lanes` per lane, and every
++lane in `review_requirements.counting_lanes`, one `--counting-lanes` per lane — so a
++counting lane that did not verify shows up in `missing_lanes`. Never add a lane the
++marker does not list, and never probe for one:
++
++```bash
++python3 "<skill-base-dir>/scripts/agent_lane.py" converge \
++  --change-id <change-id> --phase <PLAN_REVIEW|IMPL_REVIEW|VAL_REVIEW> \
++  --proto-dir <protocol dir> --base-ref origin/<pr-base> --model <model id> \
++  --verified-lanes <lane> [--verified-lanes <lane> ...] \
++  --counting-lanes <lane> [--counting-lanes <lane> ...]
++```
++
++Then read the protocol directory's `result.json`:
++
++- A `capability_unavailable` result maps to `runner.py park --kind capability_unavailable`:
++  park with `--phase <phase>` and one `--missing-lane` per entry of the result's
++  `missing_lanes`, commit `loop-state.json`, emit the result, and stop. This covers a
++  lane that verified at launch and lost budget or auth mid-run. Any other
++  non-converged reason (`quorum_lost`, `max_rounds`, `stalled`) follows the phase's
++  normal not-converged path.
++- When the result's `degradations` include `metered_spend_unrecorded` (a metered
++  lane's spend was spooled because the coordinator write failed), record it, once per
++  entry, before emitting the result. The supervisor replays the spool during `apply`.
++
++```bash
++python3 "<skill-base-dir>/scripts/runner.py" record-degradation <change-id> \
++  --code metered_spend_unrecorded --phase <phase> --detail "<the result entry's detail>"
++```
++
+ *Standalone run (no marker).* Keep today's probe, and record the degradation when
+ review is disabled below quorum:
+ 
+@@ -576,6 +615,7 @@ from convergence_loop import converge
+ result = converge(
+     change_id=change_id,
+     review_type="plan",
++    phase="PLAN_REVIEW",  # required: names the spend_context for metered lanes
+     artifacts_dir=change_dir,
+     worktree_path=worktree_path,
+     agents_yaml_path=agents_yaml_path,
+@@ -587,6 +627,11 @@ result = converge(
+ )
+ ```
+ 
++Every host-path `converge(...)` call passes `phase=` (here `"PLAN_REVIEW"`; the
++IMPL_REVIEW and VAL_REVIEW fallbacks below pass theirs). Without it `converge()`
++sends no `spend_context`, and a metered lane selected on a host is refused with
++`spend_context_missing`.
++
+ Then run `apply-outcome` to record `phase_archetype = null`.
+ 
+ **If converged**: Report findings summary, transition to IMPLEMENT.
+@@ -807,7 +852,27 @@ the dispatched agent executes `converge()` as the whole review phase.
+ **Fallback**: If `archetype: null` OR the dispatch adapter is unavailable, run the
+ inline path — invoke the convergence loop with `fix_mode="targeted"`
+ and a `post_fix_validator` callback for scoped pytest/mypy/openspec
+-checks. Then run `apply-outcome` to record `phase_archetype = null`.
++checks:
++
++```python
++from convergence_loop import converge
++result = converge(
++    change_id=change_id,
++    review_type="implementation",
++    phase="IMPL_REVIEW",  # required: names the spend_context for metered lanes
++    artifacts_dir=change_dir,
++    worktree_path=worktree_path,
++    agents_yaml_path=agents_yaml_path,
++    max_rounds=3,
++    min_quorum=2,
++    fix_mode="targeted",
++    fix_callback=apply_impl_fixes_targeted,
++    post_fix_validator=run_scoped_checks,
++    memory_callback=write_memory,
++)
++```
++
++Then run `apply-outcome` to record `phase_archetype = null`.
+ 
+ For **targeted implementation fixes** (IMPL_FIX sub-step, NOT a
+ sub-agent dispatch): Look up the lead vendor from `package_authors`, use
+@@ -880,8 +945,26 @@ as the whole VAL_REVIEW phase.
+ 
+ **Fallback**: If `archetype: null` OR the dispatch adapter is unavailable, run the
+ inline path — invoke the convergence loop with `review_type="implementation"`
+-and `fix_mode="targeted"`, scoped to the validation evidence. Then run
+-`apply-outcome` to record `phase_archetype = null`.
++and `fix_mode="targeted"`, scoped to the validation evidence:
++
++```python
++from convergence_loop import converge
++result = converge(
++    change_id=change_id,
++    review_type="implementation",
++    phase="VAL_REVIEW",  # required: names the spend_context for metered lanes
++    artifacts_dir=change_dir,
++    worktree_path=worktree_path,
++    agents_yaml_path=agents_yaml_path,
++    max_rounds=3,
++    min_quorum=2,
++    fix_mode="targeted",
++    fix_callback=apply_val_fixes_targeted,
++    memory_callback=write_memory,
++)
++```
++
++Then run `apply-outcome` to record `phase_archetype = null`.
+ 
+ ### 8. SUBMIT_PR Phase
+ 
+diff --git a/skills/autopilot/scripts/agent_lane.py b/skills/autopilot/scripts/agent_lane.py
+index d3cf0ffe..f4ac9bd5 100644
+--- a/skills/autopilot/scripts/agent_lane.py
++++ b/skills/autopilot/scripts/agent_lane.py
+@@ -30,6 +30,7 @@ import json
+ import logging
+ import re
+ import sys
++import threading
+ import time
+ from datetime import datetime, timezone
+ from pathlib import Path
+@@ -164,8 +165,106 @@ class AgentLaneOrchestrator:
+         return [result]
+ 
+ 
++class CompositeOrchestrator:
++    """The handshake lane plus the dispatcher's other verified lanes (design D7).
++
++    Each round runs ``ReviewOrchestrator.dispatch_and_wait(include_lanes=...)``
++    in a thread while the handshake lane is served in this one, then returns
++    both result lists. The checkpoint callback is forwarded with the round's
++    full expected count. The review orchestrator is built on the first round
++    that has a lane for it, so a run ``converge()`` refuses below quorum
++    never builds one.
++    """
++
++    def __init__(
++        self,
++        agent_lane: AgentLaneOrchestrator,
++        *,
++        include_lanes: list[str] | tuple[str, ...] = (),
++        review_factory: Callable[[], Any] | None = None,
++    ) -> None:
++        self.agent_lane = agent_lane
++        self.include_lanes = list(include_lanes)
++        self._review_factory = review_factory
++        self._review: Any = None
++        self.results_by_round: list[list[Any]] = []
++
++    @property
++    def round(self) -> int:
++        return self.agent_lane.round
++
++    @property
++    def adapters(self) -> dict[str, Any]:
++        return getattr(self._review, "adapters", None) or {}
++
++    def _review_orchestrator(self) -> Any:
++        if self._review is None and self.include_lanes:
++            if self._review_factory is None:
++                raise RuntimeError(f"no review orchestrator for lanes {self.include_lanes}")
++            self._review = self._review_factory()
++        return self._review
++
++    def dispatch_and_wait(
++        self,
++        review_type: str,
++        dispatch_mode: str,
++        prompt: str,
++        cwd: Path,
++        timeout_seconds: float | None = None,
++        packet_path: Path | None = None,
++        result_callback: Callable[[Any, int], None] | None = None,
++        *,
++        toolless_packet_path: Path | None = None,
++        spend_context: Any = None,
++    ) -> list[Any]:
++        review = self._review_orchestrator()
++        expected = 1 + (len(self.include_lanes) if review is not None else 0)
++
++        def forward(result: Any, _count: int) -> None:
++            if result_callback is not None:
++                result_callback(result, expected)
++
++        review_results: list[Any] = []
++        review_errors: list[BaseException] = []
++
++        def run_review() -> None:
++            try:
++                review_results.extend(review.dispatch_and_wait(
++                    review_type, dispatch_mode, prompt, cwd,
++                    timeout_seconds=timeout_seconds,
++                    packet_path=packet_path,
++                    result_callback=forward,
++                    include_lanes=self.include_lanes,
++                    toolless_packet_path=toolless_packet_path,
++                    spend_context=spend_context,
++                    # the handshake lane reviews this round too, so the
++                    # dispatcher's subset is not a single-vendor review
++                    caller_vendors=(LANE,),
++                ))
++            except BaseException as exc:  # noqa: BLE001 - re-raised in the caller's thread
++                review_errors.append(exc)
++
++        thread = None
++        if review is not None:
++            thread = threading.Thread(target=run_review, name="composite-review", daemon=True)
++            thread.start()
++        try:
++            agent_results = self.agent_lane.dispatch_and_wait(
++                review_type, dispatch_mode, prompt, cwd,
++                timeout_seconds=timeout_seconds, packet_path=packet_path, result_callback=forward,
++            )
++        finally:
++            if thread is not None:
++                thread.join()
++        if review_errors:
++            raise review_errors[0]
++        results = [*agent_results, *review_results]
++        self.results_by_round.append(results)
++        return results
++
++
+ def make_fix_callback(
+-    handshake: Handshake, orchestrator: AgentLaneOrchestrator, *, fix_phase: str
++    handshake: Handshake, orchestrator: Any, *, fix_phase: str
+ ) -> Callable[[list[dict[str, Any]], Path], None]:
+     def fix_callback(payloads: list[dict[str, Any]], worktree_path: Path) -> None:
+         n = orchestrator.round
+@@ -195,11 +294,13 @@ def write_validation_review_section(report_path: Path, *, status: str, body: str
+ 
+ 
+ def _review_body(result: dict[str, Any], *, min_quorum: int, policy: dict[str, Any]) -> str:
++    lanes = result.get("lanes") or [LANE]
++    listed = ", ".join(f"`{lane}`" for lane in lanes)
+     lines = [
+         f"- Result: converged in {result['rounds']} round(s) via `agent_lane.py converge`.",
+-        f"- Lanes: `{LANE}` only (min_quorum={min_quorum}).",
++        f"- Lanes: {listed}{' only' if len(lanes) == 1 else ''} (min_quorum={min_quorum}).",
+     ]
+-    if policy.get("policy_id"):
++    if len(lanes) == 1 and policy.get("policy_id"):
+         lines.append(
+             f"- Degradation: `single_vendor_review` under quorum policy `{policy['policy_id']}`."
+         )
+@@ -208,6 +309,72 @@ def _review_body(result: dict[str, Any], *, min_quorum: int, policy: dict[str, A
+     return "\n".join(lines)
+ 
+ 
++#: review phase -> the per-phase consensus file under ``<change>/reviews/``
++CONSENSUS_FILES: dict[str, str] = {
++    "PLAN_REVIEW": "consensus-plan.json",
++    "IMPL_REVIEW": "consensus-impl-review.json",
++    "VAL_REVIEW": "consensus-val-review.json",
++}
++
++
++def _resolve_lanes(
++    verified_lanes: list[str] | None, counting_lanes: list[str] | None
++) -> tuple[list[str], list[str]]:
++    """``claude_code`` first (the running agent serves it), then the rest, deduplicated."""
++    verified = list(dict.fromkeys([LANE, *(verified_lanes or [])]))
++    counting = list(dict.fromkeys(counting_lanes)) if counting_lanes else list(verified)
++    return verified, counting
++
++
++def _lane_of(result: Any, verified: list[str]) -> str:
++    for lane in verified:
++        if lane in (getattr(result, "vendor", None), getattr(result, "agent_id", None)):
++            return lane
++    return str(getattr(result, "vendor", None) or getattr(result, "agent_id", None))
++
++
++def _lane_report(
++    results_by_round: list[list[Any]], verified: list[str], *, phase: str
++) -> dict[str, Any]:
++    """The ``lanes`` / ``lane_results`` / ``degradations`` fields of ``result.json``.
++
++    ``lane_results`` holds each lane's most recent result. A metered result
++    whose spend the dispatcher could not record (``spend_recorded is False``)
++    becomes one ``metered_spend_unrecorded`` degradation per lane and round.
++    """
++    succeeded: set[str] = set()
++    lane_results: dict[str, dict[str, Any]] = {}
++    degradations: list[dict[str, Any]] = []
++    for n, results in enumerate(results_by_round, start=1):
++        for result in results:
++            lane = _lane_of(result, verified)
++            if getattr(result, "success", False):
++                succeeded.add(lane)
++            lane_results[lane] = {
++                "success": bool(getattr(result, "success", False)),
++                "model_used": getattr(result, "model_used", None),
++                "generation_id": getattr(result, "generation_id", None),
++                "cost_usd": getattr(result, "cost_usd", None),
++                "cost_source": getattr(result, "cost_source", None),
++            }
++            if getattr(result, "spend_recorded", None) is False:
++                degradations.append({
++                    "code": "metered_spend_unrecorded",
++                    "phase": phase,
++                    "detail": f"{lane} round {n} spend not recorded",
++                })
++    ordered = [lane for lane in verified if lane in succeeded]
++    ordered += sorted(succeeded - set(ordered))
++    return {"lanes": ordered, "lane_results": lane_results, "degradations": degradations}
++
++
++def _quorum_received(consensus: dict[str, Any] | None, results_by_round: list[list[Any]]) -> int:
++    if consensus and consensus.get("quorum_received") is not None:
++        return int(consensus["quorum_received"])
++    last = results_by_round[-1] if results_by_round else []
++    return sum(1 for result in last if getattr(result, "success", False))
++
++
+ def run_converge(
+     *,
+     change_id: str,
+@@ -223,7 +390,17 @@ def run_converge(
+     poll_seconds: float = POLL_SECONDS,
+     converge_fn: Callable[..., Any] | None = None,
+     policy_fn: Callable[..., dict[str, Any]] | None = None,
++    verified_lanes: list[str] | None = None,
++    counting_lanes: list[str] | None = None,
++    review_orchestrator_factory: Callable[[], Any] | None = None,
+ ) -> dict[str, Any]:
++    """Run one review phase through ``converge()`` and record ``result.json``.
++
++    ``verified_lanes`` are the review lanes the launch marker (or a
++    ``--check-vendors --json`` probe) verified; ``claude_code`` is always one.
++    The others are dispatched by a ``ReviewOrchestrator`` alongside the
++    handshake lane. ``counting_lanes`` default to the verified lanes.
++    """
+     if phase not in PHASES:
+         raise ValueError(f"phase must be one of {sorted(PHASES)}")
+     review_type, fix_phase = PHASES[phase]
+@@ -246,10 +423,25 @@ def run_converge(
+         filename=str(handshake.dir / "converge.log"), level=logging.INFO,
+         format="%(asctime)s %(name)s %(levelname)s %(message)s",
+     )
+-    policy = policy_fn(environment=environment, verified_review_lanes=1)
++    verified, counting = _resolve_lanes(verified_lanes, counting_lanes)
++    others = [lane for lane in verified if lane != LANE]
++    if review_orchestrator_factory is None:
++        def review_orchestrator_factory() -> Any:
++            from review_dispatcher import _orchestrator_for_dispatch
++
++            return _orchestrator_for_dispatch(None, worktree)
++
++    policy = policy_fn(environment=environment, verified_review_lanes=len(verified))
+     min_quorum = int(policy["min_quorum"][phase])
+-    orchestrator = AgentLaneOrchestrator(handshake, model=model)
+-    handshake.event("converge_started", phase=phase, min_quorum=min_quorum, policy=policy)
++    orchestrator = CompositeOrchestrator(
++        AgentLaneOrchestrator(handshake, model=model),
++        include_lanes=others,
++        review_factory=review_orchestrator_factory,
++    )
++    handshake.event(
++        "converge_started", phase=phase, min_quorum=min_quorum, policy=policy,
++        verified_lanes=verified, counting_lanes=counting,
++    )
+     try:
+         res = converge_fn(
+             change_id=change_id,
+@@ -259,9 +451,10 @@ def run_converge(
+             max_rounds=max_rounds,
+             min_quorum=min_quorum,
+             fix_mode=fix_mode,
+-            verified_lanes=[LANE],
+-            counting_lanes=[LANE],
++            verified_lanes=verified,
++            counting_lanes=counting,
+             base_ref=base_ref,
++            phase=phase,
+             fix_callback=make_fix_callback(handshake, orchestrator, fix_phase=fix_phase),
+             memory_callback=lambda text: handshake.event("memory", text=text),
+             orchestrator=orchestrator,
+@@ -278,9 +471,21 @@ def run_converge(
+             "validation_errors": res.validation_errors,
+             "checkpoint_dir": str(res.checkpoint_dir) if res.checkpoint_dir else None,
+             "summary": (res.consensus or {}).get("summary"),
++            "missing_lanes": getattr(res, "missing_lanes", None),
++            "quorum_received": _quorum_received(res.consensus, orchestrator.results_by_round),
++            **_lane_report(orchestrator.results_by_round, verified, phase=phase),
+         }
++        if res.consensus is not None:
++            consensus_path = change_dir / "reviews" / CONSENSUS_FILES[phase]
++            consensus_path.parent.mkdir(parents=True, exist_ok=True)
++            consensus_path.write_text(json.dumps(res.consensus, indent=2, default=str), encoding="utf-8")
++            out["consensus_path"] = str(consensus_path)
+     except Exception as exc:  # noqa: BLE001 - recorded for the agent, not swallowed silently
+         out = {"phase": phase, "converged": False, "error": f"{type(exc).__name__}: {exc}"}
++        # Spend already sent but not recorded is still reported on a failed run.
++        degradations = _lane_report(orchestrator.results_by_round, verified, phase=phase)["degradations"]
++        if degradations:
++            out["degradations"] = degradations
+ 
+     if phase == "VAL_REVIEW" and out.get("converged"):
+         write_validation_review_section(
+@@ -310,6 +515,16 @@ def _build_parser() -> argparse.ArgumentParser:
+     cv.add_argument("--max-rounds", type=int, default=3)
+     cv.add_argument("--fix-mode", default="targeted", choices=["inline", "targeted"])
+     cv.add_argument("--timeout-seconds", type=float, default=DEFAULT_TIMEOUT_SECONDS)
++    cv.add_argument(
++        "--verified-lanes", action="append", default=None, metavar="LANE",
++        help="A verified review lane (repeatable): the launch marker's execution_profile.lanes.review, "
++        "or the --check-vendors --json verified list. claude_code is always included.",
++    )
++    cv.add_argument(
++        "--counting-lanes", action="append", default=None, metavar="LANE",
++        help="A lane that counts toward quorum (repeatable): the launch marker's "
++        "review_requirements.counting_lanes. Defaults to the verified lanes.",
++    )
+     return parser
+ 
+ 
+@@ -326,8 +541,12 @@ def main(argv: list[str] | None = None) -> int:
+         max_rounds=args.max_rounds,
+         fix_mode=args.fix_mode,
+         timeout_seconds=args.timeout_seconds,
++        verified_lanes=args.verified_lanes,
++        counting_lanes=args.counting_lanes,
+     )
+-    print(json.dumps({k: out.get(k) for k in ("phase", "converged", "rounds", "reason", "error")}))
++    print(json.dumps(
++        {k: out.get(k) for k in ("phase", "converged", "rounds", "reason", "missing_lanes", "error")}
++    ))
+     return 0 if out.get("converged") else 1
+ 
+ 
+diff --git a/skills/autopilot/scripts/convergence_loop.py b/skills/autopilot/scripts/convergence_loop.py
+index c61fba25..3bf55a3e 100644
+--- a/skills/autopilot/scripts/convergence_loop.py
++++ b/skills/autopilot/scripts/convergence_loop.py
+@@ -51,8 +51,10 @@ from consensus_synthesizer import (  # noqa: E402
+     VendorResult,
+ )
+ from review_dispatcher import (  # noqa: E402
++    ErrorClass,
+     ReviewOrchestrator,
+     ReviewResult,
++    SpendContext,
+     _orchestrator_for_dispatch,
+ )
+ from review_ledger import (  # noqa: E402
+@@ -70,7 +72,11 @@ from review_ledger import (  # noqa: E402
+     scoped_fix_payload,
+     mark_addressed,
+ )
+-from review_packet import build_review_packet  # noqa: E402
++from review_packet import (  # noqa: E402
++    TOOLLESS_REVIEW_TYPES,
++    build_review_packet,
++    build_toolless_packet,
++)
+ import fact_check as fact_check_module  # noqa: E402
+ 
+ from convergence_disposition import (  # noqa: E402
+@@ -121,9 +127,12 @@ class ConvergenceResult:
+     escalate_findings: list[dict[str, Any]] | None = None
+     validation_errors: list[str] | None = None
+     checkpoint_dir: Path | None = None
+-    # dispatch-contract D10: with reason="capability_unavailable", the counting
+-    # lanes that were not verified. The caller records the park through
+-    # `runner.py park`; this loop never writes loop state.
++    # dispatch-contract D10: with reason="capability_unavailable" before any
++    # dispatch, the counting lanes that were not verified. After a dispatched
++    # round falls below quorum (design D7), the verified lanes that returned no
++    # successful result, for both "capability_unavailable" and "quorum_lost".
++    # The caller records the park through `runner.py park`; this loop never
++    # writes loop state.
+     missing_lanes: list[str] | None = None
+ 
+ 
+@@ -351,6 +360,68 @@ def _accepts_kwarg(func: Callable[..., Any], name: str) -> bool:
+     )
+ 
+ 
++def _vendor_index_entry(
++    result: ReviewResult, review_type: str, findings_array: list[Any],
++) -> dict[str, Any]:
++    """One checkpoint vendor-index entry, with the lane's generation and cost.
++
++    The metered fields are ``None`` for a lane that is not metered, so the
++    index reads the same for every lane.
++    """
++    return {
++        "name": result.vendor,
++        "findings_path": f"findings-{result.vendor}-{review_type}.json",
++        "finding_count": len(findings_array),
++        "unanchored_findings": result.unanchored_findings,
++        "model_used": result.model_used,
++        "generation_id": result.generation_id,
++        "prompt_tokens": result.prompt_tokens,
++        "completion_tokens": result.completion_tokens,
++        "cost_usd": result.cost_usd,
++        "cost_source": result.cost_source,
++    }
++
++
++# A lane that failed with one of these classes can no longer review in this
++# environment (design D7); any other shortfall is a lost quorum.
++_CAPABILITY_ERROR_CLASSES = frozenset({ErrorClass.UNAVAILABLE, ErrorClass.AUTH})
++
++
++def _lane_matches(lane: str, result: ReviewResult) -> bool:
++    return lane == result.vendor or lane == result.agent_id
++
++
++def _classify_quorum_shortfall(
++    results: list[ReviewResult], verified_lanes: list[str] | None,
++) -> tuple[str, list[str] | None]:
++    """Map a below-quorum round to ``(reason, missing_lanes)`` (design D7).
++
++    ``missing_lanes`` is the verified lanes that returned no successful
++    result. The round is ``capability_unavailable`` only when that set is
++    non-empty and every lane in it has a recorded ``vendor_unavailable`` or
++    ``auth_required`` failure. A lane that returned nothing, or failed for
++    any other reason, keeps it ``quorum_lost``. Without ``verified_lanes``
++    the legacy ``quorum_lost`` shape (no ``missing_lanes``) is kept.
++    """
++    if verified_lanes is None:
++        return "quorum_lost", None
++    verified = sorted(set(verified_lanes))
++    missing = [
++        lane for lane in verified
++        if not any(r.success and _lane_matches(lane, r) for r in results)
++    ]
++    capability_lost = bool(missing) and all(
++        any(
++            not r.success
++            and r.error_class in _CAPABILITY_ERROR_CLASSES
++            and _lane_matches(lane, r)
++            for r in results
++        )
++        for lane in missing
++    )
++    return ("capability_unavailable" if capability_lost else "quorum_lost"), missing
++
++
+ def _write_review_checkpoint(
+     checkpoint_dir: Path,
+     results: list[ReviewResult],
+@@ -392,12 +463,9 @@ def _write_review_checkpoint(
+                 findings=findings_array,
+                 reviewer_vendor=result.vendor,
+             )
+-            vendors_index.append({
+-                "name": result.vendor,
+-                "findings_path": f"findings-{result.vendor}-{review_type}.json",
+-                "finding_count": len(findings_array),
+-                "unanchored_findings": result.unanchored_findings,
+-            })
++            vendors_index.append(
++                _vendor_index_entry(result, review_type, findings_array)
++            )
+     cf_write_manifest(
+         checkpoint_dir,
+         review_type=review_type,
+@@ -469,12 +537,7 @@ def _augment_manifest_with_fact_check(
+         })
+         if result.success and result.findings:
+             findings_array = result.findings.get("findings", [])
+-            entry = {
+-                "name": result.vendor,
+-                "findings_path": f"findings-{result.vendor}-{review_type}.json",
+-                "finding_count": len(findings_array),
+-                "unanchored_findings": result.unanchored_findings,
+-            }
++            entry = _vendor_index_entry(result, review_type, findings_array)
+             entry.update(fact_check_info.get(result.vendor, {}))
+             vendors_index.append(entry)
+     cf_write_manifest(
+@@ -726,6 +789,7 @@ def converge(
+     verified_lanes: list[str] | None = None,
+     counting_lanes: list[str] | None = None,
+     base_ref: str | None = None,
++    phase: str | None = None,
+ ) -> ConvergenceResult:
+     """Run the review-fix convergence loop.
+ 
+@@ -770,6 +834,14 @@ def converge(
+         base_ref: Ref the review packet diffs against. ``None`` (default)
+             keeps the packet builder's ``DEFAULT_BASE_REF``; a stacked branch
+             passes its PR base (e.g. ``origin/openspec/<parent>``).
++        phase: The autopilot review phase (e.g. ``PLAN_REVIEW``). When set,
++            each round passes ``spend_context=SpendContext(change_id,
++            "<change_id>:<phase>:round-<n>")`` to an orchestrator that accepts
++            it, so metered lanes can attribute their spend (design D4).
++
++    A primary packet whose meta reports ``tools_overflow`` also gets a
++    tool-less companion packet, passed as ``toolless_packet_path`` to an
++    orchestrator that accepts it (design D6).
+ 
+     Returns:
+         ConvergenceResult with convergence status and details.
+@@ -821,16 +893,17 @@ def converge(
+ 
+         # 2a. Pack the review input, then dispatch.
+         checkpoint_dir = artifacts_dir / ".review-cache" / f"round-{round_num}"
+-        packet_path, _packet_meta = build_review_packet(
+-            change_id=change_id,
+-            round_num=round_num,
+-            artifacts_dir=artifacts_dir,
+-            worktree_path=worktree_path,
+-            output_dir=checkpoint_dir,
+-            last_fix_diff=last_fix_diff if round_num > 1 else None,
+-            ledger=ledger,
++        packet_inputs: dict[str, Any] = {
++            "change_id": change_id,
++            "round_num": round_num,
++            "artifacts_dir": artifacts_dir,
++            "worktree_path": worktree_path,
++            "output_dir": checkpoint_dir,
++            "last_fix_diff": last_fix_diff if round_num > 1 else None,
++            "ledger": ledger,
+             **({"base_ref": base_ref} if base_ref is not None else {}),
+-        )
++        }
++        packet_path, packet_meta = build_review_packet(**packet_inputs)
+         prompt = packet_path.read_text(encoding="utf-8")
+         dispatch_kwargs: dict[str, Any] = {
+             "review_type": review_type,
+@@ -841,6 +914,21 @@ def converge(
+         }
+         if _accepts_kwarg(orchestrator.dispatch_and_wait, "packet_path"):
+             dispatch_kwargs["packet_path"] = packet_path
++        if (
++            (packet_meta or {}).get("tools_overflow")
++            and review_type in TOOLLESS_REVIEW_TYPES
++            and _accepts_kwarg(orchestrator.dispatch_and_wait, "toolless_packet_path")
++        ):
++            toolless_path, _toolless_meta = build_toolless_packet(
++                review_type=review_type, **packet_inputs,
++            )
++            dispatch_kwargs["toolless_packet_path"] = toolless_path
++        if phase is not None and _accepts_kwarg(
++            orchestrator.dispatch_and_wait, "spend_context"
++        ):
++            dispatch_kwargs["spend_context"] = SpendContext(
++                change_id, f"{change_id}:{phase}:round-{round_num}",
++            )
+         checkpointed: dict[str, ReviewResult] = {}
+         checkpoint_lock = threading.Lock()
+ 
+@@ -900,16 +988,18 @@ def converge(
+         # 2b. Check quorum
+         successful = [r for r in results if r.success]
+         if len(successful) < min_quorum:
++            reason, missing = _classify_quorum_shortfall(results, verified_lanes)
+             logger.warning(
+-                "Quorum lost: %d/%d (need %d)",
+-                len(successful), len(results), min_quorum,
++                "Quorum shortfall (%s): %d/%d (need %d); missing %s",
++                reason, len(successful), len(results), min_quorum, missing,
+             )
+             return ConvergenceResult(
+                 converged=False,
+                 rounds=round_num,
+-                reason="quorum_lost",
++                reason=reason,
+                 validation_errors=all_validation_errors or None,
+                 checkpoint_dir=latest_checkpoint_dir,
++                missing_lanes=missing,
+             )
+ 
+         # 2b.5. Diff-grounded fact-check, after the durable raw checkpoint
+diff --git a/skills/parallel-infrastructure/review_quorum_policy.json b/skills/parallel-infrastructure/review_quorum_policy.json
+index 5446e53c..8924f940 100644
+--- a/skills/parallel-infrastructure/review_quorum_policy.json
++++ b/skills/parallel-infrastructure/review_quorum_policy.json
+@@ -2,6 +2,17 @@
+   "schema_version": 1,
+   "description": "Review quorum per execution environment, as data (dispatch-contract D10). The supervisor copies the resolved entry into every request's review_requirements; a worker never lowers a quorum itself. A single-lane review is detected only by lanes failing to dispatch, never by reading environment variables or credentials, and records the degradation single_vendor_review (phase, vendor).",
+   "default_min_quorum": 2,
++  "vendor_families": {
++    "claude_code": "anthropic",
++    "codex": "openai",
++    "antigravity": "google",
++    "grok": "xai"
++  },
++  "metered_lanes": {
++    "description": "Design D5 (openrouter-review-lane): a metered (OpenRouter) review lane is added only while fewer than fill_target non-metered lanes are selected. Each round reserves review_reservation_usd against the remaining spend ceiling before dispatch.",
++    "fill_target": 2,
++    "review_reservation_usd": 1.0
++  },
+   "policies": [
+     {
+       "id": "cloud-container-single-vendor-2026-10-09",
+diff --git a/skills/parallel-infrastructure/scripts/openai_compat_adapter.py b/skills/parallel-infrastructure/scripts/openai_compat_adapter.py
+index 0388e6e2..0b96a531 100644
+--- a/skills/parallel-infrastructure/scripts/openai_compat_adapter.py
++++ b/skills/parallel-infrastructure/scripts/openai_compat_adapter.py
+@@ -20,9 +20,12 @@ classification so it drops into the same dispatch chain.
+ from __future__ import annotations
+ 
+ import json
++import socket
++import ssl
+ import time
+ import urllib.error
+ import urllib.request
++from dataclasses import dataclass
+ from pathlib import Path
+ from typing import Any, Callable
+ 
+@@ -30,7 +33,11 @@ from review_dispatcher import (  # type: ignore[import-untyped]
+     CliVendorAdapter,
+     ErrorClass,
+     ReviewResult,
++    _coverage_quorum_threshold,
++    _extract_diff_from_prompt,
++    _extract_selected_files_from_prompt,
+     classify_error,
++    ingest_findings_output,
+ )
+ 
+ # transport(url, headers, body, timeout) -> parsed JSON response dict
+@@ -50,6 +57,92 @@ def _default_transport(
+         return json.loads(resp.read().decode("utf-8"))
+ 
+ 
++# get_transport(url, headers, timeout) -> (http_status, parsed JSON body or None).
++# Raises on timeout / connection failure; an HTTP error status is *returned*, not
++# raised, so the probe can classify it without ever touching the response text.
++GetTransport = Callable[[str, "dict[str, str]", int], "tuple[int, dict[str, Any] | None]"]
++
++
++def _default_get_transport(
++    url: str, headers: dict[str, str], timeout: int
++) -> tuple[int, dict[str, Any] | None]:
++    """Real GET transport (stdlib urllib). Never exercised in unit tests.
++
++    Uses the default SSL context, which honours ``SSL_CERT_FILE`` /
++    ``SSL_CERT_DIR`` (needed behind the cloud egress proxy's CA bundle).
++    """
++    req = urllib.request.Request(url, headers=headers, method="GET")
++    context = ssl.create_default_context()
++    try:
++        with urllib.request.urlopen(  # noqa: S310 (trusted base_url)
++            req, timeout=timeout, context=context
++        ) as resp:
++            status = resp.status
++            raw = resp.read()
++    except urllib.error.HTTPError as exc:
++        # Discard the error body unread: it may echo request details.
++        exc.close()
++        return exc.code, None
++    try:
++        body = json.loads(raw.decode("utf-8"))
++    except (UnicodeDecodeError, json.JSONDecodeError):
++        return status, None
++    return status, body if isinstance(body, dict) else None
++
++
++# Probe reasons (design D3). The spend_ceiling_* reasons are applied by the
++# dispatcher's budget check on top of a successful probe (group 3), not here.
++PROBE_AUTH_FAILED = "auth_failed"
++PROBE_TIMEOUT = "probe_timeout"
++PROBE_ENDPOINT_UNREACHABLE = "endpoint_unreachable"
++
++_BUDGET_FIELDS = ("limit", "usage", "limit_remaining")
++
++# Dispatch refusal for a packet whose sidecar has tools_overflow: true (D6).
++PACKET_REQUIRES_TOOLS = "packet_requires_tools"
++
++
++@dataclass(frozen=True)
++class ProbeResult:
++    """Outcome of an authenticated no-op probe (design D3).
++
++    ``budget`` holds only the numeric OpenRouter key fields ``limit``,
++    ``usage`` and ``limit_remaining`` (each a float, or None when absent or
++    non-numeric). It is None for local endpoints and for an OpenRouter body
++    with no ``data`` object. Nothing else from the response is retained.
++    """
++
++    ok: bool
++    reason: str | None = None
++    budget: dict[str, float | None] | None = None
++
++
++def _numeric(value: Any) -> float | None:
++    if isinstance(value, bool) or not isinstance(value, (int, float)):
++        return None
++    return float(value)
++
++
++def _extract_budget(body: dict[str, Any] | None) -> dict[str, float | None] | None:
++    data = body.get("data") if isinstance(body, dict) else None
++    if not isinstance(data, dict):
++        return None
++    return {name: _numeric(data.get(name)) for name in _BUDGET_FIELDS}
++
++
++def _int_or_none(value: Any) -> int | None:
++    if isinstance(value, bool) or not isinstance(value, int):
++        return None
++    return value
++
++
++def _is_timeout(exc: BaseException) -> bool:
++    if isinstance(exc, (TimeoutError, socket.timeout)):
++        return True
++    reason = getattr(exc, "reason", None)
++    return isinstance(reason, (TimeoutError, socket.timeout))
++
++
+ class OpenAICompatAdapter:
+     """Dispatch to an OpenAI-compatible endpoint (OpenRouter or local)."""
+ 
+@@ -89,15 +182,61 @@ class OpenAICompatAdapter:
+         return headers
+ 
+     def build_request(self, prompt: str, model: str) -> dict[str, Any]:
+-        return {
++        body: dict[str, Any] = {
+             "model": model,
+             "messages": [{"role": "user", "content": prompt}],
+             "temperature": 0,
+         }
++        if self.endpoint_kind == "openrouter":
++            # Inline usage accounting: the response then carries usage.cost (D4).
++            # https://openrouter.ai/docs/use-cases/usage-accounting
++            body["usage"] = {"include": True}
++        return body
+ 
+     def _endpoint_url(self) -> str:
+         return f"{self.base_url}/chat/completions"
+ 
++    def _probe_url(self) -> str:
++        # OpenRouter: GET /api/v1/key returns the calling key's credit
++        # ``limit``, ``usage`` and ``limit_remaining`` under ``data`` and costs
++        # nothing. Docs: https://openrouter.ai/docs/api-reference/limits
++        # (not re-fetched on 2026-10-21: openrouter.ai unreachable from the build sandbox).
++        # Local (Ollama/vLLM): GET /v1/models is the cheapest authenticated no-op.
++        if self.endpoint_kind == "openrouter":
++            return f"{self.base_url}/key"
++        return f"{self.base_url}/models"
++
++    def probe(
++        self,
++        api_key: str | None,
++        transport: GetTransport | None = None,
++        timeout: int = 10,
++    ) -> ProbeResult:
++        """Authenticated, zero-cost dry probe of the endpoint (design D3).
++
++        Sends exactly one GET (``/key`` for OpenRouter, ``/models`` for local
++        endpoints) and never a chat completion. The response is parsed in
++        memory and only the numeric budget fields are kept; no header, key,
++        response body or exception text is logged, printed, or returned.
++        """
++        if self.endpoint_kind == "openrouter" and not api_key:
++            return ProbeResult(ok=False, reason=PROBE_AUTH_FAILED)
++
++        send = transport or _default_get_transport
++        headers = self.build_headers(api_key)
++        try:
++            status, body = send(self._probe_url(), headers, timeout)
++        except Exception as exc:  # noqa: BLE001 — classified, text discarded
++            reason = PROBE_TIMEOUT if _is_timeout(exc) else PROBE_ENDPOINT_UNREACHABLE
++            return ProbeResult(ok=False, reason=reason)
++
++        if status in (401, 403):
++            return ProbeResult(ok=False, reason=PROBE_AUTH_FAILED)
++        if not 200 <= status < 300:
++            return ProbeResult(ok=False, reason=PROBE_ENDPOINT_UNREACHABLE)
++        budget = _extract_budget(body) if self.endpoint_kind == "openrouter" else None
++        return ProbeResult(ok=True, reason=None, budget=budget)
++
+     def dispatch(
+         self,
+         mode: str,
+@@ -106,13 +245,27 @@ class OpenAICompatAdapter:
+         timeout_seconds: int = 300,
+         api_key: str | None = None,
+         transport: Transport | None = None,
++        *,
++        tools_overflow: bool = False,
+     ) -> ReviewResult:
+         """Dispatch via the OpenAI-compatible API with model fallback.
+ 
+         Captures the generation id (``response["id"]``) for spend reconciliation.
+         On a capacity/rate-limit error the next fallback model is tried; other
+         errors return immediately.
++
++        ``tools_overflow`` is the ``tools_overflow`` flag from the sidecar of
++        the packet this lane receives. HTTP lanes cannot read files, so a
++        packet that needs tools is refused before any request is sent (D6):
++        reviewing it blind would manufacture false consensus.
+         """
++        if tools_overflow:
++            return ReviewResult(
++                vendor=self.vendor, success=False,
++                error=PACKET_REQUIRES_TOOLS,
++                error_class=ErrorClass.UNAVAILABLE,
++                agent_id=self.agent_id,
++            )
+         # OpenRouter (metered) requires a key; local endpoints may not.
+         if self.endpoint_kind == "openrouter" and not api_key:
+             return ReviewResult(
+@@ -144,39 +297,11 @@ class OpenAICompatAdapter:
+                     elapsed_seconds=time.monotonic() - start,
+                 )
+ 
+-            content = _extract_content(resp)
+-            if not content:
+-                return ReviewResult(
+-                    vendor=self.vendor, success=False,
+-                    error="Empty response content", error_class=ErrorClass.UNKNOWN,
+-                    model_used=model, models_attempted=models_attempted,
+-                    elapsed_seconds=time.monotonic() - start,
+-                    generation_id=resp.get("id"),
+-                )
+-            # Parse the model output into the dispatcher's review-findings shape
+-            # ({"findings": [...]}) using the same extractor the CLI/SDK adapters use.
+-            # A non-empty response that is NOT valid review-findings JSON is a failure,
+-            # not a silent success with zero findings.
+-            findings = CliVendorAdapter._parse_findings(content)
+-            if findings is None:
+-                return ReviewResult(
+-                    vendor=self.vendor, success=False,
+-                    error="Review output was not valid review-findings JSON",
+-                    error_class=ErrorClass.UNKNOWN,
+-                    model_used=model, models_attempted=models_attempted,
+-                    elapsed_seconds=time.monotonic() - start,
+-                    generation_id=resp.get("id"),
+-                )
+-            return ReviewResult(
+-                vendor=self.vendor,
+-                success=True,
+-                findings=findings,
+-                model_used=model,
+-                models_attempted=models_attempted,
+-                elapsed_seconds=time.monotonic() - start,
+-                error=None,
+-                generation_id=resp.get("id"),
++            result = self._result_from_response(
++                resp, model, models_attempted, time.monotonic() - start,
++                prompt=prompt, cwd=cwd,
+             )
++            return self._with_usage(result, resp)
+ 
+         return ReviewResult(
+             vendor=self.vendor, success=False,
+@@ -185,6 +310,82 @@ class OpenAICompatAdapter:
+             elapsed_seconds=time.monotonic() - start,
+         )
+ 
++    def _result_from_response(
++        self,
++        resp: dict[str, Any],
++        model: str,
++        models_attempted: list[str],
++        elapsed: float,
++        *,
++        prompt: str = "",
++        cwd: Path | None = None,
++    ) -> ReviewResult:
++        """Turn one chat-completions response into a ReviewResult.
++
++        The message content goes through the same ingest pipeline as CLI
++        stdout (``ingest_findings_output``): coerce, validate, judgment
++        stamp, line resolve against the packet diff, placeholder check and
++        the empty-findings floor. An HTTP lane is held to the CLI contract.
++        """
++        content = _extract_content(resp)
++        if not content:
++            return ReviewResult(
++                vendor=self.vendor, success=False,
++                error="Empty response content", error_class=ErrorClass.UNKNOWN,
++                model_used=model, models_attempted=models_attempted,
++                elapsed_seconds=elapsed, generation_id=resp.get("id"),
++            )
++        # Parse the model output into the dispatcher's review-findings shape
++        # ({"findings": [...]}) using the same extractor the CLI/SDK adapters use.
++        # A non-empty response that is NOT valid review-findings JSON is a failure,
++        # not a silent success with zero findings.
++        if CliVendorAdapter._parse_findings(content) is None:
++            return ReviewResult(
++                vendor=self.vendor, success=False,
++                error="Review output was not valid review-findings JSON",
++                error_class=ErrorClass.UNKNOWN,
++                model_used=model, models_attempted=models_attempted,
++                elapsed_seconds=elapsed, generation_id=resp.get("id"),
++            )
++        result = ingest_findings_output(
++            self.vendor,
++            content,
++            "",
++            elapsed=elapsed,
++            model_name=model,
++            models_attempted=models_attempted,
++            packet_diff=_extract_diff_from_prompt(prompt),
++            selected_files=_extract_selected_files_from_prompt(prompt),
++            coverage_quorum_threshold=(
++                _coverage_quorum_threshold(cwd) if cwd is not None else 0.8
++            ),
++        )
++        result.generation_id = resp.get("id")
++        result.agent_id = self.agent_id
++        # The CLI path leaves error_class unset for a schema-invalid payload
++        # (it then falls through vendor fallback as an unclassified error).
++        # An HTTP response that parsed but failed ingest is a model-output
++        # failure, so classify it explicitly.
++        if not result.success and result.error_class is None:
++            result.error_class = ErrorClass.UNKNOWN
++        return result
++
++    def _with_usage(self, result: ReviewResult, resp: dict[str, Any]) -> ReviewResult:
++        """Copy the response's token counts and cost onto *result* (D4).
++
++        Applied to every result built from a response, successful or not, so
++        a billed-but-rejected review still reports its spend. cost_source is
++        set only for metered (OpenRouter) lanes.
++        """
++        usage = resp.get("usage")
++        usage = usage if isinstance(usage, dict) else {}
++        result.prompt_tokens = _int_or_none(usage.get("prompt_tokens"))
++        result.completion_tokens = _int_or_none(usage.get("completion_tokens"))
++        result.cost_usd = _numeric(usage.get("cost"))
++        if self.endpoint_kind == "openrouter":
++            result.cost_source = "reported" if result.cost_usd is not None else "estimated"
++        return result
++
+ 
+ def _extract_content(resp: dict[str, Any]) -> str | None:
+     """Pull assistant text from an OpenAI-compatible chat response."""
+diff --git a/skills/parallel-infrastructure/scripts/review_dispatcher.py b/skills/parallel-infrastructure/scripts/review_dispatcher.py
+index 9e2fc024..abaf7b77 100644
+--- a/skills/parallel-infrastructure/scripts/review_dispatcher.py
++++ b/skills/parallel-infrastructure/scripts/review_dispatcher.py
+@@ -34,7 +34,7 @@ from dataclasses import dataclass, field
+ from enum import Enum
+ from functools import partial
+ from pathlib import Path
+-from typing import Any, Callable
++from typing import Any, Callable, Mapping
+ from urllib.error import URLError
+ from urllib.request import Request, urlopen
+ from uuid import uuid4
+@@ -733,6 +733,16 @@ class ReviewResult:
+     capacity_model: str | None = None
+     capacity_reset_at: str | None = None
+     capacity_retry_after_seconds: int | None = None
++    # Metered-lane spend accounting (openrouter-review-lane, D4). Set by
++    # OpenAICompatAdapter from the response's ``usage`` block; None for
++    # CLI/SDK lanes. cost_source is "reported" when usage.cost was present,
++    # "estimated" when it was absent. spend_recorded is the spend recorder's
++    # ``recorded`` value, set by ReviewOrchestrator.dispatch_and_wait.
++    prompt_tokens: int | None = None
++    completion_tokens: int | None = None
++    cost_usd: float | None = None
++    cost_source: str | None = None
++    spend_recorded: bool | None = None
+ 
+ 
+ def _notify_capacity(
+@@ -849,9 +859,12 @@ class CliVendorAdapter:
+     def can_dispatch(self, mode: str) -> bool:
+         """Check if this adapter can dispatch the given mode.
+ 
+-        A binary on PATH is not enough when the config declares a required
+-        credential env var: pi with OPENROUTER_API_KEY unset cannot serve a
+-        single request, so it must not count as available (issue #383).
++        Availability is a capability question only: the mode is configured
++        and the binary is on PATH. A declared credential env var is *not*
++        consulted here (openrouter-review-lane D1 supersedes the issue-#383
++        presence check): lane availability comes from the dry probe, and a
++        missing key surfaces as an honest dispatch-time auth failure rather
++        than a silently hidden lane.
+ 
+         The ocr vendor is a further special case: its configured
+         ``command`` is ``python3`` (the wrapper script's interpreter,
+@@ -863,8 +876,6 @@ class CliVendorAdapter:
+             return False
+         if shutil.which(self.cli_config.command) is None:
+             return False
+-        if self.cli_config.api_key_env and not os.environ.get(self.cli_config.api_key_env):
+-            return False
+         if self.vendor == "ocr" and not _ocr_adapter_can_dispatch():
+             return False
+         return True
+@@ -1154,142 +1165,23 @@ class CliVendorAdapter:
+         selected_files: list[str] | None = None,
+         coverage_quorum_threshold: float = 0.8,
+     ) -> ReviewResult:
+-        """Parse, coerce, validate, stamp, line-resolve, and coverage-score
+-        one vendor stdout blob.
++        """Run one vendor stdout blob through ``ingest_findings_output``.
+ 
+-        ``packet_diff`` is the raw diff text the reviewer was shown (see
+-        ``_extract_diff_from_prompt``). When supplied and non-empty, every
+-        validated finding runs through ``line_resolver.resolve_all`` so a
+-        vendor-supplied ``existing_code`` snippet gets a ``line_range``
+-        without a model call. ``selected_files`` is the packet's selected
+-        paths (see ``_extract_selected_files_from_prompt``), used to score
+-        an optional ``coverage`` block via ``_score_coverage``. Both are
+-        ``None`` on the async-poll path today (it does not thread the
+-        prompt through) — resolution and coverage scoring are simply
+-        skipped, findings are returned exactly as validated, same as before
+-        either parameter existed.
++        Thin wrapper kept so CLI call sites (sync dispatch and async poll)
++        and their tests keep their shape; the pipeline itself is shared
++        with the OpenAI-compatible HTTP adapter.
+         """
+-        from review_findings_schema import (
+-            coerce_findings_payload,
+-            empty_findings_min_seconds,
+-            stamp_judgment_ingest,
+-        )
+-
+-        raw = "\n".join(part for part in (stdout.strip(), stderr.strip()) if part)
+-        excerpt = raw[:500]
+-        findings = self._parse_findings(stdout)
+-        coercions: list[str] = []
+-        unanchored_findings = 0
+-        if findings is not None:
+-            coverage_notes = _coerce_coverage_reasons(findings)
+-            findings, generic_notes = coerce_findings_payload(findings)
+-            coercions = coverage_notes + generic_notes
+-            findings, schema_error = _validate_findings_or_error(findings)
+-            if findings is not None:
+-                findings = stamp_judgment_ingest(findings)
+-                coverage_rate, coverage_eligibility, coverage_status = _score_coverage(
+-                    findings, selected_files, coverage_quorum_threshold,
+-                )
+-                if packet_diff:
+-                    resolved, unanchored_findings = line_resolver.resolve_all(
+-                        findings.get("findings", []), packet_diff,
+-                    )
+-                    findings["findings"] = resolved
+-                if _is_placeholder_only_response(findings, stdout):
+-                    return ReviewResult(
+-                        vendor=self.vendor,
+-                        success=False,
+-                        model_used=model_name,
+-                        models_attempted=models_attempted,
+-                        elapsed_seconds=elapsed,
+-                        error="non_substantive_placeholder",
+-                        raw_stdout=stdout,
+-                        raw_stderr=stderr or None,
+-                        coercions=coercions,
+-                    )
+-                arr = findings.get("findings") or []
+-                if (
+-                    enforce_empty_findings_grace
+-                    and arr == []
+-                    and elapsed < empty_findings_min_seconds()
+-                ):
+-                    return ReviewResult(
+-                        vendor=self.vendor,
+-                        success=False,
+-                        model_used=model_name,
+-                        models_attempted=models_attempted,
+-                        elapsed_seconds=elapsed,
+-                        error="empty_findings_too_fast",
+-                        raw_stdout=stdout,
+-                        raw_stderr=stderr or None,
+-                        coercions=coercions,
+-                    )
+-                return ReviewResult(
+-                    vendor=self.vendor,
+-                    success=True,
+-                    findings=findings,
+-                    model_used=model_name,
+-                    models_attempted=models_attempted,
+-                    elapsed_seconds=elapsed,
+-                    raw_stdout=stdout,
+-                    raw_stderr=stderr or None,
+-                    coercions=coercions,
+-                    unanchored_findings=unanchored_findings,
+-                    coverage_rate=coverage_rate,
+-                    coverage_eligibility=coverage_eligibility,
+-                    coverage_status=coverage_status,
+-                )
+-            zero_exit_class = classify_error(raw)
+-            if zero_exit_class in (ErrorClass.AUTH, ErrorClass.UNAVAILABLE, ErrorClass.CAPACITY):
+-                return ReviewResult(
+-                    vendor=self.vendor,
+-                    success=False,
+-                    model_used=model_name,
+-                    models_attempted=models_attempted,
+-                    elapsed_seconds=elapsed,
+-                    error=excerpt or schema_error,
+-                    error_class=zero_exit_class,
+-                    raw_stdout=stdout,
+-                    raw_stderr=stderr or None,
+-                    coercions=coercions,
+-                )
+-            return ReviewResult(
+-                vendor=self.vendor,
+-                success=False,
+-                model_used=model_name,
+-                models_attempted=models_attempted,
+-                elapsed_seconds=elapsed,
+-                error=schema_error or f"Invalid JSON output: {excerpt}",
+-                raw_stdout=stdout,
+-                raw_stderr=stderr or None,
+-                coercions=coercions,
+-            )
+-
+-        zero_exit_class = classify_error(raw)
+-        if zero_exit_class in (ErrorClass.AUTH, ErrorClass.UNAVAILABLE, ErrorClass.CAPACITY):
+-            return ReviewResult(
+-                vendor=self.vendor,
+-                success=False,
+-                model_used=model_name,
+-                models_attempted=models_attempted,
+-                elapsed_seconds=elapsed,
+-                error=excerpt,
+-                error_class=zero_exit_class,
+-                raw_stdout=stdout,
+-                raw_stderr=stderr or None,
+-            )
+-        return ReviewResult(
+-            vendor=self.vendor,
+-            success=False,
+-            model_used=model_name,
++        return ingest_findings_output(
++            self.vendor,
++            stdout,
++            stderr,
++            elapsed=elapsed,
++            model_name=model_name,
+             models_attempted=models_attempted,
+-            elapsed_seconds=elapsed,
+-            error=(
+-                f"Invalid JSON output: {excerpt}" if excerpt
+-                else "Invalid JSON output (empty stdout)"
+-            ),
+-            raw_stdout=stdout,
+-            raw_stderr=stderr or None,
++            enforce_empty_findings_grace=enforce_empty_findings_grace,
++            packet_diff=packet_diff,
++            selected_files=selected_files,
++            coverage_quorum_threshold=coverage_quorum_threshold,
+         )
+ 
+     @staticmethod
+@@ -1843,6 +1735,163 @@ class CliVendorAdapter:
+ # SDK adapter
+ # ---------------------------------------------------------------------------
+ 
++def ingest_findings_output(
++    vendor: str,
++    stdout: str,
++    stderr: str,
++    *,
++    elapsed: float,
++    model_name: str,
++    models_attempted: list[str],
++    enforce_empty_findings_grace: bool = True,
++    packet_diff: str | None = None,
++    selected_files: list[str] | None = None,
++    coverage_quorum_threshold: float = 0.8,
++) -> ReviewResult:
++    """Parse, coerce, validate, stamp, line-resolve, and coverage-score
++    one reviewer output blob, then apply the placeholder and
++    empty-findings-floor checks.
++
++    Shared by ``CliVendorAdapter`` (stdout of a vendor CLI) and the
++    OpenAI-compatible HTTP adapter (message content of a chat completion)
++    so every lane is held to the same ingest contract.
++
++    ``packet_diff`` is the raw diff text the reviewer was shown (see
++    ``_extract_diff_from_prompt``). When supplied and non-empty, every
++    validated finding runs through ``line_resolver.resolve_all`` so a
++    vendor-supplied ``existing_code`` snippet gets a ``line_range``
++    without a model call. ``selected_files`` is the packet's selected
++    paths (see ``_extract_selected_files_from_prompt``), used to score
++    an optional ``coverage`` block via ``_score_coverage``. Both are
++    ``None`` on the CLI async-poll path today (it does not thread the
++    prompt through) — resolution and coverage scoring are simply
++    skipped, findings are returned exactly as validated, same as before
++    either parameter existed.
++    """
++    from review_findings_schema import (
++        coerce_findings_payload,
++        empty_findings_min_seconds,
++        stamp_judgment_ingest,
++    )
++
++    raw = "\n".join(part for part in (stdout.strip(), stderr.strip()) if part)
++    excerpt = raw[:500]
++    findings = CliVendorAdapter._parse_findings(stdout)
++    coercions: list[str] = []
++    unanchored_findings = 0
++    if findings is not None:
++        coverage_notes = _coerce_coverage_reasons(findings)
++        findings, generic_notes = coerce_findings_payload(findings)
++        coercions = coverage_notes + generic_notes
++        findings, schema_error = _validate_findings_or_error(findings)
++        if findings is not None:
++            findings = stamp_judgment_ingest(findings)
++            coverage_rate, coverage_eligibility, coverage_status = _score_coverage(
++                findings, selected_files, coverage_quorum_threshold,
++            )
++            if packet_diff:
++                resolved, unanchored_findings = line_resolver.resolve_all(
++                    findings.get("findings", []), packet_diff,
++                )
++                findings["findings"] = resolved
++            if _is_placeholder_only_response(findings, stdout):
++                return ReviewResult(
++                    vendor=vendor,
++                    success=False,
++                    model_used=model_name,
++                    models_attempted=models_attempted,
++                    elapsed_seconds=elapsed,
++                    error="non_substantive_placeholder",
++                    raw_stdout=stdout,
++                    raw_stderr=stderr or None,
++                    coercions=coercions,
++                )
++            arr = findings.get("findings") or []
++            if (
++                enforce_empty_findings_grace
++                and arr == []
++                and elapsed < empty_findings_min_seconds()
++            ):
++                return ReviewResult(
++                    vendor=vendor,
++                    success=False,
++                    model_used=model_name,
++                    models_attempted=models_attempted,
++                    elapsed_seconds=elapsed,
++                    error="empty_findings_too_fast",
++                    raw_stdout=stdout,
++                    raw_stderr=stderr or None,
++                    coercions=coercions,
++                )
++            return ReviewResult(
++                vendor=vendor,
++                success=True,
++                findings=findings,
++                model_used=model_name,
++                models_attempted=models_attempted,
++                elapsed_seconds=elapsed,
++                raw_stdout=stdout,
++                raw_stderr=stderr or None,
++                coercions=coercions,
++                unanchored_findings=unanchored_findings,
++                coverage_rate=coverage_rate,
++                coverage_eligibility=coverage_eligibility,
++                coverage_status=coverage_status,
++            )
++        zero_exit_class = classify_error(raw)
++        if zero_exit_class in (ErrorClass.AUTH, ErrorClass.UNAVAILABLE, ErrorClass.CAPACITY):
++            return ReviewResult(
++                vendor=vendor,
++                success=False,
++                model_used=model_name,
++                models_attempted=models_attempted,
++                elapsed_seconds=elapsed,
++                error=excerpt or schema_error,
++                error_class=zero_exit_class,
++                raw_stdout=stdout,
++                raw_stderr=stderr or None,
++                coercions=coercions,
++            )
++        return ReviewResult(
++            vendor=vendor,
++            success=False,
++            model_used=model_name,
++            models_attempted=models_attempted,
++            elapsed_seconds=elapsed,
++            error=schema_error or f"Invalid JSON output: {excerpt}",
++            raw_stdout=stdout,
++            raw_stderr=stderr or None,
++            coercions=coercions,
++        )
++
++    zero_exit_class = classify_error(raw)
++    if zero_exit_class in (ErrorClass.AUTH, ErrorClass.UNAVAILABLE, ErrorClass.CAPACITY):
++        return ReviewResult(
++            vendor=vendor,
++            success=False,
++            model_used=model_name,
++            models_attempted=models_attempted,
++            elapsed_seconds=elapsed,
++            error=excerpt,
++            error_class=zero_exit_class,
++            raw_stdout=stdout,
++            raw_stderr=stderr or None,
++        )
++    return ReviewResult(
++        vendor=vendor,
++        success=False,
++        model_used=model_name,
++        models_attempted=models_attempted,
++        elapsed_seconds=elapsed,
++        error=(
++            f"Invalid JSON output: {excerpt}" if excerpt
++            else "Invalid JSON output (empty stdout)"
++        ),
++        raw_stdout=stdout,
++        raw_stderr=stderr or None,
++    )
++
++
+ class SdkVendorAdapter:
+     """SDK-based vendor adapter — dispatches via vendor Python SDKs.
+ 
+@@ -2483,6 +2532,209 @@ def _dispatch_with_snapshot_fallback(
+             destroy_review_snapshot(snapshot, cwd)
+ 
+ 
++def _packet_sidecar_path(body_path: Path) -> Path:
++    """``review-packet[.toolless].md`` -> ``review-packet[.toolless].meta.json``."""
++    name = body_path.name
++    stem = name[: -len(".md")] if name.endswith(".md") else body_path.stem
++    return body_path.with_name(f"{stem}.meta.json")
++
++
++def _packet_tools_overflow(body_path: Path | None) -> bool:
++    """The ``tools_overflow`` flag of a packet's sidecar (design D6).
++
++    A packet without a readable sidecar is treated as not overflowing, which
++    keeps callers that pass a bare prompt (no packet) unchanged.
++    """
++    if body_path is None:
++        return False
++    try:
++        data = json.loads(_packet_sidecar_path(body_path).read_text(encoding="utf-8"))
++    except (OSError, ValueError):
++        return False
++    return bool(isinstance(data, dict) and data.get("tools_overflow"))
++
++
++# ---------------------------------------------------------------------------
++# Lane policy: model families and metered fill (openrouter-review-lane D2/D5)
++# ---------------------------------------------------------------------------
++
++#: Skip reasons recorded by lane selection and surfaced by ``--check-vendors``.
++ANTHROPIC_FAMILY = "anthropic_family"
++DUPLICATE_MODEL_FAMILY = "duplicate_model_family"
++FILL_TARGET_MET = "fill_target_met"
++SPEND_CEILING_EXCEEDED = "spend_ceiling_exceeded"
++SPEND_CEILING_UNVERIFIABLE = "spend_ceiling_unverifiable"
++SPEND_CONTEXT_MISSING = "spend_context_missing"
++
++#: Default per-round spend reservation (USD) for a metered review lane.
++DEFAULT_REVIEW_RESERVATION_USD = 1.0
++_DEFAULT_FILL_TARGET = 2
++
++
++@dataclass(frozen=True)
++class SpendContext:
++    """Attribution for metered spend: which change and work unit paid for it."""
++
++    change_id: str
++    work_unit_ref: str
++
++
++@dataclass(frozen=True)
++class LanePolicy:
++    """Data-driven lane-selection policy from ``review_quorum_policy.json``.
++
++    ``vendor_families`` maps a CLI/SDK vendor to its model family; a vendor
++    missing from the map has an unknown family and is never a duplicate.
++    ``fill_target`` is the number of non-metered lanes above which no
++    metered lane is added (design D5).
++    """
++
++    vendor_families: Mapping[str, str] = field(default_factory=dict)
++    fill_target: int = _DEFAULT_FILL_TARGET
++    review_reservation_usd: float = DEFAULT_REVIEW_RESERVATION_USD
++
++
++def load_lane_policy(policy_path: Path | None = None) -> LanePolicy:
++    """Load :class:`LanePolicy`; an unreadable file yields the defaults."""
++    try:
++        document = json.loads(
++            (policy_path or _QUORUM_POLICY_PATH).read_text(encoding="utf-8"),
++        )
++    except (OSError, ValueError):
++        return LanePolicy()
++    if not isinstance(document, dict):
++        return LanePolicy()
++    families = document.get("vendor_families") or {}
++    metered = document.get("metered_lanes") or {}
++    default_fill = int(document.get("default_min_quorum", _DEFAULT_FILL_TARGET))
++    return LanePolicy(
++        vendor_families={
++            str(k): str(v).lower() for k, v in families.items() if isinstance(v, str)
++        } if isinstance(families, dict) else {},
++        fill_target=int(metered.get("fill_target", default_fill)),
++        review_reservation_usd=float(
++            metered.get("review_reservation_usd", DEFAULT_REVIEW_RESERVATION_USD),
++        ),
++    )
++
++
++def model_family(model: str | None) -> str | None:
++    """The publisher prefix of a model slug (``nvidia/x`` → ``nvidia``)."""
++    if not model or "/" not in model:
++        return None
++    prefix = model.split("/", 1)[0].strip().lower()
++    return prefix or None
++
++
++def _is_metered(adapter: Any) -> bool:
++    """A tier-2.5 lane is metered when it bills through OpenRouter."""
++    return getattr(adapter, "endpoint_kind", None) == "openrouter"
++
++
++def _number(value: Any) -> float | None:
++    if isinstance(value, bool) or not isinstance(value, (int, float)):
++        return None
++    return float(value)
++
++
++def metered_budget_reason(
++    key_budget: Mapping[str, Any] | None,
++    coordinator_usage: Mapping[str, Any] | None,
++    *,
++    reservation_usd: float,
++    spooled_usd: float = 0.0,
++) -> str | None:
++    """The spend-ceiling rule for a metered lane (design D4).
++
++    Two sources may bound spend: the coordinator's monthly ceiling (counts
++    when ``metered_ceiling_usd > 0``; remaining is ceiling − used −
++    ``spooled_usd``) and the OpenRouter key's credit ``limit`` (counts when
++    not null; remaining is ``limit_remaining``). Returns ``None`` when at
++    least one source exists and every source has ``reservation_usd`` left,
++    ``spend_ceiling_exceeded`` when any has less, and
++    ``spend_ceiling_unverifiable`` when there is no source (fail closed).
++    The probe has no change context and passes ``spooled_usd=0``.
++    """
++    remaining: list[float] = []
++    if coordinator_usage:
++        ceiling = _number(coordinator_usage.get("metered_ceiling_usd"))
++        if ceiling is not None and ceiling > 0:
++            used = _number(coordinator_usage.get("metered_usd_used")) or 0.0
++            remaining.append(ceiling - used - max(spooled_usd, 0.0))
++    if key_budget:
++        limit = _number(key_budget.get("limit"))
++        if limit is not None:
++            left = _number(key_budget.get("limit_remaining"))
++            if left is None:
++                usage = _number(key_budget.get("usage"))
++                left = limit - usage if usage is not None else 0.0
++            remaining.append(left)
++    if not remaining:
++        return SPEND_CEILING_UNVERIFIABLE
++    if any(left < reservation_usd for left in remaining):
++        return SPEND_CEILING_EXCEEDED
++    return None
++
++
++def fetch_coordinator_usage(
++    *,
++    http_url: str | None = None,
++    api_key: str | None = None,
++    timeout: float = 3.0,
++    transport: Callable[..., Mapping[str, Any]] | None = None,
++) -> dict[str, Any] | None:
++    """``GET /routing/usage?window=month``; ``None`` when unavailable.
++
++    Fails soft: any transport error, non-2xx status, or non-object body
++    means "source unavailable", never an exception. Only the two numeric
++    ceiling fields are returned.
++    """
++    try:
++        import coordination_bridge as bridge
++
++        send = transport or bridge._http_request
++        response = send(
++            method="GET",
++            path="/routing/usage?window=month",
++            payload=None,
++            http_url=bridge._resolve_http_url(http_url),
++            api_key=bridge._resolve_api_key(api_key),
++            timeout=timeout,
++        )
++    except Exception:  # noqa: BLE001 — fail soft to "source unavailable"
++        return None
++    status = response.get("status_code") if isinstance(response, Mapping) else None
++    data = response.get("data") if isinstance(response, Mapping) else None
++    if not isinstance(status, int) or not 200 <= status < 300 or not isinstance(data, dict):
++        return None
++    return {
++        name: _number(data.get(name))
++        for name in ("metered_ceiling_usd", "metered_usd_used")
++    }
++
++
++def _api_key_resolver_cls() -> Any:
++    """``ApiKeyResolver``, importable from any working directory."""
++    try:
++        from api_key_resolver import ApiKeyResolver
++    except ImportError:
++        import importlib.util
++
++        spec = importlib.util.spec_from_file_location(
++            "api_key_resolver", Path(__file__).parent / "api_key_resolver.py",
++        )
++        if not (spec and spec.loader):
++            raise
++        mod = importlib.util.module_from_spec(spec)
++        spec.loader.exec_module(mod)
++        return mod.ApiKeyResolver
++    return ApiKeyResolver
++
++
++#: ``lane_kinds`` value for each non-HTTP dispatch tier.
++_TIER_LANE_KINDS = {"cli": "vendor-cli", "sdk": "vendor-sdk"}
++
++
+ # ---------------------------------------------------------------------------
+ # Review orchestrator
+ # ---------------------------------------------------------------------------
+@@ -2504,6 +2756,14 @@ class ReviewOrchestrator:
+         credential_requests: dict[str, tuple[str | None, str]] | None = None,
+         credential_scopes: dict[str, tuple[str, ...]] | None = None,
+         openai_credential_requests: dict[str, tuple[str | None, str]] | None = None,
++        *,
++        config_rejections: dict[str, tuple[str, str]] | None = None,
++        rejected_lane_kinds: dict[str, str] | None = None,
++        lane_policy: LanePolicy | None = None,
++        openai_transport: Callable[..., Any] | None = None,
++        probe_transport: Callable[..., Any] | None = None,
++        usage_fetcher: Callable[[], dict[str, Any] | None] | None = None,
++        spend_recorder: Any | None = None,
+     ) -> None:
+         self.adapters = adapters
+         self.sdk_adapters = sdk_adapters or {}
+@@ -2516,9 +2776,21 @@ class ReviewOrchestrator:
+         }
+         self.openai_credential_requests = openai_credential_requests or {}
+         self.credential_scopes = credential_scopes or {}
++        #: agent_id -> (vendor, reason) for lanes refused at config load.
++        self.config_rejections: dict[str, tuple[str, str]] = dict(config_rejections or {})
++        #: vendor -> endpoint_kind for rejected lanes (``lane_kinds`` reporting).
++        self.rejected_lane_kinds: dict[str, str] = dict(rejected_lane_kinds or {})
++        self.lane_policy = lane_policy if lane_policy is not None else load_lane_policy()
++        # Injectable seams (tests and offline probes); None selects the real one.
++        self.openai_transport = openai_transport
++        self.probe_transport = probe_transport
++        self.usage_fetcher = usage_fetcher
++        self.spend_recorder = spend_recorder
+ 
+     @classmethod
+-    def from_config_dict(cls, data: dict[str, Any]) -> "ReviewOrchestrator":
++    def from_config_dict(
++        cls, data: dict[str, Any], **kwargs: Any,
++    ) -> "ReviewOrchestrator":
+         """Create orchestrator from a config dict (as returned by coordinator).
+ 
+         The dict should have an ``agents`` key containing a list of agent
+@@ -2532,6 +2804,8 @@ class ReviewOrchestrator:
+         credential_requests: dict[str, tuple[str | None, str]] = {}
+         openai_credential_requests: dict[str, tuple[str | None, str]] = {}
+         credential_scopes: dict[str, tuple[str, ...]] = {}
++        config_rejections: dict[str, tuple[str, str]] = {}
++        rejected_lane_kinds: dict[str, str] = {}
+         for agent in data.get("agents", []):
+             cli = agent.get("cli")
+             sdk = agent.get("sdk")
+@@ -2610,14 +2884,33 @@ class ReviewOrchestrator:
+                 )
+                 if configured_model:
+                     agent_id = agent["agent_id"]
++                    # Keep every derived tier other than the primary (the
++                    # standard tier used to be dropped by a ``[1:]`` slice).
++                    fallbacks = list(
++                        (sdk or {}).get("model_fallbacks")
++                        or (cli or {}).get("model_fallbacks")
++                        or [m for m in derived_fallbacks if m != configured_model]
++                    )
++                    # Design D2: an Anthropic-family model on a tier-2.5 lane
++                    # would duplicate the reviewing harness; refuse the lane.
++                    if any(
++                        model_family(m) == "anthropic"
++                        for m in [configured_model, *fallbacks]
++                    ):
++                        logger.warning(
++                            "Rejecting lane %s: anthropic-family model configured",
++                            agent_id,
++                        )
++                        config_rejections[agent_id] = (agent["type"], ANTHROPIC_FAMILY)
++                        rejected_lane_kinds[agent["type"]] = endpoint_kind
++                        continue
+                     openai_adapters[agent_id] = OpenAICompatAdapter(
+                         agent_id=agent_id,
+                         vendor=agent["type"],
+                         model=configured_model,
+                         base_url=base_url,
+                         endpoint_kind=endpoint_kind,
+-                        model_fallbacks=(sdk or {}).get("model_fallbacks")
+-                        or (cli or {}).get("model_fallbacks", derived_fallbacks[1:]),
++                        model_fallbacks=fallbacks,
+                     )
+                     openai_key_envs[agent_id] = (
+                         agent.get("api_key_env")
+@@ -2632,9 +2925,12 @@ class ReviewOrchestrator:
+                     vendor_id = "openrouter" if endpoint_kind == "openrouter" else "local"
+                     openai_credential_requests[agent_id] = (principal_id, vendor_id)
+ 
++        kwargs.setdefault("config_rejections", config_rejections)
++        kwargs.setdefault("rejected_lane_kinds", rejected_lane_kinds)
+         return cls(
+             adapters, sdk_adapters, openai_adapters, openai_key_envs,
+             credential_requests, credential_scopes, openai_credential_requests,
++            **kwargs,
+         )
+ 
+     @staticmethod
+@@ -2819,48 +3115,52 @@ class ReviewOrchestrator:
+         exclude_vendor: str | None = None,
+         dispatch_mode: str = "review",
+     ) -> list[ReviewerInfo]:
+-        """Discover available reviewers with ordered transport selection.
++        """Discover available reviewers (see :meth:`select_reviewers`)."""
++        reviewers, _skips = self.select_reviewers(
++            exclude_vendor=exclude_vendor, dispatch_mode=dispatch_mode,
++        )
++        return reviewers
+ 
+-        For each vendor, selects the best available dispatch method:
+-        Tier 1 (Local CLI) → Tier 2 (SDK/API) → Tier 2.5
+-        (OpenAI-compatible) → Tier 3 (Skip).
+-        Deduplicates by vendor — at most one reviewer per vendor type.
++    def select_reviewers(
++        self,
++        exclude_vendor: str | None = None,
++        dispatch_mode: str = "review",
++    ) -> tuple[list[ReviewerInfo], dict[str, str]]:
++        """Select reviewers in two passes; return ``(reviewers, skips)``.
++
++        Pass 1 picks, per vendor in sorted order, Tier 1 (Local CLI) then
++        Tier 2 (SDK/API). Pass 2 visits Tier 2.5 (OpenAI-compatible) lanes in
++        roster order, non-metered before metered, for vendors pass 1 did not
++        select (design D2). A Tier 2.5 lane whose model family matches an
++        already-selected lane is skipped as ``duplicate_model_family``; a
++        metered lane is skipped as ``fill_target_met`` once the selection
++        holds ``fill_target`` verifiable (non-SDK) lanes, so metered lanes
++        fill quorum and never add to it (design D5). ``skips`` maps vendor to
++        reason. At most one reviewer per vendor.
+         """
+-        # Collect all CLI adapters (local transport only)
++        def _excluded(adapter: Any) -> bool:
++            return bool(exclude_vendor) and adapter.vendor == exclude_vendor
++
+         cli_by_vendor: dict[str, tuple[str, CliVendorAdapter]] = {}
+         for agent_id, adapter in self.adapters.items():
+-            if exclude_vendor and adapter.vendor == exclude_vendor:
+-                continue
+             # Only consider local agents (transport=mcp) for CLI dispatch
+-            if adapter.transport == "mcp" and adapter.vendor not in cli_by_vendor:
++            if (not _excluded(adapter) and adapter.transport == "mcp"
++                    and adapter.vendor not in cli_by_vendor):
+                 cli_by_vendor[adapter.vendor] = (agent_id, adapter)
+ 
+-        # Collect all SDK adapters
+         sdk_by_vendor: dict[str, tuple[str, SdkVendorAdapter]] = {}
+         for agent_id, adapter in self.sdk_adapters.items():
+-            if exclude_vendor and adapter.vendor == exclude_vendor:
+-                continue
+-            if adapter.vendor not in sdk_by_vendor:
++            if not _excluded(adapter) and adapter.vendor not in sdk_by_vendor:
+                 sdk_by_vendor[adapter.vendor] = (agent_id, adapter)
+ 
+-        openai_by_vendor: dict[str, tuple[str, Any]] = {}
+-        for agent_id, adapter in self.openai_adapters.items():
+-            if exclude_vendor and adapter.vendor == exclude_vendor:
+-                continue
+-            if adapter.vendor not in openai_by_vendor:
+-                openai_by_vendor[adapter.vendor] = (agent_id, adapter)
+-
+-        all_vendors = (
+-            set(cli_by_vendor.keys())
+-            | set(sdk_by_vendor.keys())
+-            | set(openai_by_vendor.keys())
+-        )
+         reviewers: list[ReviewerInfo] = []
++        skips: dict[str, str] = {}
+ 
+-        for vendor in sorted(all_vendors):
+-            # Tier 1: Local CLI. can_dispatch() checks mode + PATH + declared
+-            # credential env — a pi binary without OPENROUTER_API_KEY must not
+-            # be reported available (issue #383).
++        # Pass 1: Tier 1 / Tier 2, sorted by vendor.
++        for vendor in sorted(set(cli_by_vendor) | set(sdk_by_vendor)):
++            # Tier 1: Local CLI. can_dispatch() checks mode + PATH only; no
++            # env var is read for credential presence (a missing key is an
++            # honest dispatch-time auth failure, not a hidden lane).
+             if vendor in cli_by_vendor:
+                 agent_id, cli_adapter = cli_by_vendor[vendor]
+                 if cli_adapter.can_dispatch(dispatch_mode):
+@@ -2888,31 +3188,201 @@ class ReviewOrchestrator:
+                     ))
+                     continue
+ 
+-            # Tier 2.5: OpenAI-compatible HTTP endpoint. This follows SDK so
+-            # existing local/provider-native paths remain the preferred route.
+-            if vendor in openai_by_vendor:
+-                agent_id, openai_adapter = openai_by_vendor[vendor]
+-                if openai_adapter.can_dispatch(dispatch_mode):
+-                    logger.info(
+-                        "Tier 2.5 (OpenAI-compatible) selected for %s: %s",
+-                        vendor,
+-                        agent_id,
+-                    )
+-                    reviewers.append(ReviewerInfo(
+-                        vendor=vendor,
+-                        agent_id=agent_id,
+-                        available=True,
+-                        dispatch_tier="openai",
+-                    ))
+-                    continue
+-
+-            # Tier 3: Skip
++        # Pass 2: Tier 2.5 in roster order, non-metered before metered.
++        selected_vendors = {r.vendor for r in reviewers}
++        families = {
++            self.lane_policy.vendor_families[r.vendor]
++            for r in reviewers
++            if r.vendor in self.lane_policy.vendor_families
++        }
++        openai_by_vendor: dict[str, tuple[str, Any]] = {}
++        for agent_id, adapter in self.openai_adapters.items():
++            if (not _excluded(adapter) and adapter.vendor not in selected_vendors
++                    and adapter.vendor not in openai_by_vendor):
++                openai_by_vendor[adapter.vendor] = (agent_id, adapter)
++        candidates = sorted(
++            openai_by_vendor.items(), key=lambda item: _is_metered(item[1][1]),
++        )
++        for vendor, (agent_id, openai_adapter) in candidates:
++            if not openai_adapter.can_dispatch(dispatch_mode):
++                continue
++            family = model_family(getattr(openai_adapter, "model", None))
++            if family is not None and family in families:
++                logger.info("Tier 2.5 skip for %s: duplicate model family %s", vendor, family)
++                skips[vendor] = DUPLICATE_MODEL_FAMILY
++                continue
++            metered = _is_metered(openai_adapter)
++            # Metered lanes fill toward the target; they never add past it.
++            # SDK lanes do not count: an importable package proves nothing
++            # (``probe_unsupported``), so they must not starve the fill.
++            countable = sum(1 for r in reviewers if r.dispatch_tier != "sdk")
++            if metered and countable >= self.lane_policy.fill_target:
++                logger.info("Tier 2.5 skip for %s: fill target met", vendor)
++                skips[vendor] = FILL_TARGET_MET
++                continue
+             logger.info(
+-                "Tier 3 (skip) for %s: no CLI, SDK, or OpenAI endpoint available",
+-                vendor,
++                "Tier 2.5 (OpenAI-compatible) selected for %s: %s", vendor, agent_id,
+             )
++            reviewers.append(ReviewerInfo(
++                vendor=vendor,
++                agent_id=agent_id,
++                available=True,
++                dispatch_tier="openai",
++            ))
++            if family is not None:
++                families.add(family)
+ 
+-        return reviewers
++        reviewers.sort(key=lambda r: r.vendor)
++        return reviewers, skips
++
++    def _resolve_key(
++    
 
 [diff truncated to fit packet budget; use Read/Grep for the remainder]
 
@@ -5218,170 +6185,69 @@ index 00000000..85da1870
 
 ### Rule groups
 
-#### Group 1 (default: `(default)`)
-Applies to:
-- .github/CODEOWNERS
-- .github/workflows/ci.yml
-- TRUST_POSTURE.md
-- docs/architecture-analysis/contracts-inventory.md
-- docs/architecture-analysis/skills-inventory.md
-- docs/decisions/README.md
-- docs/decisions/agent-identity.md
-- docs/decisions/model-routing.md
-- docs/decisions/multiplayer-collaboration.md
-- docs/decisions/multiplayer-simulation.md
-- docs/decisions/ownership-map.md
-- docs/decisions/parallel-infrastructure.md
-- docs/decisions/roadmap-orchestration.md
-- docs/decisions/skill-workflow.md
-- docs/decisions/supervise.md
-- docs/decisions/toolkit-distribution.md
-- docs/decisions/trust-posture.md
-- docs/guides/skills.md
-- docs/guides/state-artifacts.md
-- docs/skills-catalogue.md
-- openspec/changes/archive/2026-10-10-dispatch-contract/.review-ledger/ledger.json
-- openspec/changes/archive/2026-10-10-dispatch-contract/design.md
-- openspec/changes/archive/2026-10-10-dispatch-contract/dispatch-results/batch-1199bf07b6cb5035d4c22472-ri-21-attempt-1-g2.json
-- openspec/changes/archive/2026-10-10-dispatch-contract/dispatch-results/batch-1199bf07b6cb5035d4c22472-ri-21-attempt-1-g3.json
-- openspec/changes/archive/2026-10-10-dispatch-contract/dispatch-results/batch-1199bf07b6cb5035d4c22472-ri-21-attempt-1-g4.json
-- openspec/changes/archive/2026-10-10-dispatch-contract/dispatch-results/batch-1199bf07b6cb5035d4c22472-ri-21-attempt-1-g5.json
-- openspec/changes/archive/2026-10-10-dispatch-contract/dispatch-results/batch-1199bf07b6cb5035d4c22472-ri-21-attempt-1-g6.json
-- openspec/changes/archive/2026-10-10-dispatch-contract/dispatch-results/batch-1199bf07b6cb5035d4c22472-ri-21-attempt-1-g7.json
-- openspec/changes/archive/2026-10-10-dispatch-contract/handoffs/eeedef7e-c78e-4f7c-a6f5-94cc4a8150f5.json
-- openspec/changes/archive/2026-10-10-dispatch-contract/impl-findings.md
-- openspec/changes/archive/2026-10-10-dispatch-contract/loop-state.json
-- openspec/changes/archive/2026-10-10-dispatch-contract/plan-findings.md
-- openspec/changes/archive/2026-10-10-dispatch-contract/proposal.md
-- openspec/changes/archive/2026-10-10-dispatch-contract/session-log.md
-- openspec/changes/archive/2026-10-10-dispatch-contract/tasks.md
-- openspec/changes/archive/2026-10-10-dispatch-contract/validation-report.md
-- openspec/changes/archive/2026-10-10-dispatch-contract/work-packages.yaml
-- openspec/changes/archive/2026-10-10-multiplayer-principles-guide/.review-ledger/ledger.json
-- openspec/changes/archive/2026-10-10-multiplayer-principles-guide/design.md
-- openspec/changes/archive/2026-10-10-multiplayer-principles-guide/loop-state.json
-- openspec/changes/archive/2026-10-10-multiplayer-principles-guide/plan-findings.md
-- openspec/changes/archive/2026-10-10-multiplayer-principles-guide/proposal.md
-- openspec/changes/archive/2026-10-10-multiplayer-principles-guide/review-findings-plan.json
-- openspec/changes/archive/2026-10-10-multiplayer-principles-guide/reviews/consensus-plan.json
-- openspec/changes/archive/2026-10-10-multiplayer-principles-guide/reviews/raw-codex-plan.meta.json
-- openspec/changes/archive/2026-10-10-multiplayer-principles-guide/reviews/raw-codex-plan.txt
-- openspec/changes/archive/2026-10-10-multiplayer-principles-guide/reviews/review-manifest.json
-- openspec/changes/archive/2026-10-10-multiplayer-principles-guide/reviews/review-prompt.md
-- openspec/changes/archive/2026-10-10-multiplayer-principles-guide/session-log.md
-- openspec/changes/archive/2026-10-10-multiplayer-principles-guide/tasks.md
-- openspec/changes/archive/2026-10-10-multiplayer-principles-guide/validation-report.md
-- openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/.review-ledger/ledger.json
-- openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/contracts/cli/mpsim.yaml
-- openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/contracts/schemas/sim-report.schema.json
-- openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/design.md
-- openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/dispatch-results/batch-5f656e42c1f7d13a649f095a-ri-05-attempt-1-g5.json
-- openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/loop-state.json
-- openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/plan-findings.md
-- openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/proposal.md
-- openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/session-log.md
-- openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/tasks.md
-- openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/validation-report.md
-- openspec/changes/archive/2026-10-10-ownership-map/.review-ledger/ledger.json
-- openspec/changes/archive/2026-10-10-ownership-map/contracts/README.md
-- openspec/changes/archive/2026-10-10-ownership-map/contracts/schemas/human-principals.schema.json
-- openspec/changes/archive/2026-10-10-ownership-map/contracts/schemas/owners.schema.json
-- openspec/changes/archive/2026-10-10-ownership-map/design.md
-- openspec/changes/archive/2026-10-10-ownership-map/loop-state.json
-- openspec/changes/archive/2026-10-10-ownership-map/plan-findings.md
-- openspec/changes/archive/2026-10-10-ownership-map/proposal.md
-- openspec/changes/archive/2026-10-10-ownership-map/review-findings-plan.json
-- openspec/changes/archive/2026-10-10-ownership-map/reviews/consensus-plan.json
-- openspec/changes/archive/2026-10-10-ownership-map/reviews/findings-claude_code-plan.json
-- openspec/changes/archive/2026-10-10-ownership-map/session-log.md
-- openspec/changes/archive/2026-10-10-ownership-map/tasks.md
-- openspec/changes/archive/2026-10-10-ownership-map/validation-report.md
-- openspec/changes/archive/2026-10-10-ownership-map/work-packages.yaml
-- openspec/changes/archive/2026-10-10-toolkit-consistency/.review-ledger/ledger.json
-- openspec/changes/archive/2026-10-10-toolkit-consistency/design.md
-- openspec/changes/archive/2026-10-10-toolkit-consistency/dispatch-results/batch-70e0f5a2192d3fc876eb9732-ri-20-attempt-1-g7.json
-- openspec/changes/archive/2026-10-10-toolkit-consistency/dispatch-results/batch-70e0f5a2192d3fc876eb9732-ri-20-attempt-1-g8.json
-- openspec/changes/archive/2026-10-10-toolkit-consistency/dispatch-results/batch-70e0f5a2192d3fc876eb9732-ri-20-attempt-1-g9.json
-- openspec/changes/archive/2026-10-10-toolkit-consistency/loop-state.json
-- openspec/changes/archive/2026-10-10-toolkit-consistency/plan-findings.md
-- openspec/changes/archive/2026-10-10-toolkit-consistency/proposal.md
-- openspec/changes/archive/2026-10-10-toolkit-consistency/session-log.md
-- openspec/changes/archive/2026-10-10-toolkit-consistency/tasks.md
-- openspec/changes/archive/2026-10-10-toolkit-consistency/validation-report.md
-- openspec/changes/openrouter-review-lane/.review-ledger/ledger.json
-- openspec/changes/openrouter-review-lane/design.md
-- openspec/changes/openrouter-review-lane/dispatch-results/batch-d8913c4d8e973cd7940e2d09-ri-22-attempt-1-g1.json
-- openspec/changes/openrouter-review-lane/dispatch-results/batch-d8913c4d8e973cd7940e2d09-ri-22-attempt-1-g2.json
-- openspec/changes/openrouter-review-lane/dispatch-results/batch-d8913c4d8e973cd7940e2d09-ri-22-attempt-1-g3.json
-- openspec/changes/openrouter-review-lane/loop-state.json
-- openspec/changes/openrouter-review-lane/plan-findings.md
-- openspec/changes/openrouter-review-lane/proposal.md
-- openspec/changes/openrouter-review-lane/session-log.md
-- openspec/changes/openrouter-review-lane/tasks.md
-- openspec/contracts/README.md
-- openspec/contracts/multiplayer-simulation/cli/mpsim.yaml
-- openspec/contracts/multiplayer-simulation/schemas/sim-report.schema.json
-- openspec/owners.yaml
-- openspec/roadmaps/multiplayer-collaboration/checkpoint.json
-- openspec/roadmaps/multiplayer-collaboration/learning-log.md
-- openspec/roadmaps/multiplayer-collaboration/learnings/_supervisor.md
-- openspec/roadmaps/multiplayer-collaboration/learnings/ri-01.md
-- openspec/roadmaps/multiplayer-collaboration/learnings/ri-02.md
-- openspec/roadmaps/multiplayer-collaboration/learnings/ri-05.md
-- openspec/roadmaps/multiplayer-collaboration/learnings/ri-20.md
-- openspec/roadmaps/multiplayer-collaboration/learnings/ri-21.md
-- openspec/roadmaps/multiplayer-collaboration/roadmap.yaml
-- openspec/specs/agent-identity/spec.md
-- openspec/specs/multiplayer-collaboration/spec.md
-- openspec/specs/multiplayer-simulation/spec.md
-- openspec/specs/ownership-map/spec.md
-- openspec/specs/parallel-infrastructure/spec.md
-- openspec/specs/roadmap-orchestration/spec.md
-- openspec/specs/skill-workflow/spec.md
-- openspec/specs/supervise/spec.md
-- openspec/specs/toolkit-distribution/spec.md
-- openspec/specs/trust-posture/spec.md
-- openspec/supervise/supervisor-record.json
-- skills/install-manifest.json
-- skills/install.sh
-- skills/ownership-runtime/install_assets/openspec/schemas/human-principals.schema.json
-- skills/ownership-runtime/install_assets/openspec/schemas/owners.schema.json
-- skills/pyproject.toml
-- skills/roadmap-runtime/install_assets/openspec/schemas/dispatch-request.schema.json
-
-Review for correctness, security, and adherence to this repository's conventions.
-
-#### Group 2 (default: `agent-coordinator/agents.yaml`)
+#### Group 1 (default: `agent-coordinator/agents.yaml`)
 Applies to:
 - agent-coordinator/agents.yaml
 
 Verify a new or changed CLI/SDK block's flags match what that vendor's CLI actually accepts (cross-check against any comment citing a verified version). Check that trust_level, capabilities, and archetypes are consistent with what the agent is actually granted.
 
-#### Group 3 (default: `**/*.py`)
+#### Group 2 (default: `agent-coordinator/archetypes.yaml`)
+Applies to:
+- agent-coordinator/archetypes.yaml
+
+Verify model/tier changes are cited to an operator decision or empirical finding, not asserted alone. Check that a tier change does not silently widen or narrow which archetypes route to it.
+
+#### Group 3 (default: `(default)`)
+Applies to:
+- agent-coordinator/database/migrations/046_spend_generation_id_unique.sql
+- agent-coordinator/routing.yaml
+- agent-coordinator/tests/openapi_contract_drift_baseline.yaml
+- docs/decisions/README.md
+- docs/decisions/model-routing.md
+- docs/decisions/parallel-infrastructure.md
+- docs/decisions/skill-workflow.md
+- openspec/changes/openrouter-review-lane/.review-ledger/ledger.json
+- openspec/changes/openrouter-review-lane/contracts/README.md
+- openspec/changes/openrouter-review-lane/contracts/config/routing-cost-policy.schema.json
+- openspec/changes/openrouter-review-lane/contracts/config/routing.schema.json
+- openspec/changes/openrouter-review-lane/design.md
+- openspec/changes/openrouter-review-lane/dispatch-results/batch-d8913c4d8e973cd7940e2d09-ri-22-attempt-1-g1.json
+- openspec/changes/openrouter-review-lane/dispatch-results/batch-d8913c4d8e973cd7940e2d09-ri-22-attempt-1-g2.json
+- openspec/changes/openrouter-review-lane/dispatch-results/batch-d8913c4d8e973cd7940e2d09-ri-22-attempt-1-g3.json
+- openspec/changes/openrouter-review-lane/dispatch-results/batch-d8913c4d8e973cd7940e2d09-ri-22-attempt-1-g6.json
+- openspec/changes/openrouter-review-lane/loop-state.json
+- openspec/changes/openrouter-review-lane/plan-findings.md
+- openspec/changes/openrouter-review-lane/proposal.md
+- openspec/changes/openrouter-review-lane/session-log.md
+- openspec/changes/openrouter-review-lane/tasks.md
+- skills/parallel-infrastructure/review_quorum_policy.json
+- skills/roadmap-runtime/install_assets/openspec/schemas/dispatch-result.schema.json
+
+Review for correctness, security, and adherence to this repository's conventions.
+
+#### Group 4 (default: `**/*.py`)
 Applies to:
 - agent-coordinator/src/agents_config.py
-- agent-coordinator/tests/test_human_principals.py
-- agent-coordinator/tests/test_registry_projection.py
-- packages/gen-eval/scripts/check_traceability.py
-- packages/gen-eval/tests/test_traceability_gate.py
-- skills/shared/approval_gate.py
-- skills/shared/dispatch_contract.py
-- skills/shared/payload_hash.py
+- agent-coordinator/src/model_routing/api.py
+- agent-coordinator/src/model_routing/ledger.py
+- agent-coordinator/src/model_routing/routing_policy.py
+- agent-coordinator/tests/integration/postgres/test_fresh_database_migration.py
+- agent-coordinator/tests/model_routing/test_agent_endpoints.py
+- agent-coordinator/tests/model_routing/test_ledger.py
+- agent-coordinator/tests/model_routing/test_routing_cost_policy.py
+- agent-coordinator/tests/model_routing/test_routing_policy_config.py
+- agent-coordinator/tests/model_routing/test_spend_route.py
+- agent-coordinator/tests/test_agents_config.py
+- agent-coordinator/tests/test_archetypes_yaml.py
+- agent-coordinator/tests/test_migrations.py
+- agent-coordinator/tests/test_vendor_registry.py
+- skills/parallel-infrastructure/tests/test_check_vendors_api_lane.py
 
 Check for unhandled exceptions, resource leaks (files/sockets/locks not in a context manager), and mutable default arguments. Flag a docstring claim ("never raises", "pure function") the code does not actually satisfy.
 
-#### Group 4 (default: `openspec/changes/*/specs/**/spec.md`)
+#### Group 5 (default: `openspec/changes/*/specs/**/spec.md`)
 Applies to:
-- openspec/changes/archive/2026-10-10-dispatch-contract/specs/parallel-infrastructure/spec.md
-- openspec/changes/archive/2026-10-10-dispatch-contract/specs/roadmap-orchestration/spec.md
-- openspec/changes/archive/2026-10-10-dispatch-contract/specs/skill-workflow/spec.md
-- openspec/changes/archive/2026-10-10-dispatch-contract/specs/supervise/spec.md
-- openspec/changes/archive/2026-10-10-dispatch-contract/specs/trust-posture/spec.md
-- openspec/changes/archive/2026-10-10-multiplayer-principles-guide/specs/multiplayer-collaboration/spec.md
-- openspec/changes/archive/2026-10-10-multiplayer-simulation-harness/specs/multiplayer-simulation/spec.md
-- openspec/changes/archive/2026-10-10-ownership-map/specs/agent-identity/spec.md
-- openspec/changes/archive/2026-10-10-ownership-map/specs/ownership-map/spec.md
-- openspec/changes/archive/2026-10-10-toolkit-consistency/specs/toolkit-distribution/spec.md
+- openspec/changes/openrouter-review-lane/specs/configuration/spec.md
 - openspec/changes/openrouter-review-lane/specs/model-routing/spec.md
 - openspec/changes/openrouter-review-lane/specs/parallel-infrastructure/spec.md
 - openspec/changes/openrouter-review-lane/specs/skill-workflow/spec.md
@@ -5389,170 +6255,55 @@ Applies to:
 
 Verify every SHALL/MUST has at least one Scenario with WHEN/THEN. Check that a MODIFIED requirement's unchanged scenarios were preserved, not silently dropped.
 
-#### Group 5 (default: `openspec/schemas/*.schema.json`)
+#### Group 6 (default: `openspec/schemas/*.schema.json`)
 Applies to:
-- openspec/schemas/dispatch-request.schema.json
-- openspec/schemas/human-principals.schema.json
-- openspec/schemas/owners.schema.json
+- openspec/schemas/dispatch-result.schema.json
+- openspec/schemas/provider-model-map.schema.json
 
 Verify the schema is valid Draft 2020-12, that required fields were not silently dropped, and that any mirrored copy (install_assets, sentinel-injected) is checked for the same change.
 
-#### Group 6 (default: `skills/*/scripts/*.py`)
-Applies to:
-- skills/autopilot/scripts/agent_lane.py
-- skills/autopilot/scripts/autopilot.py
-- skills/autopilot/scripts/convergence_loop.py
-- skills/autopilot/scripts/goal_gate.py
-- skills/autopilot/scripts/phase_agent.py
-- skills/autopilot/scripts/runner.py
-- skills/improve-harness/scripts/analyze_failures.py
-- skills/improve-harness/scripts/export_shared_learnings.py
-- skills/ownership-runtime/scripts/__init__.py
-- skills/ownership-runtime/scripts/check_owners.py
-- skills/ownership-runtime/scripts/codeowners.py
-- skills/ownership-runtime/scripts/owners.py
-- skills/ownership-runtime/scripts/principals.py
-- skills/parallel-infrastructure/scripts/review_ledger.py
-- skills/supervise/scripts/cycle_state.py
-- skills/supervise/scripts/execution.py
-- skills/supervise/scripts/gate_router.py
-
-Check for unhandled exceptions on the failure paths this module is meant to guard (network, subprocess, file I/O). Verify a function documented as "never raises" actually catches every exception class it claims to. Flag silent behavior changes to existing callers.
-
 #### Group 7 (default: `skills/*/SKILL.md`)
 Applies to:
-- skills/improve-harness/SKILL.md
-- skills/ownership-runtime/SKILL.md
+- skills/autopilot/SKILL.md
 
 Check that the workflow steps match what the referenced scripts actually accept (flags, return shapes). Verify examples are runnable as written. Flag instructions that silently assume coordinator, tier, or environment state without stating the fallback.
 
-#### Group 8 (default: `skills/tests/**`)
+#### Group 8 (default: `skills/*/scripts/*.py`)
+Applies to:
+- skills/autopilot/scripts/agent_lane.py
+- skills/autopilot/scripts/convergence_loop.py
+- skills/parallel-infrastructure/scripts/openai_compat_adapter.py
+- skills/parallel-infrastructure/scripts/review_dispatcher.py
+- skills/parallel-infrastructure/scripts/review_packet.py
+- skills/parallel-infrastructure/scripts/spend_recorder.py
+- skills/supervise/scripts/execution.py
+
+Check for unhandled exceptions on the failure paths this module is meant to guard (network, subprocess, file I/O). Verify a function documented as "never raises" actually catches every exception class it claims to. Flag silent behavior changes to existing callers.
+
+#### Group 9 (default: `**/scripts/tests/**`)
+Applies to:
+- skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py
+- skills/parallel-infrastructure/scripts/tests/test_review_packet.py
+
+Check that tests exercise real behavior, not just shape — mocks should stand in for I/O and external calls, not for the logic under test. Flag a test that would pass even if the implementation were reverted to a no-op.
+
+#### Group 10 (default: `skills/tests/**`)
 Applies to:
 - skills/tests/autopilot/test_agent_lane.py
-- skills/tests/autopilot/test_console_interviewer.py
-- skills/tests/autopilot/test_gate_check_reeval.py
-- skills/tests/autopilot/test_goal_gate.py
-- skills/tests/autopilot/test_runner_archived_change.py
-- skills/tests/improve-harness/test_export_shared_learnings.py
-- skills/tests/improve-harness/test_shared_learnings_merge.py
-- skills/tests/install_sh/test_install_check_drift.py
-- skills/tests/install_sh/test_install_stamp.py
-- skills/tests/install_sh/test_openspec_assets.py
-- skills/tests/install_sh/test_payload_hash.py
-- skills/tests/install_sh/test_related_validation.py
-- skills/tests/install_sh/test_state_artifacts_registration.py
-- skills/tests/multiplayer-simulation/README.md
-- skills/tests/multiplayer-simulation/bin/mpsim
-- skills/tests/multiplayer-simulation/conftest.py
-- skills/tests/multiplayer-simulation/evaluation/descriptor.yaml
-- skills/tests/multiplayer-simulation/evaluation/scenarios/blocked.yaml
-- skills/tests/multiplayer-simulation/evaluation/scenarios/collision.yaml
-- skills/tests/multiplayer-simulation/evaluation/scenarios/usage.yaml
-- skills/tests/multiplayer-simulation/fixtures/different-requirement-control/principals/alice/plan/openspec/changes/sim-alice-notes/proposal.md
-- skills/tests/multiplayer-simulation/fixtures/different-requirement-control/principals/alice/plan/openspec/changes/sim-alice-notes/specs/sim-notes/spec.md
-- skills/tests/multiplayer-simulation/fixtures/different-requirement-control/principals/bob/plan/openspec/changes/sim-bob-notes/proposal.md
-- skills/tests/multiplayer-simulation/fixtures/different-requirement-control/principals/bob/plan/openspec/changes/sim-bob-notes/specs/sim-notes/spec.md
-- skills/tests/multiplayer-simulation/fixtures/different-requirement-control/scenario.yaml
-- skills/tests/multiplayer-simulation/fixtures/different-requirement-control/seed/openspec/specs/sim-notes/spec.md
-- skills/tests/multiplayer-simulation/fixtures/independent-principals-control/principals/retrieval-owner/plan/openspec/changes/sim-retrieval-api/proposal.md
-- skills/tests/multiplayer-simulation/fixtures/independent-principals-control/principals/storage-owner/plan/openspec/changes/sim-memory-store-core/proposal.md
-- skills/tests/multiplayer-simulation/fixtures/independent-principals-control/scenario.yaml
-- skills/tests/multiplayer-simulation/fixtures/independent-principals-control/seed/proposal.md
-- skills/tests/multiplayer-simulation/fixtures/independent-principals-control/seed/roadmap.yaml
-- skills/tests/multiplayer-simulation/fixtures/memory-store-blocked-dependency/principals/retrieval-owner/plan/openspec/changes/sim-retrieval-api/proposal.md
-- skills/tests/multiplayer-simulation/fixtures/memory-store-blocked-dependency/principals/storage-owner/plan/openspec/changes/sim-memory-store-core/proposal.md
-- skills/tests/multiplayer-simulation/fixtures/memory-store-blocked-dependency/scenario.yaml
-- skills/tests/multiplayer-simulation/fixtures/memory-store-blocked-dependency/seed/proposal.md
-- skills/tests/multiplayer-simulation/fixtures/memory-store-blocked-dependency/seed/roadmap.yaml
-- skills/tests/multiplayer-simulation/fixtures/same-requirement-collision/principals/alice/plan/openspec/changes/sim-alice-notes/proposal.md
-- skills/tests/multiplayer-simulation/fixtures/same-requirement-collision/principals/alice/plan/openspec/changes/sim-alice-notes/specs/sim-notes/spec.md
-- skills/tests/multiplayer-simulation/fixtures/same-requirement-collision/principals/bob/plan/openspec/changes/sim-bob-notes/proposal.md
-- skills/tests/multiplayer-simulation/fixtures/same-requirement-collision/principals/bob/plan/openspec/changes/sim-bob-notes/specs/sim-notes/spec.md
-- skills/tests/multiplayer-simulation/fixtures/same-requirement-collision/scenario.yaml
-- skills/tests/multiplayer-simulation/fixtures/same-requirement-collision/seed/openspec/specs/sim-notes/spec.md
-- skills/tests/multiplayer-simulation/mpsim/__init__.py
-- skills/tests/multiplayer-simulation/mpsim/__main__.py
-- skills/tests/multiplayer-simulation/mpsim/agents.py
-- skills/tests/multiplayer-simulation/mpsim/applier.py
-- skills/tests/multiplayer-simulation/mpsim/clock.py
-- skills/tests/multiplayer-simulation/mpsim/errors.py
-- skills/tests/multiplayer-simulation/mpsim/fixture.py
-- skills/tests/multiplayer-simulation/mpsim/model.py
-- skills/tests/multiplayer-simulation/mpsim/oracle.py
-- skills/tests/multiplayer-simulation/mpsim/paths.py
-- skills/tests/multiplayer-simulation/mpsim/probes/__init__.py
-- skills/tests/multiplayer-simulation/mpsim/report.py
-- skills/tests/multiplayer-simulation/mpsim/runner.py
-- skills/tests/multiplayer-simulation/mpsim/scenarios/__init__.py
-- skills/tests/multiplayer-simulation/mpsim/scenarios/blocked.py
-- skills/tests/multiplayer-simulation/mpsim/scenarios/collision.py
-- skills/tests/multiplayer-simulation/mpsim/world.py
-- skills/tests/multiplayer-simulation/test_agents.py
-- skills/tests/multiplayer-simulation/test_archive_stability.py
-- skills/tests/multiplayer-simulation/test_blocked_scenarios.py
-- skills/tests/multiplayer-simulation/test_cli.py
-- skills/tests/multiplayer-simulation/test_collision_scenarios.py
-- skills/tests/multiplayer-simulation/test_contracts.py
-- skills/tests/multiplayer-simulation/test_descriptor_drift.py
-- skills/tests/multiplayer-simulation/test_gen_eval_pack.py
-- skills/tests/multiplayer-simulation/test_oracle.py
-- skills/tests/multiplayer-simulation/test_probes.py
-- skills/tests/multiplayer-simulation/test_report.py
-- skills/tests/multiplayer-simulation/test_scaffold.py
-- skills/tests/multiplayer-simulation/test_world.py
-- skills/tests/ownership-runtime/__init__.py
-- skills/tests/ownership-runtime/conftest.py
-- skills/tests/ownership-runtime/fixtures/humans/invalid/bad_day.json
-- skills/tests/ownership-runtime/fixtures/humans/invalid/bad_email.json
-- skills/tests/ownership-runtime/fixtures/humans/invalid/bad_github_handle.json
-- skills/tests/ownership-runtime/fixtures/humans/invalid/bad_hours.json
-- skills/tests/ownership-runtime/fixtures/humans/invalid/duplicate_domains.json
-- skills/tests/ownership-runtime/fixtures/humans/invalid/empty_display_name.json
-- skills/tests/ownership-runtime/fixtures/humans/invalid/missing_display_name.json
-- skills/tests/ownership-runtime/fixtures/humans/invalid/unknown_availability_field.json
-- skills/tests/ownership-runtime/fixtures/humans/invalid/unknown_field.json
-- skills/tests/ownership-runtime/fixtures/humans/valid/full.json
-- skills/tests/ownership-runtime/fixtures/humans/valid/minimal.json
-- skills/tests/ownership-runtime/fixtures/owners/invalid/bad_capability_key.json
-- skills/tests/ownership-runtime/fixtures/owners/invalid/bad_principal_id.json
-- skills/tests/ownership-runtime/fixtures/owners/invalid/bad_roadmap_key.json
-- skills/tests/ownership-runtime/fixtures/owners/invalid/duplicate_owners.json
-- skills/tests/ownership-runtime/fixtures/owners/invalid/empty_owners.json
-- skills/tests/ownership-runtime/fixtures/owners/invalid/missing_default_owner.json
-- skills/tests/ownership-runtime/fixtures/owners/invalid/missing_owners.json
-- skills/tests/ownership-runtime/fixtures/owners/invalid/path_char_class.json
-- skills/tests/ownership-runtime/fixtures/owners/invalid/path_empty_segment.json
-- skills/tests/ownership-runtime/fixtures/owners/invalid/path_negation.json
-- skills/tests/ownership-runtime/fixtures/owners/invalid/path_whitespace.json
-- skills/tests/ownership-runtime/fixtures/owners/invalid/registry_absolute.json
-- skills/tests/ownership-runtime/fixtures/owners/invalid/registry_nested_parent_escape.json
-- skills/tests/ownership-runtime/fixtures/owners/invalid/registry_parent_escape.json
-- skills/tests/ownership-runtime/fixtures/owners/invalid/unknown_assignment_key.json
-- skills/tests/ownership-runtime/fixtures/owners/invalid/unknown_assignments_key.json
-- skills/tests/ownership-runtime/fixtures/owners/invalid/unknown_root_key.json
-- skills/tests/ownership-runtime/fixtures/owners/invalid/wrong_schema_version.json
-- skills/tests/ownership-runtime/fixtures/owners/valid/embedded_double_star_schema_ok.json
-- skills/tests/ownership-runtime/fixtures/owners/valid/full.json
-- skills/tests/ownership-runtime/fixtures/owners/valid/minimal.json
-- skills/tests/ownership-runtime/test_check_owners.py
-- skills/tests/ownership-runtime/test_codeowners_emit.py
-- skills/tests/ownership-runtime/test_codeowners_reconcile.py
-- skills/tests/ownership-runtime/test_coordinator_independence.py
-- skills/tests/ownership-runtime/test_owners.py
-- skills/tests/ownership-runtime/test_principals.py
-- skills/tests/ownership-runtime/test_repository_invariant.py
-- skills/tests/ownership-runtime/test_schema_copies.py
-- skills/tests/parallel-infrastructure/test_review_ledger.py
-- skills/tests/shared/test_committed_dispatch_scope.py
-- skills/tests/shared/test_dispatch_contract.py
-- skills/tests/state-artifacts/test_state_artifacts_guide.py
-- skills/tests/supervise/test_execution.py
-- skills/tests/supervise/test_execution_contract.py
-- skills/tests/supervise/test_gate_router.py
+- skills/tests/autopilot/test_convergence_loop_capability.py
+- skills/tests/autopilot/test_emit_result.py
+- skills/tests/autopilot/test_relayed_gate_answer.py
+- skills/tests/parallel-infrastructure/test_openai_compat_adapter.py
+- skills/tests/parallel-infrastructure/test_spend_recorder.py
+- skills/tests/supervise/test_execution_profile.py
+- skills/tests/vendor-neutral-autopilot/test_contracts.py
 
 Same standard as scripts/tests/: verify the test would fail if the behavior it targets were broken. Check that fixture paths use openspec_paths.change_dir rather than a literal openspec/changes/<id>/ path where the guide requires it.
 
 ### Spec excerpts
+#### specs/configuration/spec.md
+(excerpt dropped — over packet budget; Read this path if needed)
+
 #### specs/model-routing/spec.md
 (excerpt dropped — over packet budget; Read this path if needed)
 
@@ -5564,13 +6315,6 @@ Same standard as scripts/tests/: verify the test would fail if the behavior it t
 
 #### specs/supervise/spec.md
 (excerpt dropped — over packet budget; Read this path if needed)
-
-### Open ledger items
-- [19] Since commit 62590065 a metered lane is refused (spend_context_missing) unless dispatch_and_wait receives a SpendContext, and converge() builds one only when its caller passes the new optional `phase`. The only caller that passes `phase` is agent_lane.py (task 5.6). The host inline converge() call in skills/autopilot/SKILL.md (PLAN_REVIEW fallback, about line 567) and the other host review phases pass no phase, and task 6.4 edits only the cloud review-section text. On a host where D5 selects the metered lane (one non-metered lane), every host converge() round therefore refuses the openrouter lane and ends capability_unavailable. The 'A host-path metered review is recorded' scenario can only pass in a unit test that calls dispatch_and_wait directly. Fix: add a task (or extend 6.4) that makes every host converge() caller in skills/autopilot/SKILL.md pass phase=<PLAN_REVIEW|IMPL_REVIEW|VAL_REVIEW>, or have converge() derive a SpendContext from change_id plus review_type and round when phase is None (accepting the IMPL/VAL collision only for that fallback).
-- [20] Task 5.6 bullet 1 still says converge() 'passes work_unit_ref=<change_id>:<phase>:round-<n> to dispatch_and_wait (via _accepts_kwarg)'. After commit 62590065 the design's interface contract table, D4 and task 3.10 define the keyword as `spend_context: SpendContext(change_id, work_unit_ref)`. Groups 3 and 5 implement the two sides of this keyword in separate packages, so an implementer following 5.6 literally would pass a keyword that ReviewOrchestrator.dispatch_and_wait does not accept, and _accepts_kwarg would silently drop it, which leaves every metered dispatch spend_context_missing.
-- [21] The D4 per-round budget re-check reads metered_usd_used from GET /routing/usage, which counts only ledger rows. Rows that spooled because POST /routing/spend failed are invisible to it. D4 says 'the key's credit limit bounds spend while rows sit in the spool', but when the key limit is null and the coordinator ceiling is the only source, a worker whose GET succeeds while its POST fails (the partly-forbidden coordinator case D4 itself cites: coordinator_projection_forbidden) keeps passing the re-check while every round's spend spools. The bound then fails exactly in the degraded mode that motivated the spool. The Cost abuse bullet in Security and the Risks row on concurrent overspend do not cover it.
-
-Do not emit findings for issues already in the ledger except to re-verify the open items listed above.
 
 ### Instructions
 Return findings as JSON with a top-level `findings` array.
