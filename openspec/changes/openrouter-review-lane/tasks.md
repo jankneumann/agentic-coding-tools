@@ -28,29 +28,29 @@ dataclass fields and the shared ingest helper extracted in 1.7),
 "Metered Review Lane Spend Accounting" (capture part), "Tool-less Lane Packet Refusal"
 (including "Fast empty HTTP review does not count"); acceptance outcome 4
 
-- [ ] 1.1 Write the failing tests, all using an injected transport:
+- [x] 1.1 Write the failing tests, all using an injected transport:
   - `probe()` for `openrouter` sends `GET {base_url}/key`, and for `local` sends `GET /models`.
   - 200 → `ok` with numeric budget fields.
   - 401 → `auth_failed`; timeout → `probe_timeout`; connection error → `endpoint_unreachable`.
   - A body with no `data` → budget `None`.
   - Sentinel test: a transport that echoes the headers leaks nothing into the result, the
     logs, or the exception text.
-- [ ] 1.2 Implement `ProbeResult` and `OpenAICompatAdapter.probe(api_key, transport, timeout=10)`.
+- [x] 1.2 Implement `ProbeResult` and `OpenAICompatAdapter.probe(api_key, transport, timeout=10)`.
   Add a GET-capable transport alongside the existing POST transport, using the default SSL
   context (so `SSL_CERT_FILE` is honoured). Cite the OpenRouter docs URLs for `/key` in a
   comment (source-driven-development).
-- [ ] 1.3 Write the failing tests for cost capture:
+- [x] 1.3 Write the failing tests for cost capture:
   - The request body includes `usage: {include: true}`.
   - The response fields `usage.prompt_tokens`, `usage.completion_tokens` and `usage.cost` map
     to the new `ReviewResult` fields.
   - Without a cost, `cost_source == "estimated"`.
-- [ ] 1.4 Add the optional `ReviewResult` fields `prompt_tokens`, `completion_tokens`,
+- [x] 1.4 Add the optional `ReviewResult` fields `prompt_tokens`, `completion_tokens`,
   `cost_usd`, `cost_source` and `spend_recorded` (set by task 3.10), all defaulting to `None`,
   and implement the capture in `dispatch()`.
-- [ ] 1.5 Write a failing test: `dispatch(..., tools_overflow=True)` returns
+- [x] 1.5 Write a failing test: `dispatch(..., tools_overflow=True)` returns
   `packet_requires_tools` / `vendor_unavailable` with zero transport calls. Then implement the
   `tools_overflow` keyword (default False).
-- [ ] 1.6 Write failing tests: HTTP findings go through the same ingest pipeline as CLI findings.
+- [x] 1.6 Write failing tests: HTTP findings go through the same ingest pipeline as CLI findings.
   Today `OpenAICompatAdapter.dispatch` only calls `CliVendorAdapter._parse_findings`. The tests,
   each using an injected transport, cover:
   - a fast `{"findings": []}` (under `empty_findings_min_seconds()`) → `success=False`,
@@ -60,7 +60,7 @@ dataclass fields and the shared ingest helper extracted in 1.7),
   - a valid payload → findings coerced (`coerce_findings_payload`), stamped
     `evidence_class: judgment` (`stamp_judgment_ingest`), and line-resolved against the packet diff,
     exactly as on the CLI path.
-- [ ] 1.7 Factor the CLI ingest steps (coerce → validate → judgment stamp → line resolve →
+- [x] 1.7 Factor the CLI ingest steps (coerce → validate → judgment stamp → line resolve →
   placeholder check → empty-findings floor) out of `CliVendorAdapter` into a shared helper in
   `review_dispatcher.py`. Call it from both adapters. CLI behaviour must not change: the existing
   `test_fast_empty_findings_are_unsuccessful` and the related ingest tests stay green.

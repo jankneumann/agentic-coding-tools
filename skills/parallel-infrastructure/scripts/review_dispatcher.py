@@ -733,6 +733,16 @@ class ReviewResult:
     capacity_model: str | None = None
     capacity_reset_at: str | None = None
     capacity_retry_after_seconds: int | None = None
+    # Metered-lane spend accounting (openrouter-review-lane, D4). Set by
+    # OpenAICompatAdapter from the response's ``usage`` block; None for
+    # CLI/SDK lanes. cost_source is "reported" when usage.cost was present,
+    # "estimated" when it was absent. spend_recorded is the spend recorder's
+    # ``recorded`` value, set by ReviewOrchestrator.dispatch_and_wait.
+    prompt_tokens: int | None = None
+    completion_tokens: int | None = None
+    cost_usd: float | None = None
+    cost_source: str | None = None
+    spend_recorded: bool | None = None
 
 
 def _notify_capacity(
@@ -1154,142 +1164,23 @@ class CliVendorAdapter:
         selected_files: list[str] | None = None,
         coverage_quorum_threshold: float = 0.8,
     ) -> ReviewResult:
-        """Parse, coerce, validate, stamp, line-resolve, and coverage-score
-        one vendor stdout blob.
+        """Run one vendor stdout blob through ``ingest_findings_output``.
 
-        ``packet_diff`` is the raw diff text the reviewer was shown (see
-        ``_extract_diff_from_prompt``). When supplied and non-empty, every
-        validated finding runs through ``line_resolver.resolve_all`` so a
-        vendor-supplied ``existing_code`` snippet gets a ``line_range``
-        without a model call. ``selected_files`` is the packet's selected
-        paths (see ``_extract_selected_files_from_prompt``), used to score
-        an optional ``coverage`` block via ``_score_coverage``. Both are
-        ``None`` on the async-poll path today (it does not thread the
-        prompt through) — resolution and coverage scoring are simply
-        skipped, findings are returned exactly as validated, same as before
-        either parameter existed.
+        Thin wrapper kept so CLI call sites (sync dispatch and async poll)
+        and their tests keep their shape; the pipeline itself is shared
+        with the OpenAI-compatible HTTP adapter.
         """
-        from review_findings_schema import (
-            coerce_findings_payload,
-            empty_findings_min_seconds,
-            stamp_judgment_ingest,
-        )
-
-        raw = "\n".join(part for part in (stdout.strip(), stderr.strip()) if part)
-        excerpt = raw[:500]
-        findings = self._parse_findings(stdout)
-        coercions: list[str] = []
-        unanchored_findings = 0
-        if findings is not None:
-            coverage_notes = _coerce_coverage_reasons(findings)
-            findings, generic_notes = coerce_findings_payload(findings)
-            coercions = coverage_notes + generic_notes
-            findings, schema_error = _validate_findings_or_error(findings)
-            if findings is not None:
-                findings = stamp_judgment_ingest(findings)
-                coverage_rate, coverage_eligibility, coverage_status = _score_coverage(
-                    findings, selected_files, coverage_quorum_threshold,
-                )
-                if packet_diff:
-                    resolved, unanchored_findings = line_resolver.resolve_all(
-                        findings.get("findings", []), packet_diff,
-                    )
-                    findings["findings"] = resolved
-                if _is_placeholder_only_response(findings, stdout):
-                    return ReviewResult(
-                        vendor=self.vendor,
-                        success=False,
-                        model_used=model_name,
-                        models_attempted=models_attempted,
-                        elapsed_seconds=elapsed,
-                        error="non_substantive_placeholder",
-                        raw_stdout=stdout,
-                        raw_stderr=stderr or None,
-                        coercions=coercions,
-                    )
-                arr = findings.get("findings") or []
-                if (
-                    enforce_empty_findings_grace
-                    and arr == []
-                    and elapsed < empty_findings_min_seconds()
-                ):
-                    return ReviewResult(
-                        vendor=self.vendor,
-                        success=False,
-                        model_used=model_name,
-                        models_attempted=models_attempted,
-                        elapsed_seconds=elapsed,
-                        error="empty_findings_too_fast",
-                        raw_stdout=stdout,
-                        raw_stderr=stderr or None,
-                        coercions=coercions,
-                    )
-                return ReviewResult(
-                    vendor=self.vendor,
-                    success=True,
-                    findings=findings,
-                    model_used=model_name,
-                    models_attempted=models_attempted,
-                    elapsed_seconds=elapsed,
-                    raw_stdout=stdout,
-                    raw_stderr=stderr or None,
-                    coercions=coercions,
-                    unanchored_findings=unanchored_findings,
-                    coverage_rate=coverage_rate,
-                    coverage_eligibility=coverage_eligibility,
-                    coverage_status=coverage_status,
-                )
-            zero_exit_class = classify_error(raw)
-            if zero_exit_class in (ErrorClass.AUTH, ErrorClass.UNAVAILABLE, ErrorClass.CAPACITY):
-                return ReviewResult(
-                    vendor=self.vendor,
-                    success=False,
-                    model_used=model_name,
-                    models_attempted=models_attempted,
-                    elapsed_seconds=elapsed,
-                    error=excerpt or schema_error,
-                    error_class=zero_exit_class,
-                    raw_stdout=stdout,
-                    raw_stderr=stderr or None,
-                    coercions=coercions,
-                )
-            return ReviewResult(
-                vendor=self.vendor,
-                success=False,
-                model_used=model_name,
-                models_attempted=models_attempted,
-                elapsed_seconds=elapsed,
-                error=schema_error or f"Invalid JSON output: {excerpt}",
-                raw_stdout=stdout,
-                raw_stderr=stderr or None,
-                coercions=coercions,
-            )
-
-        zero_exit_class = classify_error(raw)
-        if zero_exit_class in (ErrorClass.AUTH, ErrorClass.UNAVAILABLE, ErrorClass.CAPACITY):
-            return ReviewResult(
-                vendor=self.vendor,
-                success=False,
-                model_used=model_name,
-                models_attempted=models_attempted,
-                elapsed_seconds=elapsed,
-                error=excerpt,
-                error_class=zero_exit_class,
-                raw_stdout=stdout,
-                raw_stderr=stderr or None,
-            )
-        return ReviewResult(
-            vendor=self.vendor,
-            success=False,
-            model_used=model_name,
+        return ingest_findings_output(
+            self.vendor,
+            stdout,
+            stderr,
+            elapsed=elapsed,
+            model_name=model_name,
             models_attempted=models_attempted,
-            elapsed_seconds=elapsed,
-            error=(
-                f"Invalid JSON output: {excerpt}" if excerpt
-                else "Invalid JSON output (empty stdout)"
-            ),
-            raw_stdout=stdout,
-            raw_stderr=stderr or None,
+            enforce_empty_findings_grace=enforce_empty_findings_grace,
+            packet_diff=packet_diff,
+            selected_files=selected_files,
+            coverage_quorum_threshold=coverage_quorum_threshold,
         )
 
     @staticmethod
@@ -1842,6 +1733,163 @@ class CliVendorAdapter:
 # ---------------------------------------------------------------------------
 # SDK adapter
 # ---------------------------------------------------------------------------
+
+def ingest_findings_output(
+    vendor: str,
+    stdout: str,
+    stderr: str,
+    *,
+    elapsed: float,
+    model_name: str,
+    models_attempted: list[str],
+    enforce_empty_findings_grace: bool = True,
+    packet_diff: str | None = None,
+    selected_files: list[str] | None = None,
+    coverage_quorum_threshold: float = 0.8,
+) -> ReviewResult:
+    """Parse, coerce, validate, stamp, line-resolve, and coverage-score
+    one reviewer output blob, then apply the placeholder and
+    empty-findings-floor checks.
+
+    Shared by ``CliVendorAdapter`` (stdout of a vendor CLI) and the
+    OpenAI-compatible HTTP adapter (message content of a chat completion)
+    so every lane is held to the same ingest contract.
+
+    ``packet_diff`` is the raw diff text the reviewer was shown (see
+    ``_extract_diff_from_prompt``). When supplied and non-empty, every
+    validated finding runs through ``line_resolver.resolve_all`` so a
+    vendor-supplied ``existing_code`` snippet gets a ``line_range``
+    without a model call. ``selected_files`` is the packet's selected
+    paths (see ``_extract_selected_files_from_prompt``), used to score
+    an optional ``coverage`` block via ``_score_coverage``. Both are
+    ``None`` on the CLI async-poll path today (it does not thread the
+    prompt through) — resolution and coverage scoring are simply
+    skipped, findings are returned exactly as validated, same as before
+    either parameter existed.
+    """
+    from review_findings_schema import (
+        coerce_findings_payload,
+        empty_findings_min_seconds,
+        stamp_judgment_ingest,
+    )
+
+    raw = "\n".join(part for part in (stdout.strip(), stderr.strip()) if part)
+    excerpt = raw[:500]
+    findings = CliVendorAdapter._parse_findings(stdout)
+    coercions: list[str] = []
+    unanchored_findings = 0
+    if findings is not None:
+        coverage_notes = _coerce_coverage_reasons(findings)
+        findings, generic_notes = coerce_findings_payload(findings)
+        coercions = coverage_notes + generic_notes
+        findings, schema_error = _validate_findings_or_error(findings)
+        if findings is not None:
+            findings = stamp_judgment_ingest(findings)
+            coverage_rate, coverage_eligibility, coverage_status = _score_coverage(
+                findings, selected_files, coverage_quorum_threshold,
+            )
+            if packet_diff:
+                resolved, unanchored_findings = line_resolver.resolve_all(
+                    findings.get("findings", []), packet_diff,
+                )
+                findings["findings"] = resolved
+            if _is_placeholder_only_response(findings, stdout):
+                return ReviewResult(
+                    vendor=vendor,
+                    success=False,
+                    model_used=model_name,
+                    models_attempted=models_attempted,
+                    elapsed_seconds=elapsed,
+                    error="non_substantive_placeholder",
+                    raw_stdout=stdout,
+                    raw_stderr=stderr or None,
+                    coercions=coercions,
+                )
+            arr = findings.get("findings") or []
+            if (
+                enforce_empty_findings_grace
+                and arr == []
+                and elapsed < empty_findings_min_seconds()
+            ):
+                return ReviewResult(
+                    vendor=vendor,
+                    success=False,
+                    model_used=model_name,
+                    models_attempted=models_attempted,
+                    elapsed_seconds=elapsed,
+                    error="empty_findings_too_fast",
+                    raw_stdout=stdout,
+                    raw_stderr=stderr or None,
+                    coercions=coercions,
+                )
+            return ReviewResult(
+                vendor=vendor,
+                success=True,
+                findings=findings,
+                model_used=model_name,
+                models_attempted=models_attempted,
+                elapsed_seconds=elapsed,
+                raw_stdout=stdout,
+                raw_stderr=stderr or None,
+                coercions=coercions,
+                unanchored_findings=unanchored_findings,
+                coverage_rate=coverage_rate,
+                coverage_eligibility=coverage_eligibility,
+                coverage_status=coverage_status,
+            )
+        zero_exit_class = classify_error(raw)
+        if zero_exit_class in (ErrorClass.AUTH, ErrorClass.UNAVAILABLE, ErrorClass.CAPACITY):
+            return ReviewResult(
+                vendor=vendor,
+                success=False,
+                model_used=model_name,
+                models_attempted=models_attempted,
+                elapsed_seconds=elapsed,
+                error=excerpt or schema_error,
+                error_class=zero_exit_class,
+                raw_stdout=stdout,
+                raw_stderr=stderr or None,
+                coercions=coercions,
+            )
+        return ReviewResult(
+            vendor=vendor,
+            success=False,
+            model_used=model_name,
+            models_attempted=models_attempted,
+            elapsed_seconds=elapsed,
+            error=schema_error or f"Invalid JSON output: {excerpt}",
+            raw_stdout=stdout,
+            raw_stderr=stderr or None,
+            coercions=coercions,
+        )
+
+    zero_exit_class = classify_error(raw)
+    if zero_exit_class in (ErrorClass.AUTH, ErrorClass.UNAVAILABLE, ErrorClass.CAPACITY):
+        return ReviewResult(
+            vendor=vendor,
+            success=False,
+            model_used=model_name,
+            models_attempted=models_attempted,
+            elapsed_seconds=elapsed,
+            error=excerpt,
+            error_class=zero_exit_class,
+            raw_stdout=stdout,
+            raw_stderr=stderr or None,
+        )
+    return ReviewResult(
+        vendor=vendor,
+        success=False,
+        model_used=model_name,
+        models_attempted=models_attempted,
+        elapsed_seconds=elapsed,
+        error=(
+            f"Invalid JSON output: {excerpt}" if excerpt
+            else "Invalid JSON output (empty stdout)"
+        ),
+        raw_stdout=stdout,
+        raw_stderr=stderr or None,
+    )
+
 
 class SdkVendorAdapter:
     """SDK-based vendor adapter — dispatches via vendor Python SDKs.
