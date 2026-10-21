@@ -30,6 +30,7 @@ import json
 import logging
 import re
 import sys
+import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -164,8 +165,103 @@ class AgentLaneOrchestrator:
         return [result]
 
 
+class CompositeOrchestrator:
+    """The handshake lane plus the dispatcher's other verified lanes (design D7).
+
+    Each round runs ``ReviewOrchestrator.dispatch_and_wait(include_lanes=...)``
+    in a thread while the handshake lane is served in this one, then returns
+    both result lists. The checkpoint callback is forwarded with the round's
+    full expected count. The review orchestrator is built on the first round
+    that has a lane for it, so a run ``converge()`` refuses below quorum
+    never builds one.
+    """
+
+    def __init__(
+        self,
+        agent_lane: AgentLaneOrchestrator,
+        *,
+        include_lanes: list[str] | tuple[str, ...] = (),
+        review_factory: Callable[[], Any] | None = None,
+    ) -> None:
+        self.agent_lane = agent_lane
+        self.include_lanes = list(include_lanes)
+        self._review_factory = review_factory
+        self._review: Any = None
+        self.results_by_round: list[list[Any]] = []
+
+    @property
+    def round(self) -> int:
+        return self.agent_lane.round
+
+    @property
+    def adapters(self) -> dict[str, Any]:
+        return getattr(self._review, "adapters", None) or {}
+
+    def _review_orchestrator(self) -> Any:
+        if self._review is None and self.include_lanes:
+            if self._review_factory is None:
+                raise RuntimeError(f"no review orchestrator for lanes {self.include_lanes}")
+            self._review = self._review_factory()
+        return self._review
+
+    def dispatch_and_wait(
+        self,
+        review_type: str,
+        dispatch_mode: str,
+        prompt: str,
+        cwd: Path,
+        timeout_seconds: float | None = None,
+        packet_path: Path | None = None,
+        result_callback: Callable[[Any, int], None] | None = None,
+        *,
+        toolless_packet_path: Path | None = None,
+        spend_context: Any = None,
+    ) -> list[Any]:
+        review = self._review_orchestrator()
+        expected = 1 + (len(self.include_lanes) if review is not None else 0)
+
+        def forward(result: Any, _count: int) -> None:
+            if result_callback is not None:
+                result_callback(result, expected)
+
+        review_results: list[Any] = []
+        review_errors: list[BaseException] = []
+
+        def run_review() -> None:
+            try:
+                review_results.extend(review.dispatch_and_wait(
+                    review_type, dispatch_mode, prompt, cwd,
+                    timeout_seconds=timeout_seconds,
+                    packet_path=packet_path,
+                    result_callback=forward,
+                    include_lanes=self.include_lanes,
+                    toolless_packet_path=toolless_packet_path,
+                    spend_context=spend_context,
+                ))
+            except BaseException as exc:  # noqa: BLE001 - re-raised in the caller's thread
+                review_errors.append(exc)
+
+        thread = None
+        if review is not None:
+            thread = threading.Thread(target=run_review, name="composite-review", daemon=True)
+            thread.start()
+        try:
+            agent_results = self.agent_lane.dispatch_and_wait(
+                review_type, dispatch_mode, prompt, cwd,
+                timeout_seconds=timeout_seconds, packet_path=packet_path, result_callback=forward,
+            )
+        finally:
+            if thread is not None:
+                thread.join()
+        if review_errors:
+            raise review_errors[0]
+        results = [*agent_results, *review_results]
+        self.results_by_round.append(results)
+        return results
+
+
 def make_fix_callback(
-    handshake: Handshake, orchestrator: AgentLaneOrchestrator, *, fix_phase: str
+    handshake: Handshake, orchestrator: Any, *, fix_phase: str
 ) -> Callable[[list[dict[str, Any]], Path], None]:
     def fix_callback(payloads: list[dict[str, Any]], worktree_path: Path) -> None:
         n = orchestrator.round
@@ -195,17 +291,85 @@ def write_validation_review_section(report_path: Path, *, status: str, body: str
 
 
 def _review_body(result: dict[str, Any], *, min_quorum: int, policy: dict[str, Any]) -> str:
+    lanes = result.get("lanes") or [LANE]
+    listed = ", ".join(f"`{lane}`" for lane in lanes)
     lines = [
         f"- Result: converged in {result['rounds']} round(s) via `agent_lane.py converge`.",
-        f"- Lanes: `{LANE}` only (min_quorum={min_quorum}).",
+        f"- Lanes: {listed}{' only' if len(lanes) == 1 else ''} (min_quorum={min_quorum}).",
     ]
-    if policy.get("policy_id"):
+    if len(lanes) == 1 and policy.get("policy_id"):
         lines.append(
             f"- Degradation: `single_vendor_review` under quorum policy `{policy['policy_id']}`."
         )
     if result.get("summary"):
         lines.append(f"- Summary: {result['summary']}")
     return "\n".join(lines)
+
+
+#: review phase -> the per-phase consensus file under ``<change>/reviews/``
+CONSENSUS_FILES: dict[str, str] = {
+    "PLAN_REVIEW": "consensus-plan.json",
+    "IMPL_REVIEW": "consensus-impl-review.json",
+    "VAL_REVIEW": "consensus-val-review.json",
+}
+
+
+def _resolve_lanes(
+    verified_lanes: list[str] | None, counting_lanes: list[str] | None
+) -> tuple[list[str], list[str]]:
+    """``claude_code`` first (the running agent serves it), then the rest, deduplicated."""
+    verified = list(dict.fromkeys([LANE, *(verified_lanes or [])]))
+    counting = list(dict.fromkeys(counting_lanes)) if counting_lanes else list(verified)
+    return verified, counting
+
+
+def _lane_of(result: Any, verified: list[str]) -> str:
+    for lane in verified:
+        if lane in (getattr(result, "vendor", None), getattr(result, "agent_id", None)):
+            return lane
+    return str(getattr(result, "vendor", None) or getattr(result, "agent_id", None))
+
+
+def _lane_report(
+    results_by_round: list[list[Any]], verified: list[str], *, phase: str
+) -> dict[str, Any]:
+    """The ``lanes`` / ``lane_results`` / ``degradations`` fields of ``result.json``.
+
+    ``lane_results`` holds each lane's most recent result. A metered result
+    whose spend the dispatcher could not record (``spend_recorded is False``)
+    becomes one ``metered_spend_unrecorded`` degradation per lane and round.
+    """
+    succeeded: set[str] = set()
+    lane_results: dict[str, dict[str, Any]] = {}
+    degradations: list[dict[str, Any]] = []
+    for n, results in enumerate(results_by_round, start=1):
+        for result in results:
+            lane = _lane_of(result, verified)
+            if getattr(result, "success", False):
+                succeeded.add(lane)
+            lane_results[lane] = {
+                "success": bool(getattr(result, "success", False)),
+                "model_used": getattr(result, "model_used", None),
+                "generation_id": getattr(result, "generation_id", None),
+                "cost_usd": getattr(result, "cost_usd", None),
+                "cost_source": getattr(result, "cost_source", None),
+            }
+            if getattr(result, "spend_recorded", None) is False:
+                degradations.append({
+                    "code": "metered_spend_unrecorded",
+                    "phase": phase,
+                    "detail": f"{lane} round {n} spend not recorded",
+                })
+    ordered = [lane for lane in verified if lane in succeeded]
+    ordered += sorted(succeeded - set(ordered))
+    return {"lanes": ordered, "lane_results": lane_results, "degradations": degradations}
+
+
+def _quorum_received(consensus: dict[str, Any] | None, results_by_round: list[list[Any]]) -> int:
+    if consensus and consensus.get("quorum_received") is not None:
+        return int(consensus["quorum_received"])
+    last = results_by_round[-1] if results_by_round else []
+    return sum(1 for result in last if getattr(result, "success", False))
 
 
 def run_converge(
@@ -223,7 +387,17 @@ def run_converge(
     poll_seconds: float = POLL_SECONDS,
     converge_fn: Callable[..., Any] | None = None,
     policy_fn: Callable[..., dict[str, Any]] | None = None,
+    verified_lanes: list[str] | None = None,
+    counting_lanes: list[str] | None = None,
+    review_orchestrator_factory: Callable[[], Any] | None = None,
 ) -> dict[str, Any]:
+    """Run one review phase through ``converge()`` and record ``result.json``.
+
+    ``verified_lanes`` are the review lanes the launch marker (or a
+    ``--check-vendors --json`` probe) verified; ``claude_code`` is always one.
+    The others are dispatched by a ``ReviewOrchestrator`` alongside the
+    handshake lane. ``counting_lanes`` default to the verified lanes.
+    """
     if phase not in PHASES:
         raise ValueError(f"phase must be one of {sorted(PHASES)}")
     review_type, fix_phase = PHASES[phase]
@@ -246,10 +420,25 @@ def run_converge(
         filename=str(handshake.dir / "converge.log"), level=logging.INFO,
         format="%(asctime)s %(name)s %(levelname)s %(message)s",
     )
-    policy = policy_fn(environment=environment, verified_review_lanes=1)
+    verified, counting = _resolve_lanes(verified_lanes, counting_lanes)
+    others = [lane for lane in verified if lane != LANE]
+    if review_orchestrator_factory is None:
+        def review_orchestrator_factory() -> Any:
+            from review_dispatcher import _orchestrator_for_dispatch
+
+            return _orchestrator_for_dispatch(None, worktree)
+
+    policy = policy_fn(environment=environment, verified_review_lanes=len(verified))
     min_quorum = int(policy["min_quorum"][phase])
-    orchestrator = AgentLaneOrchestrator(handshake, model=model)
-    handshake.event("converge_started", phase=phase, min_quorum=min_quorum, policy=policy)
+    orchestrator = CompositeOrchestrator(
+        AgentLaneOrchestrator(handshake, model=model),
+        include_lanes=others,
+        review_factory=review_orchestrator_factory,
+    )
+    handshake.event(
+        "converge_started", phase=phase, min_quorum=min_quorum, policy=policy,
+        verified_lanes=verified, counting_lanes=counting,
+    )
     try:
         res = converge_fn(
             change_id=change_id,
@@ -259,9 +448,10 @@ def run_converge(
             max_rounds=max_rounds,
             min_quorum=min_quorum,
             fix_mode=fix_mode,
-            verified_lanes=[LANE],
-            counting_lanes=[LANE],
+            verified_lanes=verified,
+            counting_lanes=counting,
             base_ref=base_ref,
+            phase=phase,
             fix_callback=make_fix_callback(handshake, orchestrator, fix_phase=fix_phase),
             memory_callback=lambda text: handshake.event("memory", text=text),
             orchestrator=orchestrator,
@@ -278,9 +468,21 @@ def run_converge(
             "validation_errors": res.validation_errors,
             "checkpoint_dir": str(res.checkpoint_dir) if res.checkpoint_dir else None,
             "summary": (res.consensus or {}).get("summary"),
+            "missing_lanes": getattr(res, "missing_lanes", None),
+            "quorum_received": _quorum_received(res.consensus, orchestrator.results_by_round),
+            **_lane_report(orchestrator.results_by_round, verified, phase=phase),
         }
+        if res.consensus is not None:
+            consensus_path = change_dir / "reviews" / CONSENSUS_FILES[phase]
+            consensus_path.parent.mkdir(parents=True, exist_ok=True)
+            consensus_path.write_text(json.dumps(res.consensus, indent=2, default=str), encoding="utf-8")
+            out["consensus_path"] = str(consensus_path)
     except Exception as exc:  # noqa: BLE001 - recorded for the agent, not swallowed silently
         out = {"phase": phase, "converged": False, "error": f"{type(exc).__name__}: {exc}"}
+        # Spend already sent but not recorded is still reported on a failed run.
+        degradations = _lane_report(orchestrator.results_by_round, verified, phase=phase)["degradations"]
+        if degradations:
+            out["degradations"] = degradations
 
     if phase == "VAL_REVIEW" and out.get("converged"):
         write_validation_review_section(
@@ -310,6 +512,16 @@ def _build_parser() -> argparse.ArgumentParser:
     cv.add_argument("--max-rounds", type=int, default=3)
     cv.add_argument("--fix-mode", default="targeted", choices=["inline", "targeted"])
     cv.add_argument("--timeout-seconds", type=float, default=DEFAULT_TIMEOUT_SECONDS)
+    cv.add_argument(
+        "--verified-lanes", action="append", default=None, metavar="LANE",
+        help="A verified review lane (repeatable): the launch marker's execution_profile.lanes.review, "
+        "or the --check-vendors --json verified list. claude_code is always included.",
+    )
+    cv.add_argument(
+        "--counting-lanes", action="append", default=None, metavar="LANE",
+        help="A lane that counts toward quorum (repeatable): the launch marker's "
+        "review_requirements.counting_lanes. Defaults to the verified lanes.",
+    )
     return parser
 
 
@@ -326,8 +538,12 @@ def main(argv: list[str] | None = None) -> int:
         max_rounds=args.max_rounds,
         fix_mode=args.fix_mode,
         timeout_seconds=args.timeout_seconds,
+        verified_lanes=args.verified_lanes,
+        counting_lanes=args.counting_lanes,
     )
-    print(json.dumps({k: out.get(k) for k in ("phase", "converged", "rounds", "reason", "error")}))
+    print(json.dumps(
+        {k: out.get(k) for k in ("phase", "converged", "rounds", "reason", "missing_lanes", "error")}
+    ))
     return 0 if out.get("converged") else 1
 
 

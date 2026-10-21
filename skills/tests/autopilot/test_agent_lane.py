@@ -231,3 +231,309 @@ def test_a_reused_proto_dir_does_not_answer_with_a_previous_runs_findings(tmp_pa
 def test_cli_rejects_an_unknown_phase() -> None:
     with pytest.raises(SystemExit):
         agent_lane.main(["converge", "--change-id", "d", "--phase", "VALIDATE", "--proto-dir", "p", "--model", "m"])
+
+
+# --------------------------------------------------------------------------- #
+# 5.4: the composite agent lane (design D7)
+# --------------------------------------------------------------------------- #
+
+_LOW_FINDING = {
+    "id": 1,
+    "type": "correctness",
+    "criticality": "low",
+    "description": "The retry section does not say what a second timeout does",
+    "disposition": "accept",
+    "axis": "correctness",
+    "severity": "nit",
+    "evidence_class": "judgment",  # low judgment never blocks (D3), so round 1 converges
+    "file_path": "proposal.md",
+}
+_BLOCKING_FINDING = {
+    **_LOW_FINDING,
+    "criticality": "high",
+    "disposition": "fix",
+    "severity": "critical",
+    "evidence_class": "deterministic",
+}
+
+
+def _findings(*findings: dict[str, Any]) -> dict[str, Any]:
+    return {"review_type": "plan", "target": "demo", "findings": [dict(f) for f in findings]}
+
+
+class _ChatTransport:
+    """Chat-completions stand-in: one scripted review per call, never the network."""
+
+    def __init__(self, *reviews: dict[str, Any]) -> None:
+        self._reviews = list(reviews)
+        self.calls = 0
+
+    def __call__(self, url: str, headers: dict[str, str], payload: dict, timeout: float):
+        self.calls += 1
+        review = self._reviews[min(self.calls, len(self._reviews)) - 1]
+        return {
+            "id": f"gen-test-{self.calls}",
+            "choices": [{"message": {"content": json.dumps(review)}}],
+            "usage": {"prompt_tokens": 100, "completion_tokens": 20},
+        }
+
+
+class _ProbeTransport:
+    def __call__(self, url: str, headers: dict[str, str], timeout: float):
+        return 200, {"data": {"limit": 20.0, "limit_remaining": 15.0, "usage": 0.0}}
+
+
+class _FakeRecorder:
+    """Stands in for the ``spend_recorder`` module; never posts anything."""
+
+    def __init__(self, *, recorded: bool = True) -> None:
+        self.recorded = recorded
+        self.rows: list[tuple[dict, str]] = []
+
+    def row_from_review_result(self, result: Any, **kwargs: Any) -> dict:
+        import spend_recorder
+
+        return spend_recorder.row_from_review_result(result, **kwargs)
+
+    def record(self, row: dict, *, change_id: str, **_: Any):
+        from spend_recorder import RecordOutcome
+
+        self.rows.append((dict(row), change_id))
+        return RecordOutcome(recorded=self.recorded, spooled=not self.recorded)
+
+    def spooled_total_usd(self, change_id: str, **_: Any) -> float:
+        return 0.0
+
+
+@pytest.fixture
+def metered(monkeypatch: pytest.MonkeyPatch):
+    """Build a real ``ReviewOrchestrator`` with one OpenRouter lane on injected transports."""
+    import openai_compat_adapter
+    import review_dispatcher
+
+    def _no_network(*_a: Any, **_k: Any) -> None:
+        raise AssertionError("no real HTTP request may be sent")
+
+    monkeypatch.setattr(openai_compat_adapter, "_default_transport", _no_network)
+    monkeypatch.setattr(openai_compat_adapter, "_default_get_transport", _no_network)
+    monkeypatch.setattr(
+        review_dispatcher, "_resolve_review_model_spec",
+        lambda vendor: ("nvidia/nemotron", None) if vendor == "openrouter" else (None, None),
+    )
+    monkeypatch.setattr(review_dispatcher, "_derived_tier_fallbacks", lambda _vendor: [])
+    monkeypatch.delenv("BAO_ADDR", raising=False)
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-test-not-a-real-key")
+
+    def build(*, chat: _ChatTransport, recorder: _FakeRecorder, usage: dict[str, Any]):
+        return review_dispatcher.ReviewOrchestrator.from_config_dict(
+            {"agents": [{
+                "agent_id": "openrouter-review", "type": "openrouter", "transport": "http",
+                "endpoint_kind": "openrouter", "base_url": "https://openrouter.ai/api/v1",
+            }]},
+            lane_policy=review_dispatcher.LanePolicy(
+                vendor_families={"claude_code": "anthropic", "codex": "openai"},
+                fill_target=2,
+                review_reservation_usd=1.0,
+            ),
+            openai_transport=chat,
+            probe_transport=_ProbeTransport(),
+            usage_fetcher=lambda: usage,
+            spend_recorder=recorder,
+        )
+
+    return build
+
+
+def _plan_fixture(worktree: Path) -> Path:
+    change_dir = _change_dir(worktree)
+    (change_dir / "proposal.md").write_text("# Proposal\n\nRetry a timed-out review once.\n")
+    (change_dir / "tasks.md").write_text("## 1. Retry\n\n- [ ] 1.1 Retry once\n")
+    return change_dir
+
+
+def _serve_findings(proto: Path, rounds: list[dict[str, Any]], *, before_fix=None) -> threading.Thread:
+    """Answer review round N with ``rounds[N-1]``; acknowledge each fix request between rounds."""
+
+    def run() -> None:
+        hs = agent_lane.Handshake(proto, timeout_seconds=20, poll_seconds=0.01)
+        for n, findings in enumerate(rounds, start=1):
+            hs.wait_for(f"awaiting-review-{n}")
+            (proto / f"findings-round-{n}.json").write_text(json.dumps(findings))
+            if n < len(rounds):
+                hs.wait_for(f"fix-request-round-{n}.json")
+                if before_fix is not None:
+                    before_fix(n)
+                (proto / f"fix-done-round-{n}").touch()
+
+    thread = threading.Thread(target=run, daemon=True)
+    thread.start()
+    return thread
+
+
+def _run_composite(tmp_path: Path, review_orchestrator: Any, *, phase: str = "PLAN_REVIEW", **kwargs: Any):
+    return agent_lane.run_converge(
+        change_id="demo", phase=phase, worktree=tmp_path / "wt", proto_dir=tmp_path / "proto",
+        base_ref=None, model="model-x", timeout_seconds=20, poll_seconds=0.01,
+        verified_lanes=["claude_code", "openrouter"],
+        review_orchestrator_factory=lambda: review_orchestrator,
+        **kwargs,
+    )
+
+
+def test_a_composite_plan_review_counts_both_lanes(tmp_path: Path, metered, monkeypatch) -> None:
+    import convergence_loop
+
+    change_dir = _plan_fixture(tmp_path / "wt")
+    recorder = _FakeRecorder()
+    review = metered(chat=_ChatTransport(_findings(_LOW_FINDING)), recorder=recorder, usage={})
+    server = _serve_findings(tmp_path / "proto", [_findings(_LOW_FINDING)])
+    seen: dict[str, Any] = {}
+    real_converge = convergence_loop.converge
+
+    def spy(*args: Any, **kwargs: Any):
+        seen.update(kwargs)
+        return real_converge(*args, **kwargs)
+
+    monkeypatch.setattr(convergence_loop, "converge", spy)
+    out = _run_composite(tmp_path, review)
+    server.join(timeout=10)
+
+    assert out["converged"] is True, out
+    assert seen["min_quorum"] == 2 and out["policy"]["policy_id"] is None
+    assert seen["verified_lanes"] == seen["counting_lanes"] == ["claude_code", "openrouter"]
+    assert seen["phase"] == "PLAN_REVIEW"
+    checkpoint = Path(out["checkpoint_dir"])
+    assert (checkpoint / "findings-claude_code-plan.json").is_file()
+    assert (checkpoint / "findings-openrouter-plan.json").is_file()
+    assert out["quorum_received"] == 2
+    assert out["lanes"] == ["claude_code", "openrouter"]
+    assert out["missing_lanes"] is None
+    assert out["degradations"] == []
+    assert out["lane_results"]["openrouter"]["generation_id"] == "gen-test-1"
+    assert out["lane_results"]["openrouter"]["model_used"] == "nvidia/nemotron"
+    assert out["lane_results"]["claude_code"]["model_used"] == "model-x"
+
+    consensus = json.loads((change_dir / "reviews" / "consensus-plan.json").read_text())
+    assert consensus["quorum_received"] == 2
+    assert {r["vendor"] for r in consensus["reviewers"]} >= {"claude_code", "openrouter"}
+    [finding] = consensus["consensus_findings"]
+    assert finding["status"] == "confirmed"
+    assert set(finding["vendor_hits"]) == {"claude_code", "openrouter"}
+    [(row, change_id)] = recorder.rows
+    assert change_id == "demo" and row["work_unit_ref"] == "demo:PLAN_REVIEW:round-1"
+
+
+def test_unrecorded_metered_spend_is_a_degradation_in_the_result(tmp_path: Path, metered) -> None:
+    _plan_fixture(tmp_path / "wt")
+    review = metered(
+        chat=_ChatTransport(_findings(_LOW_FINDING)), recorder=_FakeRecorder(recorded=False), usage={},
+    )
+    server = _serve_findings(tmp_path / "proto", [_findings(_LOW_FINDING)])
+
+    out = _run_composite(tmp_path, review)
+    server.join(timeout=10)
+
+    assert out["converged"] is True
+    assert out["degradations"] == [{
+        "code": "metered_spend_unrecorded",
+        "phase": "PLAN_REVIEW",
+        "detail": "openrouter round 1 spend not recorded",
+    }]
+    saved = json.loads((tmp_path / "proto" / "result.json").read_text())
+    assert saved["degradations"] == out["degradations"]
+
+
+def test_the_agent_lane_alone_below_quorum_is_capability_unavailable(tmp_path: Path) -> None:
+    worktree, proto = tmp_path / "wt", tmp_path / "proto"
+    change_dir = _plan_fixture(worktree)
+
+    def never_built() -> Any:
+        raise AssertionError("no review orchestrator is needed for the agent lane alone")
+
+    out = agent_lane.run_converge(
+        change_id="demo", phase="PLAN_REVIEW", worktree=worktree, proto_dir=proto, base_ref=None,
+        model="m", environment="host", timeout_seconds=1, poll_seconds=0.01,
+        verified_lanes=["claude_code"], counting_lanes=["claude_code", "openrouter"],
+        review_orchestrator_factory=never_built,
+    )
+
+    assert out["converged"] is False and out["rounds"] == 0
+    assert out["min_quorum"] == 2
+    assert out["reason"] == "capability_unavailable"
+    assert out["missing_lanes"] == ["openrouter"]
+    assert out["lanes"] == []
+    assert not list(proto.glob("awaiting-review-*")) and not list(proto.glob("fix-request-*"))
+    assert not (change_dir / "reviews").exists()
+
+
+def test_verified_lanes_are_deduplicated_with_the_agent_lane_first(tmp_path: Path) -> None:
+    worktree, proto = tmp_path / "wt", tmp_path / "proto"
+    _change_dir(worktree)
+    converge, calls = _fake_converge(review_rounds=0)
+    counts: list[int] = []
+
+    def policy(**kwargs: Any) -> dict[str, Any]:
+        counts.append(kwargs["verified_review_lanes"])
+        return POLICY
+
+    agent_lane.run_converge(
+        change_id="demo", phase="IMPL_REVIEW", worktree=worktree, proto_dir=proto, base_ref=None,
+        model="m", converge_fn=converge, policy_fn=policy,
+        verified_lanes=["openrouter", "claude_code", "openrouter"],
+    )
+
+    assert calls["verified_lanes"] == ["claude_code", "openrouter"]
+    assert counts == [2]
+    assert calls["phase"] == "IMPL_REVIEW"
+
+
+def test_cli_passes_repeated_verified_and_counting_lanes(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen: dict[str, Any] = {}
+
+    def fake_run(**kwargs: Any) -> dict[str, Any]:
+        seen.update(kwargs)
+        return {"converged": True}
+
+    monkeypatch.setattr(agent_lane, "run_converge", fake_run)
+    assert agent_lane.main([
+        "converge", "--change-id", "d", "--phase", "PLAN_REVIEW", "--proto-dir", "p", "--model", "m",
+        "--verified-lanes", "claude_code", "--verified-lanes", "openrouter",
+        "--counting-lanes", "claude_code", "--counting-lanes", "openrouter",
+    ]) == 0
+    assert seen["verified_lanes"] == ["claude_code", "openrouter"]
+    assert seen["counting_lanes"] == ["claude_code", "openrouter"]
+
+
+def test_a_composite_val_review_section_lists_both_lanes(tmp_path: Path) -> None:
+    worktree, proto = tmp_path / "wt", tmp_path / "proto"
+    change_dir = _change_dir(worktree)
+    two_lane_policy = {**POLICY, "min_quorum": {p: 2 for p in POLICY["min_quorum"]}, "policy_id": None}
+
+    def converge(**kwargs: Any) -> SimpleNamespace:
+        kwargs["orchestrator"].results_by_round.append([
+            SimpleNamespace(vendor="claude_code", agent_id="claude_code", success=True,
+                            model_used="m", generation_id=None, cost_usd=None, cost_source=None,
+                            spend_recorded=None),
+            SimpleNamespace(vendor="openrouter", agent_id="openrouter-review", success=True,
+                            model_used="nvidia/nemotron", generation_id="gen-1", cost_usd=0.01,
+                            cost_source="reported", spend_recorded=True),
+        ])
+        return SimpleNamespace(
+            converged=True, rounds=1, reason=None, missing_lanes=None,
+            consensus={"summary": "0 blocking", "quorum_received": 2},
+            escalate_findings=[], validation_errors=[], checkpoint_dir=None,
+        )
+
+    out = agent_lane.run_converge(
+        change_id="demo", phase="VAL_REVIEW", worktree=worktree, proto_dir=proto, base_ref=None,
+        model="m", converge_fn=converge, policy_fn=lambda **_: two_lane_policy,
+        verified_lanes=["claude_code", "openrouter"],
+    )
+
+    report = (change_dir / "validation-report.md").read_text()
+    assert "`claude_code`, `openrouter`" in report
+    assert "single_vendor_review" not in report
+    assert out["lane_results"]["openrouter"]["cost_usd"] == 0.01
+    consensus = json.loads((change_dir / "reviews" / "consensus-val-review.json").read_text())
+    assert consensus["quorum_received"] == 2
+

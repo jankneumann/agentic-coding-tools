@@ -218,19 +218,19 @@ parallel-infrastructure "Metered Review Lane Spend Accounting" (checkpoint part)
 - [x] 5.3 Add `metered_spend_unrecorded` to the `Degradation.code` enum in
   `dispatch-result.schema.json` and to the `runner.py record-degradation` choices. Update the
   schema fixture test.
-- [ ] 5.4 Write failing tests for the `CompositeOrchestrator`:
+- [x] 5.4 Write failing tests for the `CompositeOrchestrator`:
   - Run against a fixture change with an injected transport and a scripted handshake.
   - `converge()` receives `min_quorum=2`, the checkpoint holds both lane files, and
     `quorum_received == 2`.
   - Consensus findings attribute both lane ids.
   - `--verified-lanes claude_code` alone → `capability_unavailable` with no handshake files.
-- [ ] 5.5 Implement `--verified-lanes`, `CompositeOrchestrator` (the handshake lane plus
+- [x] 5.5 Implement `--verified-lanes`, `CompositeOrchestrator` (the handshake lane plus
   `ReviewOrchestrator.dispatch_and_wait(include_lanes=...)` run concurrently, with the result
   callback forwarded), and quorum-policy resolution from the verified count. For each
   metered result whose `spend_recorded` is `False` (recorded by the dispatcher, task 3.10),
   record the `metered_spend_unrecorded` degradation through the result payload. `agent_lane`
   does not call `spend_recorder.record()` itself. Update `_review_body` to list the lanes.
-- [ ] 5.6 Write failing tests, then implement:
+- [x] 5.6 Write failing tests, then implement:
   - `converge()` accepts an optional `phase` and, when it is set, passes
     `spend_context=SpendContext(change_id, "<change_id>:<phase>:round-<n>")` to `dispatch_and_wait`
     (via `_accepts_kwarg`; the keyword and dataclass are the ones task 3.10 adds);
