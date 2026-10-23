@@ -547,8 +547,13 @@ def dispatch_vendor_reviews(
     pr_size: dict,
     timeout_seconds: int = DEFAULT_TIMEOUT,
     dry_run: bool = False,
+    author_vendor: str | None = None,
 ) -> dict:
     """Dispatch reviews to available vendors and synthesize consensus.
+
+    The orchestrating ``claude_code`` lane and the PR author's vendor
+    (``author_vendor``, when known) are both excluded from dispatch, so a
+    vendor is not asked to review its own PR.
 
     Returns:
         {"dispatched": bool, "vendors": [...], "consensus": {...} | None,
@@ -606,8 +611,9 @@ def dispatch_vendor_reviews(
             "error": "No vendor CLIs configured in coordinator or agents.yaml",
         }
 
-    # Discover available reviewers (exclude claude since we're running as claude)
-    reviewers = orch.discover_reviewers(exclude_vendor="claude_code")
+    # Exclude claude (we are running as claude) and the PR author's vendor.
+    excluded = frozenset({"claude_code", author_vendor} - {None})
+    reviewers = orch.discover_reviewers(exclude_vendor=excluded)
     available = [r for r in reviewers if r.available]
 
     if not available:
@@ -638,7 +644,7 @@ def dispatch_vendor_reviews(
             prompt=prompt,
             cwd=cwd,
             timeout_seconds=timeout_seconds,
-            exclude_vendor="claude_code",
+            exclude_vendor=excluded,
         )
     finally:
         head_guard = verify_and_restore_head(head_before)
@@ -685,6 +691,7 @@ def dispatch_vendor_reviews(
     for r in results:
         summary = {
             "vendor": r.vendor,
+            "agent_id": r.agent_id,
             "success": r.success,
             "model_used": r.model_used,
             "elapsed_seconds": r.elapsed_seconds,
