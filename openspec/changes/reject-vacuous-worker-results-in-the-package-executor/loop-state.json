@@ -107,6 +107,11 @@
       "code": "phase_fallback_inline",
       "detail": "no sub-agent dispatch adapter exposed in this session (build-dispatch resolved archetype architect)",
       "phase": "PLAN_ITERATE"
+    },
+    {
+      "code": "single_vendor_review",
+      "phase": "PLAN_REVIEW",
+      "detail": "vendor=claude_code"
     }
   ]
 }
