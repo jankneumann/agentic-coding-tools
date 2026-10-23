@@ -26,7 +26,7 @@ def _state(**overrides: object) -> dict:
         "unresolved_comments": 0,
         "unresolved_comment_summary": None,
         "vendor_verdict": None,
-        "iterate_consensus_path": None,
+        "review_waiver": None,
         "blocking_reason": None,
     }
     state.update(overrides)
@@ -35,7 +35,7 @@ def _state(**overrides: object) -> dict:
 
 def valid_plan() -> dict:
     return {
-        "schema_version": "1.1",
+        "schema_version": "1.2",
         "generated_at": "2026-08-19T12:00:00+00:00",
         "storage_tier": "file",
         "base_branch": "main",
@@ -85,11 +85,60 @@ def test_plan_validates_against_shipped_contract() -> None:
     validate_plan(valid_plan())
 
 
-def test_schema_1_0_documents_are_rejected() -> None:
+@pytest.mark.parametrize("version", ["1.0", "1.1", "2.0", None])
+def test_other_schema_versions_are_rejected_with_rebuild_hint(version) -> None:
     plan = valid_plan()
-    plan["schema_version"] = "1.0"
+    plan["schema_version"] = version
 
-    with pytest.raises(MergePlanValidationError, match="1.1"):
+    with pytest.raises(MergePlanValidationError, match="rebuild") as excinfo:
+        validate_plan(plan)
+    assert f"plan schema {version} is no longer supported" in str(excinfo.value)
+
+
+def _waiver(**overrides: object) -> dict:
+    waiver = {
+        "reason": "automation_cheap_path",
+        "source": "policy",
+        "approver": "policy:merge-pull-requests",
+        "recorded_at": "2026-10-23T12:00:00+00:00",
+        "eligibility_reason": "automation_cheap_path",
+    }
+    waiver.update(overrides)
+    return waiver
+
+
+def test_schema_1_2_node_carries_review_waiver() -> None:
+    plan = valid_plan()
+    plan["nodes"][1]["state"]["review_waiver"] = _waiver()
+    validate_plan(plan)
+
+    plan["nodes"][1]["state"]["review_waiver"] = _waiver(
+        source="operator", approver="jan", reason="hotfix", eligibility_reason=None,
+    )
+    validate_plan(plan)
+
+
+@pytest.mark.parametrize(
+    "waiver",
+    [
+        _waiver(source="vendor"),
+        _waiver(extra="field"),
+        {k: v for k, v in _waiver().items() if k != "approver"},
+    ],
+)
+def test_malformed_review_waiver_is_rejected(waiver: dict) -> None:
+    plan = valid_plan()
+    plan["nodes"][1]["state"]["review_waiver"] = waiver
+
+    with pytest.raises(MergePlanValidationError, match="review_waiver"):
+        validate_plan(plan)
+
+
+def test_iterate_consensus_path_is_no_longer_accepted() -> None:
+    plan = valid_plan()
+    plan["nodes"][0]["state"]["iterate_" "consensus_path"] = None
+
+    with pytest.raises(MergePlanValidationError, match="Additional properties"):
         validate_plan(plan)
 
 
