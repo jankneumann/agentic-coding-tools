@@ -159,3 +159,24 @@ Inline /iterate-on-implementation self-review of the expedite diff; refinements 
 ### Context
 Single-vendor implementation review converged in round 1 with no blocking findings; 10 findings, all nit/optional/fyi/none.
 
+---
+
+## Phase: Validation (2026-10-23)
+
+**Agent**: claude_code | **Session**: session_017qfSLYuSiyd2b5URwLucoq
+
+### Decisions
+1. **Skip deploy, smoke, security and e2e** — work-packages.yaml declares deployable: false, so only Spec Compliance is a required phase
+
+### Completed Work
+- expedite tests 46 passed; guard suites 207 passed, 15 skipped
+- openspec validate --strict valid
+- Wrote and committed validation-report.md (24358f5)
+- Dogfood: expedite.py on this change returns READY; pre_merge_gate returns continue
+
+### Next Steps
+- SUBMIT_PR against openspec/adopt-verification-enforcement-discipline
+
+### Context
+Validation passed: spec compliance mapped scenario-by-scenario; non-deployable phases skipped; pre-merge gate and expedite dogfood both pass.
+
