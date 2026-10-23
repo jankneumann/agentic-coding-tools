@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-10-23T12:40:54.429439+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "rpc_failed: ForeignKeyViolationError: insert or update on table \"handoff_documents\" violates foreign key constraint \"handoff_documents_session_id_fkey\"\nDETAIL:  Key (session_id)=(session_017qfSLYuSiyd2b5URwLucoq) is not present in table \"agent_sessions\". (HTTP 200)",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": "session_017qfSLYuSiyd2b5URwLucoq",
+    "summary": "VALIDATE ran inline. Spec Compliance and Evidence pass: openspec validate --strict is valid, all tasks are checked, the three suites pass (266/307/543), ruff is clean, no iterate_consensus_path references remain, and install.sh --check is in sync. Deploy, Smoke and E2E are skipped because the surface is non-deployable; Security is not applicable. The Gatekeeper section is carried forward as DEGRADED because the signal-only verdict stood in for the judge.",
+    "completed_work": [
+      "Wrote and committed validation-report.md",
+      "Re-ran all suites on the post-review head"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Carry the gatekeeper fallback into the report as DEGRADED",
+        "rationale": "A gate that could not run is not a gate that passed; the section is informational and not in the required set.",
+        "capability": "merge-pull-requests",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "VAL_REVIEW lane (val_review_enabled=true)"
+    ],
+    "relevant_files": []
+  }
+}
