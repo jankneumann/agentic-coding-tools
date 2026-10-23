@@ -22,6 +22,7 @@
 - [ ] 1.2 Write failing tests for the `commit_resolves` check (S)
   - Fixture: a temporary `git init` repo with one commit.
   - Its HEAD SHA passes. A well-formed absent SHA fails, and the error names the commit and the path. A non-repository directory fails.
+  - A non-hex commit such as `--help` fails without `git` being invoked (monkeypatch `subprocess.run` to assert it is not called).
   - Without `worktree_path` the check is `skipped: true` and `valid` is unchanged.
   - CLI `--worktree <path>` on an absent commit exits 1 and prints `commit_resolves`.
   **Spec scenarios**: parallel-infrastructure.absent-commit-fails, parallel-infrastructure.present-commit-passes, parallel-infrastructure.commit-check-skipped-recorded, parallel-infrastructure.cli-worktree-flag

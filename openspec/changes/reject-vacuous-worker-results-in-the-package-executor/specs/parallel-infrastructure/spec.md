@@ -77,8 +77,9 @@ The work-queue result schema SHALL define an optional top-level `outcome` with v
 `failed`; `PASS` when `status` is `completed`, `verification.steps` is non-empty,
 `verification.passed` is `true`, every step has `passed: true` and `scope_check.passed`
 is not `false`; `ISSUES`
-otherwise. `build_result` SHALL always emit `outcome` using that derivation, and
-`build_failure_result` SHALL emit its synthetic step with `method: not_run`.
+otherwise. `build_result` SHALL always emit `outcome`: when no `outcome` argument is
+supplied it SHALL be the derived value, and a supplied value SHALL be emitted
+unchanged so that validation judges it. `build_failure_result` SHALL emit its synthetic step with `method: not_run`.
 Validation SHALL report an error when `outcome` is `PASS` but the derivation from the
 evidence is not `PASS`, and when `status` is `failed` and `outcome` is present and not
 `BLOCKED`. An `outcome` of `ISSUES` or `BLOCKED` over passing evidence SHALL be valid.
