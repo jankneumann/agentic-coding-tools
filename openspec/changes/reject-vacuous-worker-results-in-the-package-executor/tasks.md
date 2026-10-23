@@ -6,8 +6,8 @@
 ## Status
 
 - [x] Planning
-- [ ] Implementation
-- [ ] Testing
+- [x] Implementation
+- [x] Testing
 - [ ] Review
 - [ ] Done
 
@@ -96,7 +96,7 @@
 
 ## 4. End-to-end pins and docs (wp-integration)
 
-- [ ] 4.1 Add `skills/tests/parallel-infrastructure/test_vacuous_results.py` (S)
+- [x] 4.1 Add `skills/tests/parallel-infrastructure/test_vacuous_results.py` (S)
   - The outputs of `build_result` (passing, failing and zero-step) and of `build_failure_result` validate against `openspec/schemas/work-queue-result.schema.json`.
   - A legacy result validates.
   - The two schema copies are byte-identical.
@@ -107,9 +107,9 @@
   **Spec scenarios**: parallel-infrastructure.emitters-validate, parallel-infrastructure.legacy-result-validates, parallel-infrastructure.schema-copies-identical, parallel-infrastructure.empty-steps-not-passed, parallel-infrastructure.absent-commit-fails
   **Design decisions**: D7
   **Dependencies**: 3.3, 3.4
-- [ ] 4.2 Update the docs (XS)
+- [x] 4.2 Update the docs (XS)
   - `skills/parallel-infrastructure/SKILL.md`: acceptance, outcome, method and override.
   - The `skills/validate-feature/SKILL.md` evidence line, changed without changing the line count.
   - The `docs/parallel-agentic-development.md` C4 row: add `BLOCKED_NOT_PASSING`.
   **Dependencies**: 3.4
-- [ ] Checkpoint: run the full affected suites and `openspec validate --strict`
+- [x] Checkpoint: run the full affected suites and `openspec validate --strict`
