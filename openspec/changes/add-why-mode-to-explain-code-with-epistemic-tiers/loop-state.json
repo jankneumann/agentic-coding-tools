@@ -111,6 +111,16 @@
       "code": "handoff_local_fallback",
       "detail": "coordinator handoff write failed: FK violation handoff_documents_session_id_fkey; wrote handoffs/plan-iteration-1-1.json",
       "phase": "PLAN_ITERATE"
+    },
+    {
+      "code": "single_vendor_review",
+      "phase": "PLAN_REVIEW",
+      "detail": "vendor=claude_code"
+    },
+    {
+      "code": "phase_fallback_inline",
+      "phase": "PLAN_REVIEW",
+      "detail": "Agent tool unavailable in this child session; review lane driven inline via agent_lane file handshake"
     }
   ]
 }
