@@ -123,6 +123,11 @@
       "code": "phase_fallback_inline",
       "detail": "no sub-agent dispatch adapter exposed in this session (build-dispatch resolved archetype reviewer); review ran via agent_lane handshake in this session",
       "phase": "PLAN_REVIEW"
+    },
+    {
+      "code": "phase_fallback_inline",
+      "phase": "IMPLEMENT",
+      "detail": "no sub-agent dispatch adapter exposed in this session (build-dispatch resolved archetype implementer); packages implemented sequentially in this session"
     }
   ]
 }
