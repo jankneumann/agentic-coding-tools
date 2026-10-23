@@ -138,8 +138,8 @@ below). `execute_plan.py` remains the merge kernel: it MUST NOT `git checkout`,
    - **Cheap path:** `automation` with green CI and zero comments → `--execute`
      with no iterate and no `vendor_review.py`.
    - **Merge:** `--execute <plan> --pr <n>`. After dedicated OpenSpec acceptance,
-     pass `--proposal-accepted`. Skip `vendor_review.py` when iterate consensus
-     `head_sha` matches the live PR head. Vendor disagreement still halts.
+     pass `--proposal-accepted`. A current or rebased bound verdict skips `vendor_review.py`;
+     see [verdict binding](references/verdict-binding.md). Vendor disagreement still halts.
      Unanimous agreement does not release `proposal_acceptance`.
    - **Compact:** after `outcome=merged`, request `/compact` and resume from the
      same `merge-plan.json` plus `next_node.py`. Do not write autopilot
