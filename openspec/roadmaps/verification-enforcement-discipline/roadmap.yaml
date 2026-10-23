@@ -217,7 +217,7 @@ items:
     are optional.
 - item_id: ri-09
   title: Add why mode to explain-code with epistemic tiers
-  status: approved
+  status: in_progress
   priority: 4
   effort: M
   depends_on: []
@@ -265,4 +265,4 @@ items:
     the limit is enforced in the convergence step.
   - Divergence past the threshold emits a reframe finding that /iterate-on-plan --prototype-context
     consumes.
-updated_at: '2026-10-23T22:17:39.739822+00:00'
+updated_at: '2026-10-23T22:18:48.928961+00:00'
