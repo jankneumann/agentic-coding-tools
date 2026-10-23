@@ -753,6 +753,56 @@ def _notify_capacity(
 
 
 # ---------------------------------------------------------------------------
+# Vendor subprocess environment
+# ---------------------------------------------------------------------------
+
+# A vendor CLI is handed a prompt built from repository content, so it gets
+# only what it needs to run and authenticate itself: never the GitHub token
+# that can push, the coordinator key that can enqueue work, or another
+# vendor's credential.
+_ENV_BASE_NAMES = frozenset({
+    "PATH", "HOME", "USER", "LOGNAME", "SHELL", "LANG", "TERM", "TMPDIR", "TZ",
+    "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "no_proxy",
+    "SSL_CERT_FILE", "SSL_CERT_DIR", "REQUESTS_CA_BUNDLE", "CURL_CA_BUNDLE",
+    "NODE_EXTRA_CA_CERTS", "NODE_OPTIONS", "VIRTUAL_ENV",
+})
+_ENV_BASE_PREFIXES = ("LC_", "XDG_")
+_ENV_VENDOR_PREFIXES: dict[str, tuple[str, ...]] = {
+    "claude": ("CLAUDE_", "ANTHROPIC_"),
+    "codex": ("CODEX_", "OPENAI_"),
+    "agy": ("GEMINI_", "GOOGLE_", "ANTIGRAVITY_"),
+    "grok": ("GROK_", "XAI_"),
+    "pi": ("PI_", "OPENROUTER_"),
+    "python3": ("OCR_", "REVIEW_"),  # ocr_adapter.py
+}
+_ENV_NEVER_NAMES = frozenset({"GH_TOKEN", "GITHUB_TOKEN", "SSH_AUTH_SOCK"})
+_ENV_NEVER_PREFIXES = ("COORDINATION_API_KEY", "BAO_", "VAULT_")
+# Comma-separated extra names for a vendor whose config this list misses.
+ENV_PASSTHROUGH_VAR = "REVIEW_DISPATCH_ENV_PASSTHROUGH"
+
+
+def vendor_subprocess_env(
+    cli_config: CliConfig, environ: dict[str, str] | None = None,
+) -> dict[str, str]:
+    """Return the allowlisted environment for one vendor CLI invocation."""
+    source = os.environ if environ is None else environ
+    command = Path(cli_config.command).name
+    prefixes = _ENV_BASE_PREFIXES + _ENV_VENDOR_PREFIXES.get(command, ())
+    names = set(_ENV_BASE_NAMES)
+    if cli_config.api_key_env:
+        names.add(cli_config.api_key_env)
+    names.update(n.strip() for n in source.get(ENV_PASSTHROUGH_VAR, "").split(",") if n.strip())
+
+    env: dict[str, str] = {}
+    for name, value in source.items():
+        if name in _ENV_NEVER_NAMES or name.startswith(_ENV_NEVER_PREFIXES):
+            continue
+        if name in names or name.startswith(prefixes):
+            env[name] = value
+    return env
+
+
+# ---------------------------------------------------------------------------
 # Generic CLI adapter
 # ---------------------------------------------------------------------------
 
@@ -1016,6 +1066,7 @@ class CliVendorAdapter:
                     text=True,
                     timeout=timeout_seconds,
                     cwd=str(cwd),
+                    env=vendor_subprocess_env(self.cli_config),
                 )
                 elapsed = time.monotonic() - start
 
@@ -1530,6 +1581,7 @@ class CliVendorAdapter:
                     text=True,
                     timeout=120,  # submit timeout (not execution timeout)
                     cwd=str(cwd),
+                    env=vendor_subprocess_env(self.cli_config),
                 )
             except subprocess.TimeoutExpired:
                 return fail(
@@ -1676,6 +1728,7 @@ class CliVendorAdapter:
                     text=True,
                     timeout=30,
                     cwd=str(cwd) if cwd else None,
+                    env=vendor_subprocess_env(self.cli_config),
                 )
             except subprocess.TimeoutExpired:
                 logger.warning("Poll command timed out, retrying")
