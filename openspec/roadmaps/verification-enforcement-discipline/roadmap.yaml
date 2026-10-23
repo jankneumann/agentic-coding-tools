@@ -265,4 +265,4 @@ items:
     the limit is enforced in the convergence step.
   - Divergence past the threshold emits a reframe finding that /iterate-on-plan --prototype-context
     consumes.
-updated_at: '2026-10-23T22:18:48.928961+00:00'
+updated_at: '2026-10-23T23:19:19.210023+00:00'
