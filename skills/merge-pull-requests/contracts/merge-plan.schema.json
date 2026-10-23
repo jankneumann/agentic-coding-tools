@@ -2,12 +2,12 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://agentic-coding-tools/contracts/merge-plan.schema.json",
   "title": "MergePlan",
-  "description": "Durable merge plan emitted by the merge-pull-requests analysis round and consumed by plan-driven execution. Separates plan definition from live state. Schema 1.1 adds kind, change_id, remediation_skill, ci_failure_class, and a plan-level compact resume pointer.",
+  "description": "Durable merge plan emitted by the merge-pull-requests analysis round and consumed by plan-driven execution. Separates plan definition from live state. Schema 1.1 added kind, change_id, remediation_skill, ci_failure_class, and a plan-level compact resume pointer. Schema 1.2 adds state.review_waiver (the recorded policy or operator waiver of vendor review) and removes state.iterate_consensus_path; other versions are rejected and must be rebuilt by the analysis round.",
   "type": "object",
   "required": ["schema_version", "generated_at", "storage_tier", "nodes"],
   "additionalProperties": false,
   "properties": {
-    "schema_version": {"type": "string", "const": "1.1"},
+    "schema_version": {"type": "string", "const": "1.2"},
     "generated_at": {"type": "string", "format": "date-time"},
     "storage_tier": {"enum": ["file", "coordinator"]},
     "base_branch": {"type": "string", "default": "main"},
@@ -75,7 +75,18 @@
             "unresolved_comments": {"type": "integer", "minimum": 0},
             "unresolved_comment_summary": {"type": ["string", "null"]},
             "vendor_verdict": {"type": ["object", "null"], "additionalProperties": true},
-            "iterate_consensus_path": {"type": ["string", "null"]},
+            "review_waiver": {
+              "type": ["object", "null"],
+              "required": ["reason", "source", "approver", "recorded_at", "eligibility_reason"],
+              "additionalProperties": false,
+              "properties": {
+                "reason": {"type": "string", "minLength": 1},
+                "source": {"enum": ["policy", "operator"]},
+                "approver": {"type": "string", "minLength": 1},
+                "recorded_at": {"type": "string", "format": "date-time"},
+                "eligibility_reason": {"type": ["string", "null"]}
+              }
+            },
             "blocking_reason": {"type": ["string", "null"]}
           }
         }
