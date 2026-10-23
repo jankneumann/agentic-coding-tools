@@ -1,9 +1,9 @@
 {
   "schema_version": 6,
   "change_id": "bind-merge-verdicts-to-head-sha-and-patch-id",
-  "current_phase": "IMPL_ITERATE",
+  "current_phase": "IMPL_REVIEW",
   "iteration": 0,
-  "total_iterations": 8,
+  "total_iterations": 9,
   "max_phase_iterations": 3,
   "findings_trend": [],
   "blocking_findings": [],
@@ -18,7 +18,8 @@
     "local:handoffs/plan-review-1.json",
     "local:handoffs/plan-fix-1.json",
     "local:handoffs/plan-review-2.json",
-    "local:handoffs/implementation-1.json"
+    "local:handoffs/implementation-1.json",
+    "local:handoffs/implementation-iteration-1.json"
   ],
   "phase_history": [
     {
@@ -50,17 +51,22 @@
       "at": "2026-10-23T12:35:18.320244+00:00",
       "outcome": "complete",
       "phase": "IMPLEMENT"
+    },
+    {
+      "at": "2026-10-23T12:36:08.635955+00:00",
+      "outcome": "complete",
+      "phase": "IMPL_ITERATE"
     }
   ],
-  "last_handoff_id": "local:handoffs/implementation-1.json",
+  "last_handoff_id": "local:handoffs/implementation-iteration-1.json",
   "started_at": "2026-10-23T12:01:27.478255+00:00",
-  "phase_started_at": "2026-10-23T12:35:21.250428+00:00",
+  "phase_started_at": "2026-10-23T12:36:11.687661+00:00",
   "previous_phase": null,
   "escalation_reason": null,
   "val_review_enabled": true,
   "cli_review_enabled": true,
   "error": null,
-  "phase_archetype": "implementer",
+  "phase_archetype": null,
   "force": false,
   "gate_signals": {
     "external_dep_count": 0,
@@ -170,6 +176,26 @@
       "code": "handoff_local_fallback",
       "detail": "coordinator handoff write failed (session not registered); wrote handoffs/implementation-1.json",
       "phase": "IMPLEMENT"
+    },
+    {
+      "code": "phase_fallback_inline",
+      "detail": "no Agent dispatch adapter in this session; self-review ran inline",
+      "phase": "IMPL_ITERATE"
+    },
+    {
+      "code": "handoff_local_fallback",
+      "detail": "coordinator handoff write failed; wrote handoffs/implementation-iteration-1.json",
+      "phase": "IMPL_ITERATE"
+    },
+    {
+      "code": "single_vendor_review",
+      "phase": "IMPL_REVIEW",
+      "detail": "vendor=claude_code"
+    },
+    {
+      "code": "phase_fallback_inline",
+      "phase": "IMPL_REVIEW",
+      "detail": "no Agent dispatch adapter; review lane answered inline by the conductor"
     }
   ]
 }
