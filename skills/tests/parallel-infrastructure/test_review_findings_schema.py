@@ -235,3 +235,70 @@ def test_prompt_contract_block_requests_coverage_as_optional():
     assert "OPTIONAL" in block
     assert "reviewed" in block
     assert "skipped" in block
+
+
+# ── evidence_level (add-why-mode-to-explain-code-with-epistemic-tiers) ──
+
+EVIDENCE_LEVELS = ["direct", "supported", "inferred", "speculative", "unknown"]
+
+
+def _minimal_payload(**extra) -> dict:
+    finding = {
+        "id": 1, "type": "correctness", "criticality": "high",
+        "description": "x", "disposition": "fix", "axis": "correctness",
+        "severity": "critical",
+    }
+    finding.update(extra)
+    return {"review_type": "implementation", "target": "demo", "findings": [finding]}
+
+
+def test_evidence_level_is_optional_without_default():
+    item = _finding_schema()
+    spec = item["properties"]["evidence_level"]
+    assert spec["type"] == "string"
+    assert spec["enum"] == EVIDENCE_LEVELS
+    assert "evidence_level" not in item.get("required", [])
+    assert "default" not in spec
+    assert not spec.get("readOnly")
+
+
+def test_evidence_level_validates_known_value_and_rejects_unknown():
+    validator = Draft202012Validator(SCHEMA)
+    validator.validate(_minimal_payload(evidence_level="inferred"))
+    assert list(validator.iter_errors(_minimal_payload(evidence_level="certain")))
+
+
+def test_evidence_level_mirror_is_byte_identical():
+    assert MIRROR_SCHEMA_PATH.read_bytes() == SCHEMA_PATH.read_bytes()
+
+
+def test_prompt_contract_exposes_evidence_level_in_schema_order():
+    from review_findings_schema import prompt_contract, prompt_contract_block
+
+    _, enums = prompt_contract()
+    assert list(enums["evidence_level"]) == EVIDENCE_LEVELS
+    lines = [ln for ln in prompt_contract_block().splitlines() if "evidence_level" in ln]
+    assert len(lines) == 1
+    assert "OPTIONAL" in lines[0]
+    assert "|".join(EVIDENCE_LEVELS) in lines[0]
+
+
+def _error_set(validator, doc) -> set:
+    return {(tuple(e.absolute_path), e.message) for e in validator.iter_errors(doc)}
+
+
+def test_evidence_level_adds_no_error_to_committed_findings_documents():
+    """Every existing emitter still validates: the new property adds no error."""
+    without = json.loads(SCHEMA_PATH.read_text())
+    del without["properties"]["findings"]["items"]["properties"]["evidence_level"]
+    current_v = Draft202012Validator(SCHEMA)
+    without_v = Draft202012Validator(without)
+    docs = sorted((REPO_ROOT / "openspec" / "changes").glob("**/findings-*.json"))
+    assert docs, "expected committed findings documents to regress against"
+    for path in docs:
+        try:
+            doc = json.loads(path.read_text(encoding="utf-8"))
+        except (ValueError, UnicodeDecodeError):
+            continue
+        added = _error_set(current_v, doc) - _error_set(without_v, doc)
+        assert not added, f"{path.relative_to(REPO_ROOT)}: {sorted(added)[:3]}"

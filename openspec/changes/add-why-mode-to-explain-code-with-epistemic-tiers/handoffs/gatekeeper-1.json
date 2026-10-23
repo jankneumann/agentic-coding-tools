@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-10-23T22:22:18.566726+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "rpc_failed: ForeignKeyViolationError: insert or update on table \"handoff_documents\" violates foreign key constraint \"handoff_documents_session_id_fkey\"\nDETAIL:  Key (session_id)=(session_017qfSLYuSiyd2b5URwLucoq) is not present in table \"agent_sessions\". (HTTP 200)",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": "session_017qfSLYuSiyd2b5URwLucoq",
+    "summary": "GATEKEEPER ran inline (no sub-agent dispatch tool in this session). Signal-only verdict proceed: no db-migration, security or broad-write-scope signal; proposal, specs and tasks scaffold exist and the roadmap acceptance outcomes are objectively testable. DEGRADED: the model-based judgment did not run as a dispatched judge.",
+    "completed_work": [
+      "Read gate_signals: 0 packages (plan not yet written), no external deps, no db/security/broad-scope signals, has_proposal/specs/tasks true",
+      "Verdict proceed"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Gatekeeper verdict proceed",
+        "rationale": "No risk signals in gate_signals; outcomes (why_trace fixture results, SKILL documentation, optional schema field) are checkable by tests; change is additive and reversible, with a human merge gate downstream.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "PLAN: author the real plan (proposal, design, specs, tasks, work-packages.yaml) and run proposal_approval gate"
+    ],
+    "relevant_files": []
+  }
+}
