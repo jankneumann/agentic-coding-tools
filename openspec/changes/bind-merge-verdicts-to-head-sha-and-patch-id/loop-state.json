@@ -154,6 +154,11 @@
       "code": "handoff_local_fallback",
       "detail": "coordinator handoff write failed (session FK); wrote handoffs/plan-review-2.json",
       "phase": "PLAN_REVIEW"
+    },
+    {
+      "code": "phase_fallback_inline",
+      "phase": "IMPLEMENT",
+      "detail": "no sub-agent dispatch tool in this session; implementing inline"
     }
   ]
 }
