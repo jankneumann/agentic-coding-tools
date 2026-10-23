@@ -88,6 +88,12 @@ Dispatch already excludes the author's vendor alongside the orchestrating
 `claude_code` lane; the independence check catches stored verdicts and any
 lane that slipped through.
 
+A reviewer's `agent_id` is a dispatcher adapter id (for example
+`codex-local`), while the author's `session_id` is the last segment of a
+`<Vendor>-Session:` trailer URL. The two rarely share a namespace, so the
+self-review rule is defence in depth. The effective guards are dispatch
+exclusion of the author's vendor and the same-vendor, unknown-session rule.
+
 ## Author identity is advisory
 
 The author's vendor and session come from commit trailers
