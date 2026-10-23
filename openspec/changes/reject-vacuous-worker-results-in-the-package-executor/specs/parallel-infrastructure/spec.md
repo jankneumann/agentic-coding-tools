@@ -36,7 +36,8 @@ is `true`.
 `validate_work_result.validate_result` SHALL accept an optional `worktree_path`. When
 it is supplied, a `commit_resolves` check SHALL run
 `git rev-parse --verify --quiet <git.head.commit>^{commit}` with `worktree_path` as the
-working directory, and SHALL fail with an error naming the commit and the worktree
+working directory and with inherited repository-location variables such as `GIT_DIR`
+removed from its environment, and SHALL fail with an error naming the commit and the worktree
 when the command does not exit 0 or when `worktree_path` is not a git working tree.
 When `worktree_path` is not supplied, the `commit_resolves` check SHALL be recorded
 with `skipped: true` and SHALL NOT change `valid`. The CLI SHALL accept
@@ -113,8 +114,9 @@ evidence is not `PASS`, and when `status` is `failed` and `outcome` is present a
 expected_contracts_revision, expected_plan_revision, worktree_path)` SHALL return a
 frozen `PackageAcceptance` carrying `package_id`, `accepted`, the effective `outcome`
 and a sequence of `reasons`. It SHALL be accepted only when full Phase C1 validation is
-valid, the `commit_resolves` check ran (was not skipped) and passed, and the effective
-outcome is `PASS`; otherwise `reasons` SHALL name every failed condition.
+valid, the `commit_resolves` check ran (was not skipped) and passed, the effective
+outcome is `PASS`, and the result's `package_id`, when present, equals the package
+definition's; otherwise `reasons` SHALL name every failed condition.
 `DAGScheduler.mark_completed(package_id, acceptance)` SHALL mark the package
 `completed` only when `acceptance` is a `PackageAcceptance` for the same package with
 `accepted == true`, and SHALL return `true` in that case. Otherwise it SHALL mark the
