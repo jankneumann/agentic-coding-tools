@@ -83,13 +83,23 @@ verdict_currency(binding, live_head_sha, live_patch_id) -> "current" | "rebased"
 `stale verdict: reviewed <sha7>, live <sha7>`. Execution computes the live
 patch-id lazily: only when a stored binding exists and its `head_sha` differs.
 
+A stored verdict is used only when the predicate passes on it against live
+state. Otherwise execution dispatches a fresh review and evaluates the
+predicate on that; the stale reason of the discarded verdict is recorded in the
+node's result for observability.
+
 ### D4 — The predicate is total; waivers live in `state`
 
 `vendor_review_block_reason(review, *, waiver=None, live_head_sha=None, live_patch_id=None)`
 returns `None` only on one of two paths:
 
 1. **Waived:** `waiver` is a dict with non-blank `reason`, `source ∈ {policy, operator}`,
-   `recorded_at`, and — for `source: policy` — `eligibility_reason ∈ POLICY_WAIVABLE_REASONS`.
+   non-blank `approver`, `recorded_at`, and the key `eligibility_reason` — for
+   `source: policy` it must be in `POLICY_WAIVABLE_REASONS`. Both sources require
+   `approver`: a policy waiver's approver is the fixed string
+   `policy:merge-pull-requests`; an operator waiver's approver is defined in D7.
+   `eligibility_reason` is the live ineligibility reason at the time of the waiver
+   (a string, or `null` for an operator waiver recorded while the PR was eligible).
    An operator waiver does **not** override `changes_requested`: that is a
    human reviewer's state, not ours to waive. Everything else it does override.
 2. **Verified:** eligibility is eligible; consensus dispatched with at least one
