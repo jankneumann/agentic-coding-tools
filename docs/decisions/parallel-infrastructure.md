@@ -29,9 +29,31 @@
 
 ## 2026-10-23 — reject-vacuous-worker-results-in-the-package-executor
 
+### Phase: Plan Review
+
+**build_result emits a supplied outcome unchanged** — The spec sentence contradicted D3; the validator, not the builder, judges an upgraded outcome.
+
+- Status: `active`
+- Source: [openspec/changes/reject-vacuous-worker-results-in-the-package-executor/session-log.md](/openspec/changes/reject-vacuous-worker-results-in-the-package-executor/session-log.md) (D1)
+
+---
+
+## 2026-10-23 — reject-vacuous-worker-results-in-the-package-executor
+
 ### Phase: Plan
 
 **Optional outcome/method fields, schema_version stays 1** — Existing emitters and stored results keep validating; the checker rejects contradictions instead.
+
+- Status: `active`
+- Source: [openspec/changes/reject-vacuous-worker-results-in-the-package-executor/session-log.md](/openspec/changes/reject-vacuous-worker-results-in-the-package-executor/session-log.md) (D2)
+
+---
+
+## 2026-10-23 — reject-vacuous-worker-results-in-the-package-executor
+
+### Phase: Plan Review
+
+**commit_resolves refuses non-hex commits before invoking git** — A value starting with '-' would be parsed by git as an option, and the check must not depend on schema validation having run.
 
 - Status: `active`
 - Source: [openspec/changes/reject-vacuous-worker-results-in-the-package-executor/session-log.md](/openspec/changes/reject-vacuous-worker-results-in-the-package-executor/session-log.md) (D2)

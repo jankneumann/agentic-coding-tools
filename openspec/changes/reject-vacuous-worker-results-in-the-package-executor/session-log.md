@@ -94,3 +94,28 @@ Real plan for ri-04 written: proposal (assumptions A1-A6 in place of discovery q
 ### Context
 One self-review pass over the plan across completeness, consistency, feasibility and testability. Three issues fixed; refinements settled.
 
+---
+
+## Phase: Plan Review (2026-10-23)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **build_result emits a supplied outcome unchanged** `architectural: parallel-infrastructure` — The spec sentence contradicted D3; the validator, not the builder, judges an upgraded outcome.
+2. **commit_resolves refuses non-hex commits before invoking git** `architectural: parallel-infrastructure` — A value starting with '-' would be parsed by git as an option, and the check must not depend on schema validation having run.
+3. **Spec scenarios cover non-repository worktrees and failed-with-ISSUES** — Both SHALL clauses lacked a WHEN/THEN scenario.
+
+### Completed Work
+- PLAN_REVIEW round 1 fixes committed in 06f2a2f and 9bf666f
+- Round 2 returned no findings; converged
+
+### Next Steps
+- IMPLEMENT wp-contract, wp-acceptance, wp-gates, wp-integration in order, TDD per tasks.md
+
+### Relevant Files
+- `openspec/changes/reject-vacuous-worker-results-in-the-package-executor/specs/parallel-infrastructure/spec.md` — Scenarios extended in review
+- `openspec/changes/reject-vacuous-worker-results-in-the-package-executor/design.md` — D2 hex guard
+
+### Context
+Single-lane plan review converged in round 2 (min_quorum 1 under the cloud-container policy). Three findings were raised across both runs and all were fixed in the plan artifacts.
+
