@@ -146,12 +146,12 @@
 
 ## 7. Verification
 
-- [ ] 7.1 Run the isolated merge-pull-requests suites (S)
+- [x] 7.1 Run the isolated merge-pull-requests suites (S)
   - From `skills/`: `.venv/bin/python -m pytest merge-pull-requests/scripts/tests tests/merge-pull-requests parallel-infrastructure/scripts/tests -q`
   **Dependencies**: 6.5
-- [ ] 7.2 Assert no `iterate_consensus_path` references remain (S)
+- [x] 7.2 Assert no `iterate_consensus_path` references remain (S)
   - `git grep -n iterate_consensus_path -- skills/merge-pull-requests skills/tests` is empty.
   **Dependencies**: 6.5
-- [ ] 7.3 Run strict OpenSpec validation (S)
+- [x] 7.3 Run strict OpenSpec validation (S)
   - `openspec validate bind-merge-verdicts-to-head-sha-and-patch-id --strict`
   **Dependencies**: 7.1, 7.2
