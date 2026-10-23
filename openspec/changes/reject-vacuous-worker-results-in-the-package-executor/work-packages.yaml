@@ -108,6 +108,7 @@ packages:
       files:
         - "skills/parallel-infrastructure/scripts/package_executor.py"
         - "skills/parallel-infrastructure/scripts/result_validator.py"
+        - "skills/parallel-infrastructure/scripts/package_acceptance.py"
       keys:
         - "feature:reject-vacuous-worker-results-in-the-package-executor:acceptance"
       ttl_minutes: 120
@@ -116,6 +117,7 @@ packages:
       write_allow:
         - "skills/parallel-infrastructure/scripts/package_executor.py"
         - "skills/parallel-infrastructure/scripts/result_validator.py"
+        - "skills/parallel-infrastructure/scripts/package_acceptance.py"
         - "skills/parallel-infrastructure/scripts/tests/test_package_executor.py"
         - "skills/parallel-infrastructure/scripts/tests/test_result_validator.py"
       read_allow:
@@ -183,11 +185,13 @@ packages:
         - "openspec/changes/reject-vacuous-worker-results-in-the-package-executor/**"
         - "skills/pyproject.toml"
         - "skills/parallel-infrastructure/scripts/result_validator.py"
+        - "skills/parallel-infrastructure/scripts/package_acceptance.py"
         - "skills/validate-packages/scripts/validate_work_result.py"
         - "skills/parallel-infrastructure/scripts/package_executor.py"
       deny:
         - "skills/parallel-infrastructure/scripts/package_executor.py"
         - "skills/parallel-infrastructure/scripts/result_validator.py"
+        - "skills/parallel-infrastructure/scripts/package_acceptance.py"
         - "skills/validate-packages/scripts/validate_work_result.py"
         - "openspec/schemas/work-queue-result.schema.json"
         - "skills/parallel-infrastructure/install_assets/openspec/schemas/work-queue-result.schema.json"

@@ -66,3 +66,31 @@ Inline permissive gatekeeper verdict: proceed. No sub-agent dispatch adapter is 
 ### Context
 Real plan for ri-04 written: proposal (assumptions A1-A6 in place of discovery questions), design D1-D7, seven ADDED requirements under parallel-infrastructure, TDD tasks, and four sequential work packages. Tightens the existing executor, validator, scheduler and gate; no new skill.
 
+---
+
+## Phase: Plan Iteration 1 (2026-10-23)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Move PackageAcceptance into a dependency-free package_acceptance.py** `architectural: parallel-infrastructure` — dag_scheduler needs only the type for an isinstance check; importing result_validator would pull jsonschema and the validator sys.path setup into the scheduler. result_validator re-exports it.
+2. **Derivation requires verification.passed and every step passed** — design and spec disagreed on whether PASS derives from verification.passed or from the steps; requiring both closes the gap where the two disagree.
+3. **Add a scenario for the execution summary** — The gate requirement's summary clause had no scenario, so it was untestable as written.
+
+### Completed Work
+- Fixed design/spec derivation mismatch
+- Added summary-reports-acceptance scenario
+- Introduced package_acceptance.py in design, tasks 2.4 and work-packages scopes
+- Renamed the override constructor to override_for everywhere
+- openspec validate --strict and validate_work_packages pass
+
+### Next Steps
+- PLAN_REVIEW via agent_lane converge (single vendor)
+
+### Relevant Files
+- `openspec/changes/reject-vacuous-worker-results-in-the-package-executor/design.md` — D3/D4 revised
+- `openspec/changes/reject-vacuous-worker-results-in-the-package-executor/specs/parallel-infrastructure/spec.md` — Derivation clause and new scenario
+
+### Context
+One self-review pass over the plan across completeness, consistency, feasibility and testability. Three issues fixed; refinements settled.
+

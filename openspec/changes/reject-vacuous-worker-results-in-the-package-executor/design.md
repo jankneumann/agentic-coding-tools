@@ -71,8 +71,8 @@ Schema additions (both optional, `schema_version` stays 1):
 
 A single pure function, `validate_work_result.derive_outcome(data)`, is the only
 derivation. It gives `BLOCKED` when the status is failed. It gives `PASS` when the
-status is completed, the steps are non-empty, every step passed, and
-`scope_check.passed` is not false. Otherwise it gives `ISSUES`.
+status is completed, the steps are non-empty, every step passed,
+`verification.passed` is true, and `scope_check.passed` is not false. Otherwise it gives `ISSUES`.
 
 `effective_outcome(data)` returns `data["outcome"]` when present, otherwise
 `derive_outcome(data)`. `build_result`, the consistency checker, the acceptance
@@ -96,7 +96,8 @@ builder honest about what the worker claimed.
 
 ### D4 — `PackageAcceptance` is the only currency that completes a package
 
-`result_validator.py` gains:
+A new dependency-free module, `package_acceptance.py`, defines the verdict, and
+`result_validator.py` re-exports it:
 
 ```python
 @dataclass(frozen=True)
@@ -135,8 +136,10 @@ reused, not a new state.
 The required parameter is a deliberate signature break (A6). A call without
 evidence must not type-check.
 
-`dag_scheduler` already imports from `validate-packages/scripts`, so importing
-`result_validator` from its sibling module adds no new path.
+`dag_scheduler` imports `PackageAcceptance` from `package_acceptance`, not from
+`result_validator`. The scheduler needs only the type for its `isinstance` check,
+and importing `result_validator` would pull in `jsonschema` and the validator's
+`sys.path` setup. `package_acceptance.py` imports only the standard library.
 
 ### D5 — The gate checks acceptance before reviews
 
