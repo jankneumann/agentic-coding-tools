@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-10-23T12:43:09.676016+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "rpc_failed: ForeignKeyViolationError: insert or update on table \"handoff_documents\" violates foreign key constraint \"handoff_documents_session_id_fkey\"\nDETAIL:  Key (session_id)=(session_017qfSLYuSiyd2b5URwLucoq) is not present in table \"agent_sessions\". (HTTP 200)",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": "session_017qfSLYuSiyd2b5URwLucoq",
+    "summary": "VAL_REVIEW ran as a single-vendor convergence lane (claude_code, min_quorum 1) and converged in one round with two advisory findings and zero blocking findings. Both findings were fixed in validation-report.md: the mirror-sync claim was stale after the IMPL_REVIEW doc fix (the mirrors were re-synced and install.sh --check now exits 0), and the scenario mapping now names the test covering cheap-path-dropped-on-comments. Open ledger items 2-4 were re-verified as resolved or accepted.",
+    "completed_work": [
+      "Converged VAL_REVIEW lane in 1 round",
+      "Re-synced runtime mirrors",
+      "Refreshed validation-report.md evidence"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Fix advisory validation findings even though they do not block",
+        "rationale": "The report is the durable evidence artifact; a stale claim in it is worse than the cost of a one-line edit.",
+        "capability": "merge-pull-requests",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "SUBMIT_PR: pr_creation gate, rebase onto base, push, open stacked PR"
+    ],
+    "relevant_files": []
+  }
+}
