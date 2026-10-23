@@ -209,3 +209,21 @@ gains an assertion that the reference file exists and is linked.
 - The plan-feature Step 2 architecture refresh was skipped to avoid
   regenerating tracked `docs/architecture-analysis/*` files in this commit;
   context came from direct code reads (line references above).
+
+## Plan-iteration refinements
+
+Two points the decisions above left implicit, settled before implementation:
+
+- **Seam signatures.** `ExecutionDependencies` gains `pr_diff(pr_number) -> str`
+  and `pr_author(pr_number) -> dict` (the `derive_author` result).
+  `review_vendor` takes the author as a fourth argument,
+  `(pr_number, origin, comments, author)`, so `_default_vendor_review` can pass
+  `author_vendor` to `dispatch_vendor_reviews`. A `pr_author` seam that
+  raises keeps the node pending ("PR author could not be determined"): an
+  all-`null` author is what a human PR with no trailers looks like, so a
+  lookup failure must not be mistaken for one. A `pr_diff` seam that raises
+  yields a `null` patch-id, which can only reach `current`, never `rebased`.
+- **Operator waiver still runs eligibility and review.** `--waive-review` does
+  not skip `review_vendor`. Eligibility must still run so `changes_requested`
+  keeps blocking (D4), and any review that does dispatch is stored as evidence.
+  The waiver then satisfies the predicate in place of a verified verdict.
