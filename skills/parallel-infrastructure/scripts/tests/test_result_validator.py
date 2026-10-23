@@ -428,6 +428,14 @@ class TestPackageAcceptance:
         with pytest.raises(dataclasses.FrozenInstanceError):
             acceptance.accepted = False  # type: ignore[misc]
 
+    def test_recorded_override_cannot_change(self) -> None:
+        source = {"reason": "flaky CI", "approver": "operator"}
+        acceptance = PackageAcceptance("wp-a", True, None, (), source)
+        source["approver"] = "someone else"
+        assert acceptance.override == {"reason": "flaky CI", "approver": "operator"}
+        with pytest.raises(TypeError):
+            acceptance.override["approver"] = "someone else"  # type: ignore[index]
+
     def test_reasons_are_a_tuple(self) -> None:
         acceptance = PackageAcceptance("wp-a", False, "ISSUES", ["x"])  # type: ignore[arg-type]
         assert acceptance.reasons == ("x",)
