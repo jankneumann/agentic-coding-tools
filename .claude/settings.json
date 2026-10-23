@@ -97,7 +97,12 @@
       "Bash(bash agent-coordinator/.railway-vars.*.sh)",
       "Bash(railway variable set:*)",
       "Bash(curl https://*.rotkohl.ai/*)",
-      "Bash(curl * https://*.rotkohl.ai/*)"
+      "Bash(curl * https://*.rotkohl.ai/*)",
+      "Bash(git push -u origin claude/*)",
+      "Bash(uv run *)",
+      "Bash(pytest *)",
+      "Bash(skills/.venv/bin/python -m pytest *)",
+      "Bash(agent-coordinator/.venv/bin/python -m pytest *)"
     ],
     "ask": [
       "Bash(alembic *)",
@@ -119,7 +124,13 @@
       "Bash(git stash clear *)",
       "Read(~/.aws/**)",
       "Read(~/.config/**)",
-      "Read(**/.env.*)"
+      "Read(**/.env.*)",
+      "Bash(rm -fr *)",
+      "Bash(git push --force *)",
+      "Bash(git push -f *)",
+      "Bash(find * -delete*)",
+      "Bash(gh repo delete *)",
+      "Bash(gh pr merge --admin *)"
     ]
   },
   "hooks": {
@@ -139,6 +150,19 @@
           {
             "type": "command",
             "command": "python3 \"$CLAUDE_PROJECT_DIR\"/skills/session-bootstrap/scripts/hooks/register_agent.py"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/skills/session-bootstrap/scripts/hooks/irreversible_guard.py",
+            "timeout": 10,
+            "onFailure": "block"
           }
         ]
       }
