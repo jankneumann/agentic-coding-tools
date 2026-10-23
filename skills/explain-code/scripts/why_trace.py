@@ -121,7 +121,10 @@ def _resolve_target(target: str, cwd: Path, root: Path) -> tuple[str, int]:
         raise InputError(f"path is not tracked by git: {rel}") from exc
     if not abs_path.is_file():
         raise InputError(f"path is not a file in the working tree: {rel}")
-    data = abs_path.read_bytes()
+    try:
+        data = abs_path.read_bytes()
+    except OSError as exc:
+        raise InputError(f"cannot read {rel}: {exc.strerror or exc}") from exc
     n_lines = data.count(b"\n") + (1 if data and not data.endswith(b"\n") else 0)
     if line > n_lines:
         raise InputError(f"line {line} is beyond the end of {rel} ({n_lines} lines)")
@@ -131,7 +134,26 @@ def _resolve_target(target: str, cwd: Path, root: Path) -> tuple[str, int]:
 # ── chain links ─────────────────────────────────────────────────────
 
 
+def _has_head(root: Path) -> bool:
+    try:
+        _git(["rev-parse", "--verify", "-q", "HEAD"], root)
+    except GitError:
+        return False
+    return True
+
+
 def _blame(rel: str, line: int, root: Path) -> dict:
+    if not _has_head(root):
+        # Unborn HEAD: nothing is committed yet, so the line is uncommitted.
+        return {
+            "sha": _ZERO_SHA,
+            "orig_line": line,
+            "orig_path": rel,
+            "author": None,
+            "author_time": None,
+            "summary": None,
+            "pointer": f"git:{_ZERO_SHA}",
+        }
     out = _git(["blame", "--porcelain", "-w", "-M", "-L", f"{line},{line}", "--", rel], root)
     lines = out.splitlines()
     head = lines[0].split()
