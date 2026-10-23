@@ -16,6 +16,7 @@
 - [ ] 1.1 Write failing tests for the missing-report check in `skills/expedite/scripts/tests/test_expedite.py` (S)
   - Replace `TestValidationReportCheck.test_skip_when_path_none` with `test_fail_when_no_report`: status `fail`, detail names the three probed paths, action contains `/validate-feature`.
   - Replace `TestExpedite.test_ready_when_skips_only` with `test_blocked_when_no_validation_report`: no reports → `ready is False`.
+  - Update `TestCli.test_exit_zero_when_ready` and `TestCli.test_json_output_shape`, which today rely on report-less READY: give them a passing report.
   - Add `test_ready_with_rework_skip_only`: passing validation report + no rework report → READY (the remaining legitimate `skip`).
   - Add `test_cli_exits_1_without_report`.
   **Spec scenarios**: expedite.missing-report-blocks, expedite.passing-report-ready
@@ -41,7 +42,8 @@
   - `""` and `"   "` → exit 2, nothing on stdout.
   - With a failing report plus the flag: check stays `fail`, `overrides == []`.
   - Without the flag: JSON still carries `"overrides": []`.
-  **Spec scenarios**: expedite.override-records-reason, expedite.override-empty-reason-rejected, expedite.override-ignored-when-report-exists
+  - The `OVERRIDE — ` prefix is one module constant (`OVERRIDE_PREFIX`) that tests import.
+  **Spec scenarios**: expedite.overrides-key-always-present, expedite.override-records-reason, expedite.override-empty-reason-rejected, expedite.override-ignored-when-report-exists
   **Design decisions**: D2
   **Dependencies**: 1.3
 - [ ] 2.2 Add the `overrides` field to `Verdict` (XS)

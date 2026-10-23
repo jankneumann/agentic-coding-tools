@@ -28,3 +28,64 @@
 ### Context
 Planned roadmap item ri-02: expedite returns fail when no validation-report.md exists, with a recorded --accept-missing-validation "<reason>" override and a SKILL.md drift test.
 
+---
+
+## Phase: GATEKEEPER (2026-10-23)
+
+**Agent**: claude_code | **Session**: session_017qfSLYuSiyd2b5URwLucoq
+
+### Decisions
+1. **Proceed without judge** — No risk signals present and outcomes are verifiable via WHEN/THEN scenarios and tasks; downstream review, validation and the human merge gate remain
+
+### Completed Work
+- Read gate_signals: 1 package, ~160 LOC, no db/security/broad-scope signals; proposal, specs, tasks and work-packages present
+
+### Next Steps
+- PLAN: proposal_approval gate check (approach=exists)
+
+### Context
+Inline permissive gatekeeper verdict: proceed. No sub-agent dispatch adapter exposed in this session; signal-only verdict stood in for the judge (DEGRADED, fail-open).
+
+---
+
+## Phase: Plan Iteration 1 (2026-10-23)
+
+**Agent**: claude_code | **Session**: session_017qfSLYuSiyd2b5URwLucoq
+
+### Decisions
+1. **No plan edits** — Every requirement maps to a task with a test-first step; scope is a single package with explicit write_allow; no inconsistencies found across the eight review axes
+
+### Completed Work
+- Checked proposal, design D1-D4, spec scenarios and tasks against skills/expedite/scripts/expedite.py
+- Confirmed check_validation_report skip branch, report_path.parent change_dir derivation and Verdict shape match the design's description
+
+### Next Steps
+- PLAN_REVIEW single-vendor
+
+### Context
+Inline /iterate-on-plan self-review (no sub-agent dispatch adapter in this session). Plan artifacts checked against expedite.py; no edits required.
+
+---
+
+## Phase: Plan Review (2026-10-23)
+
+**Agent**: claude_code | **Session**: session_017qfSLYuSiyd2b5URwLucoq
+
+### Decisions
+1. **Rerun plan review with a scoped two-dot base** — The first packet was empty because the plan commit is already on the base branch; an empty-diff verdict is not a review of this plan, so it was discarded rather than adjudicated
+2. **Keep reason validation in main()** — Finding that expedite() should raise on a blank reason was fyi; the CLI is the only entry that accepts the flag, so validation stays at the boundary
+
+### Completed Work
+- Ran converge() inline (min_quorum=1, max_rounds=3); result converged, rounds=1, diff_kind=full
+- Spec: enumerated the three probed paths, added the no-change-dir case, required the text verdict to print the override detail, added scenario expedite.overrides-key-always-present, strengthened the drift scenario to both directions
+- Design: D4 drift test is set equality in both directions; D3 notes absent change dir means change_dir=None
+- Tasks: 1.1 updates TestCli ready/json tests to use a passing report; 2.1 adds the OVERRIDE_PREFIX constant and the overrides-key scenario
+- openspec validate --strict passes
+- Superseded empty-packet round moved out of the change dir (kept in session scratch only)
+
+### Next Steps
+- IMPLEMENT tasks 1.x-4.x test-first
+
+### Context
+Single-vendor plan review (claude_code; codex lane had no dispatch credentials) converged in 1 round with 10 non-blocking findings; accepted findings applied to spec.md, design.md and tasks.md. A first review round was superseded because its packet diff was empty (branch HEAD equals the base, the plan already landed on the base); it was rerun against a scoped base commit that excludes this change directory so the reviewer saw the full plan diff.
+

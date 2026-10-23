@@ -4,14 +4,19 @@
 
 The expedite readiness check SHALL report the `validation_report` check as `fail`
 when no `validation-report.md` exists at any probed path, and the overall verdict
-SHALL be BLOCKED (exit code 1). The failing check's `detail` MUST name every path
+SHALL be BLOCKED (exit code 1). The probed paths are, in order,
+`openspec/changes/<change-id>/validation-report.md`,
+`openspec/changes/<change-id>/reports/validation-report.md`, and
+`.git-worktrees/<change-id>/validation-report.md`, each relative to the repo root. The failing check's `detail` MUST name every path
 that was probed, and its `action` MUST direct the operator to run `/validate-feature`.
 A `skip` status MUST NOT be produced for the `validation_report` check.
 
 The change directory passed to the pre-merge gate SHALL be derived from the change
 id as `<repo-root>/openspec/changes/<change-id>`, not from the location of the
 report file, so that a report found under `reports/` or in a worktree is evaluated
-with the change's declared metadata.
+with the change's declared metadata. When that directory does not exist, the
+pre-merge gate SHALL be invoked with no change directory, so no declared metadata
+is applied.
 
 <!-- Scenario ID: expedite.missing-report-blocks -->
 #### Scenario: No validation report at any probed path
@@ -46,7 +51,8 @@ check SHALL report `pass` with a detail that begins
 verdict SHALL include an `overrides` list whose entries name the overridden check
 and carry the reason. The JSON verdict MUST always include the `overrides` key,
 empty when no override applied. An empty or whitespace-only reason MUST be rejected
-with exit code 2 before any check runs. When a validation report does exist, the
+with exit code 2 before any check runs. The text verdict SHALL print the
+override detail, so `OVERRIDE` is visible without `--json`. When a validation report does exist, the
 flag MUST NOT change the check's outcome and MUST NOT add an `overrides` entry.
 
 <!-- Scenario ID: expedite.override-records-reason -->
@@ -58,6 +64,13 @@ flag MUST NOT change the check's outcome and MUST NOT add an `overrides` entry.
 - **AND** the `validation_report` detail begins with `OVERRIDE — no validation report accepted: docs-only change`
 - **AND** `overrides` contains one entry with `check` equal to `validation_report`
   and `reason` equal to `docs-only change`
+- **AND** the text (non-JSON) verdict for the same invocation contains `OVERRIDE`
+
+<!-- Scenario ID: expedite.overrides-key-always-present -->
+#### Scenario: JSON verdict carries an empty overrides list without the flag
+
+- **WHEN** `expedite.py <change-id> --json` runs without `--accept-missing-validation`
+- **THEN** the JSON verdict contains `"overrides": []`
 
 <!-- Scenario ID: expedite.override-empty-reason-rejected -->
 #### Scenario: Empty override reason is rejected
@@ -87,6 +100,7 @@ only for the rework-report check.
 
 - **WHEN** the drift test parses the SKILL.md status table
 - **THEN** every check name it lists is a check `expedite()` emits
+- **AND** every check `expedite()` emits has at least one row in the table
 - **AND** the `validation_report` (no file) row is present
 - **AND** the only check for which the code can return `skip` is `rework_report`
 - **AND** no SKILL.md sentence describes a missing validation report as non-blocking

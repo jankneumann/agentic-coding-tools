@@ -46,7 +46,8 @@ consumers never have to distinguish "absent" from "none".
 
 `check_validation_report(report_path, *, change_id, repo_root, accept_missing=None)`.
 `change_dir = repo_root / "openspec" / "changes" / change_id` when that directory
-exists, else `None`. Today `change_dir` is `report_path.parent`, which is wrong
+exists, else `None` (an absent change directory means no declared metadata
+applies; `pre_merge_gate` already treats `change_dir=None` that way). Today `change_dir` is `report_path.parent`, which is wrong
 for the `reports/` and `.git-worktrees/` probe locations, so `pre_merge_gate`
 silently loses a declared `deployable` flag there.
 
@@ -65,7 +66,8 @@ report, failing report, passing report, each rework action) and collecting the
 statuses each check can return, rather than parsing `expedite.py` source. It
 then parses the SKILL.md `| Check fail | Resolution |` table and asserts:
 
-1. every check name in the table is one `expedite()` emits;
+1. the set of check names in the table equals the set `expedite()` emits
+   (both directions, so a check added on either side alone fails the test);
 2. a `validation_report` (no file) row exists;
 3. `rework_report` is the only check observed to return `skip`;
 4. no SKILL.md sentence matching `skip` … `does not block` mentions the
