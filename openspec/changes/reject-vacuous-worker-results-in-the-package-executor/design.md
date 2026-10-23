@@ -49,7 +49,11 @@ the step-level form of the same lie.
 - `rev-parse` handles abbreviated SHAs, and an ambiguous prefix fails, which is
   what we want;
 - a missing directory, a non-repository, a timeout or a non-zero exit is a failure
-  whose error names the commit and the path.
+  whose error names the commit and the path;
+- a commit that does not match `^[0-9a-fA-F]{7,64}$` fails without invoking `git`.
+  The schema already enforces the pattern, but this check must not depend on the
+  schema having run, and a value starting with `-` would be read by `git` as an
+  option.
 
 Without `worktree_path` the check is recorded as
 `{"passed": true, "skipped": true, "errors": [], "reason": "no worktree_path supplied"}`.
