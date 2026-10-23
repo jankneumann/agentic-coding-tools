@@ -1,0 +1,18 @@
+{
+  "review_type": "plan",
+  "target": "add-why-mode-to-explain-code-with-epistemic-tiers",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "style",
+      "criticality": "low",
+      "axis": "readability",
+      "severity": "fyi",
+      "evidence_class": "judgment",
+      "disposition": "accept",
+      "file_path": "openspec/changes/add-why-mode-to-explain-code-with-epistemic-tiers/work-packages.yaml",
+      "description": "`contracts.openapi.primary` points at `contracts/README.md`, which itself states that no OpenAPI contract applies. The field is required by the work-packages schema, so pointing it at the README is the conventional placeholder; no change needed."
+    }
+  ]
+}
