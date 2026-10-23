@@ -28,6 +28,9 @@ _VALIDATE_PKG_DIR = Path(__file__).resolve().parent.parent.parent / "validate-pa
 if str(_VALIDATE_PKG_DIR) not in sys.path:
     sys.path.insert(0, str(_VALIDATE_PKG_DIR))
 
+# Stdlib-only verdict type: the scheduler needs it for an isinstance check and
+# must not pull in result_validator's schema dependencies.
+from package_acceptance import PackageAcceptance  # noqa: E402
 from validate_work_packages import (
     detect_cycles,
     load_schema,
@@ -62,6 +65,8 @@ class PackageStatus:
     attempt: int = 0
     depends_on: list[str] = field(default_factory=list)
     error: str | None = None
+    # {"reason", "approver"} when the package was completed through an override.
+    override: dict[str, str] | None = None
 
 
 def compute_topo_order(packages: list[dict[str, Any]]) -> list[str]:
@@ -340,10 +345,45 @@ class DAGScheduler:
         if package_id in self.package_statuses:
             self.package_statuses[package_id].state = PackageState.IN_PROGRESS
 
-    def mark_completed(self, package_id: str) -> None:
-        """Mark a package as completed and check for newly ready packages."""
-        if package_id in self.package_statuses:
-            self.package_statuses[package_id].state = PackageState.COMPLETED
+    def mark_completed(self, package_id: str, acceptance: PackageAcceptance) -> bool:
+        """Mark a package completed, but only on an accepted verdict for it.
+
+        ``acceptance`` must be a ``PackageAcceptance`` for ``package_id`` with
+        ``accepted`` true (from ``result_validator.accept_package_result`` or
+        ``PackageAcceptance.override_for``). Anything else marks the package
+        ``failed`` with the reasons and returns False, so its dependants do
+        not become ready; the caller decides whether to retry or to
+        ``cancel_dependents``.
+
+        Returns:
+            True if the package is now completed, False otherwise.
+        """
+        status = self.package_statuses.get(package_id)
+        if status is None:
+            return False
+
+        if not isinstance(acceptance, PackageAcceptance):
+            reasons = [
+                f"expected a PackageAcceptance, got {type(acceptance).__name__}"
+            ]
+        elif acceptance.package_id != package_id:
+            reasons = [
+                f"acceptance is for package {acceptance.package_id!r}, "
+                f"not {package_id!r}"
+            ]
+        elif not acceptance.accepted:
+            reasons = list(acceptance.reasons) or ["acceptance was refused"]
+        else:
+            status.state = PackageState.COMPLETED
+            status.error = None
+            status.override = (
+                dict(acceptance.override) if acceptance.override else None
+            )
+            return True
+
+        status.state = PackageState.FAILED
+        status.error = f"result not accepted: {'; '.join(reasons)}"
+        return False
 
     def mark_failed(self, package_id: str, error: str) -> None:
         """Mark a package as failed."""
@@ -396,6 +436,7 @@ class DAGScheduler:
                 "task_id": status.task_id,
                 "attempt": status.attempt,
                 "error": status.error,
+                "override": status.override,
             }
 
         all_done = all(
