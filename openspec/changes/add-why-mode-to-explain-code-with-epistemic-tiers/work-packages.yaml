@@ -1,0 +1,123 @@
+schema_version: 1
+
+feature:
+  id: add-why-mode-to-explain-code-with-epistemic-tiers
+  title: "Add why mode to explain-code with epistemic tiers"
+  plan_revision: 1
+  created_by: claude_code
+  created_at: "2026-10-23T00:00:00Z"
+  deployable: false
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/add-why-mode-to-explain-code-with-epistemic-tiers/contracts/README.md"
+    files:
+      - "openspec/changes/add-why-mode-to-explain-code-with-epistemic-tiers/contracts/README.md"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 90
+  retry_budget: 1
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-why-mode
+    title: "why_trace script, why-chain reply contract, and the optional evidence_level field"
+    task_type: implement
+    role: implementer
+    description: >-
+      Tasks 1.x-4.x. A read-only why_trace.py assembles blame, commit, PR,
+      change-id and decision records, reusing decision_index (D2-D4). The
+      explain-code SKILL.md and references/why.md document the five-tier
+      vocabulary and the null-result and embedded-hypothesis rules (D5). Both
+      review-findings schema copies gain one optional evidence_level property,
+      named in both prompt builders (D6). The manifest declares explore-feature
+      as a cross-skill dependency (D7). It is one package because the tier
+      vocabulary test couples the skill and the schema.
+    priority: 1
+    depends_on: []
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "skills/explain-code/SKILL.md"
+        - "skills/explain-code/scripts/why_trace.py"
+        - "skills/explain-code/references/why.md"
+        - "openspec/schemas/review-findings.schema.json"
+        - "skills/parallel-infrastructure/install_assets/openspec/schemas/review-findings.schema.json"
+        - "skills/parallel-infrastructure/scripts/review_findings_schema.py"
+        - "skills/merge-pull-requests/scripts/vendor_review.py"
+        - "skills/install-manifest.json"
+      keys:
+        - "feature:add-why-mode-to-explain-code-with-epistemic-tiers:evidencelevel"
+      ttl_minutes: 120
+      reason: "Owns the explain-code why mode and the review-findings evidence_level property"
+    scope:
+      write_allow:
+        - "skills/explain-code/**"
+        - ".claude/skills/explain-code/**"
+        - ".agents/skills/explain-code/**"
+        - "skills/tests/explain-code/**"
+        - "openspec/schemas/review-findings.schema.json"
+        - "skills/parallel-infrastructure/install_assets/openspec/schemas/review-findings.schema.json"
+        - "skills/parallel-infrastructure/scripts/review_findings_schema.py"
+        - ".claude/skills/parallel-infrastructure/**"
+        - ".agents/skills/parallel-infrastructure/**"
+        - "skills/merge-pull-requests/scripts/vendor_review.py"
+        - ".claude/skills/merge-pull-requests/**"
+        - ".agents/skills/merge-pull-requests/**"
+        - "skills/tests/parallel-infrastructure/test_review_findings_schema.py"
+        - "skills/tests/merge-pull-requests/test_vendor_review_prompt.py"
+        - "skills/install-manifest.json"
+      read_allow:
+        - "openspec/changes/add-why-mode-to-explain-code-with-epistemic-tiers/**"
+        - "openspec/changes/**/findings-*.json"
+        - "skills/explore-feature/scripts/decision_index.py"
+        - "skills/tests/_shared/**"
+        - "skills/install.sh"
+        - "openspec/specs/skill-workflow/spec.md"
+      deny:
+        - "skills/explore-feature/**"
+        - "skills/parallel-infrastructure/scripts/consensus_synthesizer.py"
+    context_impact:
+      surfaces:
+        - "semantic_code"
+    worktree:
+      name: wp-why-mode
+      mode: isolated
+    verification:
+      tier_required: B
+      steps:
+        - name: "explain-code suite including why_trace fixtures"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/explain-code -q"
+          evidence:
+            artifacts: []
+            result_keys: ["explain_code_tests"]
+        - name: "Review-findings schema and vendor prompt agreement"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/parallel-infrastructure/test_review_findings_schema.py skills/tests/merge-pull-requests/test_vendor_review_prompt.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["schema_tests"]
+        - name: "Install manifest check"
+          kind: command
+          command: "bash skills/install.sh --check"
+          evidence:
+            artifacts: []
+            result_keys: ["manifest_check"]
+        - name: "Strict OpenSpec validation"
+          kind: command
+          command: "openspec validate add-why-mode-to-explain-code-with-epistemic-tiers --strict"
+          evidence:
+            artifacts: []
+            result_keys: ["openspec_strict"]
+    outputs:
+      result_keys: ["explain_code_tests", "schema_tests", "manifest_check", "openspec_strict"]
+    metadata:
+      loc_estimate: 520
+      package_kind: algorithm
