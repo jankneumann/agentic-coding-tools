@@ -28,6 +28,12 @@ from dag_scheduler import (
     prepare_task_submissions,
     validate_contracts_exist,
 )
+from package_acceptance import PackageAcceptance
+
+
+def _ok(package_id: str) -> PackageAcceptance:
+    """An accepted verdict, as accept_package_result returns for a validated PASS."""
+    return PackageAcceptance(package_id, True, "PASS")
 
 
 # --- Fixtures ---
@@ -373,23 +379,23 @@ class TestDAGSchedulerStateManagement:
         scheduler = self._setup_scheduler(sample_yaml)
         scheduler.mark_submitted("wp-contracts", "task-001")
         scheduler.mark_in_progress("wp-contracts")
-        scheduler.mark_completed("wp-contracts")
+        scheduler.mark_completed("wp-contracts", _ok("wp-contracts"))
 
         ready = scheduler.get_ready_packages()
         assert set(ready) == {"wp-backend", "wp-frontend"}
 
     def test_completing_all_impl_unblocks_integration(self, sample_yaml: Path) -> None:
         scheduler = self._setup_scheduler(sample_yaml)
-        scheduler.mark_completed("wp-contracts")
-        scheduler.mark_completed("wp-backend")
-        scheduler.mark_completed("wp-frontend")
+        scheduler.mark_completed("wp-contracts", _ok("wp-contracts"))
+        scheduler.mark_completed("wp-backend", _ok("wp-backend"))
+        scheduler.mark_completed("wp-frontend", _ok("wp-frontend"))
 
         ready = scheduler.get_ready_packages()
         assert ready == ["wp-integration"]
 
     def test_cancel_dependents(self, sample_yaml: Path) -> None:
         scheduler = self._setup_scheduler(sample_yaml)
-        scheduler.mark_completed("wp-contracts")
+        scheduler.mark_completed("wp-contracts", _ok("wp-contracts"))
         scheduler.mark_failed("wp-backend", "test failure")
 
         cancelled = scheduler.cancel_dependents("wp-backend")
@@ -398,7 +404,7 @@ class TestDAGSchedulerStateManagement:
 
     def test_cancel_does_not_affect_independent_packages(self, sample_yaml: Path) -> None:
         scheduler = self._setup_scheduler(sample_yaml)
-        scheduler.mark_completed("wp-contracts")
+        scheduler.mark_completed("wp-contracts", _ok("wp-contracts"))
         scheduler.mark_failed("wp-backend", "test failure")
         scheduler.cancel_dependents("wp-backend")
 
@@ -410,8 +416,8 @@ class TestDAGSchedulerStateManagement:
 
     def test_status_summary(self, sample_yaml: Path) -> None:
         scheduler = self._setup_scheduler(sample_yaml)
-        scheduler.mark_completed("wp-contracts")
-        scheduler.mark_completed("wp-backend")
+        scheduler.mark_completed("wp-contracts", _ok("wp-contracts"))
+        scheduler.mark_completed("wp-backend", _ok("wp-backend"))
 
         summary = scheduler.get_status_summary()
         assert summary["all_done"] is False
@@ -421,7 +427,7 @@ class TestDAGSchedulerStateManagement:
     def test_all_done_detection(self, sample_yaml: Path) -> None:
         scheduler = self._setup_scheduler(sample_yaml)
         for pid in ["wp-contracts", "wp-backend", "wp-frontend", "wp-integration"]:
-            scheduler.mark_completed(pid)
+            scheduler.mark_completed(pid, _ok(pid))
 
         summary = scheduler.get_status_summary()
         assert summary["all_done"] is True
@@ -476,3 +482,68 @@ class TestCLI:
             cwd=str(Path(__file__).resolve().parent.parent),
         )
         assert result.returncode == 1
+
+
+class TestMarkCompletedRequiresAcceptance:
+    def _setup_scheduler(self, sample_yaml: Path) -> DAGScheduler:
+        scheduler = DAGScheduler(sample_yaml, sample_yaml.parent)
+        scheduler.preflight()
+        return scheduler
+
+    def test_accepted_acceptance_completes_and_returns_true(self, sample_yaml: Path) -> None:
+        scheduler = self._setup_scheduler(sample_yaml)
+        assert scheduler.mark_completed("wp-contracts", _ok("wp-contracts")) is True
+        assert scheduler.package_statuses["wp-contracts"].state == PackageState.COMPLETED
+        assert set(scheduler.get_ready_packages()) == {"wp-backend", "wp-frontend"}
+
+    @pytest.mark.parametrize("outcome", ["BLOCKED", "ISSUES"])
+    def test_refused_acceptance_fails_package(self, sample_yaml: Path, outcome: str) -> None:
+        scheduler = self._setup_scheduler(sample_yaml)
+        refused = PackageAcceptance(
+            "wp-contracts", False, outcome,
+            (f"effective outcome is {outcome}, not PASS", "validation failed: commit_resolves"),
+        )
+        assert scheduler.mark_completed("wp-contracts", refused) is False
+        status = scheduler.package_statuses["wp-contracts"]
+        assert status.state == PackageState.FAILED
+        assert status.error is not None
+        assert status.error.startswith("result not accepted: ")
+        assert f"effective outcome is {outcome}" in status.error
+        assert "commit_resolves" in status.error
+        assert scheduler.get_ready_packages() == []
+
+    def test_acceptance_for_another_package_is_refused(self, sample_yaml: Path) -> None:
+        scheduler = self._setup_scheduler(sample_yaml)
+        assert scheduler.mark_completed("wp-contracts", _ok("wp-backend")) is False
+        status = scheduler.package_statuses["wp-contracts"]
+        assert status.state == PackageState.FAILED
+        assert "wp-backend" in (status.error or "")
+        assert scheduler.get_ready_packages() == []
+
+    @pytest.mark.parametrize("value", [None, True, "PASS", {"accepted": True}])
+    def test_non_acceptance_value_is_refused(self, sample_yaml: Path, value: Any) -> None:
+        scheduler = self._setup_scheduler(sample_yaml)
+        assert scheduler.mark_completed("wp-contracts", value) is False
+        status = scheduler.package_statuses["wp-contracts"]
+        assert status.state == PackageState.FAILED
+        assert "PackageAcceptance" in (status.error or "")
+
+    def test_unknown_package_returns_false(self, sample_yaml: Path) -> None:
+        scheduler = self._setup_scheduler(sample_yaml)
+        assert scheduler.mark_completed("wp-nope", _ok("wp-nope")) is False
+
+    def test_override_completes_and_is_reported(self, sample_yaml: Path) -> None:
+        scheduler = self._setup_scheduler(sample_yaml)
+        override = PackageAcceptance.override_for(
+            "wp-contracts", "flaky CI, rerun green", "operator",
+        )
+        assert scheduler.mark_completed("wp-contracts", override) is True
+        assert scheduler.package_statuses["wp-contracts"].state == PackageState.COMPLETED
+        entry = scheduler.get_status_summary()["packages"]["wp-contracts"]
+        assert entry["override"] == {"reason": "flaky CI, rerun green", "approver": "operator"}
+
+    def test_plain_acceptance_reports_no_override(self, sample_yaml: Path) -> None:
+        scheduler = self._setup_scheduler(sample_yaml)
+        scheduler.mark_completed("wp-contracts", _ok("wp-contracts"))
+        entry = scheduler.get_status_summary()["packages"]["wp-contracts"]
+        assert entry["override"] is None

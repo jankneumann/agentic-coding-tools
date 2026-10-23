@@ -1,0 +1,292 @@
+schema_version: 1
+
+feature:
+  id: reject-vacuous-worker-results-in-the-package-executor
+  title: "Reject vacuous worker results in the package executor"
+  plan_revision: 1
+  created_by: claude_code
+  created_at: "2026-10-23T00:00:00Z"
+  deployable: false
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/reject-vacuous-worker-results-in-the-package-executor/contracts/README.md"
+    files:
+      - "openspec/changes/reject-vacuous-worker-results-in-the-package-executor/contracts/README.md"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 1
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-contract
+    title: "Result schema fields and checker: empty steps, commit resolution, outcome consistency"
+    task_type: implement
+    role: implementer
+    description: >-
+      Tasks 1.x. Adds optional outcome/method to both schema copies (D3),
+      rejects empty and not_run-passed steps in validate_verification_consistency (D1),
+      adds the opt-in commit_resolves check and CLI --worktree flag (D2), and the
+      derive_outcome / effective_outcome / validate_outcome_consistency trio (D3).
+    priority: 1
+    depends_on: []
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "skills/validate-packages/scripts/validate_work_result.py"
+        - "openspec/schemas/work-queue-result.schema.json"
+        - "skills/parallel-infrastructure/install_assets/openspec/schemas/work-queue-result.schema.json"
+      keys:
+        - "feature:reject-vacuous-worker-results-in-the-package-executor:contract"
+      ttl_minutes: 120
+      reason: "Owns the work-queue result schema and its checker"
+    scope:
+      write_allow:
+        - "skills/validate-packages/scripts/validate_work_result.py"
+        - "skills/validate-packages/scripts/tests/test_validate_work_result.py"
+        - "openspec/schemas/work-queue-result.schema.json"
+        - "skills/parallel-infrastructure/install_assets/openspec/schemas/work-queue-result.schema.json"
+      read_allow:
+        - "openspec/changes/reject-vacuous-worker-results-in-the-package-executor/**"
+        - "skills/pyproject.toml"
+        - "skills/parallel-infrastructure/scripts/**"
+        - "skills/tests/install_sh/test_openspec_assets.py"
+      deny:
+        - "skills/parallel-infrastructure/scripts/package_executor.py"
+        - "skills/parallel-infrastructure/scripts/result_validator.py"
+        - "skills/parallel-infrastructure/scripts/dag_scheduler.py"
+        - "skills/parallel-infrastructure/scripts/integration_orchestrator.py"
+    context_impact:
+      surfaces:
+        - "semantic_code"
+    worktree:
+      name: wp-contract
+      mode: isolated
+    verification:
+      tier_required: B
+      steps:
+        - name: "validate-packages suite"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/validate-packages/scripts/tests -q"
+          evidence:
+            artifacts: []
+            result_keys: ["validate_packages_tests"]
+        - name: "install asset parity"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/install_sh/test_openspec_assets.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["install_assets_tests"]
+    outputs:
+      result_keys: ["validate_packages_tests", "install_assets_tests"]
+    metadata:
+      loc_estimate: 180
+      package_kind: algorithm
+
+  - package_id: wp-acceptance
+    title: "Emitter fix and PackageAcceptance"
+    task_type: implement
+    role: implementer
+    description: >-
+      Tasks 2.x. build_result stops computing all([]) as a pass and emits a derived
+      or explicit outcome; build_failure_result marks its step not_run (D1, D3).
+      result_validator gains the frozen PackageAcceptance (with override_for) and
+      accept_package_result, which refuses a skipped commit check (D4, D6).
+    priority: 2
+    depends_on: [wp-contract]
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "skills/parallel-infrastructure/scripts/package_executor.py"
+        - "skills/parallel-infrastructure/scripts/result_validator.py"
+        - "skills/parallel-infrastructure/scripts/package_acceptance.py"
+      keys:
+        - "feature:reject-vacuous-worker-results-in-the-package-executor:acceptance"
+      ttl_minutes: 120
+      reason: "Owns the result emitter and the acceptance verdict"
+    scope:
+      write_allow:
+        - "skills/parallel-infrastructure/scripts/package_executor.py"
+        - "skills/parallel-infrastructure/scripts/result_validator.py"
+        - "skills/parallel-infrastructure/scripts/package_acceptance.py"
+        - "skills/parallel-infrastructure/scripts/tests/test_package_executor.py"
+        - "skills/parallel-infrastructure/scripts/tests/test_result_validator.py"
+      read_allow:
+        - "openspec/changes/reject-vacuous-worker-results-in-the-package-executor/**"
+        - "skills/pyproject.toml"
+        - "skills/validate-packages/scripts/validate_work_result.py"
+        - "openspec/schemas/work-queue-result.schema.json"
+      deny:
+        - "skills/parallel-infrastructure/scripts/dag_scheduler.py"
+        - "skills/parallel-infrastructure/scripts/integration_orchestrator.py"
+        - "skills/validate-packages/scripts/validate_work_result.py"
+        - "openspec/schemas/work-queue-result.schema.json"
+        - "skills/parallel-infrastructure/install_assets/openspec/schemas/work-queue-result.schema.json"
+    context_impact:
+      surfaces:
+        - "semantic_code"
+    worktree:
+      name: wp-acceptance
+      mode: isolated
+    verification:
+      tier_required: B
+      steps:
+        - name: "emitter and acceptance tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/parallel-infrastructure/scripts/tests/test_package_executor.py skills/parallel-infrastructure/scripts/tests/test_result_validator.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["acceptance_tests"]
+    outputs:
+      result_keys: ["acceptance_tests"]
+    metadata:
+      loc_estimate: 160
+      package_kind: algorithm
+
+  - package_id: wp-gates
+    title: "Scheduler and integration gate decide from acceptance only"
+    task_type: implement
+    role: implementer
+    description: >-
+      Tasks 3.x. mark_completed(package_id, acceptance) completes only from an
+      accepted PackageAcceptance for the same package and otherwise marks it failed
+      (D4). The integration gate returns blocked_not_passing for results without an
+      accepted verdict, before reviews, and lists overrides (D5, D6). Migrates the
+      vacuous fixtures in the co-located tests (D7).
+    priority: 3
+    depends_on: [wp-acceptance]
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "skills/parallel-infrastructure/scripts/dag_scheduler.py"
+        - "skills/parallel-infrastructure/scripts/integration_orchestrator.py"
+      keys:
+        - "feature:reject-vacuous-worker-results-in-the-package-executor:gates"
+      ttl_minutes: 120
+      reason: "Owns the completion and merge-gate decision points"
+    scope:
+      write_allow:
+        - "skills/parallel-infrastructure/scripts/dag_scheduler.py"
+        - "skills/parallel-infrastructure/scripts/integration_orchestrator.py"
+        - "skills/parallel-infrastructure/scripts/tests/test_dag_scheduler.py"
+        - "skills/parallel-infrastructure/scripts/tests/test_integration_orchestrator.py"
+      read_allow:
+        - "openspec/changes/reject-vacuous-worker-results-in-the-package-executor/**"
+        - "skills/pyproject.toml"
+        - "skills/parallel-infrastructure/scripts/result_validator.py"
+        - "skills/parallel-infrastructure/scripts/package_acceptance.py"
+        - "skills/validate-packages/scripts/validate_work_result.py"
+        - "skills/parallel-infrastructure/scripts/package_executor.py"
+      deny:
+        - "skills/parallel-infrastructure/scripts/package_executor.py"
+        - "skills/parallel-infrastructure/scripts/result_validator.py"
+        - "skills/parallel-infrastructure/scripts/package_acceptance.py"
+        - "skills/validate-packages/scripts/validate_work_result.py"
+        - "openspec/schemas/work-queue-result.schema.json"
+        - "skills/parallel-infrastructure/install_assets/openspec/schemas/work-queue-result.schema.json"
+    context_impact:
+      surfaces:
+        - "semantic_code"
+    worktree:
+      name: wp-gates
+      mode: isolated
+    verification:
+      tier_required: B
+      steps:
+        - name: "scheduler and gate tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/parallel-infrastructure/scripts/tests/test_dag_scheduler.py skills/parallel-infrastructure/scripts/tests/test_integration_orchestrator.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["gates_tests"]
+    outputs:
+      result_keys: ["gates_tests"]
+    metadata:
+      loc_estimate: 200
+      package_kind: algorithm
+
+  - package_id: wp-integration
+    title: "End-to-end vacuous-result pins and docs"
+    task_type: implement
+    role: implementer
+    description: >-
+      Tasks 4.x. New skills/tests/parallel-infrastructure/test_vacuous_results.py pins
+      the roadmap acceptance outcomes end to end and the emitter/schema compatibility
+      (D7). Updates parallel-infrastructure SKILL.md, the validate-feature evidence
+      line (line-neutral), and the C4 row in docs/parallel-agentic-development.md.
+    priority: 4
+    depends_on: [wp-gates]
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "skills/tests/parallel-infrastructure/test_vacuous_results.py"
+        - "skills/parallel-infrastructure/SKILL.md"
+      keys:
+        - "feature:reject-vacuous-worker-results-in-the-package-executor:integration"
+      ttl_minutes: 120
+      reason: "Owns the end-to-end pins and doc updates"
+    scope:
+      write_allow:
+        - "skills/tests/parallel-infrastructure/test_vacuous_results.py"
+        - "skills/parallel-infrastructure/SKILL.md"
+        - "skills/validate-feature/SKILL.md"
+        - "docs/parallel-agentic-development.md"
+      read_allow:
+        - "openspec/changes/reject-vacuous-worker-results-in-the-package-executor/**"
+        - "skills/pyproject.toml"
+        - "skills/parallel-infrastructure/scripts/**"
+        - "skills/validate-packages/scripts/**"
+        - "openspec/schemas/work-queue-result.schema.json"
+        - "skills/parallel-infrastructure/install_assets/openspec/schemas/work-queue-result.schema.json"
+        - "skills/tests/parallel-infrastructure/conftest.py"
+      deny:
+        - "skills/parallel-infrastructure/scripts/package_executor.py"
+        - "skills/parallel-infrastructure/scripts/result_validator.py"
+        - "skills/parallel-infrastructure/scripts/dag_scheduler.py"
+        - "skills/parallel-infrastructure/scripts/integration_orchestrator.py"
+        - "skills/validate-packages/scripts/validate_work_result.py"
+    context_impact:
+      surfaces:
+        - "semantic_code"
+    worktree:
+      name: wp-integration
+      mode: isolated
+    verification:
+      tier_required: B
+      steps:
+        - name: "end-to-end pins"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/parallel-infrastructure/test_vacuous_results.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["e2e_tests"]
+        - name: "all affected suites"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/parallel-infrastructure/scripts/tests skills/validate-packages/scripts/tests skills/tests/parallel-infrastructure -q"
+          evidence:
+            artifacts: []
+            result_keys: ["affected_suites"]
+        - name: "Strict OpenSpec validation"
+          kind: command
+          command: "openspec validate reject-vacuous-worker-results-in-the-package-executor --strict"
+          evidence:
+            artifacts: []
+            result_keys: ["openspec_strict"]
+    outputs:
+      result_keys: ["e2e_tests", "affected_suites", "openspec_strict"]
+    metadata:
+      loc_estimate: 220
+      package_kind: integration
