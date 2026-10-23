@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-10-23T12:14:11.699400+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "rpc_failed: ForeignKeyViolationError: insert or update on table \"handoff_documents\" violates foreign key constraint \"handoff_documents_session_id_fkey\"\nDETAIL:  Key (session_id)=(session_017qfSLYuSiyd2b5URwLucoq) is not present in table \"agent_sessions\". (HTTP 200)",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": "session_017qfSLYuSiyd2b5URwLucoq",
+    "summary": "Second PLAN_REVIEW pass converged in 2 rounds on the single claude_code lane (quorum 1 by cloud-container policy). Ledger item 1 was re-dispatched and closed with a traceability edit tying D4's five waiver fields to the spec requirement Recorded Review Waivers. Item 2 is resolved by the D3 stored-verdict fallthrough. Item 3 (trailer identity is advisory) is accepted and will be noted in references/verdict-binding.md during IMPLEMENT.",
+    "completed_work": [
+      "PLAN_REVIEW converged, 0 blocking findings"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Accept trailer-derived author identity as advisory",
+        "rationale": "The threat is accidental self-review between cooperating agents; the human merge gate remains; documented as a known limit.",
+        "capability": "merge-pull-requests",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "IMPLEMENT tasks 1.x-6.x"
+    ],
+    "relevant_files": []
+  }
+}
