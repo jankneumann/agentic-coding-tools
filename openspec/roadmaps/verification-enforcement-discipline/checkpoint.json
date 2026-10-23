@@ -4,7 +4,7 @@
   "current_item_id": "ri-01",
   "phase": "planning",
   "created_at": "2026-10-21T00:10:08.450478+00:00",
-  "updated_at": "2026-10-23T12:00:50.911625+00:00",
+  "updated_at": "2026-10-23T19:56:17.675883+00:00",
   "serial_indeterminate_items": [
     "ri-04",
     "ri-09"
@@ -67,7 +67,7 @@
       "change_id": "bind-merge-verdicts-to-head-sha-and-patch-id",
       "phase": "autopilot",
       "attempt": 1,
-      "status": "launched",
+      "status": "parked",
       "prepared_at": "2026-10-23T11:59:09.514954+00:00",
       "launch_digest": "sha256:75937cb1f8b909bf156dcedc7bf020761b52eaa622c3518c848275029c9d3683",
       "launch_marker_path": ".supervised-dispatch/bind-merge-verdicts-to-head-sha-and-patch-id/ri-01-attempt-1.marker",
@@ -194,7 +194,7 @@
       "lease": {
         "generation": 1,
         "owner_nonce": "Vu1eXr8-qWFSNZHya8cDbHpJFCTpC0T1",
-        "state": "active",
+        "state": "released",
         "acquired_at": "2026-10-23T11:59:37.838189+00:00",
         "heartbeat_at": "2026-10-23T11:59:37.838189+00:00",
         "expires_at": "2026-10-23T12:59:37.838189+00:00"
@@ -211,6 +211,312 @@
         "handle": "host-task:a3b929521521823df",
         "go_released_at": "2026-10-23T12:00:43.129423+00:00",
         "entered_at": "2026-10-23T12:00:50.009044+00:00"
+      },
+      "application_journal": {
+        "schema_version": 1,
+        "state": "effects_applied",
+        "result": {
+          "attempt": 1,
+          "branch": "openspec/bind-merge-verdicts-to-head-sha-and-patch-id",
+          "change_id": "bind-merge-verdicts-to-head-sha-and-patch-id",
+          "degradations": [
+            {
+              "code": "coordinator_projection_forbidden",
+              "detail": "project-state submit returned status=degraded reason=forbidden",
+              "phase": "INIT"
+            },
+            {
+              "code": "phase_fallback_inline",
+              "detail": "no sub-agent dispatch tool exposed in this session; build-dispatch returned archetype gatekeeper; signal-only verdict proceed_with_review (security signal)",
+              "phase": "GATEKEEPER"
+            },
+            {
+              "code": "handoff_local_fallback",
+              "detail": "coordinator handoff write failed: FK violation handoff_documents_session_id_fkey; wrote handoffs/gatekeeper-1.json",
+              "phase": "GATEKEEPER"
+            },
+            {
+              "code": "audit_sink_failed",
+              "detail": "audit sink reported failure for gate proposal_approval decision auto",
+              "phase": "PLAN"
+            },
+            {
+              "code": "phase_fallback_inline",
+              "detail": "no sub-agent dispatch tool exposed in this session; build-dispatch returned archetype architect",
+              "phase": "PLAN_ITERATE"
+            },
+            {
+              "code": "handoff_local_fallback",
+              "detail": "coordinator handoff write failed: FK violation handoff_documents_session_id_fkey; wrote handoffs/plan-iterate-1.json",
+              "phase": "PLAN_ITERATE"
+            },
+            {
+              "code": "single_vendor_review",
+              "detail": "vendor=claude_code",
+              "phase": "PLAN_REVIEW"
+            },
+            {
+              "code": "phase_fallback_inline",
+              "detail": "no sub-agent dispatch tool exposed in this session; build-dispatch returned archetype reviewer; converge() driven via agent_lane.py with this agent as the lane",
+              "phase": "PLAN_REVIEW"
+            },
+            {
+              "code": "handoff_local_fallback",
+              "detail": "coordinator handoff write failed (session FK); wrote handoffs/plan-review-1.json",
+              "phase": "PLAN_REVIEW"
+            },
+            {
+              "code": "phase_fallback_inline",
+              "detail": "no sub-agent dispatch tool in this session; ran inline",
+              "phase": "PLAN_FIX"
+            },
+            {
+              "code": "handoff_local_fallback",
+              "detail": "coordinator handoff write failed (session FK); wrote handoffs/plan-fix-1.json",
+              "phase": "PLAN_FIX"
+            },
+            {
+              "code": "handoff_local_fallback",
+              "detail": "coordinator handoff write failed (session FK); wrote handoffs/plan-review-2.json",
+              "phase": "PLAN_REVIEW"
+            },
+            {
+              "code": "phase_fallback_inline",
+              "detail": "no sub-agent dispatch tool in this session; implementing inline",
+              "phase": "IMPLEMENT"
+            },
+            {
+              "code": "handoff_local_fallback",
+              "detail": "coordinator handoff write failed (session not registered); wrote handoffs/implementation-1.json",
+              "phase": "IMPLEMENT"
+            },
+            {
+              "code": "phase_fallback_inline",
+              "detail": "no Agent dispatch adapter in this session; self-review ran inline",
+              "phase": "IMPL_ITERATE"
+            },
+            {
+              "code": "handoff_local_fallback",
+              "detail": "coordinator handoff write failed; wrote handoffs/implementation-iteration-1.json",
+              "phase": "IMPL_ITERATE"
+            },
+            {
+              "code": "single_vendor_review",
+              "detail": "vendor=claude_code",
+              "phase": "IMPL_REVIEW"
+            },
+            {
+              "code": "phase_fallback_inline",
+              "detail": "no Agent dispatch adapter; review lane answered inline by the conductor",
+              "phase": "IMPL_REVIEW"
+            },
+            {
+              "code": "handoff_local_fallback",
+              "detail": "coordinator handoff write failed (session FK); wrote handoffs/implementation-review-1.json",
+              "phase": "IMPL_REVIEW"
+            },
+            {
+              "code": "phase_fallback_inline",
+              "detail": "no Agent dispatch adapter in this session; validation ran inline",
+              "phase": "VALIDATE"
+            },
+            {
+              "code": "handoff_local_fallback",
+              "detail": "coordinator handoff write failed (session FK); wrote handoffs/validation-1.json",
+              "phase": "VALIDATE"
+            },
+            {
+              "code": "single_vendor_review",
+              "detail": "vendor=claude_code",
+              "phase": "VAL_REVIEW"
+            },
+            {
+              "code": "phase_fallback_inline",
+              "detail": "no Agent dispatch adapter; review lane answered inline by the conductor",
+              "phase": "VAL_REVIEW"
+            },
+            {
+              "code": "handoff_local_fallback",
+              "detail": "coordinator handoff write failed (session FK); wrote handoffs/validation-review-1.json",
+              "phase": "VAL_REVIEW"
+            },
+            {
+              "code": "audit_sink_failed",
+              "detail": "audit sink reported failure for gate pr_creation decision auto",
+              "phase": "SUBMIT_PR"
+            },
+            {
+              "code": "audit_sink_failed",
+              "detail": "audit sink reported failure for gate merge decision posture_block",
+              "phase": "SUBMIT_PR"
+            }
+          ],
+          "dispatch_id": "batch-4cabb5445fb7a153ce6955a2:ri-01:attempt-1",
+          "evidence": {
+            "commit": "ffe2fcaf5c75fb88371a169f1000a996bcbdda65",
+            "loop_state_digest": "e14b3b8058820812e83710e6d2e94a02f831c747a0a9a670276add857f57a9f2",
+            "loop_state_path": "openspec/changes/bind-merge-verdicts-to-head-sha-and-patch-id/loop-state.json"
+          },
+          "host_id": "machine-801452e4fd3b9a26",
+          "lease_generation": 1,
+          "outcome": "parked",
+          "parked": {
+            "deadline": null,
+            "gate": "merge",
+            "kind": "pending_gate",
+            "reason": "Authorize merging this pull request? (autopilot records the authorization only; /cleanup-feature merges)",
+            "resume_hint": "answer gate merge through the resume request's gate_answer"
+          },
+          "schema_version": 2,
+          "worktree_ref": "bind-merge-verdicts-to-head-sha-and-patch-id"
+        },
+        "result_digest": "ed9706e029e579576bba6efefcf8ae2a5d5aa5c2bb8b3f75c2b474de5cead200",
+        "bound_at": "2026-10-23T19:56:17.522815+00:00",
+        "callback_started_at": "2026-10-23T19:56:17.542026+00:00",
+        "callback_acknowledged_at": "2026-10-23T19:56:17.551958+00:00",
+        "terminal_persisted_at": "2026-10-23T19:56:17.563256+00:00",
+        "effects_applied_at": "2026-10-23T19:56:17.584100+00:00"
+      },
+      "outcome": "parked",
+      "resolved_at": "2026-10-23T19:56:17.563190+00:00",
+      "degradations": [
+        {
+          "code": "coordinator_projection_forbidden",
+          "detail": "project-state submit returned status=degraded reason=forbidden",
+          "phase": "INIT"
+        },
+        {
+          "code": "phase_fallback_inline",
+          "detail": "no sub-agent dispatch tool exposed in this session; build-dispatch returned archetype gatekeeper; signal-only verdict proceed_with_review (security signal)",
+          "phase": "GATEKEEPER"
+        },
+        {
+          "code": "handoff_local_fallback",
+          "detail": "coordinator handoff write failed: FK violation handoff_documents_session_id_fkey; wrote handoffs/gatekeeper-1.json",
+          "phase": "GATEKEEPER"
+        },
+        {
+          "code": "audit_sink_failed",
+          "detail": "audit sink reported failure for gate proposal_approval decision auto",
+          "phase": "PLAN"
+        },
+        {
+          "code": "phase_fallback_inline",
+          "detail": "no sub-agent dispatch tool exposed in this session; build-dispatch returned archetype architect",
+          "phase": "PLAN_ITERATE"
+        },
+        {
+          "code": "handoff_local_fallback",
+          "detail": "coordinator handoff write failed: FK violation handoff_documents_session_id_fkey; wrote handoffs/plan-iterate-1.json",
+          "phase": "PLAN_ITERATE"
+        },
+        {
+          "code": "single_vendor_review",
+          "detail": "vendor=claude_code",
+          "phase": "PLAN_REVIEW"
+        },
+        {
+          "code": "phase_fallback_inline",
+          "detail": "no sub-agent dispatch tool exposed in this session; build-dispatch returned archetype reviewer; converge() driven via agent_lane.py with this agent as the lane",
+          "phase": "PLAN_REVIEW"
+        },
+        {
+          "code": "handoff_local_fallback",
+          "detail": "coordinator handoff write failed (session FK); wrote handoffs/plan-review-1.json",
+          "phase": "PLAN_REVIEW"
+        },
+        {
+          "code": "phase_fallback_inline",
+          "detail": "no sub-agent dispatch tool in this session; ran inline",
+          "phase": "PLAN_FIX"
+        },
+        {
+          "code": "handoff_local_fallback",
+          "detail": "coordinator handoff write failed (session FK); wrote handoffs/plan-fix-1.json",
+          "phase": "PLAN_FIX"
+        },
+        {
+          "code": "handoff_local_fallback",
+          "detail": "coordinator handoff write failed (session FK); wrote handoffs/plan-review-2.json",
+          "phase": "PLAN_REVIEW"
+        },
+        {
+          "code": "phase_fallback_inline",
+          "detail": "no sub-agent dispatch tool in this session; implementing inline",
+          "phase": "IMPLEMENT"
+        },
+        {
+          "code": "handoff_local_fallback",
+          "detail": "coordinator handoff write failed (session not registered); wrote handoffs/implementation-1.json",
+          "phase": "IMPLEMENT"
+        },
+        {
+          "code": "phase_fallback_inline",
+          "detail": "no Agent dispatch adapter in this session; self-review ran inline",
+          "phase": "IMPL_ITERATE"
+        },
+        {
+          "code": "handoff_local_fallback",
+          "detail": "coordinator handoff write failed; wrote handoffs/implementation-iteration-1.json",
+          "phase": "IMPL_ITERATE"
+        },
+        {
+          "code": "single_vendor_review",
+          "detail": "vendor=claude_code",
+          "phase": "IMPL_REVIEW"
+        },
+        {
+          "code": "phase_fallback_inline",
+          "detail": "no Agent dispatch adapter; review lane answered inline by the conductor",
+          "phase": "IMPL_REVIEW"
+        },
+        {
+          "code": "handoff_local_fallback",
+          "detail": "coordinator handoff write failed (session FK); wrote handoffs/implementation-review-1.json",
+          "phase": "IMPL_REVIEW"
+        },
+        {
+          "code": "phase_fallback_inline",
+          "detail": "no Agent dispatch adapter in this session; validation ran inline",
+          "phase": "VALIDATE"
+        },
+        {
+          "code": "handoff_local_fallback",
+          "detail": "coordinator handoff write failed (session FK); wrote handoffs/validation-1.json",
+          "phase": "VALIDATE"
+        },
+        {
+          "code": "single_vendor_review",
+          "detail": "vendor=claude_code",
+          "phase": "VAL_REVIEW"
+        },
+        {
+          "code": "phase_fallback_inline",
+          "detail": "no Agent dispatch adapter; review lane answered inline by the conductor",
+          "phase": "VAL_REVIEW"
+        },
+        {
+          "code": "handoff_local_fallback",
+          "detail": "coordinator handoff write failed (session FK); wrote handoffs/validation-review-1.json",
+          "phase": "VAL_REVIEW"
+        },
+        {
+          "code": "audit_sink_failed",
+          "detail": "audit sink reported failure for gate pr_creation decision auto",
+          "phase": "SUBMIT_PR"
+        },
+        {
+          "code": "audit_sink_failed",
+          "detail": "audit sink reported failure for gate merge decision posture_block",
+          "phase": "SUBMIT_PR"
+        }
+      ],
+      "parked": {
+        "deadline": null,
+        "gate": "merge",
+        "kind": "pending_gate",
+        "reason": "Authorize merging this pull request? (autopilot records the authorization only; /cleanup-feature merges)",
+        "resume_hint": "answer gate merge through the resume request's gate_answer"
       }
     },
     {
@@ -219,7 +525,7 @@
       "change_id": "make-expedite-fail-closed-on-missing-validation",
       "phase": "autopilot",
       "attempt": 1,
-      "status": "launched",
+      "status": "parked",
       "prepared_at": "2026-10-23T11:59:09.515057+00:00",
       "launch_digest": "sha256:3aecb0422bcf1bf1b934fa3253e1b4c00f2360f29d359b7281e298f032730dca",
       "launch_marker_path": ".supervised-dispatch/make-expedite-fail-closed-on-missing-validation/ri-02-attempt-1.marker",
@@ -319,7 +625,7 @@
       "lease": {
         "generation": 1,
         "owner_nonce": "4K2roBcL8XBDYBM6MjTJU6cQTbbjvhqZ",
-        "state": "active",
+        "state": "released",
         "acquired_at": "2026-10-23T11:59:38.179383+00:00",
         "heartbeat_at": "2026-10-23T11:59:38.179383+00:00",
         "expires_at": "2026-10-23T12:59:38.179383+00:00"
@@ -336,6 +642,262 @@
         "handle": "host-task:af27afb6670f736db",
         "go_released_at": "2026-10-23T12:00:43.440476+00:00",
         "entered_at": "2026-10-23T12:00:50.909332+00:00"
+      },
+      "application_journal": {
+        "schema_version": 1,
+        "state": "effects_applied",
+        "result": {
+          "attempt": 1,
+          "branch": "openspec/make-expedite-fail-closed-on-missing-validation",
+          "change_id": "make-expedite-fail-closed-on-missing-validation",
+          "degradations": [
+            {
+              "code": "coordinator_projection_forbidden",
+              "detail": "project-state submit returned reason=forbidden",
+              "phase": "INIT"
+            },
+            {
+              "code": "phase_fallback_inline",
+              "detail": "no sub-agent dispatch adapter exposed in this session (build-dispatch resolved archetype gatekeeper); permissive signal-only verdict proceed",
+              "phase": "GATEKEEPER"
+            },
+            {
+              "code": "handoff_local_fallback",
+              "detail": "coordinator handoff write FK violation (session not in agent_sessions); wrote handoffs/gatekeeper-1.json",
+              "phase": "GATEKEEPER"
+            },
+            {
+              "code": "audit_sink_failed",
+              "detail": "audit sink reported failure for gate proposal_approval decision auto",
+              "phase": "PLAN"
+            },
+            {
+              "code": "phase_fallback_inline",
+              "detail": "no sub-agent dispatch adapter exposed in this session (build-dispatch resolved archetype architect); ran /iterate-on-plan inline",
+              "phase": "PLAN_ITERATE"
+            },
+            {
+              "code": "handoff_local_fallback",
+              "detail": "coordinator handoff write FK violation; wrote handoffs local fallback",
+              "phase": "PLAN_ITERATE"
+            },
+            {
+              "code": "single_vendor_review",
+              "detail": "vendor=claude_code",
+              "phase": "PLAN_REVIEW"
+            },
+            {
+              "code": "phase_fallback_inline",
+              "detail": "no sub-agent dispatch adapter exposed in this session (build-dispatch resolved archetype reviewer); ran converge() inline via a driver script; first packet was empty (HEAD == base) and was superseded by a rerun against a scoped base commit",
+              "phase": "PLAN_REVIEW"
+            },
+            {
+              "code": "handoff_local_fallback",
+              "detail": "coordinator handoff write failed (FK violation: session not registered in agent_sessions); wrote handoffs/plan-review-1.json locally",
+              "phase": "PLAN_REVIEW"
+            },
+            {
+              "code": "phase_fallback_inline",
+              "detail": "no sub-agent dispatch adapter exposed in this session (build-dispatch resolved archetype implementer); ran /implement-feature tasks inline in the change worktree, test-first",
+              "phase": "IMPLEMENT"
+            },
+            {
+              "code": "handoff_local_fallback",
+              "detail": "coordinator handoff write FK violation (session not in agent_sessions); wrote handoffs/implementation-1.json locally",
+              "phase": "IMPLEMENT"
+            },
+            {
+              "code": "phase_fallback_inline",
+              "detail": "no sub-agent dispatch adapter exposed in this session (build-dispatch resolved archetype implementer); ran /iterate-on-implementation inline",
+              "phase": "IMPL_ITERATE"
+            },
+            {
+              "code": "handoff_local_fallback",
+              "detail": "coordinator handoff write FK violation; wrote handoffs/implementation-iteration-1-1.json locally",
+              "phase": "IMPL_ITERATE"
+            },
+            {
+              "code": "single_vendor_review",
+              "detail": "vendor=claude_code",
+              "phase": "IMPL_REVIEW"
+            },
+            {
+              "code": "phase_fallback_inline",
+              "detail": "no sub-agent dispatch adapter exposed in this session (build-dispatch resolved archetype reviewer); ran converge() inline via a driver script",
+              "phase": "IMPL_REVIEW"
+            },
+            {
+              "code": "handoff_local_fallback",
+              "detail": "coordinator handoff write rejected (session FK violation); handoff written locally to openspec/changes/make-expedite-fail-closed-on-missing-validation/handoffs/implementation-review-1.json",
+              "phase": "IMPL_REVIEW"
+            },
+            {
+              "code": "phase_fallback_inline",
+              "detail": "no sub-agent dispatch adapter exposed in this session (build-dispatch resolved archetype validator); ran validate-feature phases inline",
+              "phase": "VALIDATE"
+            },
+            {
+              "code": "handoff_local_fallback",
+              "detail": "coordinator handoff write FK violation; wrote handoffs/validation-1.json locally",
+              "phase": "VALIDATE"
+            },
+            {
+              "code": "audit_sink_failed",
+              "detail": "audit sink reported failure for gate pr_creation decision auto",
+              "phase": "SUBMIT_PR"
+            },
+            {
+              "code": "handoff_local_fallback",
+              "detail": "coordinator handoff write FK violation; wrote handoffs/submit-pr-1.json locally",
+              "phase": "SUBMIT_PR"
+            },
+            {
+              "code": "audit_sink_failed",
+              "detail": "audit sink reported failure for gate merge decision posture_block",
+              "phase": "DONE"
+            }
+          ],
+          "dispatch_id": "batch-4cabb5445fb7a153ce6955a2:ri-02:attempt-1",
+          "evidence": {
+            "commit": "531d01ce21c3710146849729a106c53343a8b38a",
+            "loop_state_digest": "eb0ec573bee7f30436f356fc4df693410b85401ad7b90364c8c80cc7e82b69df",
+            "loop_state_path": "openspec/changes/make-expedite-fail-closed-on-missing-validation/loop-state.json"
+          },
+          "host_id": "machine-801452e4fd3b9a26",
+          "lease_generation": 1,
+          "outcome": "parked",
+          "parked": {
+            "deadline": null,
+            "gate": "merge",
+            "kind": "pending_gate",
+            "reason": "Authorize merging this pull request? (autopilot records the authorization only; /cleanup-feature merges)",
+            "resume_hint": "answer gate merge through the resume request's gate_answer"
+          },
+          "schema_version": 2,
+          "worktree_ref": "make-expedite-fail-closed-on-missing-validation"
+        },
+        "result_digest": "5187c9abc2d41595f3d9c7f6a404f696ba29a2ddbd9c8550d6b790e917feda80",
+        "bound_at": "2026-10-23T19:56:17.596153+00:00",
+        "callback_started_at": "2026-10-23T19:56:17.611172+00:00",
+        "callback_acknowledged_at": "2026-10-23T19:56:17.627857+00:00",
+        "terminal_persisted_at": "2026-10-23T19:56:17.643005+00:00",
+        "effects_applied_at": "2026-10-23T19:56:17.670961+00:00"
+      },
+      "outcome": "parked",
+      "resolved_at": "2026-10-23T19:56:17.642932+00:00",
+      "degradations": [
+        {
+          "code": "coordinator_projection_forbidden",
+          "detail": "project-state submit returned reason=forbidden",
+          "phase": "INIT"
+        },
+        {
+          "code": "phase_fallback_inline",
+          "detail": "no sub-agent dispatch adapter exposed in this session (build-dispatch resolved archetype gatekeeper); permissive signal-only verdict proceed",
+          "phase": "GATEKEEPER"
+        },
+        {
+          "code": "handoff_local_fallback",
+          "detail": "coordinator handoff write FK violation (session not in agent_sessions); wrote handoffs/gatekeeper-1.json",
+          "phase": "GATEKEEPER"
+        },
+        {
+          "code": "audit_sink_failed",
+          "detail": "audit sink reported failure for gate proposal_approval decision auto",
+          "phase": "PLAN"
+        },
+        {
+          "code": "phase_fallback_inline",
+          "detail": "no sub-agent dispatch adapter exposed in this session (build-dispatch resolved archetype architect); ran /iterate-on-plan inline",
+          "phase": "PLAN_ITERATE"
+        },
+        {
+          "code": "handoff_local_fallback",
+          "detail": "coordinator handoff write FK violation; wrote handoffs local fallback",
+          "phase": "PLAN_ITERATE"
+        },
+        {
+          "code": "single_vendor_review",
+          "detail": "vendor=claude_code",
+          "phase": "PLAN_REVIEW"
+        },
+        {
+          "code": "phase_fallback_inline",
+          "detail": "no sub-agent dispatch adapter exposed in this session (build-dispatch resolved archetype reviewer); ran converge() inline via a driver script; first packet was empty (HEAD == base) and was superseded by a rerun against a scoped base commit",
+          "phase": "PLAN_REVIEW"
+        },
+        {
+          "code": "handoff_local_fallback",
+          "detail": "coordinator handoff write failed (FK violation: session not registered in agent_sessions); wrote handoffs/plan-review-1.json locally",
+          "phase": "PLAN_REVIEW"
+        },
+        {
+          "code": "phase_fallback_inline",
+          "detail": "no sub-agent dispatch adapter exposed in this session (build-dispatch resolved archetype implementer); ran /implement-feature tasks inline in the change worktree, test-first",
+          "phase": "IMPLEMENT"
+        },
+        {
+          "code": "handoff_local_fallback",
+          "detail": "coordinator handoff write FK violation (session not in agent_sessions); wrote handoffs/implementation-1.json locally",
+          "phase": "IMPLEMENT"
+        },
+        {
+          "code": "phase_fallback_inline",
+          "detail": "no sub-agent dispatch adapter exposed in this session (build-dispatch resolved archetype implementer); ran /iterate-on-implementation inline",
+          "phase": "IMPL_ITERATE"
+        },
+        {
+          "code": "handoff_local_fallback",
+          "detail": "coordinator handoff write FK violation; wrote handoffs/implementation-iteration-1-1.json locally",
+          "phase": "IMPL_ITERATE"
+        },
+        {
+          "code": "single_vendor_review",
+          "detail": "vendor=claude_code",
+          "phase": "IMPL_REVIEW"
+        },
+        {
+          "code": "phase_fallback_inline",
+          "detail": "no sub-agent dispatch adapter exposed in this session (build-dispatch resolved archetype reviewer); ran converge() inline via a driver script",
+          "phase": "IMPL_REVIEW"
+        },
+        {
+          "code": "handoff_local_fallback",
+          "detail": "coordinator handoff write rejected (session FK violation); handoff written locally to openspec/changes/make-expedite-fail-closed-on-missing-validation/handoffs/implementation-review-1.json",
+          "phase": "IMPL_REVIEW"
+        },
+        {
+          "code": "phase_fallback_inline",
+          "detail": "no sub-agent dispatch adapter exposed in this session (build-dispatch resolved archetype validator); ran validate-feature phases inline",
+          "phase": "VALIDATE"
+        },
+        {
+          "code": "handoff_local_fallback",
+          "detail": "coordinator handoff write FK violation; wrote handoffs/validation-1.json locally",
+          "phase": "VALIDATE"
+        },
+        {
+          "code": "audit_sink_failed",
+          "detail": "audit sink reported failure for gate pr_creation decision auto",
+          "phase": "SUBMIT_PR"
+        },
+        {
+          "code": "handoff_local_fallback",
+          "detail": "coordinator handoff write FK violation; wrote handoffs/submit-pr-1.json locally",
+          "phase": "SUBMIT_PR"
+        },
+        {
+          "code": "audit_sink_failed",
+          "detail": "audit sink reported failure for gate merge decision posture_block",
+          "phase": "DONE"
+        }
+      ],
+      "parked": {
+        "deadline": null,
+        "gate": "merge",
+        "kind": "pending_gate",
+        "reason": "Authorize merging this pull request? (autopilot records the authorization only; /cleanup-feature merges)",
+        "resume_hint": "answer gate merge through the resume request's gate_answer"
       }
     }
   ]
