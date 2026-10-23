@@ -1,0 +1,135 @@
+{
+  "attempt": 1,
+  "branch": "openspec/add-why-mode-to-explain-code-with-epistemic-tiers",
+  "change_id": "add-why-mode-to-explain-code-with-epistemic-tiers",
+  "degradations": [
+    {
+      "code": "coordinator_projection_forbidden",
+      "detail": "project-state submit returned {reason: forbidden, status: degraded}",
+      "phase": "INIT"
+    },
+    {
+      "code": "phase_fallback_inline",
+      "detail": "no sub-agent dispatch tool (Agent) exposed in this session; build-dispatch resolved archetype gatekeeper; signal-only verdict proceed",
+      "phase": "GATEKEEPER"
+    },
+    {
+      "code": "handoff_local_fallback",
+      "detail": "coordinator handoff write failed: FK violation handoff_documents_session_id_fkey; wrote handoffs/gatekeeper-1.json",
+      "phase": "GATEKEEPER"
+    },
+    {
+      "code": "phase_fallback_inline",
+      "detail": "no sub-agent dispatch tool (Agent) exposed in this session; /plan-feature authored inline by the orchestrator",
+      "phase": "PLAN"
+    },
+    {
+      "code": "audit_sink_failed",
+      "detail": "audit sink reported failure for gate proposal_approval decision auto",
+      "phase": "PLAN"
+    },
+    {
+      "code": "handoff_local_fallback",
+      "detail": "coordinator handoff write failed: FK violation handoff_documents_session_id_fkey; wrote handoffs/plan-1.json",
+      "phase": "PLAN"
+    },
+    {
+      "code": "phase_fallback_inline",
+      "detail": "no sub-agent dispatch tool (Agent) exposed in this session; build-dispatch resolved archetype architect; self-review run inline",
+      "phase": "PLAN_ITERATE"
+    },
+    {
+      "code": "handoff_local_fallback",
+      "detail": "coordinator handoff write failed: FK violation handoff_documents_session_id_fkey; wrote handoffs/plan-iteration-1-1.json",
+      "phase": "PLAN_ITERATE"
+    },
+    {
+      "code": "single_vendor_review",
+      "detail": "vendor=claude_code",
+      "phase": "PLAN_REVIEW"
+    },
+    {
+      "code": "phase_fallback_inline",
+      "detail": "Agent tool unavailable in this child session; review lane driven inline via agent_lane file handshake",
+      "phase": "PLAN_REVIEW"
+    },
+    {
+      "code": "handoff_local_fallback",
+      "detail": "coordinator handoff write failed (FK violation on agent_sessions); local handoff plan-review-1-1.json retained",
+      "phase": "PLAN_REVIEW"
+    },
+    {
+      "code": "phase_fallback_inline",
+      "detail": "Agent tool unavailable in this child session; implementer archetype work done inline",
+      "phase": "IMPLEMENT"
+    },
+    {
+      "code": "handoff_local_fallback",
+      "detail": "coordinator handoff write failed (ForeignKeyViolation on handoff_documents.session_id); handoff kept locally at handoffs/implementation-1-1.json",
+      "phase": "IMPLEMENT"
+    },
+    {
+      "code": "phase_fallback_inline",
+      "detail": "no sub-agent dispatch adapter in this harness (Agent tool unavailable); iterate-on-implementation self-review ran inline",
+      "phase": "IMPL_ITERATE"
+    },
+    {
+      "code": "handoff_local_fallback",
+      "detail": "coordinator handoff write failed (ForeignKeyViolation on handoff_documents.session_id); handoff kept locally at handoffs/implementation-iteration-1-1.json",
+      "phase": "IMPL_ITERATE"
+    },
+    {
+      "code": "single_vendor_review",
+      "detail": "vendor=claude_code",
+      "phase": "IMPL_REVIEW"
+    },
+    {
+      "code": "phase_fallback_inline",
+      "detail": "no sub-agent dispatch adapter in this harness (Agent tool unavailable); claude_code review lane ran inline via agent_lane file handshake",
+      "phase": "IMPL_REVIEW"
+    },
+    {
+      "code": "handoff_local_fallback",
+      "detail": "coordinator handoff write failed (ForeignKeyViolation on handoff_documents.session_id); handoff kept locally at handoffs/implementation-review-1-1.json",
+      "phase": "IMPL_REVIEW"
+    },
+    {
+      "code": "phase_fallback_inline",
+      "detail": "no sub-agent dispatch adapter in this harness (Agent tool unavailable); validate-feature checks ran inline",
+      "phase": "VALIDATE"
+    },
+    {
+      "code": "handoff_local_fallback",
+      "detail": "coordinator handoff write failed (session FK violation); handoff written to handoffs/validation-1.json",
+      "phase": "VALIDATE"
+    },
+    {
+      "code": "audit_sink_failed",
+      "detail": "audit sink reported failure for auto-approved pr_creation gate",
+      "phase": "SUBMIT_PR"
+    },
+    {
+      "code": "audit_sink_failed",
+      "detail": "audit sink reported failure for escalate_resume gate (posture_block)",
+      "phase": "ESCALATE"
+    }
+  ],
+  "dispatch_id": "batch-2ad0a5e7aac0b564a1cc6205:ri-09:attempt-1",
+  "evidence": {
+    "commit": "310655424fa0ee342a72dd1c4aec0ae20b5cfe29",
+    "loop_state_digest": "4e003819c448caea9645b08a588d153affad3a635c4b0790465675223a3e3ca9",
+    "loop_state_path": "openspec/changes/add-why-mode-to-explain-code-with-epistemic-tiers/loop-state.json"
+  },
+  "host_id": "machine-801452e4fd3b9a26",
+  "lease_generation": 1,
+  "outcome": "parked",
+  "parked": {
+    "deadline": null,
+    "gate": "escalate_resume",
+    "kind": "pending_gate",
+    "reason": "Has this escalation been resolved? Resume the loop?",
+    "resume_hint": "answer gate escalate_resume through the resume request's gate_answer"
+  },
+  "schema_version": 2,
+  "worktree_ref": "add-why-mode-to-explain-code-with-epistemic-tiers"
+}
