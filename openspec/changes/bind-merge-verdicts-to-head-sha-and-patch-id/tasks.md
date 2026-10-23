@@ -126,23 +126,23 @@
 
 ## 6. Documentation and mirrors (wp-docs)
 
-- [ ] 6.1 Write the SKILL lint assertion for the verdict-binding reference in `skills/tests/merge-pull-requests/test_skill_md.py` (S)
+- [x] 6.1 Write the SKILL lint assertion for the verdict-binding reference in `skills/tests/merge-pull-requests/test_skill_md.py` (S)
   - **Design decisions:** D9
   **Dependencies**: none
   - `references/verdict-binding.md` exists, SKILL.md links it, and SKILL.md has no `iterate consensus` / `head_sha matches` phrasing.
-- [ ] 6.2 Write `references/verdict-binding.md` (S)
+- [x] 6.2 Write `references/verdict-binding.md` (S)
   - The currency table, `POLICY_WAIVABLE_REASONS`, `--waive-review`, the independence rules.
   **Dependencies**: 5.5
-- [ ] 6.3 Rewrite SKILL.md lines 141-142 in place (S)
+- [x] 6.3 Rewrite SKILL.md lines 141-142 in place (S)
   - Line count unchanged (`wc -l` before and after = 1128).
   **Dependencies**: 6.1, 6.2
-- [ ] 6.4 Add a coordination note to the adjudication design (S)
+- [x] 6.4 Add a coordination note to the adjudication design (S)
   - Append to `openspec/changes/add-orchestrator-adjudication-review-gate/design.md` D5: "use `verdict_binding.verdict_currency`; `same_family` matches".
   **Dependencies**: 5.5
-- [ ] 6.5 Re-sync runtime mirrors (S)
+- [x] 6.5 Re-sync runtime mirrors (S)
   - `bash skills/install.sh --mode rsync --deps none --python-tools none`, then `bash skills/install.sh --check`.
   **Dependencies**: 6.3
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 
 ## 7. Verification
 
