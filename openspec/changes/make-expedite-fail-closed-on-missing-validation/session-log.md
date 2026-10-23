@@ -180,3 +180,22 @@ Single-vendor implementation review converged in round 1 with no blocking findin
 ### Context
 Validation passed: spec compliance mapped scenario-by-scenario; non-deployable phases skipped; pre-merge gate and expedite dogfood both pass.
 
+---
+
+## Phase: Submit PR (2026-10-23)
+
+**Agent**: claude_code | **Session**: session_017qfSLYuSiyd2b5URwLucoq
+
+### Decisions
+1. **Do not merge** — Supervised dispatch: merge belongs to the merge gate and the supervisor
+
+### Completed Work
+- Pushed branch openspec/make-expedite-fail-closed-on-missing-validation
+- Opened https://github.com/jankneumann/agentic-coding-tools/pull/702
+
+### Next Steps
+- Merge gate decision by supervisor
+
+### Context
+Opened PR #702 against openspec/adopt-verification-enforcement-discipline; pr_creation gate auto-approved by trust posture.
+
