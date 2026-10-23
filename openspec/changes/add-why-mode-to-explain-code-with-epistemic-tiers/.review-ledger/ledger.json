@@ -18,6 +18,60 @@
       ],
       "description": "`contracts.openapi.primary` points at `contracts/README.md`, which itself states that no OpenAPI contract applies. The field is required by the work-packages schema, so pointing it at the README is the conventional placeholder; no change needed.",
       "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 2,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "deterministic",
+      "file_path": "skills/explain-code/scripts/why_trace.py",
+      "spec_file": "/home/user/agentic-coding-tools/.git-worktrees/add-why-mode-to-explain-code-with-epistemic-tiers/openspec/changes/add-why-mode-to-explain-code-with-epistemic-tiers/specs/skill-workflow/spec.md",
+      "fingerprint": "e09dedb0b6792e85",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "In a repository whose HEAD is unborn (no commit yet), a staged line that exists in the working tree makes `git blame` fail with `fatal: no such ref: HEAD`, so why_trace exits 1. The Uncommitted line scenario requires exit 0 with status `uncommitted`. Reproduced: `git init; echo a > f.txt; git add f.txt; why_trace.py f.txt:1` prints `why_trace: git blame failed: fatal: no such ref: HEAD` and exits 1. `_blame` should report the all-zero sha when `rev-parse --verify HEAD` fails.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 3,
+      "status": "open",
+      "axis": "resilience",
+      "type": "resilience",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/explain-code/scripts/why_trace.py",
+      "fingerprint": "210c046b64503b41",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "`_resolve_target` calls `abs_path.read_bytes()` unguarded. An unreadable tracked file (permissions, a FIFO checked in as a regular path, an I/O error) raises OSError and prints a traceback instead of the documented one-line stderr message with exit 2. Wrap the read and raise InputError.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 4,
+      "status": "open",
+      "axis": "correctness",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/explain-code/scripts/why_trace.py",
+      "fingerprint": "5193bd170bdbc9b2",
+      "first_seen_round": 2,
+      "last_seen_round": 2,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Round-1 fixes verified: `_blame` now reports the all-zero sha when HEAD is unborn (re-running the reproduction gives status `uncommitted`, exit 0), and an OSError while reading the target becomes the one-line exit-2 InputError. The fix request scoped only why_trace.py, so regression tests for both paths belong in skills/tests/explain-code/test_why_trace.py as a follow-up commit; no further code change is needed.",
+      "consensus_status": "unconfirmed"
     }
-  ]
+  ],
+  "compacted_at": "2026-10-23T22:56:57Z"
 }
