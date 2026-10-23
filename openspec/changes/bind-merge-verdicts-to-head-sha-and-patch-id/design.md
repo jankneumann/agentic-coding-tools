@@ -100,6 +100,9 @@ returns `None` only on one of two paths:
    `policy:merge-pull-requests`; an operator waiver's approver is defined in D7.
    `eligibility_reason` is the live ineligibility reason at the time of the waiver
    (a string, or `null` for an operator waiver recorded while the PR was eligible).
+   These five fields are exactly the set the spec requirement *Recorded Review
+   Waivers* mandates; a waiver missing any of them is not a waiver and falls
+   through to the verified path.
    An operator waiver does **not** override `changes_requested`: that is a
    human reviewer's state, not ours to waive. Everything else it does override.
 2. **Verified:** eligibility is eligible; consensus dispatched with at least one
