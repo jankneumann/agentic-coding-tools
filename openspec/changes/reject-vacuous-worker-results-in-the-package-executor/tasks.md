@@ -70,7 +70,7 @@
 
 ## 3. Decision points (wp-gates)
 
-- [ ] 3.1 Write failing tests in `test_dag_scheduler.py` (S)
+- [x] 3.1 Write failing tests in `test_dag_scheduler.py` (S)
   - Migrate the existing `mark_completed(pid)` calls to pass an accepted `PackageAcceptance`.
   - A refused acceptance returns `False`, sets `failed` with an error listing the reasons, and leaves dependants unready.
   - An acceptance for another package, and a non-acceptance value, are refused.
@@ -78,7 +78,7 @@
   **Spec scenarios**: parallel-infrastructure.failed-result-not-completed, parallel-infrastructure.mismatched-acceptance-refused, parallel-infrastructure.override-recorded
   **Design decisions**: D4, D6
   **Dependencies**: 2.4
-- [ ] 3.2 Write failing tests in `test_integration_orchestrator.py` (S)
+- [x] 3.2 Write failing tests in `test_integration_orchestrator.py` (S)
   - Migrate `_make_result` to one passing step, and record results with an accepted acceptance.
   - A failed or BLOCKED result with its refused acceptance gives `blocked_not_passing`, and `not_passing` names the package.
   - `acceptance=None` gives `blocked_not_passing` with a reason naming the missing verdict.
@@ -88,11 +88,11 @@
   **Spec scenarios**: parallel-infrastructure.gate-blocks-failed-result, parallel-infrastructure.gate-blocks-missing-acceptance, parallel-infrastructure.gate-passes-accepted, parallel-infrastructure.override-recorded, parallel-infrastructure.summary-reports-acceptance
   **Design decisions**: D5, D6
   **Dependencies**: 2.4
-- [ ] 3.3 Implement `mark_completed(package_id, acceptance)` and `PackageStatus.override`, and report it in `get_status_summary` (S)
+- [x] 3.3 Implement `mark_completed(package_id, acceptance)` and `PackageStatus.override`, and report it in `get_status_summary` (S)
   **Dependencies**: 3.1
-- [ ] 3.4 Implement `record_package_result(..., acceptance=None)`, `IntegrationGateStatus.BLOCKED_NOT_PASSING`, the gate ordering, `not_passing`, `overrides` and the summary fields (S)
+- [x] 3.4 Implement `record_package_result(..., acceptance=None)`, `IntegrationGateStatus.BLOCKED_NOT_PASSING`, the gate ordering, `not_passing`, `overrides` and the summary fields (S)
   **Dependencies**: 3.2
-- [ ] Checkpoint: run the suites, review the diff, verify the scope
+- [x] Checkpoint: run the suites, review the diff, verify the scope
 
 ## 4. End-to-end pins and docs (wp-integration)
 
