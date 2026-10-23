@@ -28,3 +28,174 @@
 ### Context
 Planned roadmap item ri-02: expedite returns fail when no validation-report.md exists, with a recorded --accept-missing-validation "<reason>" override and a SKILL.md drift test.
 
+---
+
+## Phase: GATEKEEPER (2026-10-23)
+
+**Agent**: claude_code | **Session**: session_017qfSLYuSiyd2b5URwLucoq
+
+### Decisions
+1. **Proceed without judge** — No risk signals present and outcomes are verifiable via WHEN/THEN scenarios and tasks; downstream review, validation and the human merge gate remain
+
+### Completed Work
+- Read gate_signals: 1 package, ~160 LOC, no db/security/broad-scope signals; proposal, specs, tasks and work-packages present
+
+### Next Steps
+- PLAN: proposal_approval gate check (approach=exists)
+
+### Context
+Inline permissive gatekeeper verdict: proceed. No sub-agent dispatch adapter exposed in this session; signal-only verdict stood in for the judge (DEGRADED, fail-open).
+
+---
+
+## Phase: Plan Iteration 1 (2026-10-23)
+
+**Agent**: claude_code | **Session**: session_017qfSLYuSiyd2b5URwLucoq
+
+### Decisions
+1. **No plan edits** — Every requirement maps to a task with a test-first step; scope is a single package with explicit write_allow; no inconsistencies found across the eight review axes
+
+### Completed Work
+- Checked proposal, design D1-D4, spec scenarios and tasks against skills/expedite/scripts/expedite.py
+- Confirmed check_validation_report skip branch, report_path.parent change_dir derivation and Verdict shape match the design's description
+
+### Next Steps
+- PLAN_REVIEW single-vendor
+
+### Context
+Inline /iterate-on-plan self-review (no sub-agent dispatch adapter in this session). Plan artifacts checked against expedite.py; no edits required.
+
+---
+
+## Phase: Plan Review (2026-10-23)
+
+**Agent**: claude_code | **Session**: session_017qfSLYuSiyd2b5URwLucoq
+
+### Decisions
+1. **Rerun plan review with a scoped two-dot base** — The first packet was empty because the plan commit is already on the base branch; an empty-diff verdict is not a review of this plan, so it was discarded rather than adjudicated
+2. **Keep reason validation in main()** — Finding that expedite() should raise on a blank reason was fyi; the CLI is the only entry that accepts the flag, so validation stays at the boundary
+
+### Completed Work
+- Ran converge() inline (min_quorum=1, max_rounds=3); result converged, rounds=1, diff_kind=full
+- Spec: enumerated the three probed paths, added the no-change-dir case, required the text verdict to print the override detail, added scenario expedite.overrides-key-always-present, strengthened the drift scenario to both directions
+- Design: D4 drift test is set equality in both directions; D3 notes absent change dir means change_dir=None
+- Tasks: 1.1 updates TestCli ready/json tests to use a passing report; 2.1 adds the OVERRIDE_PREFIX constant and the overrides-key scenario
+- openspec validate --strict passes
+- Superseded empty-packet round moved out of the change dir (kept in session scratch only)
+
+### Next Steps
+- IMPLEMENT tasks 1.x-4.x test-first
+
+### Context
+Single-vendor plan review (claude_code; codex lane had no dispatch credentials) converged in 1 round with 10 non-blocking findings; accepted findings applied to spec.md, design.md and tasks.md. A first review round was superseded because its packet diff was empty (branch HEAD equals the base, the plan already landed on the base); it was rerun against a scoped base commit that excludes this change directory so the reviewer saw the full plan diff.
+
+---
+
+## Phase: Implementation (2026-10-23)
+
+**Agent**: claude_code | **Session**: session_017qfSLYuSiyd2b5URwLucoq
+
+### Decisions
+1. **Drift test asserts skip is documented only alongside the rework_report check name** — The old sentence names rework-report.json only as an example and is generic about skip; requiring the check name in every prose sentence that mentions skip makes the test fail on the old text as tasks 3.1 requires
+2. **Override recorded only when no report was found** — Design D2: a failing report is not maskable by this flag; --force at merge time covers that path with its own FORCED OVERRIDE
+
+### Completed Work
+- 268b2cf: missing report -> fail naming the three probed paths; change_dir derived from the change id (None when the change dir is absent)
+- 7632886: OVERRIDE_PREFIX constant, Verdict.overrides (always serialized), --accept-missing-validation with blank reason -> exit 2, flag ignored when a report exists
+- 3824b12: SKILL.md table/flags/JSON shape corrected, skip scoped to rework_report, mental-models G2 updated, test_skill_md_drift.py added
+- Drift test confirmed red against the old SKILL.md line 67 and mutation-checked in both directions (removed row and phantom row each fail)
+- Runtime mirrors re-synced via install.sh and verified identical; they are gitignored, so nothing to commit
+- Expedite suite 46 passed; openspec validate --strict passes
+
+### Next Steps
+- IMPL_ITERATE self-review
+- IMPL_REVIEW single-vendor
+
+### Context
+Implemented tasks 1.1-4.2 test-first in a single package (wp-expedite), inline because no sub-agent dispatch adapter is exposed in this session. A missing validation report now fails the validation_report check; --accept-missing-validation records an override; SKILL.md and docs/mental-models.md G2 now match the code, guarded by a new drift test.
+
+---
+
+## Phase: Implementation Iteration 1 (2026-10-23)
+
+**Agent**: claude_code | **Session**: session_017qfSLYuSiyd2b5URwLucoq
+
+### Decisions
+1. **Keep the override condition explicit in expedite()** — Deriving overrides from the check detail string would couple the verdict to display text; the two-line condition mirrors the check's own branch
+2. **No change for an explicit but missing --validation-report path** — It already fails closed through pre_merge_gate and the override deliberately applies only when probing found nothing
+
+### Completed Work
+- Reviewed expedite.py diff against the base branch for correctness, edge cases and scope
+- Edge-probed an explicit --validation-report path that does not exist (fails via the pre-merge gate) and a relative --repo-root (probed paths render correctly); both fail closed
+- 91554d2: hoisted the datetime import in the drift test
+
+### Next Steps
+- IMPL_REVIEW single-vendor
+
+### Context
+Inline /iterate-on-implementation self-review of the expedite diff; refinements settled after one minor cleanup.
+
+---
+
+## Phase: Implementation Review (2026-10-23)
+
+**Agent**: claude_code | **Session**: session_017qfSLYuSiyd2b5URwLucoq
+
+### Decisions
+1. **Converge without fixes** — No finding was blocking: 1 nit spec_gap (two normative sentences lack scenarios), 3 optional (explicit-missing report path untested, registry-absent branch not observed by drift fixture, repeated coordinator FK handoff degradation), 3 fyi, 3 resolved re-verifications
+2. **Record --force wording mismatch as follow-up** — The SKILL table's --force guidance predates this change and refers to the downstream sync-point skill, not expedite.py; out of scope for this item
+
+### Open Questions
+- [ ] Should a later change add scenarios for the no-change-dir fallback and an explicit-but-missing --validation-report path?
+
+### Completed Work
+- Ran convergence loop (max 3 rounds, quorum 1) over the full branch diff against openspec/adopt-verification-enforcement-discipline
+- claude_code lane returned 10 findings (fact-check removed 0); codex lane unavailable (no SDK credentials)
+- Committed findings, fact-check, sanitized manifest and updated review ledger
+
+### Next Steps
+- VALIDATE: write validation-report.md (Spec Compliance required; deployable false)
+
+### Context
+Single-vendor implementation review converged in round 1 with no blocking findings; 10 findings, all nit/optional/fyi/none.
+
+---
+
+## Phase: Validation (2026-10-23)
+
+**Agent**: claude_code | **Session**: session_017qfSLYuSiyd2b5URwLucoq
+
+### Decisions
+1. **Skip deploy, smoke, security and e2e** — work-packages.yaml declares deployable: false, so only Spec Compliance is a required phase
+
+### Completed Work
+- expedite tests 46 passed; guard suites 207 passed, 15 skipped
+- openspec validate --strict valid
+- Wrote and committed validation-report.md (24358f5)
+- Dogfood: expedite.py on this change returns READY; pre_merge_gate returns continue
+
+### Next Steps
+- SUBMIT_PR against openspec/adopt-verification-enforcement-discipline
+
+### Context
+Validation passed: spec compliance mapped scenario-by-scenario; non-deployable phases skipped; pre-merge gate and expedite dogfood both pass.
+
+---
+
+## Phase: Submit PR (2026-10-23)
+
+**Agent**: claude_code | **Session**: session_017qfSLYuSiyd2b5URwLucoq
+
+### Decisions
+1. **Do not merge** — Supervised dispatch: merge belongs to the merge gate and the supervisor
+
+### Completed Work
+- Pushed branch openspec/make-expedite-fail-closed-on-missing-validation
+- Opened https://github.com/jankneumann/agentic-coding-tools/pull/702
+
+### Next Steps
+- Merge gate decision by supervisor
+
+### Context
+Opened PR #702 against openspec/adopt-verification-enforcement-discipline; pr_creation gate auto-approved by trust posture.
+

@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-10-23T12:24:32.652477+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "rpc_failed: ForeignKeyViolationError: insert or update on table \"handoff_documents\" violates foreign key constraint \"handoff_documents_session_id_fkey\"\nDETAIL:  Key (session_id)=(session_017qfSLYuSiyd2b5URwLucoq) is not present in table \"agent_sessions\". (HTTP 200)",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": "session_017qfSLYuSiyd2b5URwLucoq",
+    "summary": "Single-vendor implementation review converged in round 1 with no blocking findings; 10 findings, all nit/optional/fyi/none.",
+    "completed_work": [
+      "Ran convergence loop (max 3 rounds, quorum 1) over the full branch diff against openspec/adopt-verification-enforcement-discipline",
+      "claude_code lane returned 10 findings (fact-check removed 0); codex lane unavailable (no SDK credentials)",
+      "Committed findings, fact-check, sanitized manifest and updated review ledger"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Converge without fixes",
+        "rationale": "No finding was blocking: 1 nit spec_gap (two normative sentences lack scenarios), 3 optional (explicit-missing report path untested, registry-absent branch not observed by drift fixture, repeated coordinator FK handoff degradation), 3 fyi, 3 resolved re-verifications",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Record --force wording mismatch as follow-up",
+        "rationale": "The SKILL table's --force guidance predates this change and refers to the downstream sync-point skill, not expedite.py; out of scope for this item",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "VALIDATE: write validation-report.md (Spec Compliance required; deployable false)"
+    ],
+    "relevant_files": []
+  }
+}

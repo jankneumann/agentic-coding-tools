@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-10-23T12:04:37.318144+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "rpc_failed: ForeignKeyViolationError: insert or update on table \"handoff_documents\" violates foreign key constraint \"handoff_documents_session_id_fkey\"\nDETAIL:  Key (session_id)=(session_017qfSLYuSiyd2b5URwLucoq) is not present in table \"agent_sessions\". (HTTP 200)",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": "session_017qfSLYuSiyd2b5URwLucoq",
+    "summary": "Inline permissive gatekeeper verdict: proceed. No sub-agent dispatch adapter exposed in this session; signal-only verdict stood in for the judge (DEGRADED, fail-open).",
+    "completed_work": [
+      "Read gate_signals: 1 package, ~160 LOC, no db/security/broad-scope signals; proposal, specs, tasks and work-packages present"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Proceed without judge",
+        "rationale": "No risk signals present and outcomes are verifiable via WHEN/THEN scenarios and tasks; downstream review, validation and the human merge gate remain",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "PLAN: proposal_approval gate check (approach=exists)"
+    ],
+    "relevant_files": []
+  }
+}
