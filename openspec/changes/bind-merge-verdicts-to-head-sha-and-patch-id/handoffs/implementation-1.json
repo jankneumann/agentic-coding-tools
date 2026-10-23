@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-10-23T12:35:10.873375+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "rpc_failed: ForeignKeyViolationError: insert or update on table \"handoff_documents\" violates foreign key constraint \"handoff_documents_session_id_fkey\"\nDETAIL:  Key (session_id)=(session_017qfSLYuSiyd2b5URwLucoq) is not present in table \"agent_sessions\". (HTTP 200)",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": "session_017qfSLYuSiyd2b5URwLucoq",
+    "summary": "IMPLEMENT ran inline (no dispatch adapter in this session). All seven task sections are done: verdict_binding.py (bind, verdict_currency, independence_violation, derive_author, patch-id helpers), merge-plan schema 1.2 with the version pre-check, head-pinned gh pr merge with head_mismatch reporting, waiver fields on MergeEvent, collection-valued exclude_vendor and reviewer identity in vendor summaries, a total vendor_review_block_reason with policy/operator waivers, execute_plan wiring (bind on every stored review, reuse current/rebased verdicts, supersede stale ones, --waive-review), and references/verdict-binding.md with a line-neutral SKILL.md rewrite.",
+    "completed_work": [
+      "merge-pull-requests/scripts/tests: 266 passed",
+      "tests/merge-pull-requests: 307 passed",
+      "parallel-infrastructure/scripts/tests: 543 passed",
+      "git grep iterate_consensus_path is empty",
+      "openspec validate --strict passes",
+      "install.sh --check passes"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Reused verdicts are re-checked for independence against the live author",
+        "rationale": "A stored verdict bound before the author was known could otherwise pass a self-review.",
+        "capability": "merge-pull-requests",
+        "supersedes": null
+      },
+      {
+        "title": "The cheap-path placeholder review is bound too",
+        "rationale": "Every stored review then carries a binding, so schema 1.2 validation and later currency checks have one shape to handle.",
+        "capability": "merge-pull-requests",
+        "supersedes": null
+      },
+      {
+        "title": "Suites run as separate pytest invocations",
+        "rationale": "A single combined collection hits a pre-existing duplicate-conftest plugin registration clash unrelated to this change.",
+        "capability": "merge-pull-requests",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "IMPL_ITERATE self-review",
+      "IMPL_REVIEW lane"
+    ],
+    "relevant_files": []
+  }
+}
