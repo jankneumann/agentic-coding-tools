@@ -14,6 +14,11 @@ Use::
     python skills/expedite/scripts/expedite.py <change-id> \\
         --validation-report path/to/validation-report.md \\
         --rework-report path/to/rework-report.json
+    python skills/expedite/scripts/expedite.py <change-id> \\
+        --accept-missing-validation "<reason>"
+
+A missing validation report blocks. ``--accept-missing-validation`` accepts
+its absence with a recorded reason; it never masks a report that exists.
 
 Default report paths probed (in order)::
 
@@ -25,6 +30,7 @@ Exit codes::
 
     0  READY    — no blocking checks
     1  BLOCKED  — at least one check failed
+    2  usage error (including a blank --accept-missing-validation reason)
 """
 from __future__ import annotations
 
@@ -44,6 +50,10 @@ import active_agents  # noqa: E402
 import gate_logic  # noqa: E402
 import rework_report as rr  # noqa: E402
 
+# Mirrors gate_logic.pre_merge_gate's "FORCED OVERRIDE —" so one grep for
+# "OVERRIDE —" finds every accepted bypass.
+OVERRIDE_PREFIX = "OVERRIDE — no validation report accepted: "
+
 
 @dataclass
 class CheckResult:
@@ -61,12 +71,14 @@ class Verdict:
     change_id: str
     ready: bool
     checks: list[CheckResult] = field(default_factory=list)
+    overrides: list[dict[str, str]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "change_id": self.change_id,
             "ready": self.ready,
             "checks": [c.to_dict() for c in self.checks],
+            "overrides": list(self.overrides),
         }
 
 
@@ -107,7 +119,11 @@ def check_validation_report(
     *,
     change_id: str,
     repo_root: Path,
+    accept_missing: str | None = None,
 ) -> CheckResult:
+    if report_path is None and accept_missing is not None:
+        return CheckResult(name="validation_report", status="pass",
+                           detail=OVERRIDE_PREFIX + accept_missing)
     if report_path is None:
         probed = ", ".join(
             p.relative_to(repo_root).as_posix()
@@ -173,6 +189,7 @@ def expedite(
     *,
     validation_report: Path | None = None,
     rework_report_path: Path | None = None,
+    accept_missing_validation: str | None = None,
 ) -> Verdict:
     if validation_report is None:
         validation_report = find_validation_report(change_id, repo_root)
@@ -182,11 +199,17 @@ def expedite(
     checks = [
         check_active_agents(repo_root),
         check_validation_report(validation_report, change_id=change_id,
-                                repo_root=repo_root),
+                                repo_root=repo_root,
+                                accept_missing=accept_missing_validation),
         check_rework_report(rework_report_path),
     ]
+    overrides: list[dict[str, str]] = []
+    if validation_report is None and accept_missing_validation is not None:
+        overrides.append({"check": "validation_report",
+                          "reason": accept_missing_validation})
     ready = all(c.status != "fail" for c in checks)
-    return Verdict(change_id=change_id, ready=ready, checks=checks)
+    return Verdict(change_id=change_id, ready=ready, checks=checks,
+                   overrides=overrides)
 
 
 def render_text(v: Verdict) -> str:
@@ -215,15 +238,22 @@ def main(argv: list[str] | None = None) -> int:
                    help="path to validation-report.md (default: probe candidate paths)")
     p.add_argument("--rework-report", type=Path, default=None,
                    help="path to rework-report.json (default: probe candidate paths)")
+    p.add_argument("--accept-missing-validation", metavar="REASON", default=None,
+                   help="accept a missing validation report, recording REASON "
+                        "(ignored when a report exists)")
     p.add_argument("--json", action="store_true",
                    help="emit JSON to stdout instead of human text")
     args = p.parse_args(argv)
+    if (args.accept_missing_validation is not None
+            and not args.accept_missing_validation.strip()):
+        p.error("--accept-missing-validation requires a non-empty reason")
 
     verdict = expedite(
         args.change_id,
         args.repo_root,
         validation_report=args.validation_report,
         rework_report_path=args.rework_report,
+        accept_missing_validation=args.accept_missing_validation,
     )
 
     if args.json:
