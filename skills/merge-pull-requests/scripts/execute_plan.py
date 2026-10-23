@@ -6,8 +6,10 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 import sys
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
@@ -31,9 +33,11 @@ CANONICAL_SCRIPTS_DIR = canonical_scripts_dir()
 if str(CANONICAL_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(CANONICAL_SCRIPTS_DIR))
 
+from _helpers import run_gh  # noqa: E402
 from analyze_comments import analyze as analyze_pr_comments  # noqa: E402
 from check_staleness import check_staleness as check_pr_staleness  # noqa: E402
 from execution_safety import (  # noqa: E402
+    POLICY_APPROVER,
     default_sync_point_guard,
     live_terminal_outcome,
     record_preclaim_blocker,
@@ -46,6 +50,15 @@ from merge_pr import (  # noqa: E402
     validate_pr,
 )
 from plan_storage import FilePlanStore  # noqa: E402
+from verdict_binding import (  # noqa: E402
+    POLICY_WAIVABLE_REASONS,
+    bind,
+    derive_author,
+    independence_violation,
+    patch_id_from_diff,
+    stale_reason,
+    verdict_currency,
+)
 from vendor_review import (  # noqa: E402
     check_review_eligibility,
     compute_pr_size,
@@ -60,14 +73,20 @@ class ExecutionDependencies:
     check_staleness: Callable[[int, str], dict[str, Any]]
     refresh_branch: Callable[[int], dict[str, Any]]
     analyze_comments: Callable[[int], dict[str, Any]]
-    review_vendor: Callable[[int, str, dict[str, Any]], dict[str, Any]]
-    merge: Callable[[int, str], dict[str, Any]]
+    review_vendor: Callable[[int, str, dict[str, Any], dict[str, Any]], dict[str, Any]]
+    #: ``merge(pr, strategy, expected_head_sha, review_waiver)``
+    merge: Callable[[int, str, str | None, dict[str, Any] | None], dict[str, Any]]
+    #: Unified diff of the PR, read from GitHub without checking the branch out.
+    pr_diff: Callable[[int], str]
+    #: ``{login, vendor, session_id}`` of the PR author.
+    pr_author: Callable[[int], dict[str, Any]]
 
 
 def _default_vendor_review(
     pr_number: int,
     origin: str,
     comments: dict[str, Any],
+    author: dict[str, Any],
 ) -> dict[str, Any]:
     size = compute_pr_size(pr_number)
     eligibility = check_review_eligibility(
@@ -79,7 +98,11 @@ def _default_vendor_review(
     if not eligibility["eligible"]:
         return {"eligibility": eligibility, "consensus": None}
     try:
-        result = dispatch_vendor_reviews(pr_number=pr_number, pr_size=size)
+        result = dispatch_vendor_reviews(
+            pr_number=pr_number,
+            pr_size=size,
+            author_vendor=(author or {}).get("vendor"),
+        )
     except Exception as exc:  # noqa: BLE001 - boundary must fail closed
         return {
             "eligibility": eligibility,
@@ -92,6 +115,15 @@ def _default_vendor_review(
     return result
 
 
+def _default_pr_diff(pr_number: int) -> str:
+    return run_gh(["pr", "diff", str(pr_number)])
+
+
+def _default_pr_author(pr_number: int) -> dict[str, Any]:
+    view = json.loads(run_gh(["pr", "view", str(pr_number), "--json", "author,commits"]))
+    return derive_author(view)
+
+
 DEFAULT_DEPENDENCIES = ExecutionDependencies(
     guard_sync_point=default_sync_point_guard,
     get_live_status=validate_pr,
@@ -99,8 +131,48 @@ DEFAULT_DEPENDENCIES = ExecutionDependencies(
     refresh_branch=refresh_branch,
     analyze_comments=analyze_pr_comments,
     review_vendor=_default_vendor_review,
-    merge=lambda pr_number, strategy: merge_pr(pr_number, strategy),
+    merge=lambda pr_number, strategy, head_sha, review_waiver: merge_pr(
+        pr_number,
+        strategy,
+        expected_head_sha=head_sha,
+        review_waiver=review_waiver,
+    ),
+    pr_diff=_default_pr_diff,
+    pr_author=_default_pr_author,
 )
+
+CHEAP_PATH_REASON = "automation_cheap_path"
+
+
+def _now() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _ineligible_reason(review: Any) -> str | None:
+    eligibility = review.get("eligibility") if isinstance(review, dict) else None
+    if isinstance(eligibility, dict) and not eligibility.get("eligible"):
+        return eligibility.get("reason")
+    return None
+
+
+def _policy_waiver(eligibility_reason: str, reason: str) -> dict[str, Any]:
+    return {
+        "reason": reason,
+        "source": "policy",
+        "approver": POLICY_APPROVER,
+        "recorded_at": _now(),
+        "eligibility_reason": eligibility_reason,
+    }
+
+
+def _operator_waiver(reason: str, approver: str | None, review: Any) -> dict[str, Any]:
+    return {
+        "reason": reason.strip(),
+        "source": "operator",
+        "approver": (approver or "").strip() or "operator",
+        "recorded_at": _now(),
+        "eligibility_reason": _ineligible_reason(review),
+    }
 
 
 def _find_node(plan: dict[str, Any], pr_number: int) -> dict[str, Any]:
@@ -186,14 +258,18 @@ def _delegation_commands(node: dict[str, Any], branch: str) -> list[str]:
     return [f'/quick-task "Address unresolved review comments on PR #{pr_number}"']
 
 
-def _review_evidence(review: dict[str, Any]) -> dict[str, Any]:
+def _review_evidence(
+    review: dict[str, Any],
+    waiver: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Compact, operator-readable record of the vendor review a result acted on.
 
     The full verdict is persisted in ``state["vendor_verdict"]``; this copy rides
     on the result so a merge through an eligible review is visible without
     opening the plan file (PR #484 merged with 23 unconfirmed findings while the
     result said only ``merged``). Vendor errors are clipped: a billing error can
-    carry a whole JSON body.
+    carry a whole JSON body. ``binding`` says which head the verdict describes,
+    and ``review_waiver`` says who let a merge through without one.
     """
     consensus = review.get("consensus")
     summary = consensus.get("summary") if isinstance(consensus, dict) else None
@@ -215,17 +291,11 @@ def _review_evidence(review: dict[str, Any]) -> dict[str, Any]:
         "vendors": vendors,
         "summary": summary,
         "workspace_guard": review.get("workspace_guard"),
+        "binding": review.get("binding"),
+        "reused_stored_verdict": bool(review.get("reused_stored_verdict")),
+        "superseded_verdict": review.get("superseded_verdict"),
+        "review_waiver": waiver,
     }
-
-
-def _iterate_consensus_current(node: dict[str, Any], live: dict[str, Any]) -> bool:
-    path = node["state"].get("iterate_consensus_path")
-    if not path:
-        return False
-    verdict = node["state"].get("vendor_verdict") or {}
-    head = live.get("head_sha")
-    recorded = verdict.get("head_sha")
-    return bool(head) and recorded == head
 
 
 def _persist_pending(
@@ -269,8 +339,17 @@ def execute_node(
     claim_id: str | None = None,
     store: FilePlanStore | None = None,
     dependencies: ExecutionDependencies = DEFAULT_DEPENDENCIES,
+    waive_review: str | None = None,
+    waiver_approver: str | None = None,
 ) -> dict[str, Any]:
-    """Execute exactly one planned PR and persist every resulting state change."""
+    """Execute exactly one planned PR and persist every resulting state change.
+
+    ``waive_review`` records an operator waiver: it lets the merge through
+    without a bound consensus verdict, except over unresolved change requests.
+    """
+
+    if waive_review is not None and not waive_review.strip():
+        raise ValueError("--waive-review needs a non-empty reason")
 
     store = store or FilePlanStore(plan_path)
     plan = store.load()
@@ -286,6 +365,9 @@ def execute_node(
         }
 
     execution_claim = claim_id or f"file-executor:{os.getpid()}"
+    replaying = (
+        state["outcome"] == "in_progress" and state.get("claimed_by") == execution_claim
+    )
     if state["outcome"] == "in_progress":
         recovery_live = dependencies.get_live_status(pr_number)
         terminal = live_terminal_outcome(recovery_live)
@@ -483,48 +565,129 @@ def execute_node(
             "delegation": _delegation_commands(node, str(live.get("branch", ""))),
         }
 
-    skip_vendor_review = (
+    live_head = live.get("head_sha") or None
+    if not live_head:
+        reason = "live head SHA could not be determined"
+        _persist_pending(store, plan, state, reason)
+        return {"action": "live_state_gate", "outcome": "pending", "pr": pr_number, "reason": reason}
+
+    patch_ids: dict[str, str | None] = {}
+
+    def live_patch_id() -> str | None:
+        if "live" not in patch_ids:
+            try:
+                patch_ids["live"] = patch_id_from_diff(dependencies.pr_diff(pr_number))
+            except (OSError, RuntimeError, subprocess.SubprocessError, ValueError):
+                patch_ids["live"] = None
+        return patch_ids["live"]
+
+    waiver: dict[str, Any] | None = None
+    review_patch_id: str | None = None
+    cheap_path = (
         definition.get("kind") == "automation"
         or definition.get("remediation_skill") == "none"
-        or _iterate_consensus_current(node, live)
     )
-    if skip_vendor_review:
-        review = {
-            "eligibility": {"eligible": False, "reason": "skipped"},
-            "consensus": None,
-            "skipped": True,
-        }
+    if cheap_path:
+        review = bind(
+            {
+                "eligibility": {"eligible": False, "reason": CHEAP_PATH_REASON},
+                "consensus": None,
+                "skipped": True,
+            },
+            head_sha=live_head,
+            patch_id=None,
+            author=None,
+        )
+        waiver = _policy_waiver(
+            CHEAP_PATH_REASON,
+            "automation cheap path: green CI, no unresolved comments",
+        )
     else:
         try:
-            review = dependencies.review_vendor(pr_number, node["origin"], comments)
-        except Exception as exc:  # noqa: BLE001 - dispatch failures block
-            review = {
-                "eligibility": {"eligible": True, "reason": "review_required"},
-                "dispatched": False,
-                "vendors": [],
-                "consensus": None,
-                "error": f"{type(exc).__name__}: {exc}",
-            }
-        state["vendor_verdict"] = review
-        vendor_reason = vendor_review_block_reason(review)
-        if vendor_reason:
-            _persist_pending(store, plan, state, vendor_reason)
-            return {
-                "action": "vendor_review_gate",
-                "outcome": "pending",
-                "pr": pr_number,
-                "reason": vendor_reason,
-                "vendor_review": _review_evidence(review),
-            }
-    state["vendor_verdict"] = review
+            author = dependencies.pr_author(pr_number)
+        except Exception as exc:  # noqa: BLE001 - independence must be shown
+            reason = f"PR author could not be determined: {type(exc).__name__}: {exc}"
+            _persist_pending(store, plan, state, reason)
+            return {"action": "vendor_review_gate", "outcome": "pending", "pr": pr_number, "reason": reason}
 
-    result = dependencies.merge(pr_number, node["strategy"])
+        review = None
+        superseded: str | None = None
+        stored = state.get("vendor_verdict")
+        binding = stored.get("binding") if isinstance(stored, dict) else None
+        if isinstance(binding, dict):
+            stored_pid = None if binding.get("head_sha") == live_head else live_patch_id()
+            if verdict_currency(binding, live_head, stored_pid) == "stale":
+                superseded = stale_reason(binding, live_head)
+            elif (
+                vendor_review_block_reason(
+                    stored, live_head_sha=live_head, live_patch_id=stored_pid,
+                ) is None
+                and independence_violation({**binding, "author": author}) is None
+            ):
+                review = dict(stored)
+                review["reused_stored_verdict"] = True
+                review_patch_id = stored_pid
+
+        if review is None:
+            try:
+                fresh = dependencies.review_vendor(pr_number, node["origin"], comments, author)
+            except Exception as exc:  # noqa: BLE001 - dispatch failures block
+                fresh = {
+                    "eligibility": {"eligible": True, "reason": "review_required"},
+                    "dispatched": False,
+                    "vendors": [],
+                    "consensus": None,
+                    "error": f"{type(exc).__name__}: {exc}",
+                }
+            if not isinstance(fresh, dict):
+                fresh = {"eligibility": None, "consensus": None}
+            if superseded:
+                fresh["superseded_verdict"] = superseded
+            review = bind(fresh, head_sha=live_head, patch_id=live_patch_id(), author=author)
+            ineligible = _ineligible_reason(review)
+            if ineligible in POLICY_WAIVABLE_REASONS:
+                waiver = _policy_waiver(
+                    ineligible, f"vendor review not required by policy ({ineligible})",
+                )
+
+    if waive_review is not None:
+        waiver = _operator_waiver(waive_review, waiver_approver, review)
+    elif replaying:
+        stored_waiver = state.get("review_waiver")
+        if isinstance(stored_waiver, dict) and stored_waiver.get("source") == "operator":
+            waiver = stored_waiver
+
+    state["vendor_verdict"] = review
+    state["review_waiver"] = waiver
+    vendor_reason = vendor_review_block_reason(
+        review,
+        waiver=waiver,
+        live_head_sha=live_head,
+        live_patch_id=review_patch_id,
+    )
+    if vendor_reason:
+        _persist_pending(store, plan, state, vendor_reason)
+        return {
+            "action": "vendor_review_gate",
+            "outcome": "pending",
+            "pr": pr_number,
+            "reason": vendor_reason,
+            "vendor_review": _review_evidence(review, waiver),
+        }
+
+    result = dependencies.merge(pr_number, node["strategy"], live_head, waiver)
     if not result.get("success"):
         live_after_failure = dependencies.get_live_status(pr_number)
         terminal = live_terminal_outcome(live_after_failure)
         if terminal is not None:
             return _reconcile_terminal(store, plan, state, pr_number, terminal)
-        reason = str(result.get("reason") or result.get("error") or "merge failed")
+        if result.get("head_mismatch"):
+            reason = (
+                f"head mismatch: the PR head moved after the review check "
+                f"(merge pinned to {live_head[:7]})"
+            )
+        else:
+            reason = str(result.get("reason") or result.get("error") or "merge failed")
         _persist_pending(store, plan, state, reason)
         return {
             "action": "merge_failed",
@@ -548,8 +711,24 @@ def execute_node(
         "downstream_revalidation": downstream,
         "compact_requested": True,
         "merge": result,
-        "vendor_review": _review_evidence(review),
+        "vendor_review": _review_evidence(review, waiver),
     }
+
+
+def _operator_identity() -> str:
+    """Who recorded an operator waiver: the login user, else the git identity."""
+
+    user = (os.environ.get("USER") or "").strip()
+    if user:
+        return user
+    try:
+        email = subprocess.run(
+            ["git", "config", "user.email"],
+            capture_output=True, text=True, check=False,
+        ).stdout.strip()
+    except OSError:
+        email = ""
+    return email or "operator"
 
 
 def main() -> int:
@@ -570,7 +749,17 @@ def main() -> int:
         action="store_true",
         help="Record that the dedicated OpenSpec proposal-acceptance workflow completed",
     )
+    parser.add_argument(
+        "--waive-review",
+        metavar="REASON",
+        help=(
+            "Record an operator review waiver with this reason; the merge may then "
+            "proceed without a bound vendor verdict (never over change requests)"
+        ),
+    )
     args = parser.parse_args()
+    if args.waive_review is not None and not args.waive_review.strip():
+        parser.error("--waive-review needs a non-empty reason")
 
     result = execute_node(
         args.execute,
@@ -578,6 +767,9 @@ def main() -> int:
         approve_gate=args.approve_gate,
         proposal_accepted=args.proposal_accepted,
         claim_id=args.claim_id,
+        dependencies=DEFAULT_DEPENDENCIES,
+        waive_review=args.waive_review,
+        waiver_approver=_operator_identity() if args.waive_review is not None else None,
     )
     print(json.dumps(result, indent=2))
     return 0 if result["outcome"] == "merged" else 2

@@ -556,3 +556,23 @@ def test_red_flags_detect_a_silently_skipped_convergence():
         "Red Flags does not catch `.git-context/` becoming tracked, which "
         "reintroduces the repository diff ri-07 D6 removed."
     )
+
+
+def test_verdict_binding_reference_exists_and_is_linked():
+    reference = SKILL_DIR / "references" / "verdict-binding.md"
+    assert reference.is_file(), (
+        f"{reference} is missing -- D9 moves the currency table, waiver set and "
+        "independence rules there."
+    )
+    assert "references/verdict-binding.md" in _skill_text(), (
+        "SKILL.md does not link references/verdict-binding.md."
+    )
+
+
+def test_skill_md_has_no_head_sha_only_review_skip():
+    text = _skill_text()
+    for phrase in ("iterate consensus", "head_sha matches", "head_sha` matches"):
+        assert phrase not in text, (
+            f"SKILL.md still says {phrase!r}: the review skip is decided by "
+            "verdict currency (current or rebased), not by a head_sha match."
+        )

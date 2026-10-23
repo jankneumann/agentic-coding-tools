@@ -34,6 +34,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from functools import partial
 from pathlib import Path
+from collections.abc import Collection
 from typing import Any, Callable
 from urllib.error import URLError
 from urllib.request import Request, urlopen
@@ -2487,6 +2488,19 @@ def _dispatch_with_snapshot_fallback(
 # Review orchestrator
 # ---------------------------------------------------------------------------
 
+#: One vendor name, a collection of them, or ``None`` for no exclusion.
+VendorExclusion = str | Collection[str] | None
+
+
+def _is_excluded(vendor: str, exclude_vendor: VendorExclusion) -> bool:
+    """Whether ``vendor`` is excluded; a string names one vendor, not a set of characters."""
+    if not exclude_vendor:
+        return False
+    if isinstance(exclude_vendor, str):
+        return vendor == exclude_vendor
+    return vendor in exclude_vendor
+
+
 class ReviewOrchestrator:
     """Multi-vendor review dispatch orchestrator.
 
@@ -2816,7 +2830,7 @@ class ReviewOrchestrator:
 
     def discover_reviewers(
         self,
-        exclude_vendor: str | None = None,
+        exclude_vendor: VendorExclusion = None,
         dispatch_mode: str = "review",
     ) -> list[ReviewerInfo]:
         """Discover available reviewers with ordered transport selection.
@@ -2829,7 +2843,7 @@ class ReviewOrchestrator:
         # Collect all CLI adapters (local transport only)
         cli_by_vendor: dict[str, tuple[str, CliVendorAdapter]] = {}
         for agent_id, adapter in self.adapters.items():
-            if exclude_vendor and adapter.vendor == exclude_vendor:
+            if _is_excluded(adapter.vendor, exclude_vendor):
                 continue
             # Only consider local agents (transport=mcp) for CLI dispatch
             if adapter.transport == "mcp" and adapter.vendor not in cli_by_vendor:
@@ -2838,14 +2852,14 @@ class ReviewOrchestrator:
         # Collect all SDK adapters
         sdk_by_vendor: dict[str, tuple[str, SdkVendorAdapter]] = {}
         for agent_id, adapter in self.sdk_adapters.items():
-            if exclude_vendor and adapter.vendor == exclude_vendor:
+            if _is_excluded(adapter.vendor, exclude_vendor):
                 continue
             if adapter.vendor not in sdk_by_vendor:
                 sdk_by_vendor[adapter.vendor] = (agent_id, adapter)
 
         openai_by_vendor: dict[str, tuple[str, Any]] = {}
         for agent_id, adapter in self.openai_adapters.items():
-            if exclude_vendor and adapter.vendor == exclude_vendor:
+            if _is_excluded(adapter.vendor, exclude_vendor):
                 continue
             if adapter.vendor not in openai_by_vendor:
                 openai_by_vendor[adapter.vendor] = (agent_id, adapter)
@@ -2921,7 +2935,7 @@ class ReviewOrchestrator:
         prompt: str,
         cwd: Path,
         timeout_seconds: int | None = None,
-        exclude_vendor: str | None = None,
+        exclude_vendor: VendorExclusion = None,
         packet_path: Path | str | None = None,
         result_callback: Callable[[ReviewResult, int], None] | None = None,
     ) -> list[ReviewResult]:
@@ -3354,7 +3368,7 @@ def _check_vendors(
     *,
     agents_yaml: str | None = None,
     cwd: Path | None = None,
-    exclude_vendor: str | None = None,
+    exclude_vendor: VendorExclusion = None,
     min_vendors: int = 2,
     dispatch_mode: str = "review",
     as_json: bool = False,
@@ -3453,7 +3467,7 @@ def _probe_mode(
     orch: ReviewOrchestrator,
     mode: str,
     *,
-    exclude_vendor: str | None,
+    exclude_vendor: VendorExclusion,
     dry_invoke: Callable[[list[str]], str | None],
 ) -> dict[str, Any]:
     """Verified and unverified lanes for one mode.
@@ -3466,7 +3480,7 @@ def _probe_mode(
     configured: set[str] = set()
     for adapters in (orch.adapters, orch.sdk_adapters, getattr(orch, "openai_adapters", {})):
         for adapter in adapters.values():
-            if exclude_vendor and adapter.vendor == exclude_vendor:
+            if _is_excluded(adapter.vendor, exclude_vendor):
                 continue
             configured.add(adapter.vendor)
     reviewers = {r.vendor: r for r in orch.discover_reviewers(exclude_vendor=exclude_vendor, dispatch_mode=mode)}
@@ -3552,7 +3566,7 @@ def check_vendors_report(
     *,
     agents_yaml: str | None = None,
     cwd: Path | None = None,
-    exclude_vendor: str | None = None,
+    exclude_vendor: VendorExclusion = None,
     dry_invoke: Callable[[list[str]], str | None] = _dry_invoke,
     environment: str | None = None,
 ) -> dict[str, Any]:

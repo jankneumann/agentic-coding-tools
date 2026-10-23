@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-10-23T12:36:02.267875+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "rpc_failed: ForeignKeyViolationError: insert or update on table \"handoff_documents\" violates foreign key constraint \"handoff_documents_session_id_fkey\"\nDETAIL:  Key (session_id)=(session_017qfSLYuSiyd2b5URwLucoq) is not present in table \"agent_sessions\". (HTTP 200)",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": "session_017qfSLYuSiyd2b5URwLucoq",
+    "summary": "IMPL_ITERATE ran inline as a self-review of execute_plan.py, execution_safety.py and merge_pr.py against the spec. No defects were found that needed code changes: every predicate exit is covered by test_review_predicate_total.py, the merge is pinned on both the direct and queue paths, head mismatch is reported, and stale, rebased and current stored verdicts take the intended paths.",
+    "completed_work": [
+      "Reviewed the core diff against specs and design D1-D9",
+      "Confirmed ruff is clean and the three suites pass (266/307/543)"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "An operator waiver does not skip dispatch of a fresh review",
+        "rationale": "The review that ran is still recorded next to the waiver, so the audit trail shows what the operator overrode.",
+        "capability": "merge-pull-requests",
+        "supersedes": null
+      },
+      {
+        "title": "A current stored verdict with blocking findings is re-reviewed, not reused",
+        "rationale": "Reuse is reserved for verdicts the predicate would pass; re-dispatch on the same head matches the behaviour before this change.",
+        "capability": "merge-pull-requests",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "IMPL_REVIEW lane"
+    ],
+    "relevant_files": []
+  }
+}

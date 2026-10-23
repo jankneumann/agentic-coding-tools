@@ -62,8 +62,10 @@ def test_build_plan_maps_analysis_state_and_initializes_pending_outcomes() -> No
     plan = build_plan(prs, staleness, comments, generated_at="2026-08-19T12:00:00+00:00")
 
     validate_plan(plan)
+    assert plan["schema_version"] == "1.2"
     nodes = {node["pr"]: node for node in plan["nodes"]}
     assert nodes[20]["state"]["outcome"] == "pending"
+    assert nodes[20]["state"]["review_waiver"] is None
     assert nodes[20]["state"]["staleness"] == "fresh"
     assert nodes[20]["state"]["ci_state"] == "clean"
     assert nodes[20]["state"]["unresolved_comments"] == 1

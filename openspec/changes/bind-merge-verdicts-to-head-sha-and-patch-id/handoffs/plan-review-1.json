@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-10-23T12:12:21.203287+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "rpc_failed: ForeignKeyViolationError: insert or update on table \"handoff_documents\" violates foreign key constraint \"handoff_documents_session_id_fkey\"\nDETAIL:  Key (session_id)=(session_017qfSLYuSiyd2b5URwLucoq) is not present in table \"agent_sessions\". (HTTP 200)",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": "session_017qfSLYuSiyd2b5URwLucoq",
+    "summary": "PLAN_REVIEW ran through agent_lane converge with one lane (claude_code, quorum 1 by cloud-container policy). The first lane run raised two medium spec gaps in design.md (missing approver on policy waivers; undefined handling of a stored verdict that fails the predicate) and one accepted low (trailer identity is advisory). Both medium gaps were fixed in commit f1487fc, but the first lane aborted on a scope check that counted the then-uncommitted loop-state.json as a fix edit. A restarted lane re-dispatched item 1 from the persisted ledger after its fix had already landed, so the ledger recorded the fix as not touching its file and the loop stalled after 2 rounds. Outcome not_converged routes to PLAN_FIX.",
+    "completed_work": [
+      "design.md D3: stored verdict used only when the predicate passes against live state, else fresh dispatch",
+      "design.md D4: approver required on both waiver sources; policy approver is policy:merge-pull-requests; eligibility_reason semantics defined"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Commit loop-state.json before each review lane run",
+        "rationale": "The fix-scope diff runs against the working tree, so a dirty loop-state.json is attributed to the fix and rejected as out of scope.",
+        "capability": "merge-pull-requests",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "PLAN_FIX: confirm f1487fc addresses ledger item 1",
+      "Re-run PLAN_REVIEW lane"
+    ],
+    "relevant_files": []
+  }
+}

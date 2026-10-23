@@ -83,13 +83,26 @@ verdict_currency(binding, live_head_sha, live_patch_id) -> "current" | "rebased"
 `stale verdict: reviewed <sha7>, live <sha7>`. Execution computes the live
 patch-id lazily: only when a stored binding exists and its `head_sha` differs.
 
+A stored verdict is used only when the predicate passes on it against live
+state. Otherwise execution dispatches a fresh review and evaluates the
+predicate on that; the stale reason of the discarded verdict is recorded in the
+node's result for observability.
+
 ### D4 — The predicate is total; waivers live in `state`
 
 `vendor_review_block_reason(review, *, waiver=None, live_head_sha=None, live_patch_id=None)`
 returns `None` only on one of two paths:
 
 1. **Waived:** `waiver` is a dict with non-blank `reason`, `source ∈ {policy, operator}`,
-   `recorded_at`, and — for `source: policy` — `eligibility_reason ∈ POLICY_WAIVABLE_REASONS`.
+   non-blank `approver`, `recorded_at`, and the key `eligibility_reason` — for
+   `source: policy` it must be in `POLICY_WAIVABLE_REASONS`. Both sources require
+   `approver`: a policy waiver's approver is the fixed string
+   `policy:merge-pull-requests`; an operator waiver's approver is defined in D7.
+   `eligibility_reason` is the live ineligibility reason at the time of the waiver
+   (a string, or `null` for an operator waiver recorded while the PR was eligible).
+   These five fields are exactly the set the spec requirement *Recorded Review
+   Waivers* mandates; a waiver missing any of them is not a waiver and falls
+   through to the verified path.
    An operator waiver does **not** override `changes_requested`: that is a
    human reviewer's state, not ours to waive. Everything else it does override.
 2. **Verified:** eligibility is eligible; consensus dispatched with at least one
@@ -209,3 +222,21 @@ gains an assertion that the reference file exists and is linked.
 - The plan-feature Step 2 architecture refresh was skipped to avoid
   regenerating tracked `docs/architecture-analysis/*` files in this commit;
   context came from direct code reads (line references above).
+
+## Plan-iteration refinements
+
+Two points the decisions above left implicit, settled before implementation:
+
+- **Seam signatures.** `ExecutionDependencies` gains `pr_diff(pr_number) -> str`
+  and `pr_author(pr_number) -> dict` (the `derive_author` result).
+  `review_vendor` takes the author as a fourth argument,
+  `(pr_number, origin, comments, author)`, so `_default_vendor_review` can pass
+  `author_vendor` to `dispatch_vendor_reviews`. A `pr_author` seam that
+  raises keeps the node pending ("PR author could not be determined"): an
+  all-`null` author is what a human PR with no trailers looks like, so a
+  lookup failure must not be mistaken for one. A `pr_diff` seam that raises
+  yields a `null` patch-id, which can only reach `current`, never `rebased`.
+- **Operator waiver still runs eligibility and review.** `--waive-review` does
+  not skip `review_vendor`. Eligibility must still run so `changes_requested`
+  keeps blocking (D4), and any review that does dispatch is stored as evidence.
+  The waiver then satisfies the predicate in place of a verified verdict.
