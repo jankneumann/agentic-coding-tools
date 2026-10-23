@@ -119,3 +119,48 @@ One self-review pass over the plan across completeness, consistency, feasibility
 ### Context
 Single-lane plan review converged in round 2 (min_quorum 1 under the cloud-container policy). Three findings were raised across both runs and all were fixed in the plan artifacts.
 
+---
+
+## Phase: Implementation (2026-10-23)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **accept_package_result refuses malformed payloads instead of raising** `architectural: parallel-infrastructure` — A decision point must fail closed; a validator crash on a non-dict verification block would otherwise propagate to the orchestrator.
+2. **dag_scheduler imports PackageAcceptance from a stdlib-only module** `architectural: parallel-infrastructure` — The scheduler needs only the type for its isinstance check, not jsonschema or the validator's sys.path setup.
+3. **Zero-step results are pinned as schema-invalid, not schema-valid** `architectural: parallel-infrastructure` — The schema already declares steps.minItems 1; the end-to-end test asserts the emitter no longer claims a pass and both schema and checker refuse it.
+
+### Alternatives Considered
+- Reuse blocked_incomplete for refused results: rejected because Callers could not tell never-reported from reported-a-failure
+
+### Trade-offs
+- Accepted mark_completed signature break over Optional acceptance argument because Only tests call it; a call without evidence must not type-check
+
+### Open Questions
+- [ ] skills/tests/validate-feature/test_validation_worktree.py has 7 failures that pre-exist this change (the cloud harness supplies isolation via an env var, downgrading --ephemeral); unrelated to this diff
+
+### Completed Work
+- wp-contract: validate_work_result.py and both schema copies
+- wp-acceptance: package_executor.py, package_acceptance.py, result_validator.py
+- wp-gates: dag_scheduler.py, integration_orchestrator.py
+- wp-integration: test_vacuous_results.py and docs
+- 724 tests pass across the parallel-infrastructure and validate-packages suites plus the new pins
+- openspec validate --strict passes
+
+### Next Steps
+- IMPL_ITERATE self-review
+- IMPL_REVIEW (single vendor lane)
+- VALIDATE
+- SUBMIT_PR
+
+### Relevant Files
+- `skills/validate-packages/scripts/validate_work_result.py` — Empty-step, not_run, commit_resolves and outcome checks
+- `skills/parallel-infrastructure/scripts/result_validator.py` — accept_package_result
+- `skills/parallel-infrastructure/scripts/package_acceptance.py` — PackageAcceptance and override_for
+- `skills/parallel-infrastructure/scripts/dag_scheduler.py` — mark_completed requires acceptance
+- `skills/parallel-infrastructure/scripts/integration_orchestrator.py` — blocked_not_passing gate
+- `skills/tests/parallel-infrastructure/test_vacuous_results.py` — End-to-end pins
+
+### Context
+All four work packages implemented TDD and committed: the checker rejects empty and not_run-passing steps, checks commit resolution and outcome consistency; build_result refuses the vacuous pass and emits outcome; accept_package_result yields the only PackageAcceptance that completes a package; mark_completed and the integration gate (new blocked_not_passing) decide from it; overrides are recorded and surfaced.
+

@@ -197,8 +197,8 @@ def accept_package_result(
 
     Accepted only when full Phase C1 validation is valid, the
     ``commit_resolves`` check actually ran (a skipped check is refused), and
-    the effective outcome is PASS. Each failed condition contributes one
-    reason.
+    the effective outcome is PASS, and the result names the package being
+    accepted. Each failed condition contributes one reason.
     """
     package_id = str(package_def.get("package_id") or "")
     if not isinstance(result_data, dict):
@@ -231,6 +231,12 @@ def accept_package_result(
         )
     checks = validation.get("checks", {})
     reasons: list[str] = []
+
+    result_package_id = result_data.get("package_id")
+    if result_package_id and str(result_package_id) != package_id:
+        reasons.append(
+            f"result is for package {result_package_id!r}, not {package_id!r}"
+        )
 
     if not validation.get("valid"):
         failing = sorted(

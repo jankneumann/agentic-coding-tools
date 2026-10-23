@@ -40,6 +40,17 @@
 
 ## 2026-10-23 — reject-vacuous-worker-results-in-the-package-executor
 
+### Phase: Implementation
+
+**accept_package_result refuses malformed payloads instead of raising** — A decision point must fail closed; a validator crash on a non-dict verification block would otherwise propagate to the orchestrator.
+
+- Status: `active`
+- Source: [openspec/changes/reject-vacuous-worker-results-in-the-package-executor/session-log.md](/openspec/changes/reject-vacuous-worker-results-in-the-package-executor/session-log.md) (D1)
+
+---
+
+## 2026-10-23 — reject-vacuous-worker-results-in-the-package-executor
+
 ### Phase: Plan
 
 **Optional outcome/method fields, schema_version stays 1** — Existing emitters and stored results keep validating; the checker rejects contradictions instead.
@@ -62,9 +73,31 @@
 
 ## 2026-10-23 — reject-vacuous-worker-results-in-the-package-executor
 
+### Phase: Implementation
+
+**dag_scheduler imports PackageAcceptance from a stdlib-only module** — The scheduler needs only the type for its isinstance check, not jsonschema or the validator's sys.path setup.
+
+- Status: `active`
+- Source: [openspec/changes/reject-vacuous-worker-results-in-the-package-executor/session-log.md](/openspec/changes/reject-vacuous-worker-results-in-the-package-executor/session-log.md) (D2)
+
+---
+
+## 2026-10-23 — reject-vacuous-worker-results-in-the-package-executor
+
 ### Phase: Plan
 
 **PackageAcceptance is the only currency that completes a package** — mark_completed and the integration gate decide from a validated verdict, not from presence of a result.
+
+- Status: `active`
+- Source: [openspec/changes/reject-vacuous-worker-results-in-the-package-executor/session-log.md](/openspec/changes/reject-vacuous-worker-results-in-the-package-executor/session-log.md) (D3)
+
+---
+
+## 2026-10-23 — reject-vacuous-worker-results-in-the-package-executor
+
+### Phase: Implementation
+
+**Zero-step results are pinned as schema-invalid, not schema-valid** — The schema already declares steps.minItems 1; the end-to-end test asserts the emitter no longer claims a pass and both schema and checker refuse it.
 
 - Status: `active`
 - Source: [openspec/changes/reject-vacuous-worker-results-in-the-package-executor/session-log.md](/openspec/changes/reject-vacuous-worker-results-in-the-package-executor/session-log.md) (D3)

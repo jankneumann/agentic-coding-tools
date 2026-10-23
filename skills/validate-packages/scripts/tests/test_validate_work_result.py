@@ -358,6 +358,30 @@ class TestCommitResolves:
         assert check["passed"] is False
         assert str(plain) in check["errors"][0]
 
+    def test_inherited_git_dir_does_not_redirect_the_check(
+        self, tmp_path, monkeypatch, valid_result
+    ):
+        # A GIT_DIR inherited from the caller (as inside a git hook) must not
+        # make the check resolve the commit in a repository other than the
+        # worktree it names.
+        other = tmp_path / "other"
+        other.mkdir()
+        _git(other, "init", "-q")
+        _git(other, "config", "user.email", "test@example.invalid")
+        _git(other, "config", "user.name", "Test")
+        (other / "README").write_text("other\n")
+        _git(other, "add", "README")
+        _git(other, "commit", "-q", "-m", "other")
+        other_sha = _git(other, "rev-parse", "HEAD")
+        plain = tmp_path / "plain"
+        plain.mkdir()
+        monkeypatch.setenv("GIT_DIR", str(other / ".git"))
+        data = deepcopy(valid_result)
+        data["git"]["head"]["commit"] = other_sha
+        check = validate_commit_resolves(data, plain)
+        assert check["passed"] is False
+        assert str(plain) in check["errors"][0]
+
     def test_missing_directory_fails(self, tmp_path, valid_result):
         missing = tmp_path / "missing"
         check = validate_commit_resolves(deepcopy(valid_result), missing)
