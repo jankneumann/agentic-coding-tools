@@ -1,7 +1,6 @@
 {
   "autoCompactWindow": 200000,
   "permissions": {
-    "defaultMode": "bypassPermissions",
     "allow": [
       "WebFetch(domain:localhost)",
       "WebFetch(domain:127.0.0.1)",
@@ -93,7 +92,12 @@
       "Bash(python3 \"/home/user/agentic-coding-tools/.claude/skills/autopilot/scripts/runner.py\" record-degradation *)",
       "Bash(python3 \"/home/user/agentic-coding-tools/.claude/skills/autopilot/scripts/runner.py\" park *)",
       "Bash(python3 \"/home/user/agentic-coding-tools/.claude/skills/autopilot/scripts/runner.py\" emit-result *)",
-      "Bash(python3 \"/home/user/agentic-coding-tools/.claude/skills/autopilot/scripts/runner.py\" relayed-gate-answer *)"
+      "Bash(python3 \"/home/user/agentic-coding-tools/.claude/skills/autopilot/scripts/runner.py\" relayed-gate-answer *)",
+      "Bash(git push -u origin claude/*)",
+      "Bash(uv run *)",
+      "Bash(pytest *)",
+      "Bash(skills/.venv/bin/python -m pytest *)",
+      "Bash(agent-coordinator/.venv/bin/python -m pytest *)"
     ],
     "ask": [
       "Bash(alembic *)",
@@ -116,7 +120,13 @@
       "Bash(git stash clear *)",
       "Read(~/.aws/**)",
       "Read(~/.config/**)",
-      "Read(**/.env.*)"
+      "Read(**/.env.*)",
+      "Bash(rm -fr *)",
+      "Bash(git push --force *)",
+      "Bash(git push -f *)",
+      "Bash(find * -delete*)",
+      "Bash(gh repo delete *)",
+      "Bash(gh pr merge --admin *)"
     ]
   },
   "hooks": {
@@ -136,6 +146,19 @@
           {
             "type": "command",
             "command": "python3 \"$CLAUDE_PROJECT_DIR\"/skills/session-bootstrap/scripts/hooks/register_agent.py"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/skills/session-bootstrap/scripts/hooks/irreversible_guard.py",
+            "timeout": 10,
+            "onFailure": "block"
           }
         ]
       }
