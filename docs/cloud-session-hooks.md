@@ -53,9 +53,10 @@ rejects mismatched request identities.
 
 ## Tool-Call Tracking (Langfuse)
 
-There are **no** `PreToolUse` / `PostToolUse` hooks configured. Tool-call
-tracking is available via `langfuse_hook.py`, which does **post-hoc transcript
-analysis** on `Stop` events.
+The one `PreToolUse` hook, `irreversible_guard.py`, enforces policy and does
+not track anything (see the session-bootstrap SKILL.md). There is no
+`PostToolUse` hook. Tool-call tracking is available via `langfuse_hook.py`,
+which does **post-hoc transcript analysis** on `Stop` events.
 
 ### How It Works
 
