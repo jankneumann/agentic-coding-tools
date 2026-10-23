@@ -63,7 +63,7 @@
   **Dependencies**: 1.6, 1.7
 - [ ] 2.3 Fix `build_result` (non-empty and all passed; derived or explicit `outcome`) and `build_failure_result` (`method: not_run`) (XS)
   **Dependencies**: 2.1
-- [ ] 2.4 Implement `PackageAcceptance` (with the `override_for` constructor) and `accept_package_result`, and thread `worktree_path` through `validate_package_result` (S)
+- [ ] 2.4 Implement `PackageAcceptance` (with the `override_for` constructor) in the new dependency-free `package_acceptance.py`, re-export it from `result_validator`, and implement `accept_package_result`, and thread `worktree_path` through `validate_package_result` (S)
   **Dependencies**: 2.2
 - [ ] Checkpoint: run the parallel-infrastructure and validate-packages suites, review the diff, verify the scope
 
@@ -84,7 +84,7 @@
   - Accepted results with clean reviews give `pass`.
   - An override is listed under `overrides`.
   - The execution summary reports each package's outcome and acceptance.
-  **Spec scenarios**: parallel-infrastructure.gate-blocks-failed-result, parallel-infrastructure.gate-blocks-missing-acceptance, parallel-infrastructure.gate-passes-accepted, parallel-infrastructure.override-recorded
+  **Spec scenarios**: parallel-infrastructure.gate-blocks-failed-result, parallel-infrastructure.gate-blocks-missing-acceptance, parallel-infrastructure.gate-passes-accepted, parallel-infrastructure.override-recorded, parallel-infrastructure.summary-reports-acceptance
   **Design decisions**: D5, D6
   **Dependencies**: 2.4
 - [ ] 3.3 Implement `mark_completed(package_id, acceptance)` and `PackageStatus.override`, and report it in `get_status_summary` (S)

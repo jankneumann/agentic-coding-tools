@@ -75,7 +75,8 @@ The work-queue result schema SHALL define an optional top-level `outcome` with v
 `executed`, `ci`, `inspected` and `not_run`. A result's effective outcome SHALL be its
 `outcome` when present, and otherwise SHALL be derived as: `BLOCKED` when `status` is
 `failed`; `PASS` when `status` is `completed`, `verification.steps` is non-empty,
-`verification.passed` is `true` and `scope_check.passed` is not `false`; `ISSUES`
+`verification.passed` is `true`, every step has `passed: true` and `scope_check.passed`
+is not `false`; `ISSUES`
 otherwise. `build_result` SHALL always emit `outcome` using that derivation, and
 `build_failure_result` SHALL emit its synthetic step with `method: not_run`.
 Validation SHALL report an error when `outcome` is `PASS` but the derivation from the
@@ -108,7 +109,7 @@ evidence is not `PASS`, and when `status` is `failed` and `outcome` is present a
 `result_validator.accept_package_result(result_data, package_def,
 expected_contracts_revision, expected_plan_revision, worktree_path)` SHALL return a
 frozen `PackageAcceptance` carrying `package_id`, `accepted`, the effective `outcome`
-and a list of `reasons`. It SHALL be accepted only when full Phase C1 validation is
+and a sequence of `reasons`. It SHALL be accepted only when full Phase C1 validation is
 valid, the `commit_resolves` check ran (was not skipped) and passed, and the effective
 outcome is `PASS`; otherwise `reasons` SHALL name every failed condition.
 `DAGScheduler.mark_completed(package_id, acceptance)` SHALL mark the package
@@ -166,6 +167,12 @@ The execution summary SHALL report each package's effective outcome and acceptan
 
 - **WHEN** a result is recorded with `acceptance=None`
 - **THEN** `check_integration_gate` returns `blocked_not_passing` with a reason naming the missing verdict
+
+<!-- Scenario ID: parallel-infrastructure.summary-reports-acceptance -->
+#### Scenario: The execution summary reports outcome and acceptance
+
+- **WHEN** `generate_execution_summary` runs after one accepted and one refused result are recorded
+- **THEN** each package's entry carries its effective outcome and whether it was accepted
 
 <!-- Scenario ID: parallel-infrastructure.gate-passes-accepted -->
 #### Scenario: Accepted results with clean reviews pass the gate
