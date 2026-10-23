@@ -134,7 +134,7 @@ def test_malformed_review_waiver_is_rejected(waiver: dict) -> None:
         validate_plan(plan)
 
 
-def test_iterate_consensus_path_is_no_longer_accepted() -> None:
+def test_removed_iterate_consensus_field_is_rejected() -> None:
     plan = valid_plan()
     plan["nodes"][0]["state"]["iterate_" "consensus_path"] = None
 

@@ -99,7 +99,7 @@
 
 ## 5. Total predicate and execution wiring (wp-predicate-execute)
 
-- [ ] 5.1 Write predicate tests for the total review gate in `skills/tests/merge-pull-requests/test_review_predicate_total.py` (M)
+- [x] 5.1 Write predicate tests for the total review gate in `skills/tests/merge-pull-requests/test_review_predicate_total.py` (M)
   <!-- Scenario ID: merge-pull-requests.ineligible-without-waiver-blocks -->
   <!-- Scenario ID: merge-pull-requests.vendor-review-fails-closed -->
   <!-- Scenario ID: merge-pull-requests.skip-path-without-binding-or-waiver-blocks -->
@@ -107,7 +107,7 @@
   - **Design decisions:** D4
   **Dependencies**: 1.3
   - Table-driven: `None`, missing eligibility, `{"skipped": True}`, each ineligible reason with and without each waiver source, `changes_requested` with an operator waiver (still blocks), a stale binding, a self-review, and the verified path.
-- [ ] 5.2 Rewrite the execution tests for currency, waivers and pinning in `scripts/tests/test_execute_plan.py` (M)
+- [x] 5.2 Rewrite the execution tests for currency, waivers and pinning in `scripts/tests/test_execute_plan.py` (M)
   <!-- Scenario ID: merge-pull-requests.skip-pr-diff-review-after-iterate -->
   <!-- Scenario ID: merge-pull-requests.cheap-path-merges -->
   <!-- Scenario ID: merge-pull-requests.cheap-path-dropped-on-comments -->
@@ -118,7 +118,7 @@
   **Dependencies**: 1.3, 2.2
   - A head-mismatch merge is asserted via the `head_mismatch: True` key on the merge response, not on stderr text.
   - Replace `test_iterate_consensus_matching_head_skips_vendor_review` (:564-592) with `current` and `rebased` variants; flip `test_cheap_path_skips_vendor_review` (:544) to assert the recorded waiver; keep `test_vendor_review_eligible_without_verdict_blocks` (:445). Update the `dependencies` fixture (:38-61) for the new `merge` signature and a `pr_diff` seam.
-- [ ] 5.3 Write CLI tests for `--waive-review` in `scripts/tests/test_execute_plan.py` (S)
+- [x] 5.3 Write CLI tests for `--waive-review` in `scripts/tests/test_execute_plan.py` (S)
   <!-- Scenario ID: merge-pull-requests.operator-waiver-recorded -->
   <!-- Scenario ID: merge-pull-requests.operator-waiver-empty-rejected -->
   - **Spec scenarios:** operator-waiver-recorded, operator-waiver-empty-rejected
@@ -133,9 +133,9 @@
   **Dependencies**: none
   - The merged result's `vendor_review` evidence carries `binding` (classification, head SHA, patch-id) and, when a waiver applied, `review_waiver` with its source (`policy` or `operator`) and reason; with no waiver the key is absent.
 - [ ] Checkpoint: run tests, review diff, verify scope
-- [ ] 5.4 Make `vendor_review_block_reason` total in `scripts/execution_safety.py` (M)
+- [x] 5.4 Make `vendor_review_block_reason` total in `scripts/execution_safety.py` (M)
   **Dependencies**: 5.1
-- [ ] 5.5 Wire binding, waivers and pinning into `scripts/execute_plan.py` (L)
+- [x] 5.5 Wire binding, waivers and pinning into `scripts/execute_plan.py` (L)
   - Add `head_sha` to live state; add `pr_diff` and `pr_author` seams to `ExecutionDependencies`; bind every stored review; route the skip path through the predicate; record policy waivers; delete `_iterate_consensus_current` and the line-519 overwrite; pass `head_sha` and the waiver to `merge`; map a head-mismatch merge failure to `pending`; add `--waive-review` to `main()`; extend `_review_evidence` with `binding` and `review_waiver`.
   - Refuse to merge (node stays `pending`, reason `live head sha unavailable`) when the live head SHA is missing or not 40-hex, on the waived path as well as the verified path (D6).
   - Re-check a stored policy waiver against live eligibility on every run and clear it when the reasons differ; clear an operator waiver whose `waived_head_sha` differs from the live head (D4).

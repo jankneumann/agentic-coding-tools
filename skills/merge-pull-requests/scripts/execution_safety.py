@@ -7,6 +7,12 @@ from pathlib import Path
 from typing import Any
 
 from plan_storage import FilePlanStore, PlanWriteConflict
+from verdict_binding import (
+    POLICY_WAIVABLE_REASONS,
+    independence_violation,
+    stale_reason,
+    verdict_currency,
+)
 
 
 def default_sync_point_guard(repo_root: Path) -> dict[str, Any]:
@@ -49,16 +55,77 @@ def blocking_vendor_count(review: dict[str, Any]) -> int | None:
         return None
 
 
-def vendor_review_block_reason(review: dict[str, Any]) -> str | None:
-    """Return why an eligible review blocks, or ``None`` for a usable result."""
+POLICY_APPROVER = "policy:merge-pull-requests"
+_WAIVER_SOURCES = frozenset({"policy", "operator"})
 
-    eligibility = review.get("eligibility")
+
+def _nonblank(value: Any) -> bool:
+    return isinstance(value, str) and bool(value.strip())
+
+
+def valid_waiver(waiver: Any, live_ineligible_reason: str | None) -> bool:
+    """Return True when ``waiver`` is a well-formed waiver for this review.
+
+    Every waiver needs a non-blank reason, a known source, a non-blank approver,
+    a recorded time and an explicit ``eligibility_reason`` key. A policy waiver
+    additionally stands only for a reason in the closed policy set that equals
+    the live ineligibility reason, and only under the policy approver.
+    """
+
+    if not isinstance(waiver, dict):
+        return False
+    if not _nonblank(waiver.get("reason")):
+        return False
+    source = waiver.get("source")
+    if source not in _WAIVER_SOURCES:
+        return False
+    if not _nonblank(waiver.get("approver")) or not _nonblank(waiver.get("recorded_at")):
+        return False
+    if "eligibility_reason" not in waiver:
+        return False
+    if source == "policy":
+        reason = waiver.get("eligibility_reason")
+        return (
+            reason in POLICY_WAIVABLE_REASONS
+            and reason == live_ineligible_reason
+            and waiver.get("approver") == POLICY_APPROVER
+        )
+    return True
+
+
+def vendor_review_block_reason(
+    review: Any,
+    *,
+    waiver: dict[str, Any] | None = None,
+    live_head_sha: str | None = None,
+    live_patch_id: str | None = None,
+) -> str | None:
+    """Return why a merge must not proceed on this review, or ``None``.
+
+    The predicate is total: ``None`` comes back on exactly two paths, a valid
+    recorded waiver, or a bound, current-or-rebased, independent consensus
+    verdict with zero blocking findings. Unresolved change requests block even
+    under a waiver. Every other input, including a missing, skipped or
+    malformed review, blocks with a reason.
+    """
+
+    eligibility = review.get("eligibility") if isinstance(review, dict) else None
+    live_ineligible_reason: str | None = None
+    if isinstance(eligibility, dict) and not eligibility.get("eligible"):
+        live_ineligible_reason = eligibility.get("reason")
+        if live_ineligible_reason == "changes_requested":
+            return "existing review has unresolved change requests"
+    if valid_waiver(waiver, live_ineligible_reason):
+        return None
+    if not isinstance(review, dict):
+        return "no vendor review result and no review waiver recorded"
     if not isinstance(eligibility, dict):
         return "vendor review returned no eligibility decision"
     if not eligibility.get("eligible"):
-        if eligibility.get("reason") == "changes_requested":
-            return "existing review has unresolved change requests"
-        return None
+        return (
+            f"vendor review ineligible ({live_ineligible_reason}) "
+            "and no review waiver recorded"
+        )
     if review.get("error"):
         return f"eligible vendor review failed: {review['error']}"
     if review.get("dispatched") is not True:
@@ -73,7 +140,12 @@ def vendor_review_block_reason(review: dict[str, Any]) -> str | None:
         return "eligible vendor review produced no consensus verdict"
     if blocking:
         return f"vendor review reported {blocking} blocking finding(s)"
-    return None
+    binding = review.get("binding")
+    if not isinstance(binding, dict):
+        return "vendor verdict is not bound to a reviewed head"
+    if verdict_currency(binding, live_head_sha, live_patch_id) == "stale":
+        return stale_reason(binding, live_head_sha)
+    return independence_violation(binding)
 
 
 def live_terminal_outcome(live: dict[str, Any]) -> str | None:
