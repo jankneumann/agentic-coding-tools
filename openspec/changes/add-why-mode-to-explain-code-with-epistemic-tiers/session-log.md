@@ -70,3 +70,23 @@ Plan authored inline (no sub-agent dispatch tool in this session): proposal, des
 ### Context
 One self-review pass over the plan across completeness, consistency, feasibility and testability, checked against decision_index.py, the manifest validator, both prompt builders and their tests. Four feasibility gaps fixed in design and tasks.
 
+---
+
+## Phase: Plan Review 1 (2026-10-23)
+
+**Agent**: claude_code | **Session**: session_017qfSLYuSiyd2b5URwLucoq
+
+### Decisions
+1. **Blame the working tree, not HEAD** — Only a working-tree blame reports the all-zero sha that the uncommitted status depends on; blaming HEAD would make the uncommitted scenario unreachable.
+2. **Restart the lane after a scope rejection caused by a dirty loop-state** — The first converge run rejected its own fix because loop-state.json was uncommitted before the fix and counted as a fix edit; loop-state was committed and the review rerun on the fixed plan.
+
+### Completed Work
+- Round 1 (aborted run): 1 blocking finding (blame at HEAD) and 1 optional (why-chain first node lacks a file location), both fixed in design.md (commit d129627)
+- Rerun: converged in 1 round, 0 blocking, 1 advisory (accepted: contracts.openapi.primary placeholder)
+
+### Next Steps
+- IMPLEMENT wp-why-mode: why_trace.py with fixture tests, references/why.md, SKILL.md why mode, evidence_level in both schema copies and both prompt builders, manifest dependency
+
+### Context
+Single-vendor plan review converged after one blocking finding was fixed in design D3.
+
