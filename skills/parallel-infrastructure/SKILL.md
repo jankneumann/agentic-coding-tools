@@ -15,6 +15,10 @@ Non-user-invocable infrastructure skill providing shared scripts for parallel ex
 ### `<skill-base-dir>/scripts/dag_scheduler.py`
 
 DAG computation and topological sort for work-packages.yaml.
+`mark_completed(package_id, acceptance)` completes a package only from an accepted
+`PackageAcceptance` for that same package and returns `True`; anything else marks the
+package `failed` with the refusal reasons and returns `False`, so its dependants stay
+blocked. `get_status_summary` reports any recorded override.
 
 ### `<skill-base-dir>/scripts/scope_checker.py`
 
@@ -23,6 +27,10 @@ Post-execution scope verification — checks that agent changes stayed within de
 ### `<skill-base-dir>/scripts/package_executor.py`
 
 Work package execution protocol for coordinated-tier worker agents.
+`build_result` reports `verification.passed` only for a non-empty list of passing
+steps, and always emits an `outcome` (`PASS` / `ISSUES` / `BLOCKED`): derived from
+the evidence, or the worker's explicit value, which validation then judges.
+`build_failure_result` marks its synthetic step `method: not_run`.
 
 ### `<skill-base-dir>/scripts/review_dispatcher.py`
 
@@ -35,10 +43,23 @@ Synthesizes review findings from multiple vendors into a consensus report with c
 ### `<skill-base-dir>/scripts/integration_orchestrator.py`
 
 Cross-package integration management — tracks package completion, consensus recording, and integration gating.
+Record each result with its verdict: `record_package_result(package_id, result,
+acceptance)`. The gate returns `blocked_incomplete` for a missing result, then
+`blocked_not_passing` (listing `not_passing`) for a result with no accepted verdict,
+before any review check. Every gate response lists `overrides`.
 
 ### `<skill-base-dir>/scripts/result_validator.py`
 
 Validates work-queue results against `work-queue-result.schema.json`.
+`accept_package_result(result, package_def, contracts_rev, plan_rev, worktree_path)`
+is the only way to obtain an accepted `PackageAcceptance`: full Phase C1 validation
+must be valid, the `commit_resolves` check must have run in `worktree_path` (a
+skipped check is refused), and the effective outcome must be `PASS`. Absence of
+evidence is not a pass. Step `method` is `executed`, `ci`, `inspected` or `not_run`;
+a `not_run` step can never pass, and a worker may downgrade its outcome but never
+upgrade it. To proceed past a refusal, construct
+`PackageAcceptance.override_for(package_id, reason, approver)` — both must be
+non-blank, and the override is surfaced by the scheduler and the gate.
 
 ### `<skill-base-dir>/scripts/circuit_breaker.py`
 

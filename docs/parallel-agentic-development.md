@@ -547,7 +547,7 @@ Conflict-free port blocks for parallel docker-compose stacks:
 | C1 | Validate all results (schema, revision matching, scope compliance) | [`validate_work_result.py`](../skills/validate-packages/scripts/validate_work_result.py) |
 | C2 | Process escalations (deterministic action per type) | [`escalation_handler.py`](../skills/parallel-implement-feature/scripts/escalation_handler.py) |
 | C3 | Dispatch per-package reviews | `/parallel-review-implementation` skill |
-| C4 | Integration gate (all packages completed + reviewed, no blocking dispositions) | `IntegrationGateStatus`: PASS, BLOCKED_FIX, BLOCKED_ESCALATE |
+| C4 | Integration gate (all packages have an accepted result + are reviewed, no blocking dispositions) | `IntegrationGateStatus`: PASS, BLOCKED_INCOMPLETE, BLOCKED_NOT_PASSING, BLOCKED_FIX, BLOCKED_ESCALATE |
 | C5 | Merge worktrees, run full test suite, cross-package verification | `wp-integration` package claims union of all locks |
 | C6 | Generate execution summary | DAG timeline, review findings, contract compliance |
 
