@@ -27,6 +27,11 @@
       "enum": ["completed", "failed"],
       "description": "Mirrors complete_work(success). Use 'failed' for cancelled too."
     },
+    "outcome": {
+      "type": "string",
+      "enum": ["PASS", "ISSUES", "BLOCKED"],
+      "description": "Optional explicit verdict. PASS requires completed status, non-empty passing steps and no failed scope check; a worker may downgrade but never upgrade. When absent it is derived from the evidence."
+    },
     "error_code": {
       "type": "string",
       "description": "Present when status=failed. Standard codes: SCOPE_VIOLATION, VERIFICATION_FAILED, LOCK_UNAVAILABLE, TIMEOUT, cancelled_by_orchestrator, PAUSED."
@@ -172,6 +177,11 @@
         "name": { "type": "string", "minLength": 1, "maxLength": 80 },
         "kind": { "type": "string", "enum": ["command", "ci", "manual"] },
         "passed": { "type": "boolean" },
+        "method": {
+          "type": "string",
+          "enum": ["executed", "ci", "inspected", "not_run"],
+          "description": "How the step was verified. A not_run step cannot pass."
+        },
         "command": { "type": "string", "minLength": 1 },
         "cwd": { "$ref": "#/$defs/FilePath" },
         "exit_code": { "type": "integer" },
