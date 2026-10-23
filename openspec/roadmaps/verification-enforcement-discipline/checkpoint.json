@@ -4,7 +4,11 @@
   "current_item_id": "ri-01",
   "phase": "planning",
   "created_at": "2026-10-21T00:10:08.450478+00:00",
-  "updated_at": "2026-10-23T11:56:11.818576+00:00",
+  "updated_at": "2026-10-23T12:00:50.911625+00:00",
+  "serial_indeterminate_items": [
+    "ri-04",
+    "ri-09"
+  ],
   "gate_decisions": [
     {
       "gate": "roadmap_approval",
@@ -54,6 +58,285 @@
       "roadmap_id": "verification-enforcement-discipline",
       "roadmap_fingerprint": "3c0517051c7fd79e55e11b67cf7bfb3b2fd47d605cc2ef10dcdb8cfa0b4dbec6",
       "note": "operator approved via /supervise: first wave ri-01, ri-02, ri-04, ri-09; one PR per change"
+    }
+  ],
+  "dispatch_attempts": [
+    {
+      "dispatch_id": "batch-4cabb5445fb7a153ce6955a2:ri-01:attempt-1",
+      "item_id": "ri-01",
+      "change_id": "bind-merge-verdicts-to-head-sha-and-patch-id",
+      "phase": "autopilot",
+      "attempt": 1,
+      "status": "launched",
+      "prepared_at": "2026-10-23T11:59:09.514954+00:00",
+      "launch_digest": "sha256:75937cb1f8b909bf156dcedc7bf020761b52eaa622c3518c848275029c9d3683",
+      "launch_marker_path": ".supervised-dispatch/bind-merge-verdicts-to-head-sha-and-patch-id/ri-01-attempt-1.marker",
+      "lease_generation": 1,
+      "launch_history": [
+        {
+          "generation": 1,
+          "owner_nonce": "Vu1eXr8-qWFSNZHya8cDbHpJFCTpC0T1",
+          "state": "claimed",
+          "marker_path": ".supervised-dispatch/bind-merge-verdicts-to-head-sha-and-patch-id/ri-01-attempt-1.marker",
+          "observed_at": "2026-10-23T11:59:37.838189+00:00"
+        },
+        {
+          "generation": 1,
+          "owner_nonce": "Vu1eXr8-qWFSNZHya8cDbHpJFCTpC0T1",
+          "state": "acknowledged",
+          "marker_path": ".supervised-dispatch/bind-merge-verdicts-to-head-sha-and-patch-id/ri-01-attempt-1.marker",
+          "observed_at": "2026-10-23T12:00:43.129423+00:00",
+          "handle": "host-task:a3b929521521823df"
+        },
+        {
+          "generation": 1,
+          "owner_nonce": "Vu1eXr8-qWFSNZHya8cDbHpJFCTpC0T1",
+          "state": "go_released",
+          "marker_path": ".supervised-dispatch/bind-merge-verdicts-to-head-sha-and-patch-id/ri-01-attempt-1.marker",
+          "observed_at": "2026-10-23T12:00:43.129423+00:00",
+          "handle": "host-task:a3b929521521823df"
+        },
+        {
+          "generation": 1,
+          "owner_nonce": "Vu1eXr8-qWFSNZHya8cDbHpJFCTpC0T1",
+          "state": "entered",
+          "marker_path": ".supervised-dispatch/bind-merge-verdicts-to-head-sha-and-patch-id/ri-01-attempt-1.marker",
+          "observed_at": "2026-10-23T12:00:50.009044+00:00",
+          "handle": "host-task:a3b929521521823df"
+        }
+      ],
+      "scope": {
+        "proof": "serial_indeterminate",
+        "write_allow": [
+          ".agents/skills/merge-pull-requests/**",
+          ".claude/skills/merge-pull-requests/**",
+          "openspec/changes/add-orchestrator-adjudication-review-gate/design.md",
+          "skills/merge-pull-requests/SKILL.md",
+          "skills/merge-pull-requests/contracts/merge-plan.schema.json",
+          "skills/merge-pull-requests/references/verdict-binding.md",
+          "skills/merge-pull-requests/scripts/build_plan.py",
+          "skills/merge-pull-requests/scripts/execute_plan.py",
+          "skills/merge-pull-requests/scripts/execution_safety.py",
+          "skills/merge-pull-requests/scripts/merge_events.py",
+          "skills/merge-pull-requests/scripts/merge_plan.py",
+          "skills/merge-pull-requests/scripts/merge_pr.py",
+          "skills/merge-pull-requests/scripts/tests/test_build_plan.py",
+          "skills/merge-pull-requests/scripts/tests/test_execute_plan.py",
+          "skills/merge-pull-requests/scripts/tests/test_merge_plan_contract.py",
+          "skills/merge-pull-requests/scripts/tests/test_merge_pr_head_pin.py",
+          "skills/merge-pull-requests/scripts/tests/test_merge_pr_records_events.py",
+          "skills/merge-pull-requests/scripts/tests/test_verdict_binding.py",
+          "skills/merge-pull-requests/scripts/vendor_review.py",
+          "skills/merge-pull-requests/scripts/verdict_binding.py",
+          "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+          "skills/parallel-infrastructure/scripts/tests/test_review_dispatcher_exclude_vendor.py",
+          "skills/tests/merge-pull-requests/test_execute_plan_review_evidence.py",
+          "skills/tests/merge-pull-requests/test_review_predicate_total.py",
+          "skills/tests/merge-pull-requests/test_skill_md.py",
+          "skills/tests/merge-pull-requests/test_vendor_review_identity.py"
+        ],
+        "lock_keys": [
+          "feature:bind-merge-verdicts-to-head-sha-and-patch-id:binding",
+          "feature:bind-merge-verdicts-to-head-sha-and-patch-id:dispatch",
+          "feature:bind-merge-verdicts-to-head-sha-and-patch-id:docs",
+          "feature:bind-merge-verdicts-to-head-sha-and-patch-id:merge",
+          "feature:bind-merge-verdicts-to-head-sha-and-patch-id:predicate",
+          "feature:bind-merge-verdicts-to-head-sha-and-patch-id:schema"
+        ]
+      },
+      "isolation": {
+        "mode": "managed_worktree",
+        "worktree_ref": "bind-merge-verdicts-to-head-sha-and-patch-id",
+        "branch": "openspec/bind-merge-verdicts-to-head-sha-and-patch-id",
+        "host_id": "machine-801452e4fd3b9a26"
+      },
+      "context": {
+        "approved_wave": "first",
+        "pr_policy": "one_pr_per_change"
+      },
+      "execution_profile": {
+        "lanes": {
+          "review": [
+            "claude_code"
+          ],
+          "alternative": [
+            "claude_code"
+          ],
+          "quick": [
+            "claude_code"
+          ]
+        },
+        "location": "cloud",
+        "isolation": "managed_worktree",
+        "probe_command": "python3 <skill-base-dir>/../parallel-infrastructure/scripts/review_dispatcher.py --check-vendors --json"
+      },
+      "review_requirements": {
+        "min_quorum": {
+          "PLAN_REVIEW": 1,
+          "IMPL_REVIEW": 1,
+          "VAL_REVIEW": 1
+        },
+        "counting_lanes": [
+          "claude_code",
+          "antigravity",
+          "grok",
+          "ocr",
+          "pi",
+          "codex"
+        ],
+        "quorum_policy": {
+          "environment": "cloud_container",
+          "policy_id": "cloud-container-single-vendor-2026-10-09",
+          "sunset": "Delete this entry, restoring quorum 2 everywhere, once API-based multi-vendor review (an OpenRouter integration) or the GX10 review lane is available to cloud workers."
+        }
+      },
+      "roadmap_approval_ref": "gate-decision:5c5a735e-f27e-4363-b3b1-0644974472b4",
+      "lease": {
+        "generation": 1,
+        "owner_nonce": "Vu1eXr8-qWFSNZHya8cDbHpJFCTpC0T1",
+        "state": "active",
+        "acquired_at": "2026-10-23T11:59:37.838189+00:00",
+        "heartbeat_at": "2026-10-23T11:59:37.838189+00:00",
+        "expires_at": "2026-10-23T12:59:37.838189+00:00"
+      },
+      "launch_evidence": {
+        "kind": "host_ack",
+        "generation": 1,
+        "handle": "host-task:a3b929521521823df",
+        "observed_at": "2026-10-23T12:00:43.129423+00:00"
+      },
+      "launch_gate": {
+        "generation": 1,
+        "state": "entered",
+        "handle": "host-task:a3b929521521823df",
+        "go_released_at": "2026-10-23T12:00:43.129423+00:00",
+        "entered_at": "2026-10-23T12:00:50.009044+00:00"
+      }
+    },
+    {
+      "dispatch_id": "batch-4cabb5445fb7a153ce6955a2:ri-02:attempt-1",
+      "item_id": "ri-02",
+      "change_id": "make-expedite-fail-closed-on-missing-validation",
+      "phase": "autopilot",
+      "attempt": 1,
+      "status": "launched",
+      "prepared_at": "2026-10-23T11:59:09.515057+00:00",
+      "launch_digest": "sha256:3aecb0422bcf1bf1b934fa3253e1b4c00f2360f29d359b7281e298f032730dca",
+      "launch_marker_path": ".supervised-dispatch/make-expedite-fail-closed-on-missing-validation/ri-02-attempt-1.marker",
+      "lease_generation": 1,
+      "launch_history": [
+        {
+          "generation": 1,
+          "owner_nonce": "4K2roBcL8XBDYBM6MjTJU6cQTbbjvhqZ",
+          "state": "claimed",
+          "marker_path": ".supervised-dispatch/make-expedite-fail-closed-on-missing-validation/ri-02-attempt-1.marker",
+          "observed_at": "2026-10-23T11:59:38.179383+00:00"
+        },
+        {
+          "generation": 1,
+          "owner_nonce": "4K2roBcL8XBDYBM6MjTJU6cQTbbjvhqZ",
+          "state": "acknowledged",
+          "marker_path": ".supervised-dispatch/make-expedite-fail-closed-on-missing-validation/ri-02-attempt-1.marker",
+          "observed_at": "2026-10-23T12:00:43.440476+00:00",
+          "handle": "host-task:af27afb6670f736db"
+        },
+        {
+          "generation": 1,
+          "owner_nonce": "4K2roBcL8XBDYBM6MjTJU6cQTbbjvhqZ",
+          "state": "go_released",
+          "marker_path": ".supervised-dispatch/make-expedite-fail-closed-on-missing-validation/ri-02-attempt-1.marker",
+          "observed_at": "2026-10-23T12:00:43.440476+00:00",
+          "handle": "host-task:af27afb6670f736db"
+        },
+        {
+          "generation": 1,
+          "owner_nonce": "4K2roBcL8XBDYBM6MjTJU6cQTbbjvhqZ",
+          "state": "entered",
+          "marker_path": ".supervised-dispatch/make-expedite-fail-closed-on-missing-validation/ri-02-attempt-1.marker",
+          "observed_at": "2026-10-23T12:00:50.909332+00:00",
+          "handle": "host-task:af27afb6670f736db"
+        }
+      ],
+      "scope": {
+        "proof": "serial_indeterminate",
+        "write_allow": [
+          ".agents/skills/expedite/**",
+          ".claude/skills/expedite/**",
+          "docs/mental-models.md",
+          "skills/expedite/**"
+        ],
+        "lock_keys": [
+          "feature:make-expedite-fail-closed-on-missing-validation:verdict"
+        ]
+      },
+      "isolation": {
+        "mode": "managed_worktree",
+        "worktree_ref": "make-expedite-fail-closed-on-missing-validation",
+        "branch": "openspec/make-expedite-fail-closed-on-missing-validation",
+        "host_id": "machine-801452e4fd3b9a26"
+      },
+      "context": {
+        "approved_wave": "first",
+        "pr_policy": "one_pr_per_change"
+      },
+      "execution_profile": {
+        "lanes": {
+          "review": [
+            "claude_code"
+          ],
+          "alternative": [
+            "claude_code"
+          ],
+          "quick": [
+            "claude_code"
+          ]
+        },
+        "location": "cloud",
+        "isolation": "managed_worktree",
+        "probe_command": "python3 <skill-base-dir>/../parallel-infrastructure/scripts/review_dispatcher.py --check-vendors --json"
+      },
+      "review_requirements": {
+        "min_quorum": {
+          "PLAN_REVIEW": 1,
+          "IMPL_REVIEW": 1,
+          "VAL_REVIEW": 1
+        },
+        "counting_lanes": [
+          "claude_code",
+          "antigravity",
+          "grok",
+          "ocr",
+          "pi",
+          "codex"
+        ],
+        "quorum_policy": {
+          "environment": "cloud_container",
+          "policy_id": "cloud-container-single-vendor-2026-10-09",
+          "sunset": "Delete this entry, restoring quorum 2 everywhere, once API-based multi-vendor review (an OpenRouter integration) or the GX10 review lane is available to cloud workers."
+        }
+      },
+      "roadmap_approval_ref": "gate-decision:5c5a735e-f27e-4363-b3b1-0644974472b4",
+      "lease": {
+        "generation": 1,
+        "owner_nonce": "4K2roBcL8XBDYBM6MjTJU6cQTbbjvhqZ",
+        "state": "active",
+        "acquired_at": "2026-10-23T11:59:38.179383+00:00",
+        "heartbeat_at": "2026-10-23T11:59:38.179383+00:00",
+        "expires_at": "2026-10-23T12:59:38.179383+00:00"
+      },
+      "launch_evidence": {
+        "kind": "host_ack",
+        "generation": 1,
+        "handle": "host-task:af27afb6670f736db",
+        "observed_at": "2026-10-23T12:00:43.440476+00:00"
+      },
+      "launch_gate": {
+        "generation": 1,
+        "state": "entered",
+        "handle": "host-task:af27afb6670f736db",
+        "go_released_at": "2026-10-23T12:00:43.440476+00:00",
+        "entered_at": "2026-10-23T12:00:50.909332+00:00"
+      }
     }
   ]
 }
