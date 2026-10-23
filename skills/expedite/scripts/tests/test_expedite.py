@@ -392,3 +392,80 @@ class TestCli:
         assert {c["name"] for c in payload["checks"]} == {
             "active_agents", "validation_report", "rework_report"
         }
+
+
+# ---------------------------------------------------------------------------
+# --accept-missing-validation override
+# ---------------------------------------------------------------------------
+
+
+class TestAcceptMissingValidation:
+    def test_override_records_reason(self, repo: Path,
+                                     capsys: pytest.CaptureFixture[str]) -> None:
+        write_active_agent_registry(repo, active=False)
+        rc = ex.main(["abc", "--repo-root", str(repo),
+                      "--accept-missing-validation", "docs-only change", "--json"])
+        assert rc == 0
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["ready"] is True
+        check = next(c for c in payload["checks"] if c["name"] == "validation_report")
+        assert check["status"] == "pass"
+        assert check["detail"].startswith(ex.OVERRIDE_PREFIX + "docs-only change")
+        assert payload["overrides"] == [
+            {"check": "validation_report", "reason": "docs-only change"},
+        ]
+
+    def test_override_prefix_constant(self) -> None:
+        assert ex.OVERRIDE_PREFIX == "OVERRIDE — no validation report accepted: "
+
+    def test_override_visible_in_text_output(self, repo: Path,
+                                             capsys: pytest.CaptureFixture[str]) -> None:
+        write_active_agent_registry(repo, active=False)
+        rc = ex.main(["abc", "--repo-root", str(repo),
+                      "--accept-missing-validation", "docs-only change"])
+        assert rc == 0
+        out = capsys.readouterr().out
+        assert "OVERRIDE" in out
+        assert "docs-only change" in out
+
+    @pytest.mark.parametrize("reason", ["", "   "])
+    def test_blank_reason_rejected(self, repo: Path, reason: str,
+                                   capsys: pytest.CaptureFixture[str]) -> None:
+        write_active_agent_registry(repo, active=False)
+        with pytest.raises(SystemExit) as exc:
+            ex.main(["abc", "--repo-root", str(repo),
+                     "--accept-missing-validation", reason, "--json"])
+        assert exc.value.code == 2
+        assert capsys.readouterr().out == ""
+
+    def test_override_ignored_when_report_fails(
+        self, repo: Path, capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        write_active_agent_registry(repo, active=False)
+        write_validation_report(
+            repo / "openspec" / "changes" / "abc" / "validation-report.md",
+            smoke="fail",
+        )
+        rc = ex.main(["abc", "--repo-root", str(repo),
+                      "--accept-missing-validation", "docs-only change", "--json"])
+        assert rc == 1
+        payload = json.loads(capsys.readouterr().out)
+        check = next(c for c in payload["checks"] if c["name"] == "validation_report")
+        assert check["status"] == "fail"
+        assert payload["overrides"] == []
+
+    def test_override_ignored_when_report_passes(self, repo: Path) -> None:
+        write_active_agent_registry(repo, active=False)
+        write_validation_report(repo / "openspec" / "changes" / "abc" / "validation-report.md")
+        v = ex.expedite("abc", repo, accept_missing_validation="docs-only change")
+        check = next(c for c in v.checks if c.name == "validation_report")
+        assert check.status == "pass"
+        assert not check.detail.startswith(ex.OVERRIDE_PREFIX)
+        assert v.overrides == []
+
+    def test_overrides_key_always_present(self, repo: Path,
+                                          capsys: pytest.CaptureFixture[str]) -> None:
+        write_active_agent_registry(repo, active=False)
+        ex.main(["abc", "--repo-root", str(repo), "--json"])
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["overrides"] == []
