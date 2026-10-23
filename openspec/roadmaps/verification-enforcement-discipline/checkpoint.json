@@ -4,7 +4,7 @@
   "current_item_id": "ri-01",
   "phase": "planning",
   "created_at": "2026-10-21T00:10:08.450478+00:00",
-  "updated_at": "2026-10-23T19:57:51.282733+00:00",
+  "updated_at": "2026-10-23T19:57:58.237612+00:00",
   "serial_indeterminate_items": [
     "ri-09"
   ],
@@ -905,7 +905,7 @@
       "change_id": "reject-vacuous-worker-results-in-the-package-executor",
       "phase": "autopilot",
       "attempt": 1,
-      "status": "acknowledged",
+      "status": "launched",
       "prepared_at": "2026-10-23T19:57:00.832630+00:00",
       "launch_digest": "sha256:9b37150fbdd8e3c7d0fabc763a63136a0269965bba0a4c3ee90e1a883fc73c77",
       "launch_marker_path": ".supervised-dispatch/reject-vacuous-worker-results-in-the-package-executor/ri-04-attempt-1.marker",
@@ -932,6 +932,14 @@
           "state": "go_released",
           "marker_path": ".supervised-dispatch/reject-vacuous-worker-results-in-the-package-executor/ri-04-attempt-1.marker",
           "observed_at": "2026-10-23T19:57:51.281110+00:00",
+          "handle": "host-task:a503cad16b9b13e4e"
+        },
+        {
+          "generation": 1,
+          "owner_nonce": "CyNd8700mvUimOWuimghtk-eSXcx2YPL",
+          "state": "entered",
+          "marker_path": ".supervised-dispatch/reject-vacuous-worker-results-in-the-package-executor/ri-04-attempt-1.marker",
+          "observed_at": "2026-10-23T19:57:58.235544+00:00",
           "handle": "host-task:a503cad16b9b13e4e"
         }
       ],
@@ -1003,10 +1011,10 @@
       },
       "launch_gate": {
         "generation": 1,
-        "state": "go_released",
+        "state": "entered",
         "handle": "host-task:a503cad16b9b13e4e",
         "go_released_at": "2026-10-23T19:57:51.281110+00:00",
-        "entered_at": null
+        "entered_at": "2026-10-23T19:57:58.235544+00:00"
       }
     }
   ]
