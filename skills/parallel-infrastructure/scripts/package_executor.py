@@ -41,10 +41,24 @@ Usage:
 
 from __future__ import annotations
 
+import sys
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from scope_checker import check_scope_compliance
+
+# The outcome derivation lives in the co-installed validate-packages skill so
+# that the emitter and the checker share one rule.
+_VALIDATE_SCRIPTS_DIR = (
+    Path(__file__).resolve().parents[2] / "validate-packages" / "scripts"
+)
+if str(_VALIDATE_SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_VALIDATE_SCRIPTS_DIR))
+
+from validate_work_result import (  # type: ignore[import-not-found]  # noqa: E402
+    derive_outcome,
+)
 
 
 PAUSE_LOCK_PREFIX = "feature:"
@@ -163,6 +177,7 @@ class PackageExecutor:
         git_worktree: str | None = None,
         error_code: str | None = None,
         notes: str | None = None,
+        outcome: str | None = None,
     ) -> dict[str, Any]:
         """B10: Build structured result conforming to work-queue-result.schema.json.
 
@@ -176,6 +191,9 @@ class PackageExecutor:
             git_worktree: Optional worktree name
             error_code: Required when status="failed"
             notes: Optional execution notes
+            outcome: Optional explicit PASS / ISSUES / BLOCKED. When omitted the
+                outcome derived from the evidence is emitted; when supplied it is
+                emitted unchanged so that validation judges it.
         """
         self.mark_finished()
 
@@ -185,9 +203,10 @@ class PackageExecutor:
         # Run scope check
         scope_result = self.check_scope(files_modified)
 
-        # Compute verification summary
-        verification_passed = all(
-            step.get("passed", False) for step in verification_steps
+        # Compute verification summary. An empty step list is not evidence:
+        # all([]) is True, so non-emptiness is required explicitly.
+        verification_passed = bool(verification_steps) and all(
+            step.get("passed") is True for step in verification_steps
         )
         verification_tier = self.package_def.get("verification", {}).get(
             "tier_required", "A"
@@ -243,6 +262,10 @@ class PackageExecutor:
         if notes:
             result["notes"] = notes
 
+        result["outcome"] = (
+            outcome if outcome is not None else derive_outcome(result)
+        )
+
         return result
 
     def build_failure_result(
@@ -267,6 +290,7 @@ class PackageExecutor:
                 "command": "N/A",
                 "exit_code": 1,
                 "passed": False,
+                "method": "not_run",
                 "evidence": {"artifacts": [], "metrics": {}},
             }],
             error_code=error_code,

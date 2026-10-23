@@ -46,7 +46,7 @@
 
 ## 2. Emitter and acceptance (wp-acceptance)
 
-- [ ] 2.1 Write failing tests in `skills/parallel-infrastructure/scripts/tests/test_package_executor.py` (S)
+- [x] 2.1 Write failing tests in `skills/parallel-infrastructure/scripts/tests/test_package_executor.py` (S)
   - `build_result` with zero steps gives `verification.passed == false` and an outcome that is not PASS.
   - `build_result` emits PASS, BLOCKED or ISSUES according to its inputs.
   - An explicit `outcome=` is emitted as given.
@@ -54,7 +54,7 @@
   **Spec scenarios**: parallel-infrastructure.empty-steps-not-passed, parallel-infrastructure.build-result-emits-outcome
   **Design decisions**: D1, D3
   **Dependencies**: 1.7
-- [ ] 2.2 Write failing tests in `test_result_validator.py` for `accept_package_result` and `PackageAcceptance` (S)
+- [x] 2.2 Write failing tests in `test_result_validator.py` for `accept_package_result` and `PackageAcceptance` (S)
   - A PASS result whose commit resolves in a temporary repo is accepted.
   - A failed result, an ISSUES result, a BLOCKED result, an invalid result and `worktree_path=None` are each refused, and each refusal has a reason naming the condition that failed.
   - The acceptance is frozen.
@@ -62,11 +62,11 @@
   **Spec scenarios**: parallel-infrastructure.accept-pass, parallel-infrastructure.skipped-commit-check-refused, parallel-infrastructure.override-blank-rejected
   **Design decisions**: D4, D6
   **Dependencies**: 1.6, 1.7
-- [ ] 2.3 Fix `build_result` (non-empty and all passed; derived or explicit `outcome`) and `build_failure_result` (`method: not_run`) (XS)
+- [x] 2.3 Fix `build_result` (non-empty and all passed; derived or explicit `outcome`) and `build_failure_result` (`method: not_run`) (XS)
   **Dependencies**: 2.1
-- [ ] 2.4 Implement `PackageAcceptance` (with the `override_for` constructor) in the new dependency-free `package_acceptance.py`, re-export it from `result_validator`, and implement `accept_package_result`, and thread `worktree_path` through `validate_package_result` (S)
+- [x] 2.4 Implement `PackageAcceptance` (with the `override_for` constructor) in the new dependency-free `package_acceptance.py`, re-export it from `result_validator`, and implement `accept_package_result`, and thread `worktree_path` through `validate_package_result` (S)
   **Dependencies**: 2.2
-- [ ] Checkpoint: run the parallel-infrastructure and validate-packages suites, review the diff, verify the scope
+- [x] Checkpoint: run the parallel-infrastructure and validate-packages suites, review the diff, verify the scope
 
 ## 3. Decision points (wp-gates)
 
