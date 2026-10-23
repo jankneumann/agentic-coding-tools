@@ -223,6 +223,16 @@
       "code": "handoff_local_fallback",
       "detail": "coordinator handoff write failed (session FK); wrote handoffs/validation-1.json",
       "phase": "VALIDATE"
+    },
+    {
+      "code": "single_vendor_review",
+      "phase": "VAL_REVIEW",
+      "detail": "vendor=claude_code"
+    },
+    {
+      "code": "phase_fallback_inline",
+      "phase": "VAL_REVIEW",
+      "detail": "no Agent dispatch adapter; review lane answered inline by the conductor"
     }
   ]
 }
