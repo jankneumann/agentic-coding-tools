@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-10-23T22:39:15.711568+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "rpc_failed: ForeignKeyViolationError: insert or update on table \"handoff_documents\" violates foreign key constraint \"handoff_documents_session_id_fkey\"\nDETAIL:  Key (session_id)=(session_017qfSLYuSiyd2b5URwLucoq) is not present in table \"agent_sessions\". (HTTP 200)",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": "session_017qfSLYuSiyd2b5URwLucoq",
+    "summary": "Single-vendor plan review converged after one blocking finding was fixed in design D3.",
+    "completed_work": [
+      "Round 1 (aborted run): 1 blocking finding (blame at HEAD) and 1 optional (why-chain first node lacks a file location), both fixed in design.md (commit d129627)",
+      "Rerun: converged in 1 round, 0 blocking, 1 advisory (accepted: contracts.openapi.primary placeholder)"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Blame the working tree, not HEAD",
+        "rationale": "Only a working-tree blame reports the all-zero sha that the uncommitted status depends on; blaming HEAD would make the uncommitted scenario unreachable.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Restart the lane after a scope rejection caused by a dirty loop-state",
+        "rationale": "The first converge run rejected its own fix because loop-state.json was uncommitted before the fix and counted as a fix edit; loop-state was committed and the review rerun on the fixed plan.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "IMPLEMENT wp-why-mode: why_trace.py with fixture tests, references/why.md, SKILL.md why mode, evidence_level in both schema copies and both prompt builders, manifest dependency"
+    ],
+    "relevant_files": []
+  }
+}
