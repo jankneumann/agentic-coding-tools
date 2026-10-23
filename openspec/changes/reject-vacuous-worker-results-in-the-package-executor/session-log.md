@@ -198,3 +198,59 @@ All four work packages implemented TDD and committed: the checker rejects empty 
 ### Context
 Self-review of the implementation diff found two hardening gaps, both fixed TDD: the commit_resolves git call could be redirected by an inherited GIT_DIR, and accept_package_result did not check that the result names the package being accepted.
 
+---
+
+## Phase: IMPL_REVIEW (2026-10-23)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Store the acceptance override as a read-only mapping copy** `architectural: parallel-infrastructure` — The recorded reason and approver feed the scheduler summary and the gate's overrides list, so they must not change after the verdict is made.
+
+### Alternatives Considered
+- Leave the advisory finding unaddressed: rejected because The fix is small and closes a real gap between the frozen contract and the behaviour.
+
+### Trade-offs
+- Accepted A single-vendor review over Multi-vendor convergence because Only claude_code is dispatchable in this cloud container; the supervisor's quorum policy sets IMPL_REVIEW quorum to 1, and the degradation is recorded.
+
+### Completed Work
+- IMPL_REVIEW converged in 1 round, 0 blocking findings
+- Advisory finding 1 fixed TDD; 1222 tests pass across the affected suites
+
+### Next Steps
+- VALIDATE
+- SUBMIT_PR
+
+### Relevant Files
+- `skills/parallel-infrastructure/scripts/package_acceptance.py` — Read-only override
+
+### Context
+Implementation review converged in round 1 on the single claude_code lane (quorum 1 by the cloud-container policy) with one advisory finding and no blocking findings. The advisory finding, a mutable override on the frozen acceptance, was fixed with a test.
+
+---
+
+## Phase: VALIDATE (2026-10-23)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Report the GATEKEEPER as DEGRADED rather than passed** `architectural: parallel-infrastructure` — Its fallback verdict came from signals only; the judgment did not run.
+
+### Alternatives Considered
+- Fix the validate-feature worktree tests in this change: rejected because Out of scope. They fail on the base branch for an environmental reason unrelated to vacuous results.
+
+### Trade-offs
+- Accepted No deploy, smoke or E2E phases over Running them because The change is library code and has no deployable surface.
+
+### Completed Work
+- validation-report.md written with phase status and test evidence
+
+### Next Steps
+- SUBMIT_PR
+
+### Relevant Files
+- `openspec/changes/reject-vacuous-worker-results-in-the-package-executor/validation-report.md` — Validation report
+
+### Context
+Validation passed for the branch's scope. The affected suites, ruff and openspec validate --strict are all clean. The 7 validate-feature worktree failures pre-exist this change and come from the cloud harness's env_var isolation. The GATEKEEPER is reported as DEGRADED.
+
