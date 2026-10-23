@@ -48,7 +48,8 @@
   - `""` and `"   "` → exit 2, nothing on stdout.
   - With a failing report plus the flag: check stays `fail`, `overrides == []`.
   - Without the flag: JSON still carries `"overrides": []`.
-  **Spec scenarios**: expedite.override-records-reason, expedite.override-empty-reason-rejected, expedite.override-ignored-when-report-exists, expedite.override-explicit-missing-path, expedite.override-not-applied-to-unreadable-report
+  - The `OVERRIDE — ` prefix is one module constant (`OVERRIDE_PREFIX`) that tests import.
+  **Spec scenarios**: expedite.overrides-key-always-present, expedite.override-records-reason, expedite.override-empty-reason-rejected, expedite.override-ignored-when-report-exists, expedite.override-explicit-missing-path, expedite.override-not-applied-to-unreadable-report
   **Design decisions**: D2
   **Dependencies**: 1.3
 - [ ] 2.2 Add the `overrides` field to `Verdict` (XS)
