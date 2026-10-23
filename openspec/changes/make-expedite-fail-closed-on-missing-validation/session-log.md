@@ -116,6 +116,27 @@ Implemented tasks 1.1-4.2 test-first in a single package (wp-expedite), inline b
 
 ---
 
+## Phase: Implementation Iteration 1 (2026-10-23)
+
+**Agent**: claude_code | **Session**: session_017qfSLYuSiyd2b5URwLucoq
+
+### Decisions
+1. **Keep the override condition explicit in expedite()** — Deriving overrides from the check detail string would couple the verdict to display text; the two-line condition mirrors the check's own branch
+2. **No change for an explicit but missing --validation-report path** — It already fails closed through pre_merge_gate and the override deliberately applies only when probing found nothing
+
+### Completed Work
+- Reviewed expedite.py diff against the base branch for correctness, edge cases and scope
+- Edge-probed an explicit --validation-report path that does not exist (fails via the pre-merge gate) and a relative --repo-root (probed paths render correctly); both fail closed
+- 91554d2: hoisted the datetime import in the drift test
+
+### Next Steps
+- IMPL_REVIEW single-vendor
+
+### Context
+Inline /iterate-on-implementation self-review of the expedite diff; refinements settled after one minor cleanup.
+
+---
+
 ## Phase: Plan Iteration 1 (2026-11-16)
 
 **Agent**: claude-opus-5.5 | **Session**: N/A

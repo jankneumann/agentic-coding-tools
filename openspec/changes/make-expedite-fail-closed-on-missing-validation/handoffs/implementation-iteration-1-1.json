@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-10-23T12:21:05.916248+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "rpc_failed: ForeignKeyViolationError: insert or update on table \"handoff_documents\" violates foreign key constraint \"handoff_documents_session_id_fkey\"\nDETAIL:  Key (session_id)=(session_017qfSLYuSiyd2b5URwLucoq) is not present in table \"agent_sessions\". (HTTP 200)",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": "session_017qfSLYuSiyd2b5URwLucoq",
+    "summary": "Inline /iterate-on-implementation self-review of the expedite diff; refinements settled after one minor cleanup.",
+    "completed_work": [
+      "Reviewed expedite.py diff against the base branch for correctness, edge cases and scope",
+      "Edge-probed an explicit --validation-report path that does not exist (fails via the pre-merge gate) and a relative --repo-root (probed paths render correctly); both fail closed",
+      "91554d2: hoisted the datetime import in the drift test"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Keep the override condition explicit in expedite()",
+        "rationale": "Deriving overrides from the check detail string would couple the verdict to display text; the two-line condition mirrors the check's own branch",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "No change for an explicit but missing --validation-report path",
+        "rationale": "It already fails closed through pre_merge_gate and the override deliberately applies only when probing found nothing",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "IMPL_REVIEW single-vendor"
+    ],
+    "relevant_files": []
+  }
+}
