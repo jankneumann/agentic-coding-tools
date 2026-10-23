@@ -8,7 +8,7 @@
 - [x] Planning
 - [x] Implementation
 - [x] Testing
-- [ ] Review
+- [x] Review
 - [ ] Done
 
 ## 1. Result contract and checker (wp-contract)

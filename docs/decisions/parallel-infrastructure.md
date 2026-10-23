@@ -62,6 +62,28 @@
 
 ## 2026-10-23 — reject-vacuous-worker-results-in-the-package-executor
 
+### Phase: IMPL_REVIEW
+
+**Store the acceptance override as a read-only mapping copy** — The recorded reason and approver feed the scheduler summary and the gate's overrides list, so they must not change after the verdict is made.
+
+- Status: `active`
+- Source: [openspec/changes/reject-vacuous-worker-results-in-the-package-executor/session-log.md](/openspec/changes/reject-vacuous-worker-results-in-the-package-executor/session-log.md) (D1)
+
+---
+
+## 2026-10-23 — reject-vacuous-worker-results-in-the-package-executor
+
+### Phase: VALIDATE
+
+**Report the GATEKEEPER as DEGRADED rather than passed** — Its fallback verdict came from signals only; the judgment did not run.
+
+- Status: `active`
+- Source: [openspec/changes/reject-vacuous-worker-results-in-the-package-executor/session-log.md](/openspec/changes/reject-vacuous-worker-results-in-the-package-executor/session-log.md) (D1)
+
+---
+
+## 2026-10-23 — reject-vacuous-worker-results-in-the-package-executor
+
 ### Phase: Plan
 
 **Optional outcome/method fields, schema_version stays 1** — Existing emitters and stored results keep validating; the checker rejects contradictions instead.
