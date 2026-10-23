@@ -3,7 +3,7 @@
   "change_id": "bind-merge-verdicts-to-head-sha-and-patch-id",
   "current_phase": "PLAN_REVIEW",
   "iteration": 0,
-  "total_iterations": 4,
+  "total_iterations": 6,
   "max_phase_iterations": 3,
   "findings_trend": [],
   "blocking_findings": [],
@@ -14,7 +14,9 @@
   "memory_ids": [],
   "handoff_ids": [
     "local:handoffs/gatekeeper-1.json",
-    "local:handoffs/plan-iterate-1.json"
+    "local:handoffs/plan-iterate-1.json",
+    "local:handoffs/plan-review-1.json",
+    "local:handoffs/plan-fix-1.json"
   ],
   "phase_history": [
     {
@@ -26,11 +28,21 @@
       "at": "2026-10-23T12:07:09.535370+00:00",
       "outcome": "complete",
       "phase": "PLAN_ITERATE"
+    },
+    {
+      "at": "2026-10-23T12:12:28.964673+00:00",
+      "outcome": "not_converged",
+      "phase": "PLAN_REVIEW"
+    },
+    {
+      "at": "2026-10-23T12:13:04.545696+00:00",
+      "outcome": "complete",
+      "phase": "PLAN_FIX"
     }
   ],
-  "last_handoff_id": "local:handoffs/plan-iterate-1.json",
+  "last_handoff_id": "local:handoffs/plan-fix-1.json",
   "started_at": "2026-10-23T12:01:27.478255+00:00",
-  "phase_started_at": "2026-10-23T12:07:12.634575+00:00",
+  "phase_started_at": "2026-10-23T12:13:11.485417+00:00",
   "previous_phase": null,
   "escalation_reason": null,
   "val_review_enabled": true,
@@ -109,13 +121,28 @@
     },
     {
       "code": "single_vendor_review",
-      "phase": "PLAN_REVIEW",
-      "detail": "vendor=claude_code"
+      "detail": "vendor=claude_code",
+      "phase": "PLAN_REVIEW"
     },
     {
       "code": "phase_fallback_inline",
-      "phase": "PLAN_REVIEW",
-      "detail": "no sub-agent dispatch tool exposed in this session; build-dispatch returned archetype reviewer; converge() driven via agent_lane.py with this agent as the lane"
+      "detail": "no sub-agent dispatch tool exposed in this session; build-dispatch returned archetype reviewer; converge() driven via agent_lane.py with this agent as the lane",
+      "phase": "PLAN_REVIEW"
+    },
+    {
+      "code": "handoff_local_fallback",
+      "detail": "coordinator handoff write failed (session FK); wrote handoffs/plan-review-1.json",
+      "phase": "PLAN_REVIEW"
+    },
+    {
+      "code": "phase_fallback_inline",
+      "detail": "no sub-agent dispatch tool in this session; ran inline",
+      "phase": "PLAN_FIX"
+    },
+    {
+      "code": "handoff_local_fallback",
+      "detail": "coordinator handoff write failed (session FK); wrote handoffs/plan-fix-1.json",
+      "phase": "PLAN_FIX"
     }
   ]
 }
