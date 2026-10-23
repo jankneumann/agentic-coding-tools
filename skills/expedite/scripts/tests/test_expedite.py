@@ -139,33 +139,39 @@ class TestActiveAgentsCheck:
 
 
 class TestValidationReportCheck:
-    def test_skip_when_path_none(self) -> None:
-        c = ex.check_validation_report(None)
-        assert c.status == "skip"
-        assert "validate-feature" in c.action
+    def test_fail_when_no_report(self, repo: Path) -> None:
+        c = ex.check_validation_report(None, change_id="abc", repo_root=repo)
+        assert c.status == "fail"
+        assert "/validate-feature" in c.action
+        for probed in (
+            "openspec/changes/abc/validation-report.md",
+            "openspec/changes/abc/reports/validation-report.md",
+            ".git-worktrees/abc/validation-report.md",
+        ):
+            assert probed in c.detail
 
     def test_pass_when_all_hard_gates_pass(self, tmp_path: Path) -> None:
         report = tmp_path / "validation-report.md"
         write_validation_report(report)
-        c = ex.check_validation_report(report)
+        c = ex.check_validation_report(report, change_id="abc", repo_root=tmp_path)
         assert c.status == "pass"
 
     def test_fail_when_smoke_fails(self, tmp_path: Path) -> None:
         report = tmp_path / "validation-report.md"
         write_validation_report(report, smoke="fail")
-        c = ex.check_validation_report(report)
+        c = ex.check_validation_report(report, change_id="abc", repo_root=tmp_path)
         assert c.status == "fail"
 
     def test_fail_when_security_fails(self, tmp_path: Path) -> None:
         report = tmp_path / "validation-report.md"
         write_validation_report(report, security="fail")
-        c = ex.check_validation_report(report)
+        c = ex.check_validation_report(report, change_id="abc", repo_root=tmp_path)
         assert c.status == "fail"
 
     def test_fail_when_e2e_fails(self, tmp_path: Path) -> None:
         report = tmp_path / "validation-report.md"
         write_validation_report(report, e2e="fail")
-        c = ex.check_validation_report(report)
+        c = ex.check_validation_report(report, change_id="abc", repo_root=tmp_path)
         assert c.status == "fail"
 
 
@@ -229,6 +235,50 @@ class TestReworkReportCheck:
         assert "failed to load" in c.detail
 
 
+class TestChangeDirDerivation:
+    def _capture(self, monkeypatch: pytest.MonkeyPatch) -> dict:
+        seen: dict = {}
+
+        def fake_gate(report_path, *, force, change_dir=None, **_kw):
+            seen["report_path"] = report_path
+            seen["change_dir"] = change_dir
+            return "continue", "ok", {}
+
+        monkeypatch.setattr(ex.gate_logic, "pre_merge_gate", fake_gate)
+        return seen
+
+    def test_change_dir_from_id_when_report_under_reports(
+        self, repo: Path, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        change_dir = repo / "openspec" / "changes" / "abc"
+        report = change_dir / "reports" / "validation-report.md"
+        write_validation_report(report)
+        seen = self._capture(monkeypatch)
+        c = ex.check_validation_report(report, change_id="abc", repo_root=repo)
+        assert c.status == "pass"
+        assert Path(seen["change_dir"]) == change_dir
+
+    def test_change_dir_from_id_when_report_in_worktree(
+        self, repo: Path, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        change_dir = repo / "openspec" / "changes" / "abc"
+        change_dir.mkdir(parents=True)
+        report = repo / ".git-worktrees" / "abc" / "validation-report.md"
+        write_validation_report(report)
+        seen = self._capture(monkeypatch)
+        ex.check_validation_report(report, change_id="abc", repo_root=repo)
+        assert Path(seen["change_dir"]) == change_dir
+
+    def test_change_dir_none_when_change_dir_absent(
+        self, repo: Path, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        report = repo / ".git-worktrees" / "abc" / "validation-report.md"
+        write_validation_report(report)
+        seen = self._capture(monkeypatch)
+        ex.check_validation_report(report, change_id="abc", repo_root=repo)
+        assert seen["change_dir"] is None
+
+
 # ---------------------------------------------------------------------------
 # expedite() composition
 # ---------------------------------------------------------------------------
@@ -244,13 +294,23 @@ class TestExpedite:
         assert v.ready is True
         assert all(c.status in ("pass", "skip") for c in v.checks)
 
-    def test_ready_when_skips_only(self, repo: Path) -> None:
+    def test_blocked_when_no_validation_report(self, repo: Path) -> None:
         write_active_agent_registry(repo, active=False)
-        # No reports → both skip → still ready
+        # No reports at all → the missing validation report blocks.
+        v = ex.expedite("abc", repo)
+        assert v.ready is False
+        validation_check = next(c for c in v.checks if c.name == "validation_report")
+        assert validation_check.status == "fail"
+
+    def test_ready_with_rework_skip_only(self, repo: Path) -> None:
+        write_active_agent_registry(repo, active=False)
+        write_validation_report(repo / "openspec" / "changes" / "abc" / "validation-report.md")
+        # No rework report → its skip is the remaining legitimate skip.
         v = ex.expedite("abc", repo)
         assert v.ready is True
-        statuses = [c.status for c in v.checks]
-        assert "skip" in statuses
+        statuses = {c.name: c.status for c in v.checks}
+        assert statuses["rework_report"] == "skip"
+        assert statuses["validation_report"] == "pass"
 
     def test_blocked_when_active_agents(self, repo: Path) -> None:
         write_active_agent_registry(repo, active=True)
@@ -297,9 +357,19 @@ class TestCli:
     def test_exit_zero_when_ready(self, repo: Path,
                                    capsys: pytest.CaptureFixture[str]) -> None:
         write_active_agent_registry(repo, active=False)
+        write_validation_report(repo / "openspec" / "changes" / "abc" / "validation-report.md")
         rc = ex.main(["abc", "--repo-root", str(repo)])
         assert rc == 0
         assert "READY" in capsys.readouterr().out
+
+    def test_cli_exits_1_without_report(self, repo: Path,
+                                        capsys: pytest.CaptureFixture[str]) -> None:
+        write_active_agent_registry(repo, active=False)
+        rc = ex.main(["abc", "--repo-root", str(repo)])
+        assert rc == 1
+        out = capsys.readouterr().out
+        assert "BLOCKED" in out
+        assert "[fail] validation_report" in out
 
     def test_exit_one_when_blocked(self, repo: Path,
                                     capsys: pytest.CaptureFixture[str]) -> None:
@@ -313,6 +383,7 @@ class TestCli:
     def test_json_output_shape(self, repo: Path,
                                 capsys: pytest.CaptureFixture[str]) -> None:
         write_active_agent_registry(repo, active=False)
+        write_validation_report(repo / "openspec" / "changes" / "abc" / "validation-report.md")
         ex.main(["abc", "--repo-root", str(repo), "--json"])
         payload = json.loads(capsys.readouterr().out)
         assert payload["change_id"] == "abc"
