@@ -48,6 +48,7 @@ with `skipped: true` and SHALL NOT change `valid`. The CLI SHALL accept
 - **WHEN** `validate_result` is given a result whose `git.head.commit` does not exist in the repository at `worktree_path`
 - **THEN** `checks.commit_resolves.passed` is `false` and its error names the commit
 - **AND** `valid` is `false`
+- **AND** the same holds when `worktree_path` is a directory that is not a git working tree, and the error names the path
 
 <!-- Scenario ID: parallel-infrastructure.present-commit-passes -->
 #### Scenario: A commit present in the worktree passes the check
@@ -97,6 +98,7 @@ evidence is not `PASS`, and when `status` is `failed` and `outcome` is present a
 
 - **WHEN** a result has `outcome: PASS` and a failing step, or a failed scope check, or `status: failed`
 - **THEN** validation reports an outcome-consistency error and `valid` is `false`
+- **AND** the same holds for a result with `status: failed` and `outcome: ISSUES`
 
 <!-- Scenario ID: parallel-infrastructure.downgrade-allowed -->
 #### Scenario: A worker may downgrade its own outcome
