@@ -51,6 +51,17 @@
 
 ## 2026-10-23 — reject-vacuous-worker-results-in-the-package-executor
 
+### Phase: IMPL_ITERATE
+
+**Strip repository-location variables from the commit check's git environment** — An inherited GIT_DIR (for example inside a git hook) made rev-parse resolve the commit in a different repository than the named worktree, so an absent commit could pass.
+
+- Status: `active`
+- Source: [openspec/changes/reject-vacuous-worker-results-in-the-package-executor/session-log.md](/openspec/changes/reject-vacuous-worker-results-in-the-package-executor/session-log.md) (D1)
+
+---
+
+## 2026-10-23 — reject-vacuous-worker-results-in-the-package-executor
+
 ### Phase: Plan
 
 **Optional outcome/method fields, schema_version stays 1** — Existing emitters and stored results keep validating; the checker rejects contradictions instead.
@@ -76,6 +87,17 @@
 ### Phase: Implementation
 
 **dag_scheduler imports PackageAcceptance from a stdlib-only module** — The scheduler needs only the type for its isinstance check, not jsonschema or the validator's sys.path setup.
+
+- Status: `active`
+- Source: [openspec/changes/reject-vacuous-worker-results-in-the-package-executor/session-log.md](/openspec/changes/reject-vacuous-worker-results-in-the-package-executor/session-log.md) (D2)
+
+---
+
+## 2026-10-23 — reject-vacuous-worker-results-in-the-package-executor
+
+### Phase: IMPL_ITERATE
+
+**Refuse a result whose package_id differs from the package definition** — Without it a valid PASS result for one package could complete another.
 
 - Status: `active`
 - Source: [openspec/changes/reject-vacuous-worker-results-in-the-package-executor/session-log.md](/openspec/changes/reject-vacuous-worker-results-in-the-package-executor/session-log.md) (D2)

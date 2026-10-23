@@ -164,3 +164,37 @@ Single-lane plan review converged in round 2 (min_quorum 1 under the cloud-conta
 ### Context
 All four work packages implemented TDD and committed: the checker rejects empty and not_run-passing steps, checks commit resolution and outcome consistency; build_result refuses the vacuous pass and emits outcome; accept_package_result yields the only PackageAcceptance that completes a package; mark_completed and the integration gate (new blocked_not_passing) decide from it; overrides are recorded and surfaced.
 
+---
+
+## Phase: IMPL_ITERATE (2026-10-23)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Strip repository-location variables from the commit check's git environment** `architectural: parallel-infrastructure` — An inherited GIT_DIR (for example inside a git hook) made rev-parse resolve the commit in a different repository than the named worktree, so an absent commit could pass.
+2. **Refuse a result whose package_id differs from the package definition** `architectural: parallel-infrastructure` — Without it a valid PASS result for one package could complete another.
+
+### Alternatives Considered
+- Pass --git-dir explicitly to git: rejected because Would break linked worktrees, whose .git is a file; clearing the variables lets git discover the repository from cwd as intended.
+
+### Trade-offs
+- Accepted A result with no package_id is still judged only by its definition over Requiring package_id because The schema already requires package_id; the check only adds a reason when the two disagree.
+
+### Completed Work
+- GIT_* environment scrub with a test using GIT_DIR pointed at another repository
+- package_id mismatch refusal with a test
+- Spec text updated for both
+- 1221 tests pass across the affected suites; openspec validate --strict passes
+
+### Next Steps
+- IMPL_REVIEW (single claude_code lane)
+- VALIDATE
+- SUBMIT_PR
+
+### Relevant Files
+- `skills/validate-packages/scripts/validate_work_result.py` — commit_resolves environment isolation
+- `skills/parallel-infrastructure/scripts/result_validator.py` — package_id match in accept_package_result
+
+### Context
+Self-review of the implementation diff found two hardening gaps, both fixed TDD: the commit_resolves git call could be redirected by an inherited GIT_DIR, and accept_package_result did not check that the result names the package being accepted.
+
