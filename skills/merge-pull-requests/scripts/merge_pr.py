@@ -87,12 +87,34 @@ def get_pr_status(pr_number: int) -> dict:
         raw = run_gh([
             "pr", "view", str(pr_number), "--json",
             "state,mergeable,statusCheckRollup,reviewDecision,"
-            "headRefName,baseRefName,title,isDraft,isCrossRepository,reviewRequests",
+            "headRefName,headRefOid,baseRefName,title,isDraft,isCrossRepository,reviewRequests",
         ], timeout=GH_TIMEOUT)
     except RuntimeError as e:
         print(f"Error: Could not fetch PR #{pr_number}: {e}", file=sys.stderr)
         sys.exit(1)
-    return json.loads(raw)
+    status = json.loads(raw)
+    status["head_sha"] = status.get("headRefOid") or None
+    return status
+
+
+#: gh / GitHub phrasing for a ``--match-head-commit`` refusal.
+_HEAD_MISMATCH_MARKERS = (
+    "head branch was modified",
+    "match-head-commit",
+    "expected head sha",
+)
+
+
+def _is_head_mismatch(stderr: str) -> bool:
+    lowered = stderr.lower()
+    return any(marker in lowered for marker in _HEAD_MISMATCH_MARKERS)
+
+
+def _pin_args(merge_args: list[str], expected_head_sha: str | None) -> list[str]:
+    """Pin a merge to the head the review predicate saw (no-op when unset)."""
+    if expected_head_sha:
+        merge_args.extend(["--match-head-commit", expected_head_sha])
+    return merge_args
 
 
 def _base_branch_requires_approval(base_branch: str) -> bool:
@@ -296,6 +318,7 @@ def validate_pr(pr_number: int) -> dict:
         "merged": status.get("state") == "MERGED",
         "title": status.get("title", ""),
         "branch": status.get("headRefName", ""),
+        "head_sha": status.get("head_sha"),
         "base_branch": base_branch,
         "is_draft": is_draft,
         "is_fork": is_fork,
@@ -401,12 +424,20 @@ def _delete_remote_branch_via_api(branch: str) -> dict:
 
 def _try_merge(
     pr_number: int, strategy: str, is_fork: bool, branch: str = "",
+    expected_head_sha: str | None = None,
 ) -> dict:
-    """Attempt the actual gh pr merge command, handling edge cases."""
+    """Attempt the actual gh pr merge command, handling edge cases.
+
+    ``expected_head_sha`` pins the merge with ``--match-head-commit`` so a push
+    after the review check makes GitHub refuse the merge.
+    """
     # A required queue owns the outcome: if it drops or rejects the PR, a
     # direct merge would only bypass the queue's checks, so return its answer.
     if _has_merge_queue(pr_number):
-        return _try_merge_queue(pr_number, strategy, is_fork, branch=branch)
+        return _try_merge_queue(
+            pr_number, strategy, is_fork, branch=branch,
+            expected_head_sha=expected_head_sha,
+        )
 
     strategy_flag = f"--{strategy}"
     merge_args = ["pr", "merge", str(pr_number), strategy_flag]
@@ -414,6 +445,7 @@ def _try_merge(
     # Fork PRs: can't delete the remote branch (no push access to fork)
     if not is_fork:
         merge_args.append("--delete-branch")
+    _pin_args(merge_args, expected_head_sha)
 
     try:
         result = run_gh_unchecked(merge_args, timeout=MERGE_TIMEOUT)
@@ -445,7 +477,10 @@ def _try_merge(
     # Detect merge queue requirement and retry
     stderr_lower = stderr.lower()
     if "merge queue" in stderr_lower or "enqueue" in stderr_lower:
-        return _try_merge_queue(pr_number, strategy, is_fork, branch=branch)
+        return _try_merge_queue(
+            pr_number, strategy, is_fork, branch=branch,
+            expected_head_sha=expected_head_sha,
+        )
 
     # Merge may have succeeded but branch deletion failed. The most common
     # mode is gh's local-branch update step erroring out (e.g. "fatal: not
@@ -483,6 +518,8 @@ def _try_merge(
         "pr_number": pr_number,
         "error": stderr or "Merge command failed",
     }
+    if expected_head_sha and _is_head_mismatch(stderr):
+        resp["head_mismatch"] = True
     if is_fork:
         resp["note"] = "Fork PR — remote branch not deleted"
     return resp
@@ -574,6 +611,7 @@ def _try_merge_queue(
     *,
     poll_seconds: int | None = None,
     sleep=time.sleep,
+    expected_head_sha: str | None = None,
 ) -> dict:
     """Hand the PR to the merge queue, then wait for the queue's verdict.
 
@@ -583,11 +621,15 @@ def _try_merge_queue(
     gh arms auto-merge instead and the queue picks the PR up later. The
     remote branch is left for the repository's delete-on-merge setting, or for
     the API cleanup below once the PR is seen merged.
+
+    ``expected_head_sha`` pins the enqueue with ``--match-head-commit`` so a
+    push after the review check makes GitHub refuse it.
     """
     window = MERGE_QUEUE_POLL_SECONDS if poll_seconds is None else poll_seconds
     try:
         result = run_gh_unchecked(
-            ["pr", "merge", str(pr_number)], timeout=MERGE_TIMEOUT,
+            _pin_args(["pr", "merge", str(pr_number)], expected_head_sha),
+            timeout=MERGE_TIMEOUT,
         )
     except subprocess.TimeoutExpired:
         return {
@@ -609,12 +651,15 @@ def _try_merge_queue(
         # The queue can finish the merge even when gh reports an error.
         if get_pr_status(pr_number).get("state") == "MERGED":
             return _queue_merged(base, is_fork, branch, stderr=stderr)
-        return {
+        resp = {
             "action": "merge",
             "success": False,
             "pr_number": pr_number,
             "error": stderr or "Merge queue command failed",
         }
+        if expected_head_sha and _is_head_mismatch(stderr):
+            resp["head_mismatch"] = True
+        return resp
 
     outcome, status = _await_queue_outcome(pr_number, window, sleep=sleep)
     if outcome == "merged":
@@ -697,8 +742,12 @@ def _record_merge_event(
     strategy: str,
     origin: str | None,
     duration_seconds: float | None,
+    review_waiver: dict | None = None,
 ) -> None:
     """Record a completed merge to the merge-metrics log.
+
+    A merge that went through on a review waiver records the waiver's source
+    and reason; without one the record is unchanged.
 
     This lives in ``merge_pr`` rather than in ``post_merge_pipeline`` because
     the pipeline runs only behind ``--pipeline``, which also switches on
@@ -740,6 +789,8 @@ def _record_merge_event(
             backend="direct",
             duration_seconds=round(duration_seconds, 3) if duration_seconds else None,
             success=True,
+            waiver_source=(review_waiver or {}).get("source"),
+            waiver_reason=(review_waiver or {}).get("reason"),
         ))
         result["event_emitted"] = True
     except Exception as exc:  # noqa: BLE001 - metrics must never fail a merge
@@ -753,7 +804,9 @@ def merge_pr(pr_number: int, strategy: str = "squash",
              validation_report: str | None = None,
              force: bool = False,
              force_approval: bool = False,
-             origin: str | None = None) -> dict:
+             origin: str | None = None,
+             expected_head_sha: str | None = None,
+             review_waiver: dict | None = None) -> dict:
     # Sync-point guard (issue #349): vendor CLIs have detached the shared
     # checkout's HEAD during review dispatch. Merging while detached means
     # every local verification ran against the wrong tree — refuse rather
@@ -885,6 +938,7 @@ def merge_pr(pr_number: int, strategy: str = "squash",
     result = _try_merge(
         pr_number, strategy, validation.get("is_fork", False),
         branch=validation.get("branch") or "",
+        expected_head_sha=expected_head_sha,
     )
     merge_duration = time.perf_counter() - merge_started
 
@@ -912,6 +966,7 @@ def merge_pr(pr_number: int, strategy: str = "squash",
         strategy=strategy,
         origin=origin,
         duration_seconds=merge_duration,
+        review_waiver=review_waiver,
     )
 
     return result

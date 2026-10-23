@@ -44,6 +44,10 @@ class MergeEvent:
     partition_count: int | None = None
     train_id: str | None = None
     error: str | None = None
+    #: Set only on a merge that went through on a recorded review waiver
+    #: (``policy`` or ``operator``); absent from every other record.
+    waiver_source: str | None = None
+    waiver_reason: str | None = None
 
     # ----------------------------------------------------------------- #
     # ``context_gate`` fields (D7). Every one of them is optional and every

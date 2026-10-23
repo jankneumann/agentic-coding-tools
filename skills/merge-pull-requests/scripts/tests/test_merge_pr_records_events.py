@@ -166,3 +166,33 @@ def test_enqueued_pr_is_not_counted_as_a_merge(
     # But nothing is recorded: the merge has not happened yet.
     assert "event_emitted" not in result
     assert load_events(log_path=_redirect_default_merge_log) == []
+
+
+def test_merge_without_waiver_serialises_the_same_keys(
+    _merge_succeeds, _redirect_default_merge_log: Path,
+) -> None:
+    """No waiver: the record carries no waiver keys at all."""
+    merge_pr_module.merge_pr(7, "rebase", origin="openspec")
+
+    event = load_events(log_path=_redirect_default_merge_log)[0]
+    assert set(event) == {
+        "event_type", "pr_number", "backend", "success", "timestamp",
+        "origin", "strategy", "duration_seconds",
+    }
+
+
+def test_operator_waiver_is_recorded_on_the_merge_event(
+    _merge_succeeds, _redirect_default_merge_log: Path,
+) -> None:
+    waiver = {
+        "reason": "hotfix approved in standup",
+        "source": "operator",
+        "approver": "jan",
+        "recorded_at": "2026-10-23T12:00:00+00:00",
+        "eligibility_reason": None,
+    }
+    merge_pr_module.merge_pr(7, "rebase", origin="openspec", review_waiver=waiver)
+
+    event = load_events(log_path=_redirect_default_merge_log)[0]
+    assert event["waiver_source"] == "operator"
+    assert event["waiver_reason"] == "hotfix approved in standup"
