@@ -4,7 +4,7 @@
   "current_item_id": "ri-01",
   "phase": "planning",
   "created_at": "2026-10-21T00:10:08.450478+00:00",
-  "updated_at": "2026-10-23T22:19:51.609039+00:00",
+  "updated_at": "2026-10-23T22:20:00.794707+00:00",
   "gate_decisions": [
     {
       "gate": "roadmap_approval",
@@ -1206,7 +1206,7 @@
       "change_id": "add-why-mode-to-explain-code-with-epistemic-tiers",
       "phase": "autopilot",
       "attempt": 1,
-      "status": "acknowledged",
+      "status": "launched",
       "prepared_at": "2026-10-23T22:18:48.905040+00:00",
       "launch_digest": "sha256:c8873a7c8764e6208a67e8db9bbad8b58058478bcae72c630f0af7e70b5dc2a9",
       "launch_marker_path": ".supervised-dispatch/add-why-mode-to-explain-code-with-epistemic-tiers/ri-09-attempt-1.marker",
@@ -1233,6 +1233,14 @@
           "state": "go_released",
           "marker_path": ".supervised-dispatch/add-why-mode-to-explain-code-with-epistemic-tiers/ri-09-attempt-1.marker",
           "observed_at": "2026-10-23T22:19:51.606880+00:00",
+          "handle": "host-task:a1dbd24234fbe2b27"
+        },
+        {
+          "generation": 1,
+          "owner_nonce": "dj9S1OVv83hX67SYJPYaaVYFF6K3IwoC",
+          "state": "entered",
+          "marker_path": ".supervised-dispatch/add-why-mode-to-explain-code-with-epistemic-tiers/ri-09-attempt-1.marker",
+          "observed_at": "2026-10-23T22:20:00.792310+00:00",
           "handle": "host-task:a1dbd24234fbe2b27"
         }
       ],
@@ -1304,10 +1312,10 @@
       },
       "launch_gate": {
         "generation": 1,
-        "state": "go_released",
+        "state": "entered",
         "handle": "host-task:a1dbd24234fbe2b27",
         "go_released_at": "2026-10-23T22:19:51.606880+00:00",
-        "entered_at": null
+        "entered_at": "2026-10-23T22:20:00.792310+00:00"
       }
     }
   ]
