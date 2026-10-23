@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://agentic-coding-tools/contracts/merge-plan.schema.json",
   "title": "MergePlan",
-  "description": "Durable merge plan emitted by the merge-pull-requests analysis round and consumed by plan-driven execution. Separates plan definition from live state. Schema 1.1 added kind, change_id, remediation_skill, ci_failure_class, and a plan-level compact resume pointer. Schema 1.2 adds state.review_waiver (the recorded policy or operator waiver of vendor review) and removes state.iterate_consensus_path; other versions are rejected and must be rebuilt by the analysis round.",
+  "description": "Durable merge plan emitted by the merge-pull-requests analysis round and consumed by plan-driven execution. Separates plan definition from live state. Schema 1.1 added kind, change_id, remediation_skill, ci_failure_class, and a plan-level compact resume pointer. Schema 1.2 adds state.review_waiver (the recorded policy or operator waiver of vendor review) and removes the former iterate-consensus path field from state; other versions are rejected and must be rebuilt by the analysis round.",
   "type": "object",
   "required": ["schema_version", "generated_at", "storage_tier", "nodes"],
   "additionalProperties": false,
