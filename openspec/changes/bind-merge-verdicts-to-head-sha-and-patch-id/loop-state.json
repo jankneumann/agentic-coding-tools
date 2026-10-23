@@ -106,6 +106,16 @@
       "code": "handoff_local_fallback",
       "detail": "coordinator handoff write failed: FK violation handoff_documents_session_id_fkey; wrote handoffs/plan-iterate-1.json",
       "phase": "PLAN_ITERATE"
+    },
+    {
+      "code": "single_vendor_review",
+      "phase": "PLAN_REVIEW",
+      "detail": "vendor=claude_code"
+    },
+    {
+      "code": "phase_fallback_inline",
+      "phase": "PLAN_REVIEW",
+      "detail": "no sub-agent dispatch tool exposed in this session; build-dispatch returned archetype reviewer; converge() driven via agent_lane.py with this agent as the lane"
     }
   ]
 }
