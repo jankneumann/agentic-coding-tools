@@ -156,3 +156,24 @@ Inline self-review of the why-mode implementation. why_trace.py matched the desi
 ### Context
 Single-vendor (claude_code) implementation review converged in 2 rounds. Round 1 raised one blocking spec gap (unborn HEAD exited 1 instead of the uncommitted null result) and one resilience nit (unguarded target read); both were fixed in why_trace.py and verified in round 2, then pinned by regression tests.
 
+---
+
+## Phase: Validation (2026-10-23)
+
+**Agent**: claude_code | **Session**: session_017qfSLYuSiyd2b5URwLucoq
+
+### Decisions
+1. **Report GATEKEEPER as DEGRADED in validation-report.md** — The judge ran as a signal-only permissive fallback because no dispatch adapter was available. A gate that could not run is recorded as DEGRADED, not as pass. It is not a required pre-merge phase, so it does not block.
+2. **Deploy, smoke, security and E2E are skipped** — work-packages.yaml declares deployable: false. The change is a read-only skill script, documentation and one optional schema property, with no service, network or auth surface.
+
+### Completed Work
+- validation-report.md with a scenario-to-test table covering all ADDED and MODIFIED requirements
+- schema diff scope check against base
+- pytest, ruff and openspec strict validation
+
+### Next Steps
+- SUBMIT_PR
+
+### Context
+Validation passed for the change's scope. The affected suites (588 passed, 2 skipped), the guard suites (68 passed, 15 skipped), ruff and openspec validate --strict are all green. Both schema copies differ from base only by the evidence_level property and are byte-identical.
+
