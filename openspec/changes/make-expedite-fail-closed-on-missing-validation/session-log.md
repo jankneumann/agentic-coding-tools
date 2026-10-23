@@ -91,6 +91,31 @@ Single-vendor plan review (claude_code; codex lane had no dispatch credentials) 
 
 ---
 
+## Phase: Implementation (2026-10-23)
+
+**Agent**: claude_code | **Session**: session_017qfSLYuSiyd2b5URwLucoq
+
+### Decisions
+1. **Drift test asserts skip is documented only alongside the rework_report check name** — The old sentence names rework-report.json only as an example and is generic about skip; requiring the check name in every prose sentence that mentions skip makes the test fail on the old text as tasks 3.1 requires
+2. **Override recorded only when no report was found** — Design D2: a failing report is not maskable by this flag; --force at merge time covers that path with its own FORCED OVERRIDE
+
+### Completed Work
+- 268b2cf: missing report -> fail naming the three probed paths; change_dir derived from the change id (None when the change dir is absent)
+- 7632886: OVERRIDE_PREFIX constant, Verdict.overrides (always serialized), --accept-missing-validation with blank reason -> exit 2, flag ignored when a report exists
+- 3824b12: SKILL.md table/flags/JSON shape corrected, skip scoped to rework_report, mental-models G2 updated, test_skill_md_drift.py added
+- Drift test confirmed red against the old SKILL.md line 67 and mutation-checked in both directions (removed row and phantom row each fail)
+- Runtime mirrors re-synced via install.sh and verified identical; they are gitignored, so nothing to commit
+- Expedite suite 46 passed; openspec validate --strict passes
+
+### Next Steps
+- IMPL_ITERATE self-review
+- IMPL_REVIEW single-vendor
+
+### Context
+Implemented tasks 1.1-4.2 test-first in a single package (wp-expedite), inline because no sub-agent dispatch adapter is exposed in this session. A missing validation report now fails the validation_report check; --accept-missing-validation records an override; SKILL.md and docs/mental-models.md G2 now match the code, guarded by a new drift test.
+
+---
+
 ## Phase: Plan Iteration 1 (2026-11-16)
 
 **Agent**: claude-opus-5.5 | **Session**: N/A
