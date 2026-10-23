@@ -72,7 +72,7 @@
   "val_review_enabled": false,
   "cli_review_enabled": true,
   "error": null,
-  "phase_archetype": null,
+  "phase_archetype": "runner",
   "force": false,
   "gate_signals": {},
   "gate_verdict": "proceed",
@@ -96,6 +96,25 @@
       "resolution": "auto",
       "scope": "roadmap_approval",
       "timeout_seconds": null
+    },
+    {
+      "gate": "pr_creation",
+      "outcome": "proceed",
+      "resolution": "auto",
+      "authorizing_disposition": "auto",
+      "reason": "gate 'pr_creation' auto-approved by trust posture",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "posture",
+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
+      },
+      "disposition": "auto",
+      "phase": "SUBMIT_PR",
+      "recorded_at": "2026-10-23T23:05:06.639647+00:00"
     }
   ],
   "pending_gate": null,
@@ -201,6 +220,11 @@
       "code": "handoff_local_fallback",
       "detail": "coordinator handoff write failed (session FK violation); handoff written to handoffs/validation-1.json",
       "phase": "VALIDATE"
+    },
+    {
+      "code": "audit_sink_failed",
+      "phase": "SUBMIT_PR",
+      "detail": "audit sink reported failure for auto-approved pr_creation gate"
     }
   ]
 }
