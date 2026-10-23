@@ -135,3 +135,27 @@ Implemented tasks 1.1-4.2 test-first in a single package (wp-expedite), inline b
 ### Context
 Inline /iterate-on-implementation self-review of the expedite diff; refinements settled after one minor cleanup.
 
+---
+
+## Phase: Implementation Review (2026-10-23)
+
+**Agent**: claude_code | **Session**: session_017qfSLYuSiyd2b5URwLucoq
+
+### Decisions
+1. **Converge without fixes** — No finding was blocking: 1 nit spec_gap (two normative sentences lack scenarios), 3 optional (explicit-missing report path untested, registry-absent branch not observed by drift fixture, repeated coordinator FK handoff degradation), 3 fyi, 3 resolved re-verifications
+2. **Record --force wording mismatch as follow-up** — The SKILL table's --force guidance predates this change and refers to the downstream sync-point skill, not expedite.py; out of scope for this item
+
+### Open Questions
+- [ ] Should a later change add scenarios for the no-change-dir fallback and an explicit-but-missing --validation-report path?
+
+### Completed Work
+- Ran convergence loop (max 3 rounds, quorum 1) over the full branch diff against openspec/adopt-verification-enforcement-discipline
+- claude_code lane returned 10 findings (fact-check removed 0); codex lane unavailable (no SDK credentials)
+- Committed findings, fact-check, sanitized manifest and updated review ledger
+
+### Next Steps
+- VALIDATE: write validation-report.md (Spec Compliance required; deployable false)
+
+### Context
+Single-vendor implementation review converged in round 1 with no blocking findings; 10 findings, all nit/optional/fyi/none.
+
