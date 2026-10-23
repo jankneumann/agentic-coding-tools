@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import re
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -30,7 +31,6 @@ ROW_CHECK = re.compile(r"^\|\s*`([a-z_]+)`")
 def _registry(repo: Path, *, active: bool) -> None:
     entries = []
     if active:
-        from datetime import datetime, timezone
         now = datetime.now(timezone.utc).isoformat()
         entries.append({
             "change_id": "other", "agent_id": "wp-1",
