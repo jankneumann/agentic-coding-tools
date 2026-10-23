@@ -70,12 +70,16 @@ class Verdict:
         }
 
 
-def _probe_paths(change_id: str, repo_root: Path, filename: str) -> Path | None:
-    candidates = [
+def _candidate_paths(change_id: str, repo_root: Path, filename: str) -> list[Path]:
+    return [
         repo_root / "openspec" / "changes" / change_id / filename,
         repo_root / "openspec" / "changes" / change_id / "reports" / filename,
         repo_root / ".git-worktrees" / change_id / filename,
     ]
+
+
+def _probe_paths(change_id: str, repo_root: Path, filename: str) -> Path | None:
+    candidates = _candidate_paths(change_id, repo_root, filename)
     return next((p for p in candidates if p.is_file()), None)
 
 
@@ -98,12 +102,24 @@ def check_active_agents(repo_root: Path) -> CheckResult:
                        action="wait, or pass --force to /cleanup-feature after confirming with operator")
 
 
-def check_validation_report(report_path: Path | None) -> CheckResult:
+def check_validation_report(
+    report_path: Path | None,
+    *,
+    change_id: str,
+    repo_root: Path,
+) -> CheckResult:
     if report_path is None:
-        return CheckResult(name="validation_report", status="skip",
-                           detail="no validation-report.md at any candidate path",
+        probed = ", ".join(
+            p.relative_to(repo_root).as_posix()
+            for p in _candidate_paths(change_id, repo_root, "validation-report.md")
+        )
+        return CheckResult(name="validation_report", status="fail",
+                           detail=f"no validation-report.md at any probed path ({probed})",
                            action="run /validate-feature")
-    change_dir = report_path.parent if report_path.name == "validation-report.md" else None
+    # Derive change_dir from the change id, not the report location: a report
+    # under reports/ or in a worktree must still see the change's metadata.
+    change_dir_path = repo_root / "openspec" / "changes" / change_id
+    change_dir = change_dir_path if change_dir_path.is_dir() else None
     action, reason, _details = gate_logic.pre_merge_gate(
         str(report_path), force=False, change_dir=change_dir,
     )
@@ -165,7 +181,8 @@ def expedite(
 
     checks = [
         check_active_agents(repo_root),
-        check_validation_report(validation_report),
+        check_validation_report(validation_report, change_id=change_id,
+                                repo_root=repo_root),
         check_rework_report(rework_report_path),
     ]
     ready = all(c.status != "fail" for c in checks)
