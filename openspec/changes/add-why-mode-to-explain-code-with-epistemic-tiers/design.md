@@ -52,13 +52,19 @@ The script emits records and pointers and never assigns a tier.
 | commit | `git show -s --format=…` plus `git show --name-only --format= <sha>` | — |
 | PR | 1. `(#N)` at the end of the commit subject; 2. `Merge pull request #N` in the subject; 3. the oldest merge commit on `git log --ancestry-path --merges <sha>..HEAD` whose subject carries a PR marker | `pr: null`, `pr_reason` given |
 | change-id | 1. paths the commit touches under `openspec/changes/<id>/` or `openspec/changes/archive/<date>-<id>/`; 2. `openspec/<id>` in the commit or PR-merge subject or body | `status: no_change_id` |
-| change dir | `openspec/changes/<id>` if it is a directory, otherwise the lexically last `openspec/changes/archive/*-<id>` | `change_dir: null` |
+| change dir | `openspec/changes/<id>` if it is a directory, otherwise the lexically last `openspec/changes/archive/<YYYY-MM-DD>-<id>` whose name matches exactly (so `-demo-change` never matches `…-other-demo-change`) | `change_dir: null` |
 | decisions | `decision_index.extract_decisions(<change_dir>/session-log.md)` | `status: no_decision_record` |
 | superseded_by | `decision_index._build_supersession_map` over every `openspec/changes/**/session-log.md` | `null` |
 | index path | `docs/decisions/<capability>.md` if the file exists | `null` |
 
 Resolving archive paths at read time follows the path-stability rule. A commit made
 while the change was active still resolves after archival.
+
+`extract_decisions` takes the change id from the session log's parent directory name,
+so for an archived change it reports `<date>-<id>`. `why_trace` reports the canonical
+`<id>` in its own `change_id` field. For supersession it looks a decision up under both
+the extracted directory name and the canonical id, because a `supersedes:` reference may
+have been written with either one.
 
 `_build_supersession_map` is private to `decision_index.py`, but it is the only correct
 implementation of the phased and legacy `supersedes:` grammar. Reusing it is the
@@ -145,7 +151,9 @@ absence-is-not-a-pass theme of this roadmap.
   - `vendor_review.build_review_prompt()`.
 
   `test_vendor_review_prompt.py::test_enum_values_match_the_schema` enforces this for
-  the vendor prompt.
+  the vendor prompt. `vendor_review._FALLBACK_ENUMS`, the offline copy used when the
+  schema cannot be read, also gains the `evidence_level` tuple, because
+  `test_fallback_matches_the_schema` requires every schema enum to appear there.
 - **Single vocabulary.** A new test asserts that the tier list in explain-code's
   `references/why.md`, lowercased, equals the schema enum. The vocabulary cannot
   silently fork.
@@ -168,6 +176,15 @@ absence-is-not-a-pass theme of this roadmap.
   canonical tree and the runtime copies.
 - **Invocation.** SKILL.md invokes the script as
   `python3 "<skill-base-dir>/scripts/why_trace.py" <path>:<line>`.
+- **Detectable sibling reference.** The manifest validator recognises sibling references
+  only in the textual form `<skill-base-dir>/../<skill>`, not in a `parents[2]`
+  expression. `why_trace.py` therefore names
+  `<skill-base-dir>/../explore-feature/scripts` in its module docstring, so the
+  validator's coverage check sees the dependency. The SKILL.md frontmatter `related`
+  list also gains `explore-feature`.
+- **No bytecode writes.** `why_trace.py` sets `sys.dont_write_bytecode = True` before it
+  imports `decision_index`. Otherwise the import could write `__pycache__` into the
+  sibling skill directory, which would break the "SHALL NOT write any file" rule.
 
 ## Risks
 

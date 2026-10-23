@@ -21,7 +21,9 @@
   **Design decisions**: D2, D3, D4
   **Dependencies**: None
 - [ ] 1.2 Implement `skills/explain-code/scripts/why_trace.py` (M)
-  - Put `parents[2]/"explore-feature"/"scripts"` on `sys.path` and import `extract_decisions` and `_build_supersession_map` from `decision_index` (D7). Do not write a second parser.
+  - Set `sys.dont_write_bytecode = True`, put `parents[2]/"explore-feature"/"scripts"` on `sys.path`, and import `extract_decisions` and `_build_supersession_map` from `decision_index` (D7). Do not write a second parser.
+  - Name `<skill-base-dir>/../explore-feature/scripts` in the module docstring so the manifest validator detects the sibling reference.
+  - Match archive dirs exactly (`<YYYY-MM-DD>-<id>`), and look up supersession under both the extracted dir-name id and the canonical id (D3).
   - Resolve the chain in the order of the D3 table, emit the D4 JSON with sorted keys, and use exit codes 0, 1 and 2.
   **Dependencies**: 1.1
 - [ ] Checkpoint: run tests, review diff, verify scope
@@ -38,7 +40,7 @@
   - Tier table, tag format, the null-result and embedded-hypothesis rules, a worked example, and the grounding closing line.
   **Dependencies**: 2.1
 - [ ] 2.3 Update `skills/explain-code/SKILL.md` (S)
-  - Add the catalogue row and a short "Why mode" section with the tier list, both rules and the `why_trace.py` invocation. Keep it at most 150 lines.
+  - Add the catalogue row and a short "Why mode" section with the tier list, both rules and the `why_trace.py` invocation. Add `explore-feature` to frontmatter `related`. Keep it at most 150 lines.
   **Dependencies**: 2.2, 1.2
 - [ ] Checkpoint: run tests, review diff, verify scope
 
@@ -55,7 +57,7 @@
 - [ ] 3.2 Add the `evidence_level` property to both schema copies (XS)
   - The copies are `openspec/schemas/review-findings.schema.json` and `skills/parallel-infrastructure/install_assets/openspec/schemas/review-findings.schema.json`. They must stay byte-identical, and the diff must be that one property only.
   **Dependencies**: 3.1
-- [ ] 3.3 Add the OPTIONAL `evidence_level` line to `prompt_contract_block()` and `vendor_review.build_review_prompt()` (XS)
+- [ ] 3.3 Add the OPTIONAL `evidence_level` line to `prompt_contract_block()` and `vendor_review.build_review_prompt()`, and add the `evidence_level` tuple to `vendor_review._FALLBACK_ENUMS` (XS)
   **Dependencies**: 3.2
 - [ ] Checkpoint: run tests, review diff, verify scope
 
