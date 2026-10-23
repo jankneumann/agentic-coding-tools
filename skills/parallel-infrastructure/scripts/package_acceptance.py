@@ -11,7 +11,9 @@ the type without pulling in the validator and its schema dependencies.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import Any
 
 
@@ -25,17 +27,24 @@ class PackageAcceptance:
         outcome: The result's effective outcome, or None when it could not be
             read (and for an override, which is not derived from a result).
         reasons: One entry per failed condition; empty for a clean acceptance.
-        override: ``{"reason", "approver"}`` when the verdict is an override.
+        override: Read-only ``{"reason", "approver"}`` when the verdict is an
+            override.
     """
 
     package_id: str
     accepted: bool
     outcome: str | None
     reasons: tuple[str, ...] = ()
-    override: dict[str, str] | None = None
+    override: Mapping[str, str] | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "reasons", tuple(self.reasons))
+        if self.override is not None:
+            # A read-only copy: the recorded reason and approver must not
+            # change after the verdict is made.
+            object.__setattr__(
+                self, "override", MappingProxyType(dict(self.override))
+            )
 
     @classmethod
     def override_for(
