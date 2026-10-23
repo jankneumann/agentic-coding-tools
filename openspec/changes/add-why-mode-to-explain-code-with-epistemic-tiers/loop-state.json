@@ -164,6 +164,16 @@
       "code": "handoff_local_fallback",
       "detail": "coordinator handoff write failed (ForeignKeyViolation on handoff_documents.session_id); handoff kept locally at handoffs/implementation-iteration-1-1.json",
       "phase": "IMPL_ITERATE"
+    },
+    {
+      "code": "single_vendor_review",
+      "phase": "IMPL_REVIEW",
+      "detail": "vendor=claude_code"
+    },
+    {
+      "code": "phase_fallback_inline",
+      "phase": "IMPL_REVIEW",
+      "detail": "no sub-agent dispatch adapter in this harness (Agent tool unavailable); claude_code review lane ran inline via agent_lane file handshake"
     }
   ]
 }
