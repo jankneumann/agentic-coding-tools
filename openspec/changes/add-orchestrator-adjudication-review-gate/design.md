@@ -133,6 +133,12 @@ not the current head is stale and is not reused; the finding is re-adjudicated.
 This mirrors the existing rule that iterate consensus is skipped only when its
 `head_sha` matches the live PR head.
 
+Coordination note (bind-merge-verdicts-to-head-sha-and-patch-id): that merge
+rule now lives in `skills/merge-pull-requests/scripts/verdict_binding.py`. Use
+`verdict_binding.verdict_currency` to decide reuse (`current` or `rebased` is
+reused, `stale` is re-adjudicated) instead of a bare `head_sha` comparison, and
+record `same_family` with the same meaning as the binding block, so D6 matches.
+
 ### D6 — Same-family adjudication is recorded and flagged, not forbidden
 
 When the adjudicator's vendor family matches the family that authored the change
