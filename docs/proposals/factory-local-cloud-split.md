@@ -64,7 +64,7 @@ This proposal extends three existing proposals and does not repeat them:
 | Work queue | `/work/submit` (`coordination_api.py:1369`), `/work/claim` (`:1299`), `/work/complete` (`:1331`), SSE `/events/work` (`:3490`). Self-review is already excluded for `review`/`evaluate` (`work_queue.py:431-436`). | Nothing submits review jobs and nothing claims them. |
 | Handoffs/approvals | `/handoffs/write` (`:1955`), `/approvals/request` (`:3301`), `/approvals/{id}/decide` (`:2162`). Notifiers in `src/notifications/` (Gmail, Telegram, webhook, relay). | `TRUST_POSTURE.md` still says no approval-notification channel exists, so `notify_with_timeout` fails closed. |
 | GitHub intake | `handle_push_webhook` (`github_coordination.py:265`), `handle_issues_webhook` (`:294`), `/github/prs` (`:3864`). | No `pull_request` webhook. Findings are never posted back to the PR. |
-| Review dispatch | `ReviewOrchestrator` (`skills/parallel-infrastructure/scripts/review_dispatcher.py:2490`): CLI first, then SDK (`:1846`), then skip. OpenAI-compatible adapter at `:2600-2632`. | Every vendor-CLI `subprocess.run` (`:1012`, `:1526`, `:1673`, `:2780`) passes no `env=`, so the CLIs inherit the GitHub token and coordinator key. |
+| Review dispatch | `ReviewOrchestrator` (`skills/parallel-infrastructure/scripts/review_dispatcher.py:2490`): CLI first, then SDK (`:1846`), then skip. OpenAI-compatible adapter at `:2600-2632`. | Every vendor-CLI `subprocess.run` passed no `env=`, so the CLIs inherited the GitHub token and coordinator key. Fixed in 0.6. |
 | Convergence | `converge()` (`skills/autopilot/scripts/convergence_loop.py:709`). The quorum guard (`:778-794`) returns `capability_unavailable` when verified lanes < `min_quorum`. | It assumes every lane runs on one host. A cloud round cannot count a local lane's verdict. |
 | Routing | `agent-coordinator/routing.yaml` cost tiers: `subscription-local` (vendor-cli), `subscription-cloud` (vendor-sdk), `metered-api` (openrouter, local). | No metered Anthropic tier, so the $200 has nowhere to route. |
 | Merge | `merge_pr.py:319-331` `_has_merge_queue()` always returns `True`. `_try_merge_queue` (`:461-487`) falls back to a direct merge. `ci.yml:3-8` already triggers on `merge_group`. | The queue is not enabled on the repo. `--merge-queue` is not a real `gh` flag. `_has_github_merge_queue` (`merge_backend.py:222-236`) is wrong, and `detect_merge_backend` (`:239`) is only called from tests. `execute_wave_merge` (`merge_train.py:1017`) is unused. The active-agent guard blocks every merge. `build_plan.py:95-101` chains any PRs that share a file. |
@@ -100,12 +100,16 @@ state files, not source code.
 
 ## Phase 0: Approvals only for irreversible actions (one to two days)
 
+**Status (2026-10-23): the repo half is applied.** That covers the 0.4
+settings, the 0.5 hook and the 0.6 env scrub. The user-level settings (0.3)
+and the cloud environment settings (0.2) are set by hand outside the repo.
+
 ### 0.1 The irreversible set and where each class is caught
 
 | Action class | Examples | Mechanism | Local | Cloud |
 |---|---|---|---|---|
 | History rewrite | `git push --force`, `-f`, `+ref`, `--force-with-lease`, `git -C <p> push -f`, `git reset --hard`, `git clean -fd` | deny rule + `PreToolUse` hook (deny); the classifier also blocks them | ✓ | ✓ |
-| Remote deletion | `git push --delete`, `branch -D` on a pushed branch, `gh repo delete`, `gh api -X DELETE`, `gh release delete` | hook (deny) | ✓ | ✓ |
+| Remote deletion | `git push --delete`, `git push origin :ref`, `gh repo delete`, `gh api -X DELETE`, `gh release delete` | hook (deny) | ✓ | ✓ |
 | Merge | `gh pr merge` (ask), `gh pr merge --admin` (deny) | hook, plus the existing `merge: block` gate and branch protection | ✓ | ✓ |
 | Filesystem deletion outside the sandbox | `rm -rf /`, `rm -fr`, `find … -delete` | deny rule + sandbox write scope | ✓ | ✓ (container) |
 | Data destruction | `DROP`, `TRUNCATE`, `alembic downgrade`, `psql` writes against Railway | hook (ask) + the existing ask rules | ✓ | ✓ |
@@ -113,6 +117,10 @@ state files, not source code.
 | Secrets | `bao kv delete/put`, writes to `.env*` or credential files | hook (ask) + `Read()` deny rules | ✓ | ✓ |
 | Remote code execution | `curl … \| sh`, `wget … \| bash` | existing `curl *` deny + hook (deny) | ✓ | ✓ |
 | Exfiltration | network to unlisted hosts | sandbox `network.allowedDomains` (local), Custom network level (cloud) | ✓ | ✓ |
+
+Local `git branch -D` is deliberately left out. The reflog recovers it, and
+worktree teardown deletes branches routinely. Deleting the *remote* branch is
+what loses work, and that is denied.
 
 Everything else (edits, tests, builds, `uv run`, pushes to the session's own
 `claude/*` or `openspec/*` branch, coordinator HTTP calls) runs without asking.
@@ -192,7 +200,7 @@ Notes:
   `@anthropic-ai/sandbox-runtime` directly, instead of relying on the
   interactive mode.
 
-### 0.4 Repo settings changes (proposal, not applied)
+### 0.4 Repo settings changes (applied)
 
 ```jsonc
 // .claude/settings.json: additions only
@@ -221,7 +229,8 @@ Notes:
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/irreversible_guard.py\"",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/skills/session-bootstrap/scripts/hooks/irreversible_guard.py",
+            "timeout": 10,
             "onFailure": "block"
           }
         ]
@@ -231,33 +240,42 @@ Notes:
 }
 ```
 
-Leave `defaultMode: "bypassPermissions"` alone or remove it. It does nothing at
-project scope, and removing it means nobody is misled about the mode in force.
+`defaultMode: "bypassPermissions"` is removed. It did nothing at project scope,
+and removing it means nobody is misled about the mode in force.
 
-### 0.5 `irreversible_guard.py`: one pattern list, enforced on both sides
+The hook lives in canonical `skills/session-bootstrap/`, not in `.claude/`.
+In this repo `.claude/skills/` is a gitignored mirror that a resume can wipe,
+and a guard has to survive that. Consumer repos with committed mirrors use the
+`.claude/skills/...` path; see the session-bootstrap SKILL.md.
 
-The hook imports the same pattern list as `guardrails.py` `FALLBACK_PATTERNS`,
-so the coordinator's warn-level check and the agent-side block cannot drift
-apart. It adds the variants that list lacks (`-f`, `+ref`, `--force-with-lease`,
-`git -C <path>`, `gh api -X DELETE`, `rm -fr`, `find -delete`,
-`alembic downgrade`, `railway up|down|delete`, `bao kv delete`,
-`curl|wget … | sh`).
+### 0.5 `irreversible_guard.py`: own rules, parity enforced by a test
 
-```python
-# Sketch. Reads the PreToolUse JSON on stdin.
-cmd = normalize(payload["tool_input"]["command"])   # strip `git -C <p>`, `env X=…`, `sh -c '…'`
-for part in split_compound(cmd):                   # && || ; | and newlines
-    m = match(part, PATTERNS)
-    if m and m.severity == "deny":
-        print(m.reason, file=sys.stderr); sys.exit(2)          # exit 2 blocks
-    if m and m.severity == "ask":
-        print(json.dumps({"hookSpecificOutput": {
-            "hookEventName": "PreToolUse",
-            "permissionDecision": "ask",
-            "permissionDecisionReason": m.reason}}))
-        sys.exit(0)
-sys.exit(0)                                         # no opinion: normal rules apply
-```
+`skills/session-bootstrap/scripts/hooks/irreversible_guard.py` is stdlib-only
+and does not import the coordinator. Hooks have to run in containers where the
+coordinator's venv does not exist. The coordinator's regexes are also
+unanchored: they match `git push --force` inside a `grep` argument or a commit
+message, which is fine for a warning but would make a blocking hook unusable.
+
+The hook matches on the command word instead:
+
+- It strips heredoc bodies, then splits on `&&`, `||`, `;`, `|`, `&` and
+  newlines.
+- It peels wrappers: `env`, `sudo`, `timeout`, `nice`, `xargs`, `command`,
+  assignments, `(`, `{` and `if`/`then`/`do`.
+- It recurses into `sh -c`, `eval`, `$(…)` and backticks.
+- It then applies per-tool rules for git, rm, find, gh, the database clients,
+  the deploy tools and secret paths.
+
+Deny means exit 2, and covers history rewrite, remote deletion, `rm -rf`,
+`find -delete`, `curl | sh` and `mkfs`/`dd of=/dev/`. Ask is a JSON
+`permissionDecision` covering merges, `DROP`/`TRUNCATE`, deploys and secret
+writes. An internal error asks rather than denies.
+
+`skills/tests/session-bootstrap/test_irreversible_guard.py` keeps the two lists
+honest. It reads `FALLBACK_PATTERNS` from `guardrails.py` with `ast`, no import.
+Every coordinator pattern needs a parity case that the coordinator regex
+matches and the hook denies or asks. A new server-side pattern therefore fails
+the suite until the hook learns it.
 
 With `onFailure: "block"`, a crashing hook fails closed. When several hooks
 disagree, the strictest answer wins (deny, then defer, then ask, then allow), so
@@ -268,14 +286,32 @@ runs. A script that shells out, such as `python merge_pr.py` calling `gh`, is
 invisible to them. That is why principle 2 (credential scope) and the sandbox
 come first, with hooks and rules as a second layer.
 
-### 0.6 Scrub vendor-CLI environments in the review dispatcher
+### 0.6 Scrub vendor-CLI environments in the review dispatcher (applied)
 
-Pass an explicit `env=` at `review_dispatcher.py:1012`, `:1526`, `:1673` and
-`:2780`. The allowlist is `PATH`, `HOME`, `LANG`, `TERM`, the vendor's own
-config directory variable, and the output directory. `GH_TOKEN`, `GITHUB_TOKEN`,
-`COORDINATION_API_KEY*` and `BAO_*` are never passed. This is a small,
-test-covered change that closes the largest credential leak in the current
-design.
+Every `subprocess.run` in `CliVendorAdapter` now passes
+`env=vendor_subprocess_env(self.cli_config)`. That covers synchronous dispatch,
+async submit and status polling.
+
+The allowlist has three parts:
+
+- Basics: `PATH`, `HOME`, locale, proxy and CA-bundle variables, and
+  `VIRTUAL_ENV`.
+- The vendor's own prefixes: `ANTHROPIC_`/`CLAUDE_`, `OPENAI_`/`CODEX_`,
+  `XAI_`/`GROK_`, `OPENROUTER_`/`PI_`, `GEMINI_`/`GOOGLE_` and `OCR_`/`REVIEW_`.
+- Its configured `api_key_env`.
+
+A missing name can be added through `REVIEW_DISPATCH_ENV_PASSTHROUGH`. Some
+names are never passed, even through that variable: `GH_TOKEN`, `GITHUB_TOKEN`,
+`SSH_AUTH_SOCK`, `COORDINATION_API_KEY*`, `BAO_*` and `VAULT_*`.
+
+Two calls are left alone:
+
+- The `get_dispatch_configs.py` call runs coordinator code that needs the
+  coordinator's environment, and no vendor sees it.
+- `_dry_invoke` probes `--version`/`--help` and discards the output.
+
+`test_vendor_env_scrub.py` covers the helper and the dispatch path. It also
+checks with `ast` that no `subprocess.run` in the adapter lacks `env=`.
 
 ## Phase 1: Review queue across hosts (about one week)
 
