@@ -67,14 +67,17 @@ exactly one verdict:
 
 Question: "Why does `fetch()` retry three times? Was it for the flaky coordinator?"
 
+The trace, run with `--symbol fetch`, reports D1 with `mentions_target: true` and
+`superseded_by: other-demo-change#plan/D1`.
+
 ```text
 src/app.py:42 → 1a2b3c4 → #123 → demo-change → D1 (demo-cap)
 ```
 
-Decision D1 says the upstream drops one request in fifty, so three retries were
-chosen. [Direct openspec/changes/archive/2026-01-01-demo-change/session-log.md#plan/D1]
+Decision D1 says `fetch` retries three times because the upstream drops one request
+in fifty. [Direct openspec/changes/archive/2026-01-01-demo-change/session-log.md#plan/D1]
 The flaky-coordinator reason is untested: no record in the trace mentions the
-coordinator. [Unknown] D1 was later superseded by exponential backoff in
+coordinator. [Unknown] D1 is history: it was superseded by
 `other-demo-change#plan/D1`. [Direct openspec/changes/archive/2026-01-01-demo-change/session-log.md#plan/D1]
 
 Grounding: source read, unverified (form not graph-backed)

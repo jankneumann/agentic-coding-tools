@@ -113,3 +113,25 @@ Single-vendor plan review converged after one blocking finding was fixed in desi
 ### Context
 Implemented why mode in explain-code: the read-only why_trace.py script, the why-chain reference and SKILL.md section, and the optional evidence_level finding property with its prompt lines.
 
+---
+
+## Phase: Implementation Iteration 1 (2026-10-23)
+
+**Agent**: claude_code | **Session**: session_017qfSLYuSiyd2b5URwLucoq
+
+### Decisions
+1. **Keep substring matching for mentions_target** — The Target mention flag scenario says the flag is true when the title or rationale contains the path, basename or symbol; a word-boundary match would be stricter than the spec, so the literal containment rule stays and the reply tiers carry the residual uncertainty.
+2. **Worked example cites only what the trace carries** — The supersession sentence asserted the superseding decision's content as Direct although the trace only carries its reference, and the decision-to-line claim was Direct without a reported mentions_target; both were rewritten so the example obeys the rules it teaches, and a test pins tag shape, claim count and the mentions_target premise.
+
+### Completed Work
+- Reviewed why_trace.py for chain resolution, exit paths, ordering and read-only behaviour; no defects found
+- Fixed the references/why.md worked example (supersession and decision-to-line tiers)
+- Added test_worked_example_tags_follow_the_tier_rules to skills/tests/explain-code/test_skill_md.py
+- explain-code suite 37 passed; ruff clean; install.sh --check passes
+
+### Next Steps
+- IMPL_REVIEW
+
+### Context
+Inline self-review of the why-mode implementation. why_trace.py matched the design; the worked example in references/why.md violated its own tier rules and was corrected, with a regression test.
+

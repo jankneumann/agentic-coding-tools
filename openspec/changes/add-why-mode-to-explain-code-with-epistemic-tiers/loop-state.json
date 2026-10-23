@@ -1,9 +1,9 @@
 {
   "schema_version": 6,
   "change_id": "add-why-mode-to-explain-code-with-epistemic-tiers",
-  "current_phase": "IMPL_ITERATE",
+  "current_phase": "IMPL_REVIEW",
   "iteration": 0,
-  "total_iterations": 6,
+  "total_iterations": 7,
   "max_phase_iterations": 3,
   "findings_trend": [],
   "blocking_findings": [],
@@ -17,7 +17,8 @@
     "local:handoffs/plan-1.json",
     "local:handoffs/plan-iteration-1-1.json",
     "local:handoffs/plan-review-1-1.json",
-    "local:handoffs/implementation-1-1.json"
+    "local:handoffs/implementation-1-1.json",
+    "local:handoffs/implementation-iteration-1-1.json"
   ],
   "phase_history": [
     {
@@ -44,17 +45,22 @@
       "at": "2026-10-23T22:52:38.945163+00:00",
       "outcome": "complete",
       "phase": "IMPLEMENT"
+    },
+    {
+      "at": "2026-10-23T22:54:53.088703+00:00",
+      "outcome": "complete",
+      "phase": "IMPL_ITERATE"
     }
   ],
-  "last_handoff_id": "local:handoffs/implementation-1-1.json",
+  "last_handoff_id": "local:handoffs/implementation-iteration-1-1.json",
   "started_at": "2026-10-23T22:20:27.866191+00:00",
-  "phase_started_at": "2026-10-23T22:52:46.440450+00:00",
+  "phase_started_at": "2026-10-23T22:54:56.383259+00:00",
   "previous_phase": null,
   "escalation_reason": null,
   "val_review_enabled": false,
   "cli_review_enabled": true,
   "error": null,
-  "phase_archetype": "implementer",
+  "phase_archetype": null,
   "force": false,
   "gate_signals": {},
   "gate_verdict": "proceed",
@@ -148,6 +154,16 @@
       "code": "handoff_local_fallback",
       "detail": "coordinator handoff write failed (ForeignKeyViolation on handoff_documents.session_id); handoff kept locally at handoffs/implementation-1-1.json",
       "phase": "IMPLEMENT"
+    },
+    {
+      "code": "phase_fallback_inline",
+      "detail": "no sub-agent dispatch adapter in this harness (Agent tool unavailable); iterate-on-implementation self-review ran inline",
+      "phase": "IMPL_ITERATE"
+    },
+    {
+      "code": "handoff_local_fallback",
+      "detail": "coordinator handoff write failed (ForeignKeyViolation on handoff_documents.session_id); handoff kept locally at handoffs/implementation-iteration-1-1.json",
+      "phase": "IMPL_ITERATE"
     }
   ]
 }

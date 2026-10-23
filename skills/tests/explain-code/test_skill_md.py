@@ -126,3 +126,18 @@ def test_why_tier_vocabulary_matches_schema_enum():
     props = schema["properties"]["findings"]["items"]["properties"]
     assert [t.lower() for t in _why_tiers()] == props["evidence_level"]["enum"]
     assert _why_tiers() == list(TIERS)
+
+
+def test_worked_example_tags_follow_the_tier_rules():
+    """Every claim sentence in the worked example ends in a tier tag, and its
+    Direct decision-to-line claim is backed by a reported mentions_target."""
+    import re
+
+    example = _why_md().split("## Worked example", 1)[1].split("\n## ", 1)[0]
+    prose = example.split("```text", 1)[1].split("```", 1)[1].split("Grounding:", 1)[0]
+    claims = re.findall(r"[^.\]]+?\.\s*\[(\w+)[^\]]*\]", prose.replace("\n", " "))
+    assert claims and len(claims) <= 3
+    assert set(claims) <= set(TIERS)
+    for tag in re.findall(r"\[(?:Direct|Supported)([^\]]*)\]", prose):
+        assert tag.strip(), "Direct and Supported tags must cite a pointer"
+    assert "mentions_target: true" in example
