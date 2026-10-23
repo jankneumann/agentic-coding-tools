@@ -396,6 +396,7 @@ _FALLBACK_ENUMS = {
     ),
     "severity": ("critical", "nit", "optional", "fyi", "none"),
     "evidence_class": ("deterministic", "judgment"),
+    "evidence_level": ("direct", "supported", "inferred", "speculative", "unknown"),
 }
 
 
@@ -469,6 +470,15 @@ def build_review_prompt(pr_number: int, pr_size: dict) -> str:
             " reported and ranked but never blocks a merge, so prefer it when you"
             " are not certain — an honest 60%-confidence finding is more useful"
             " than a suppressed one or an overstated one."
+        )
+    if "evidence_level" in enums:
+        vocab_lines.append(
+            f"  evidence_level: {_enum_hint(enums, 'evidence_level')}"
+            "   — Optional; how strongly what you actually saw backs the claim:"
+            " 'direct' restates one record you read, 'supported' rests on two or"
+            " more, 'inferred' is reasoned from them, 'speculative' is plausible"
+            " but not derived, 'unknown' means no evidence either way. It is"
+            " informational and never affects blocking."
         )
     vocab_block = "\n".join(vocab_lines)
 

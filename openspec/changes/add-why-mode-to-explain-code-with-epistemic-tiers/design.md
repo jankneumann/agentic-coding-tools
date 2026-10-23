@@ -50,7 +50,7 @@ The script emits records and pointers and never assigns a tier.
 |---|---|---|
 | blame | `git blame --porcelain -w -M -L n,n -- <path>` against the working tree (no revision argument, so uncommitted lines report the all-zero sha) | an all-zero sha → `status: uncommitted` |
 | commit | `git show -s --format=…` plus `git show --name-only --format= <sha>` | — |
-| PR | 1. `(#N)` at the end of the commit subject; 2. `Merge pull request #N` in the subject; 3. the oldest merge commit on `git log --ancestry-path --merges <sha>..HEAD` whose subject carries a PR marker | `pr: null`, `pr_reason` given |
+| PR | 1. `(#N)` at the end of the commit subject; 2. `Merge pull request #N` in the subject; 3. the oldest merge commit on `git log --ancestry-path --merges <sha>..HEAD` whose subject carries a PR marker and whose first parent does not already contain the commit (checked with `git log <first-parent>..<sha>`), so a later, unrelated merge is never credited | `pr: null`, `pr_reason` given |
 | change-id | 1. paths the commit touches under `openspec/changes/<id>/` or `openspec/changes/archive/<date>-<id>/`; 2. `openspec/<id>` in the commit or PR-merge subject or body | `status: no_change_id` |
 | change dir | `openspec/changes/<id>` if it is a directory, otherwise the lexically last `openspec/changes/archive/<YYYY-MM-DD>-<id>` whose name matches exactly (so `-demo-change` never matches `…-other-demo-change`) | `change_dir: null` |
 | decisions | `decision_index.extract_decisions(<change_dir>/session-log.md)` | `status: no_decision_record` |

@@ -61,3 +61,68 @@ def test_references_do_not_link_to_other_references():
         body = path.read_text(encoding="utf-8")
         # Allow mentioning grounding.md from SKILL only; form refs must not nest.
         assert "references/" not in body, f"{path.name} must not link to another reference"
+
+
+# ── Why mode (add-why-mode-to-explain-code-with-epistemic-tiers) ────
+
+TIERS = ("Direct", "Supported", "Inferred", "Speculative", "Unknown")
+SCHEMA_PATH = Path(__file__).resolve().parents[3] / "openspec" / "schemas" / "review-findings.schema.json"
+
+
+def _skill_md() -> str:
+    return (SKILL_DIR / "SKILL.md").read_text(encoding="utf-8")
+
+
+def _why_md() -> str:
+    return (SKILL_DIR / "references" / "why.md").read_text(encoding="utf-8")
+
+
+def test_why_chain_catalogue_row_links_reference():
+    rows = [ln for ln in _skill_md().splitlines() if ln.startswith("| Why chain |")]
+    assert len(rows) == 1
+    assert "`references/why.md`" in rows[0]
+
+
+def test_skill_md_names_tiers_rules_and_script():
+    body = _skill_md()
+    for tier in TIERS:
+        assert tier in body, f"SKILL.md must name tier {tier}"
+    assert "Null-result rule" in body
+    assert "Embedded-hypothesis rule" in body
+    assert 'python3 "<skill-base-dir>/scripts/why_trace.py"' in body
+    assert "Grounding: source read, unverified (form not graph-backed)" in body
+
+
+def test_related_includes_explore_feature():
+    fm = assert_frontmatter_parses(SKILL_DIR)
+    assert "explore-feature" in fm["related"]
+
+
+def test_why_reference_documents_rules_and_disclosure():
+    body = _why_md()
+    for heading in ("## Tiers", "## Null-result rule", "## Embedded-hypothesis rule",
+                    "## Worked example"):
+        assert heading in body
+    for verdict in ("confirmed", "contradicted", "untested"):
+        assert verdict in body
+    assert "mentions_target" in body
+    assert "Grounding: source read, unverified (form not graph-backed)" in body
+
+
+def _why_tiers() -> list[str]:
+    section = _why_md().split("## Tiers", 1)[1].split("\n## ", 1)[0]
+    tiers = []
+    for line in section.splitlines():
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if line.startswith("|") and cells[0] not in ("Tier", "") and not set(cells[0]) <= {"-"}:
+            tiers.append(cells[0])
+    return tiers
+
+
+def test_why_tier_vocabulary_matches_schema_enum():
+    import json
+
+    schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+    props = schema["properties"]["findings"]["items"]["properties"]
+    assert [t.lower() for t in _why_tiers()] == props["evidence_level"]["enum"]
+    assert _why_tiers() == list(TIERS)
