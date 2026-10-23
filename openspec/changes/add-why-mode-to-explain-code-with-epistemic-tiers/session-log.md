@@ -135,3 +135,24 @@ Implemented why mode in explain-code: the read-only why_trace.py script, the why
 ### Context
 Inline self-review of the why-mode implementation. why_trace.py matched the design; the worked example in references/why.md violated its own tier rules and was corrected, with a regression test.
 
+---
+
+## Phase: Implementation Review 1 (2026-10-23)
+
+**Agent**: claude_code | **Session**: session_017qfSLYuSiyd2b5URwLucoq
+
+### Decisions
+1. **Treat an unborn HEAD as an uncommitted line** — The Uncommitted line scenario requires exit 0 with status uncommitted for any working-tree line without a commit; in a repository with no commit git blame cannot run, so why_trace checks rev-parse --verify HEAD (a read-only subcommand already allowed by the spec) and reports the all-zero sha.
+2. **Regression tests land after the fix lane** — The fix request scoped allowed_paths to why_trace.py, so the two regression tests were committed separately after convergence; both were confirmed to fail against the pre-fix script.
+
+### Completed Work
+- agent_lane converge IMPL_REVIEW: converged, 2 rounds, 0 blocking, 1 advisory
+- fix(explain-code): unborn HEAD reports uncommitted; OSError on target read is exit 2
+- test_uncommitted_line_on_unborn_head and test_unreadable_target_is_an_input_error added; explain-code suite 39 passed
+
+### Next Steps
+- VALIDATE
+
+### Context
+Single-vendor (claude_code) implementation review converged in 2 rounds. Round 1 raised one blocking spec gap (unborn HEAD exited 1 instead of the uncommitted null result) and one resilience nit (unguarded target read); both were fixed in why_trace.py and verified in round 2, then pinned by regression tests.
+

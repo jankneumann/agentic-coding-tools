@@ -1,0 +1,31 @@
+{
+  "review_type": "implementation",
+  "target": "add-why-mode-to-explain-code-with-epistemic-tiers",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "axis": "correctness",
+      "severity": "optional",
+      "evidence_class": "deterministic",
+      "evidence_level": "direct",
+      "disposition": "fix",
+      "file_path": "skills/explain-code/scripts/why_trace.py",
+      "description": "In a repository whose HEAD is unborn (no commit yet), a staged line that exists in the working tree makes `git blame` fail with `fatal: no such ref: HEAD`, so why_trace exits 1. The Uncommitted line scenario requires exit 0 with status `uncommitted`. Reproduced: `git init; echo a > f.txt; git add f.txt; why_trace.py f.txt:1` prints `why_trace: git blame failed: fatal: no such ref: HEAD` and exits 1. `_blame` should report the all-zero sha when `rev-parse --verify HEAD` fails."
+    },
+    {
+      "id": 2,
+      "type": "resilience",
+      "criticality": "low",
+      "axis": "resilience",
+      "severity": "nit",
+      "evidence_class": "judgment",
+      "evidence_level": "inferred",
+      "disposition": "fix",
+      "file_path": "skills/explain-code/scripts/why_trace.py",
+      "description": "`_resolve_target` calls `abs_path.read_bytes()` unguarded. An unreadable tracked file (permissions, a FIFO checked in as a regular path, an I/O error) raises OSError and prints a traceback instead of the documented one-line stderr message with exit 2. Wrap the read and raise InputError."
+    }
+  ]
+}

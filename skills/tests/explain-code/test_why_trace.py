@@ -244,6 +244,44 @@ def test_uncommitted_line(repo):
     assert doc["null_result"]["reason"] == "uncommitted"
 
 
+def test_uncommitted_line_on_unborn_head(tmp_path):
+    root = tmp_path / "fresh"
+    root.mkdir()
+    _git(root, "init", "-q")
+    _write(root, "f.py", "x = 1\n")
+    _git(root, "add", "f.py")
+    proc = _run(root, "f.py:1")
+    assert proc.returncode == 0, proc.stderr
+    doc = json.loads(proc.stdout)
+    assert doc["status"] == "uncommitted"
+    assert doc["commit"] is None
+    assert doc["null_result"]["reason"] == "uncommitted"
+
+
+def test_unreadable_target_is_an_input_error(repo, monkeypatch, capsys):
+    import importlib.util
+
+    # Importing the script flips process-wide flags; undo them after the test.
+    monkeypatch.setattr(sys, "dont_write_bytecode", sys.dont_write_bytecode)
+    monkeypatch.setattr(sys, "path", list(sys.path))
+    spec = importlib.util.spec_from_file_location("why_trace_under_test", SCRIPT)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    def _deny(self):
+        raise PermissionError(13, "Permission denied")
+
+    monkeypatch.setattr(module.Path, "read_bytes", _deny)
+    monkeypatch.chdir(repo["root"])
+    for key, value in _env(repo["root"].parent).items():
+        monkeypatch.setenv(key, value)
+    assert module.main(["src/app.py:1"]) == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert len(captured.err.strip().splitlines()) == 1
+    assert "cannot read src/app.py" in captured.err
+
+
 @pytest.mark.parametrize("target", ["src/app.py", "src/app.py:0", "src/app.py:x", ":3"])
 def test_malformed_target_rejected(repo, target):
     proc = _run(repo["root"], target)
