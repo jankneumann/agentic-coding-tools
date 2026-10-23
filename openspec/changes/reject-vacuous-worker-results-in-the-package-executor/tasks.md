@@ -13,13 +13,13 @@
 
 ## 1. Result contract and checker (wp-contract)
 
-- [ ] 1.1 Write failing tests in `skills/validate-packages/scripts/tests/test_validate_work_result.py` for empty and `not_run` steps (S)
+- [x] 1.1 Write failing tests in `skills/validate-packages/scripts/tests/test_validate_work_result.py` for empty and `not_run` steps (S)
   - `validate_verification_consistency` on `steps: []` reports an error naming the empty step list, with both `passed: true` and `passed: false`; `validate_result` returns `valid == false`.
   - A step with `method: not_run, passed: true` produces an error naming the step.
   **Spec scenarios**: parallel-infrastructure.empty-steps-validation-error, parallel-infrastructure.not-run-step-cannot-pass
   **Design decisions**: D1
   **Dependencies**: None
-- [ ] 1.2 Write failing tests for the `commit_resolves` check (S)
+- [x] 1.2 Write failing tests for the `commit_resolves` check (S)
   - Fixture: a temporary `git init` repo with one commit.
   - Its HEAD SHA passes. A well-formed absent SHA fails, and the error names the commit and the path. A non-repository directory fails.
   - A non-hex commit such as `--help` fails without `git` being invoked (monkeypatch `subprocess.run` to assert it is not called).
@@ -28,21 +28,21 @@
   **Spec scenarios**: parallel-infrastructure.absent-commit-fails, parallel-infrastructure.present-commit-passes, parallel-infrastructure.commit-check-skipped-recorded, parallel-infrastructure.cli-worktree-flag
   **Design decisions**: D2
   **Dependencies**: None
-- [ ] 1.3 Write failing tests for `derive_outcome`, `effective_outcome` and outcome consistency (S)
+- [x] 1.3 Write failing tests for `derive_outcome`, `effective_outcome` and outcome consistency (S)
   - Derivation table: failed → BLOCKED; completed with passing non-empty steps and a passing scope check → PASS; a failing step, empty steps or `scope_check.passed == false` → ISSUES.
   - `outcome: PASS` contradicted by a failing step, a failed scope check or `status: failed` is an error. `status: failed` with `outcome: ISSUES` is an error. `outcome: ISSUES` over passing evidence is valid, and its effective outcome is ISSUES.
   **Spec scenarios**: parallel-infrastructure.pass-contradicted-rejected, parallel-infrastructure.downgrade-allowed, parallel-infrastructure.legacy-result-validates
   **Design decisions**: D3
   **Dependencies**: None
-- [ ] 1.4 Add optional `outcome` and `method` to both copies of `work-queue-result.schema.json`, keeping `schema_version` at 1 and the copies byte-identical (XS)
+- [x] 1.4 Add optional `outcome` and `method` to both copies of `work-queue-result.schema.json`, keeping `schema_version` at 1 and the copies byte-identical (XS)
   **Dependencies**: 1.3
-- [ ] 1.5 Implement the empty-step and `not_run` errors in `validate_verification_consistency` (XS)
+- [x] 1.5 Implement the empty-step and `not_run` errors in `validate_verification_consistency` (XS)
   **Dependencies**: 1.1
-- [ ] 1.6 Implement `validate_commit_resolves` and `validate_result(..., *, worktree_path=None)`, and add the CLI `--worktree` flag (S)
+- [x] 1.6 Implement `validate_commit_resolves` and `validate_result(..., *, worktree_path=None)`, and add the CLI `--worktree` flag (S)
   **Dependencies**: 1.2
-- [ ] 1.7 Implement `derive_outcome`, `effective_outcome` and `validate_outcome_consistency`, and wire them into `validate_result` (S)
+- [x] 1.7 Implement `derive_outcome`, `effective_outcome` and `validate_outcome_consistency`, and wire them into `validate_result` (S)
   **Dependencies**: 1.3, 1.4
-- [ ] Checkpoint: run `skills/validate-packages/scripts/tests`, review the diff, verify the scope
+- [x] Checkpoint: run `skills/validate-packages/scripts/tests`, review the diff, verify the scope
 
 ## 2. Emitter and acceptance (wp-acceptance)
 
