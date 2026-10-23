@@ -1,0 +1,173 @@
+{
+  "review_type": "plan",
+  "target": "make-expedite-fail-closed-on-missing-validation",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "The drift test as designed (design.md D4, tasks 3.1) is one-directional: it asserts every check name in the SKILL.md table is one expedite() emits, plus a specific validation_report row. It does not assert the converse \u2014 that every check expedite() emits has a row in the table. The spec requirement says the table SHALL list the fail conditions 'for each check' and the test MUST fail 'when the table and the code's check-to-status mapping disagree', and the proposal claims it 'fails if either side changes alone'. A new check added to expedite.py without a table row would pass the test, so the stated guarantee is not delivered. Add a completeness assertion (set of emitted check names == set of table check names) to D4 and task 3.1.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/make-expedite-fail-closed-on-missing-validation/design.md",
+      "existing_code": "1. every check name in the table is one `expedite()` emits;",
+      "line_range": {
+        "start": 68,
+        "end": 68
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "work-packages.yaml declares contracts.openapi.primary (and openapi.files) pointing at contracts/README.md, while that README states 'OpenAPI: none'. Registering a markdown narrative as the primary OpenAPI contract is semantically wrong and will mislead any consumer or validator that treats the openapi.primary path as a machine-readable schema. Either omit the openapi block (if the schema permits an empty contracts section) or add a sibling key appropriate for 'no contracts' rather than mislabelling the README.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "nit",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/make-expedite-fail-closed-on-missing-validation/work-packages.yaml",
+      "existing_code": "  openapi:\n    primary: \"openspec/changes/make-expedite-fail-closed-on-missing-validation/contracts/README.md\"",
+      "line_range": {
+        "start": 13,
+        "end": 14
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 3,
+      "type": "resilience",
+      "criticality": "medium",
+      "description": "handoffs/plan-1.json records a coordinator_error (rpc_failed, FK violation: session_id not present in agent_sessions), meaning the plan handoff was never persisted to the coordinator and the session was not registered there. Yet completed_work asserts 'planning lock claim registered' and tasks.md marks Planning [x]. If the session row is missing, the lock claim very likely did not persist either, so another agent could plan the same item concurrently. The failure should be surfaced to the operator and the claim/handoff re-attempted (or the fallback explicitly reported per AGENTS.md) before Gate 2 rather than left as a silent local file.",
+      "disposition": "escalate",
+      "axis": "observability",
+      "severity": "nit",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/make-expedite-fail-closed-on-missing-validation/handoffs/plan-1.json",
+      "existing_code": "    \"error_type\": \"rpc_failed\",",
+      "line_range": {
+        "start": 5,
+        "end": 5
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 4,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "The proposal's acceptance outcome 'Its text output contains OVERRIDE' and tasks 2.1 'Text output contains OVERRIDE' have no corresponding normative sentence or scenario in specs/expedite/spec.md; the override requirement and its scenario only cover the --json path. Either add 'the text verdict SHALL print the override' to the Recorded Override requirement with a scenario, or drop the text assertion from the acceptance outcomes so the spec is the single source.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "optional",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/make-expedite-fail-closed-on-missing-validation/specs/expedite/spec.md",
+      "existing_code": "verdict SHALL include an `overrides` list whose entries name the overridden check",
+      "line_range": {
+        "start": 46,
+        "end": 46
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 5,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "The requirement 'The JSON verdict MUST always include the overrides key, empty when no override applied' has no scenario exercising the no-flag path (the only scenario showing overrides empty also passes the flag with a failing report). tasks 2.1 tests it, but per Group 2 rules every MUST should be scenario-backed. Add a short scenario: run without the flag, THEN JSON contains overrides == [].",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "optional",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/make-expedite-fail-closed-on-missing-validation/specs/expedite/spec.md",
+      "existing_code": "and carry the reason. The JSON verdict MUST always include the `overrides` key,",
+      "line_range": {
+        "start": 47,
+        "end": 47
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 6,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "Design D3 says change_dir is None when openspec/changes/<id> does not exist (e.g. report found only in a .git-worktrees/ probe location after archival or on a different branch), but neither the spec nor the tasks state what pre_merge_gate receives or how the deployable flag is treated in that case. Add a sentence to the first requirement (or a scenario) covering the absent-change-dir case so the implementer does not have to guess.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "optional",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/make-expedite-fail-closed-on-missing-validation/design.md",
+      "existing_code": "exists, else `None`.",
+      "line_resolution": "unresolved"
+    },
+    {
+      "id": 7,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "work-packages.yaml lists skills/validate-feature/** under scope.deny while also listing skills/validate-feature/scripts/gate_logic.py and rework_report.py under read_allow. If the scope checker applies deny with precedence over allow (the usual semantics), the implementer is denied the very files the design says to reuse. Narrow deny to a write-deny or remove the read_allow entries if deny only governs writes; make the intent explicit.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "optional",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/make-expedite-fail-closed-on-missing-validation/work-packages.yaml",
+      "existing_code": "      deny:\n        - \"skills/validate-feature/**\"",
+      "line_range": {
+        "start": 62,
+        "end": 63
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 8,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "The proposal corrects the roadmap item's outcome text ('gate_logic has no validation-exempt rule') but only inside this change's proposal; the roadmap artifact itself still carries the incorrect outcome and the session-log leaves it as an open question. Per project conventions the roadmap should be updated via refine-roadmap (or the correction noted as a follow-up task) so the roadmap and the change do not permanently disagree about ri-02's acceptance outcome.",
+      "disposition": "escalate",
+      "axis": "architecture",
+      "severity": "fyi",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/make-expedite-fail-closed-on-missing-validation/proposal.md",
+      "existing_code": "## Correction to the roadmap item",
+      "line_range": {
+        "start": 86,
+        "end": 86
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 9,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "D2 validates the override reason only in main(); expedite() accepts any string including '' or whitespace, so a library caller (or a future second CLI/consumer) can record a blank reason, defeating the 'recorded override' intent. Consider having expedite() raise ValueError on a blank reason and letting main() translate that into p.error (exit 2); tests can still call expedite() with a real reason.",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "fyi",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/make-expedite-fail-closed-on-missing-validation/design.md",
+      "existing_code": "  `expedite()` keeps the library function total and lets tests call it with a",
+      "line_range": {
+        "start": 39,
+        "end": 39
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 10,
+      "type": "style",
+      "criticality": "low",
+      "description": "session-log.md 'Alternatives Considered' entries read 'rejected because Self-certification\u2026' / 'rejected because Reopens\u2026' \u2014 the generator concatenated a capitalised rationale after 'because'. Also work-packages.yaml created_at is a midnight placeholder (2026-10-15T00:00:00Z) while the handoff was written at 20:43Z, and plan-1.json lacks a trailing newline. Cosmetic.",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "nit",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/make-expedite-fail-closed-on-missing-validation/session-log.md",
+      "existing_code": "- B: declared validation_exempt in proposal frontmatter: rejected because Self-certification by the change's own author; widens shared gate_logic for one consumer.",
+      "line_range": {
+        "start": 15,
+        "end": 15
+      },
+      "line_resolution": "hunk_new"
+    }
+  ]
+}

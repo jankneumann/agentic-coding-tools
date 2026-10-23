@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-10-23T12:06:05.696333+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "rpc_failed: ForeignKeyViolationError: insert or update on table \"handoff_documents\" violates foreign key constraint \"handoff_documents_session_id_fkey\"\nDETAIL:  Key (session_id)=(session_017qfSLYuSiyd2b5URwLucoq) is not present in table \"agent_sessions\". (HTTP 200)",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": "session_017qfSLYuSiyd2b5URwLucoq",
+    "summary": "Inline /iterate-on-plan self-review (no sub-agent dispatch adapter in this session). Plan artifacts checked against expedite.py; no edits required.",
+    "completed_work": [
+      "Checked proposal, design D1-D4, spec scenarios and tasks against skills/expedite/scripts/expedite.py",
+      "Confirmed check_validation_report skip branch, report_path.parent change_dir derivation and Verdict shape match the design's description"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "No plan edits",
+        "rationale": "Every requirement maps to a task with a test-first step; scope is a single package with explicit write_allow; no inconsistencies found across the eight review axes",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "PLAN_REVIEW single-vendor"
+    ],
+    "relevant_files": []
+  }
+}
