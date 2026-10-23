@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-10-23T22:34:23.280503+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "rpc_failed: ForeignKeyViolationError: insert or update on table \"handoff_documents\" violates foreign key constraint \"handoff_documents_session_id_fkey\"\nDETAIL:  Key (session_id)=(session_017qfSLYuSiyd2b5URwLucoq) is not present in table \"agent_sessions\". (HTTP 200)",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": "session_017qfSLYuSiyd2b5URwLucoq",
+    "summary": "One self-review pass over the plan across completeness, consistency, feasibility and testability, checked against decision_index.py, the manifest validator, both prompt builders and their tests. Four feasibility gaps fixed in design and tasks.",
+    "completed_work": [
+      "design D3, D6, D7 revised",
+      "tasks 1.2, 2.3, 3.3 revised",
+      "Confirmed 503 committed findings documents exist for the emitter regression test (64 already invalid, so the subset approach is required)",
+      "openspec validate --strict and validate_work_packages pass"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Report the canonical change id and look up supersession under both ids",
+        "rationale": "extract_decisions takes the change id from the session-log parent dir, which is <date>-<id> for archived changes; a supersedes ref may use either form.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Match archive dirs exactly by date prefix",
+        "rationale": "A glob of *-<id> would also match a longer change id ending in the same words.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Add evidence_level to vendor_review._FALLBACK_ENUMS",
+        "rationale": "test_fallback_matches_the_schema requires every schema enum in the offline fallback; without it the schema edit breaks an existing test.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Name the sibling path textually and suppress bytecode",
+        "rationale": "The manifest validator detects only the <skill-base-dir>/../<skill> form; importing decision_index could otherwise write __pycache__ into a sibling skill dir.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "PLAN_REVIEW via agent_lane converge (single vendor)"
+    ],
+    "relevant_files": []
+  }
+}

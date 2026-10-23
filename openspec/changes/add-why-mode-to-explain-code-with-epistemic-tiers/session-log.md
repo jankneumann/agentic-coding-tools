@@ -46,3 +46,27 @@ GATEKEEPER ran inline (no sub-agent dispatch tool in this session). Signal-only 
 ### Context
 Plan authored inline (no sub-agent dispatch tool in this session): proposal, design D1-D7, skill-workflow spec delta (3 ADDED, 2 MODIFIED requirements), tasks.md, one work package wp-why-mode, contracts/README.md. openspec validate --strict and validate_work_packages pass. proposal_approval gate auto-approved by trust posture (audit sink failure recorded).
 
+---
+
+## Phase: Plan Iteration 1 (2026-10-23)
+
+**Agent**: claude_code | **Session**: session_017qfSLYuSiyd2b5URwLucoq
+
+### Decisions
+1. **Report the canonical change id and look up supersession under both ids** — extract_decisions takes the change id from the session-log parent dir, which is <date>-<id> for archived changes; a supersedes ref may use either form.
+2. **Match archive dirs exactly by date prefix** — A glob of *-<id> would also match a longer change id ending in the same words.
+3. **Add evidence_level to vendor_review._FALLBACK_ENUMS** — test_fallback_matches_the_schema requires every schema enum in the offline fallback; without it the schema edit breaks an existing test.
+4. **Name the sibling path textually and suppress bytecode** — The manifest validator detects only the <skill-base-dir>/../<skill> form; importing decision_index could otherwise write __pycache__ into a sibling skill dir.
+
+### Completed Work
+- design D3, D6, D7 revised
+- tasks 1.2, 2.3, 3.3 revised
+- Confirmed 503 committed findings documents exist for the emitter regression test (64 already invalid, so the subset approach is required)
+- openspec validate --strict and validate_work_packages pass
+
+### Next Steps
+- PLAN_REVIEW via agent_lane converge (single vendor)
+
+### Context
+One self-review pass over the plan across completeness, consistency, feasibility and testability, checked against decision_index.py, the manifest validator, both prompt builders and their tests. Four feasibility gaps fixed in design and tasks.
+
