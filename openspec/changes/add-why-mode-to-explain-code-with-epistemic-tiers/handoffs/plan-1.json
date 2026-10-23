@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-10-23T22:32:12.165647+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "rpc_failed: ForeignKeyViolationError: insert or update on table \"handoff_documents\" violates foreign key constraint \"handoff_documents_session_id_fkey\"\nDETAIL:  Key (session_id)=(session_017qfSLYuSiyd2b5URwLucoq) is not present in table \"agent_sessions\". (HTTP 200)",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": "session_017qfSLYuSiyd2b5URwLucoq",
+    "summary": "Plan authored inline (no sub-agent dispatch tool in this session): proposal, design D1-D7, skill-workflow spec delta (3 ADDED, 2 MODIFIED requirements), tasks.md, one work package wp-why-mode, contracts/README.md. openspec validate --strict and validate_work_packages pass. proposal_approval gate auto-approved by trust posture (audit sink failure recorded).",
+    "completed_work": [
+      "proposal.md, design.md, specs/skill-workflow/spec.md, tasks.md, work-packages.yaml, contracts/README.md",
+      "openspec validate --strict: valid",
+      "validate_work_packages: VALID"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Extend explain-code with a why-chain form",
+        "rationale": "Operator decision and roadmap out-of-scope rule exclude a standalone /why skill; the catalogue and grounding contract already fit.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "why_trace assembles records; tiers live in the reply",
+        "rationale": "A record cannot know which claim an answer draws from it; pointers and mentions_target make reply tiering checkable without false precision.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Reuse decision_index for parsing and supersession",
+        "rationale": "Avoids a second Decision-bullet parser that would drift; drift in the private resolver is caught by fixture tests.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "evidence_level is one optional, informational schema property",
+        "rationale": "Keeps the schema diff to one field, leaves every existing emitter valid, and changes no blocking behaviour.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "PLAN_ITERATE: self-review the plan artifacts"
+    ],
+    "relevant_files": []
+  }
+}
