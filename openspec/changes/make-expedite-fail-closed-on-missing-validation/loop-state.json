@@ -1,0 +1,291 @@
+{
+  "schema_version": 6,
+  "change_id": "make-expedite-fail-closed-on-missing-validation",
+  "current_phase": "DONE",
+  "iteration": 0,
+  "total_iterations": 10,
+  "max_phase_iterations": 3,
+  "findings_trend": [],
+  "blocking_findings": [],
+  "vendor_availability": {},
+  "packages_status": {},
+  "package_authors": {},
+  "implementation_strategy": {},
+  "memory_ids": [],
+  "handoff_ids": [
+    "local:openspec/changes/make-expedite-fail-closed-on-missing-validation/handoffs/gatekeeper-1.json",
+    "local:openspec/changes/make-expedite-fail-closed-on-missing-validation/handoffs/plan-iteration-1-1.json",
+    "local:openspec/changes/make-expedite-fail-closed-on-missing-validation/handoffs/plan-review-1.json",
+    "local:openspec/changes/make-expedite-fail-closed-on-missing-validation/handoffs/implementation-1.json",
+    "local:openspec/changes/make-expedite-fail-closed-on-missing-validation/handoffs/implementation-iteration-1-1.json",
+    "local:openspec/changes/make-expedite-fail-closed-on-missing-validation/handoffs/implementation-review-1.json",
+    "local:openspec/changes/make-expedite-fail-closed-on-missing-validation/handoffs/validation-1.json",
+    "local:openspec/changes/make-expedite-fail-closed-on-missing-validation/handoffs/submit-pr-1.json"
+  ],
+  "phase_history": [
+    {
+      "at": "2026-10-23T12:04:46.799997+00:00",
+      "outcome": "proceed",
+      "phase": "GATEKEEPER"
+    },
+    {
+      "at": "2026-10-23T12:06:12.426543+00:00",
+      "outcome": "complete",
+      "phase": "PLAN_ITERATE"
+    },
+    {
+      "at": "2026-10-23T12:12:47.366780+00:00",
+      "outcome": "converged",
+      "phase": "PLAN_REVIEW"
+    },
+    {
+      "at": "2026-10-23T12:20:25.861045+00:00",
+      "outcome": "complete",
+      "phase": "IMPLEMENT"
+    },
+    {
+      "at": "2026-10-23T12:21:13.118651+00:00",
+      "outcome": "complete",
+      "phase": "IMPL_ITERATE"
+    },
+    {
+      "at": "2026-10-23T12:24:38.713145+00:00",
+      "outcome": "converged",
+      "phase": "IMPL_REVIEW"
+    },
+    {
+      "at": "2026-10-23T12:28:38.338874+00:00",
+      "outcome": "passed",
+      "phase": "VALIDATE"
+    },
+    {
+      "at": "2026-10-23T12:29:34.113781+00:00",
+      "outcome": "created",
+      "phase": "SUBMIT_PR"
+    }
+  ],
+  "last_handoff_id": "local:openspec/changes/make-expedite-fail-closed-on-missing-validation/handoffs/submit-pr-1.json",
+  "started_at": "2026-10-23T12:01:21.594392+00:00",
+  "phase_started_at": "2026-10-23T12:29:37.571216+00:00",
+  "previous_phase": null,
+  "escalation_reason": null,
+  "val_review_enabled": false,
+  "cli_review_enabled": true,
+  "error": null,
+  "phase_archetype": null,
+  "force": false,
+  "gate_signals": {
+    "external_dep_count": 0,
+    "has_broad_write_scope": false,
+    "has_db_migration": false,
+    "has_proposal": true,
+    "has_security_signal": false,
+    "has_specs": true,
+    "has_tasks": true,
+    "has_work_packages": true,
+    "package_count": 1,
+    "total_loc_estimate": 160
+  },
+  "gate_verdict": "proceed",
+  "gate_decisions": [
+    {
+      "approval_id": null,
+      "authorizing_disposition": "auto",
+      "default_action": null,
+      "disposition": "auto",
+      "gate": "proposal_approval",
+      "notified": null,
+      "outcome": "proceed",
+      "phase": "PLAN",
+      "posture_present": true,
+      "provenance": {
+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24",
+        "source": "posture"
+      },
+      "reason": "gate 'proposal_approval' auto-approved by trust posture",
+      "recorded_at": "2026-10-23T12:05:08.271056+00:00",
+      "resolution": "auto",
+      "scope": "roadmap_approval",
+      "timeout_seconds": null
+    },
+    {
+      "approval_id": null,
+      "authorizing_disposition": "auto",
+      "default_action": null,
+      "disposition": "auto",
+      "gate": "pr_creation",
+      "notified": null,
+      "outcome": "proceed",
+      "phase": "SUBMIT_PR",
+      "posture_present": true,
+      "provenance": {
+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24",
+        "source": "posture"
+      },
+      "reason": "gate 'pr_creation' auto-approved by trust posture",
+      "recorded_at": "2026-10-23T12:28:48.296008+00:00",
+      "resolution": "auto",
+      "timeout_seconds": null
+    },
+    {
+      "gate": "merge",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'merge' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "posture",
+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
+      },
+      "disposition": "block",
+      "phase": "DONE",
+      "recorded_at": "2026-10-23T12:29:43.930377+00:00"
+    }
+  ],
+  "pending_gate": {
+    "schema_version": 1,
+    "change_id": "make-expedite-fail-closed-on-missing-validation",
+    "gate": "merge",
+    "phase": "DONE",
+    "requested_at": "2026-10-23T12:29:43.931694+00:00",
+    "prompt": "Authorize merging this pull request? (autopilot records the authorization only; /cleanup-feature merges)",
+    "context": {},
+    "posture": {
+      "disposition": "block",
+      "posture_present": true,
+      "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
+    }
+  },
+  "goal_gate": {
+    "verdict": "passed",
+    "reason": "all required evidence present",
+    "evidence": {
+      "report_path": "openspec/changes/make-expedite-fail-closed-on-missing-validation/validation-report.md",
+      "checked_at": "2026-10-23T12:29:37.284914+00:00",
+      "validate_outcome": "passed",
+      "validate_at": "2026-10-23T12:28:38.338874+00:00",
+      "report_time": "2026-10-23T12:28:19+00:00",
+      "report_time_source": "commit",
+      "bound_by": "VALIDATE",
+      "required_sections": [
+        "Spec Compliance"
+      ],
+      "phase_statuses": {
+        "Spec Compliance": "pass"
+      }
+    }
+  },
+  "park": null,
+  "degradations": [
+    {
+      "code": "coordinator_projection_forbidden",
+      "detail": "project-state submit returned reason=forbidden",
+      "phase": "INIT"
+    },
+    {
+      "code": "phase_fallback_inline",
+      "detail": "no sub-agent dispatch adapter exposed in this session (build-dispatch resolved archetype gatekeeper); permissive signal-only verdict proceed",
+      "phase": "GATEKEEPER"
+    },
+    {
+      "code": "handoff_local_fallback",
+      "detail": "coordinator handoff write FK violation (session not in agent_sessions); wrote handoffs/gatekeeper-1.json",
+      "phase": "GATEKEEPER"
+    },
+    {
+      "code": "audit_sink_failed",
+      "detail": "audit sink reported failure for gate proposal_approval decision auto",
+      "phase": "PLAN"
+    },
+    {
+      "code": "phase_fallback_inline",
+      "detail": "no sub-agent dispatch adapter exposed in this session (build-dispatch resolved archetype architect); ran /iterate-on-plan inline",
+      "phase": "PLAN_ITERATE"
+    },
+    {
+      "code": "handoff_local_fallback",
+      "detail": "coordinator handoff write FK violation; wrote handoffs local fallback",
+      "phase": "PLAN_ITERATE"
+    },
+    {
+      "code": "single_vendor_review",
+      "detail": "vendor=claude_code",
+      "phase": "PLAN_REVIEW"
+    },
+    {
+      "code": "phase_fallback_inline",
+      "detail": "no sub-agent dispatch adapter exposed in this session (build-dispatch resolved archetype reviewer); ran converge() inline via a driver script; first packet was empty (HEAD == base) and was superseded by a rerun against a scoped base commit",
+      "phase": "PLAN_REVIEW"
+    },
+    {
+      "code": "handoff_local_fallback",
+      "detail": "coordinator handoff write failed (FK violation: session not registered in agent_sessions); wrote handoffs/plan-review-1.json locally",
+      "phase": "PLAN_REVIEW"
+    },
+    {
+      "code": "phase_fallback_inline",
+      "detail": "no sub-agent dispatch adapter exposed in this session (build-dispatch resolved archetype implementer); ran /implement-feature tasks inline in the change worktree, test-first",
+      "phase": "IMPLEMENT"
+    },
+    {
+      "code": "handoff_local_fallback",
+      "detail": "coordinator handoff write FK violation (session not in agent_sessions); wrote handoffs/implementation-1.json locally",
+      "phase": "IMPLEMENT"
+    },
+    {
+      "code": "phase_fallback_inline",
+      "detail": "no sub-agent dispatch adapter exposed in this session (build-dispatch resolved archetype implementer); ran /iterate-on-implementation inline",
+      "phase": "IMPL_ITERATE"
+    },
+    {
+      "code": "handoff_local_fallback",
+      "detail": "coordinator handoff write FK violation; wrote handoffs/implementation-iteration-1-1.json locally",
+      "phase": "IMPL_ITERATE"
+    },
+    {
+      "code": "single_vendor_review",
+      "detail": "vendor=claude_code",
+      "phase": "IMPL_REVIEW"
+    },
+    {
+      "code": "phase_fallback_inline",
+      "detail": "no sub-agent dispatch adapter exposed in this session (build-dispatch resolved archetype reviewer); ran converge() inline via a driver script",
+      "phase": "IMPL_REVIEW"
+    },
+    {
+      "code": "handoff_local_fallback",
+      "detail": "coordinator handoff write rejected (session FK violation); handoff written locally to openspec/changes/make-expedite-fail-closed-on-missing-validation/handoffs/implementation-review-1.json",
+      "phase": "IMPL_REVIEW"
+    },
+    {
+      "code": "phase_fallback_inline",
+      "detail": "no sub-agent dispatch adapter exposed in this session (build-dispatch resolved archetype validator); ran validate-feature phases inline",
+      "phase": "VALIDATE"
+    },
+    {
+      "code": "handoff_local_fallback",
+      "detail": "coordinator handoff write FK violation; wrote handoffs/validation-1.json locally",
+      "phase": "VALIDATE"
+    },
+    {
+      "code": "audit_sink_failed",
+      "detail": "audit sink reported failure for gate pr_creation decision auto",
+      "phase": "SUBMIT_PR"
+    },
+    {
+      "code": "handoff_local_fallback",
+      "detail": "coordinator handoff write FK violation; wrote handoffs/submit-pr-1.json locally",
+      "phase": "SUBMIT_PR"
+    },
+    {
+      "code": "audit_sink_failed",
+      "phase": "DONE",
+      "detail": "audit sink reported failure for gate merge decision posture_block"
+    }
+  ]
+}
