@@ -90,3 +90,26 @@ One self-review pass over the plan across completeness, consistency, feasibility
 ### Context
 Single-vendor plan review converged after one blocking finding was fixed in design D3.
 
+---
+
+## Phase: Implementation 1 (2026-10-23)
+
+**Agent**: claude_code | **Session**: session_017qfSLYuSiyd2b5URwLucoq
+
+### Decisions
+1. **Credit a merge commit only when it introduced the blamed commit** — A plain ancestry-path search credits any later merge on the mainline, so an unrelated PR's branch name became the line's change id. A candidate merge now qualifies only when its first parent does not already contain the commit; this uses one read-only git log call.
+2. **Resolve supersession over raw and canonical change ids** — extract_decisions keys archived changes by their dated directory name, while supersedes references are usually written with the canonical id. The script builds the owner's supersession map twice, once per id form, rather than writing a second resolver.
+3. **Tier the OPTIONAL evidence_level prompt line after the required-vocabulary sentence** — Placing it before 'use exactly one value from each listed set' would read as required; the line follows it and says to omit the field when unsure.
+
+### Completed Work
+- skills/explain-code/scripts/why_trace.py with 20 fixture-repository tests (traced, superseded, mentions_target, no_change_id, no_decision_record, merge-commit PR, uncommitted, exit 1 and 2 paths, no side effects, determinism, reuse guard)
+- skills/explain-code/references/why.md and the SKILL.md why mode section, catalogue row and related entry, with contract and single-vocabulary tests
+- evidence_level in both byte-identical schema copies, prompt_contract_block, vendor_review.build_review_prompt and _FALLBACK_ENUMS, with tests including the committed-findings regression check
+- install-manifest dependency on explore-feature; install.sh --check passes; affected suites and openspec validate --strict pass
+
+### Next Steps
+- IMPL_ITERATE: self-review of the implementation
+
+### Context
+Implemented why mode in explain-code: the read-only why_trace.py script, the why-chain reference and SKILL.md section, and the optional evidence_level finding property with its prompt lines.
+

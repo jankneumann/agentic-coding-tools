@@ -170,6 +170,17 @@
             "default": "deterministic",
             "description": "How this finding was established. 'deterministic' means a reproducible observation \u2014 a test failed, a schema mismatched, a scanner rule fired; re-running the same input yields the same finding, and a seeded defect can prove the detector works. 'judgment' means a model reasoned about the artifact; the finding may be correct and valuable but is not reproducible and cannot be falsified by seeding a defect. Only deterministic findings are counted as blocking by the consensus synthesizer. Optional and defaulting to 'deterministic' so existing emitters are unchanged; callers dispatching a judgment-class reviewer declare it at ingest rather than trusting the model to self-label."
           },
+          "evidence_level": {
+            "type": "string",
+            "enum": [
+              "direct",
+              "supported",
+              "inferred",
+              "speculative",
+              "unknown"
+            ],
+            "description": "Optional. How strongly what the reviewer actually saw backs this finding's claim, in the same tier vocabulary as explain-code's why mode: 'direct' restates one observed record, 'supported' is backed by two or more independent records, 'inferred' follows from observed records by reasoning, 'speculative' is plausible but not derived from what was observed, 'unknown' means there is no evidence either way. Informational only: unlike evidence_class, no consensus, coercion or blocking logic reads it."
+          },
           "existing_code": {
             "type": "string",
             "description": "Optional verbatim excerpt of one or more consecutive lines from the reviewed diff that this finding targets, added by add-deterministic-review-preprocessing. Leading diff markers ('+'/'-') and surrounding whitespace are ignored by the ingest-time line resolver; a vendor-supplied line_range still wins when both are present."

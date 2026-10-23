@@ -296,6 +296,11 @@ def prompt_contract_block() -> str:
     if "disposition" in enums:
         lines.append("  disposition: " + "|".join(enums["disposition"]))
     lines.append("Use exactly one value from each listed set; do not invent values.")
+    if "evidence_level" in enums:
+        lines.append(
+            "OPTIONAL per finding: evidence_level: " + "|".join(enums["evidence_level"])
+            + " — how strongly what you actually saw backs the claim; omit it when unsure"
+        )
     lines.append(
         "OPTIONAL: report which selected files you actually reviewed as a "
         "top-level `coverage` object: `{\"reviewed\": [\"path\", ...], "
