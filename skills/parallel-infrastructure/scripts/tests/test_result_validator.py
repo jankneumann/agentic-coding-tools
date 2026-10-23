@@ -309,6 +309,20 @@ def _accept(result: dict[str, Any], worktree_path: Any) -> PackageAcceptance:
 
 
 class TestAcceptPackageResult:
+    def test_result_for_another_package_is_refused(
+        self, repo: tuple[Path, str]
+    ) -> None:
+        path, sha = repo
+        result = _make_result()
+        result["git"]["head"]["commit"] = sha
+        result["package_id"] = "wp-frontend"
+        acceptance = _accept(result, path)
+        assert acceptance.accepted is False
+        assert acceptance.package_id == "wp-backend"
+        assert any(
+            "wp-frontend" in r and "wp-backend" in r for r in acceptance.reasons
+        )
+
     def test_validated_pass_is_accepted(self, repo: tuple[Path, str]) -> None:
         path, sha = repo
         result = _make_result()

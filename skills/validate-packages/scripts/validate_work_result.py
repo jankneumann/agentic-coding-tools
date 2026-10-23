@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import subprocess
 import sys
@@ -187,6 +188,18 @@ def validate_outcome_consistency(data: dict[str, Any]) -> list[str]:
     return errors
 
 
+# Variables that would point ``git`` at a repository other than the one at
+# ``cwd``; an inherited value (as inside a git hook) must not redirect the check.
+_GIT_LOCATION_ENV = (
+    "GIT_DIR",
+    "GIT_WORK_TREE",
+    "GIT_COMMON_DIR",
+    "GIT_INDEX_FILE",
+    "GIT_OBJECT_DIRECTORY",
+    "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+)
+
+
 def validate_commit_resolves(
     data: dict[str, Any], worktree_path: str | Path,
 ) -> dict[str, Any]:
@@ -208,6 +221,9 @@ def validate_commit_resolves(
         proc = subprocess.run(
             ["git", "rev-parse", "--verify", "--quiet", f"{commit}^{{commit}}"],
             cwd=path,
+            env={
+                k: v for k, v in os.environ.items() if k not in _GIT_LOCATION_ENV
+            },
             capture_output=True,
             text=True,
             timeout=COMMIT_CHECK_TIMEOUT_SECONDS,
