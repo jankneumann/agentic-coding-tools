@@ -316,7 +316,7 @@ checks with `ast` that no `subprocess.run` in the adapter lacks `env=`.
 
 ## Phase 1: Review queue across hosts (about one week)
 
-**Status (2026-10-24): applied end to end, not yet wired into the cloud lane.**
+**Status (2026-10-24): applied end to end; the cloud lane opts in per run.**
 Built: migration `046_review_queue.sql` (`review_jobs`, `review_lane_results`),
 `POST /reviews/jobs`, `POST /reviews/results`, `GET /reviews/rounds`, the
 single publisher (`agent-coordinator/src/review_publisher.py`), the producer
@@ -325,9 +325,13 @@ workflow (`.github/workflows/review-queue.yml`), the review worker
 remote rounds in `converge()` (`skills/autopilot/scripts/remote_rounds.py`
 plus the `remote_results` parameter, 1.5). When `remote_results` is wired,
 the pre-dispatch quorum guard is deferred to the per-round count, because
-remote lanes are only known after the round runs. Next step: pass a
-`coordinator_round_source` from `agent_lane.run_converge`; until then the
-cloud lane keeps `verified_review_lanes=1` and the TRUST_POSTURE exception.
+remote lanes are only known after the round runs. `agent_lane.py converge
+--remote-repo <owner/name> --remote-pr <n>` passes a `coordinator_round_source`
+(through the bridge's `CoordinatorHttpClient`, which the worker shares) and
+logs each round's remote vendors as a `remote_round` event. It still resolves
+the quorum policy with `verified_review_lanes=1`, so the TRUST_POSTURE
+exception and the `single_vendor_review` record stay until an operator
+deletes them (1.5); after that, `min_quorum` 2 must be met by remote lanes.
 Deferred: the SSE subscription (the worker polls `/work/claim` first), the
 per-lane sandbox wrapping, recovery of a pass whose worker died mid-claim, and
 the scheduled-task fire path (1.4).
