@@ -4,7 +4,7 @@
   "current_item_id": "ri-01",
   "phase": "completed",
   "created_at": "2026-10-05T06:52:22.688525+00:00",
-  "updated_at": "2026-10-21T00:33:40.750857+00:00",
+  "updated_at": "2026-10-21T16:41:23.124928+00:00",
   "completed_items": [
     "ri-01",
     "ri-21",
@@ -1900,6 +1900,33 @@
       "dedupe_fingerprint": "cbe82bb266ed0553afc7b82b5035b01a86ba31de298ce036eb97b3878e5051c5",
       "note": "Operator (supervisor session, 2026-10-15): 'Confirm (b), build the operator_accept edge'. Accept the ri-22 plan as reviewed (no blocking findings) without quorum-2 convergence; leave PLAN_REVIEW via operator_accept; IMPLEMENT groups 1-6; D9 quorum-2 evidence run in group 7.",
       "resume_at": "IMPLEMENT"
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "posture",
+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
+      },
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-10-21T16:41:23.051203+00:00",
+      "decision_id": "2b01c4dc-4c11-41d0-8db2-40626c088ca0",
+      "source": "supervise",
+      "verb": "resume",
+      "roadmap_id": "multiplayer-collaboration",
+      "change_id": "openrouter-review-lane",
+      "dispatch_id": "batch-d8913c4d8e973cd7940e2d09:ri-22:attempt-1",
+      "item_id": "ri-22",
+      "lease_generation": 7
     }
   ],
   "dispatch_attempts": [
@@ -3493,7 +3520,7 @@
       "change_id": "openrouter-review-lane",
       "phase": "autopilot",
       "attempt": 1,
-      "status": "launched",
+      "status": "parked",
       "prepared_at": "2026-10-10T10:46:57.575028+00:00",
       "launch_digest": "sha256:b4998ff9fb4bdad0204c454e035019d8d2ad1cafe9483a3dc6f5f8d618961506",
       "launch_marker_path": ".supervised-dispatch/openrouter-review-lane/ri-22-attempt-1.marker",
@@ -3811,16 +3838,17 @@
           "code": "audit_sink_failed",
           "detail": "audit sink reported failure for gate escalate_resume decision posture_block (2026-10-13)",
           "phase": "ESCALATE"
+        },
+        {
+          "code": "single_vendor_review",
+          "detail": "vendor=claude_code",
+          "phase": "IMPL_REVIEW"
         }
       ],
-      "continuation": {
-        "kind": "capability_unavailable",
-        "approval_ref": "gate-decision:ad5b460d-fdc9-4f7a-a15d-3be473dbcb29"
-      },
       "lease": {
         "generation": 7,
         "owner_nonce": "137fbec871e449877e35b0ae8296bff1",
-        "state": "active",
+        "state": "released",
         "acquired_at": "2026-10-21T00:33:40.110558+00:00",
         "heartbeat_at": "2026-10-21T00:33:40.110558+00:00",
         "expires_at": "2026-10-21T00:48:40.110558+00:00"
@@ -3837,6 +3865,100 @@
         "handle": "session_01AUJ94uZNHHU96GAvXpTPeH#g7",
         "go_released_at": "2026-10-21T00:33:40.410445+00:00",
         "entered_at": "2026-10-21T00:33:40.746640+00:00"
+      },
+      "application_journal": {
+        "schema_version": 1,
+        "state": "effects_applied",
+        "result": {
+          "attempt": 1,
+          "branch": "openspec/openrouter-review-lane",
+          "change_id": "openrouter-review-lane",
+          "degradations": [
+            {
+              "code": "coordinator_projection_forbidden",
+              "detail": "project-state submit returned forbidden",
+              "phase": "INIT"
+            },
+            {
+              "code": "audit_sink_failed",
+              "detail": "audit sink reported failure for gate proposal_approval decision posture_block",
+              "phase": "PLAN"
+            },
+            {
+              "code": "audit_sink_failed",
+              "detail": "audit sink reported failure for gate proposal_approval decision auto (gen 3)",
+              "phase": "PLAN"
+            },
+            {
+              "code": "single_vendor_review",
+              "detail": "vendor=claude_code; cloud policy cloud-container-single-vendor-2026-10-09 min_quorum 1",
+              "phase": "PLAN_REVIEW"
+            },
+            {
+              "code": "audit_sink_failed",
+              "detail": "audit sink reported failure for gate escalate_resume decision posture_block",
+              "phase": "ESCALATE"
+            },
+            {
+              "code": "single_vendor_review",
+              "detail": "gen 4 re-entry: vendor=claude_code; cloud policy cloud-container-single-vendor-2026-10-09 min_quorum 1",
+              "phase": "PLAN_REVIEW"
+            },
+            {
+              "code": "audit_sink_failed",
+              "detail": "gen 4: audit sink reported failure for gate escalate_resume decision posture_block",
+              "phase": "ESCALATE"
+            },
+            {
+              "code": "single_vendor_review",
+              "detail": "re-entry after ledger adjudication: vendor=claude_code; cloud policy min_quorum 1",
+              "phase": "PLAN_REVIEW"
+            },
+            {
+              "code": "audit_sink_failed",
+              "detail": "audit sink reported failure for gate escalate_resume decision posture_block (2026-10-13)",
+              "phase": "ESCALATE"
+            },
+            {
+              "code": "single_vendor_review",
+              "detail": "vendor=claude_code",
+              "phase": "IMPL_REVIEW"
+            }
+          ],
+          "dispatch_id": "batch-d8913c4d8e973cd7940e2d09:ri-22:attempt-1",
+          "evidence": {
+            "commit": "5612938aae5981052139cdc6984427e6f5f4e31c",
+            "loop_state_digest": "1b20323633d4665001bfcb3dde54faa73a88861b512478dce0af7afd4d4d482b",
+            "loop_state_path": "openspec/changes/openrouter-review-lane/loop-state.json"
+          },
+          "host_id": "machine-dc39bf1e25efdf45",
+          "lease_generation": 7,
+          "outcome": "parked",
+          "parked": {
+            "deadline": null,
+            "gate": null,
+            "kind": "policy_pause",
+            "reason": "IMPL_REVIEW transitioned to ESCALATE via outcome 'max_iter'",
+            "resume_hint": "previous_phase=IMPL_REVIEW; answer escalate_resume to resume"
+          },
+          "schema_version": 2,
+          "worktree_ref": "openrouter-review-lane"
+        },
+        "result_digest": "7d0852e4039e67eefa8ae00c4440e81db2569cf260f694759077f51df5aa6b21",
+        "bound_at": "2026-10-21T16:41:19.183219+00:00",
+        "callback_started_at": "2026-10-21T16:41:19.224236+00:00",
+        "callback_acknowledged_at": "2026-10-21T16:41:19.260860+00:00",
+        "terminal_persisted_at": "2026-10-21T16:41:19.300399+00:00",
+        "effects_applied_at": "2026-10-21T16:41:19.371062+00:00"
+      },
+      "outcome": "parked",
+      "resolved_at": "2026-10-21T16:41:19.300282+00:00",
+      "parked": {
+        "deadline": null,
+        "gate": null,
+        "kind": "policy_pause",
+        "reason": "IMPL_REVIEW transitioned to ESCALATE via outcome 'max_iter'",
+        "resume_hint": "previous_phase=IMPL_REVIEW; answer escalate_resume to resume"
       }
     }
   ]
