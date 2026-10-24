@@ -186,6 +186,21 @@ def test_the_renderer_refuses_a_tunnel_config_exposing_a_secret_store() -> None:
     assert "must never be public" in script
 
 
+def test_the_tunnel_credential_survives_a_reboot(compose: dict) -> None:
+    """/run is a tmpfs: the credential cloudflared mounts must be re-rendered from
+    persistent storage at every start, not placed in /run once by hand."""
+    script = (DEPLOY / "openbao" / "render-coordinator-secrets.sh").read_text(encoding="utf-8")
+    mounted = next(
+        v.split(":")[0]
+        for v in compose["services"]["cloudflared"]["volumes"]
+        if v.split(":")[1] == "/etc/cloudflared/credentials.json"
+    )
+    assert mounted == "/run/aca/gx10/cloudflared/credentials.json"
+    assert '"$RUNTIME_DIR/cloudflared/credentials.json"' in script
+    assert "GX10_COORD_TUNNEL_CREDENTIALS:-/etc/aca/gx10/" in script
+    assert "tunnel credential" in script and "is missing" in script
+
+
 KANBAN_BUILD = DEPLOY / "build-kanban.sh"
 
 
