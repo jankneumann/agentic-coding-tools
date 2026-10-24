@@ -75,6 +75,19 @@ if [[ -n "${GX10_COORD_TUNNEL_CONFIG:-}" && -f "${GX10_COORD_TUNNEL_CONFIG}" ]];
   mv -f "$RUNTIME_DIR/cloudflared/config.yaml.new" "$RUNTIME_DIR/cloudflared/config.yaml"
 fi
 
+# The credential is copied on every start for the same reason: /run is a tmpfs,
+# so a credential placed there by hand is gone after the next reboot and the
+# tunnel never reconnects. A config without its credential fails here rather
+# than as a crash-looping cloudflared.
+TUNNEL_CREDENTIALS="${GX10_COORD_TUNNEL_CREDENTIALS:-/etc/aca/gx10/cloudflared/credentials.json}"
+if [[ -f "$TUNNEL_CREDENTIALS" ]]; then
+  install -m 0600 "$TUNNEL_CREDENTIALS" "$RUNTIME_DIR/cloudflared/credentials.json.new"
+  mv -f "$RUNTIME_DIR/cloudflared/credentials.json.new" "$RUNTIME_DIR/cloudflared/credentials.json"
+elif [[ -f "$RUNTIME_DIR/cloudflared/config.yaml" ]]; then
+  echo "tunnel credential $TUNNEL_CREDENTIALS is missing" >&2
+  exit 1
+fi
+
 # Fail closed: the tunnel config must never publish the secret store, the
 # databases, or the MCP transport. On this host OpenBao is the real sealed
 # instance holding every secret for BOTH projects.
