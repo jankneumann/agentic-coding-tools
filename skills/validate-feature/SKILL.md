@@ -875,7 +875,7 @@ Checks per package:
 - Result JSON validates against `work-queue-result.schema.json`
 - `contracts_revision` and `plan_revision` match work-packages.yaml
 - `scope_check.passed` is true
-- `verification.passed` is true
+- `verification.passed` is true over at least one step, no `not_run` step claims a pass, and the effective `outcome` is `PASS`
 - No unresolved escalations with disposition fix or escalate
 
 Cross-package consistency:

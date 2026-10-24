@@ -339,3 +339,81 @@ class TestBuildFailureResult:
         ]
         for field in required:
             assert field in result, f"Missing required field: {field}"
+
+
+_PASSING_STEP = {
+    "name": "unit-tests",
+    "kind": "command",
+    "command": "pytest tests/api/",
+    "exit_code": 0,
+    "passed": True,
+    "evidence": {"artifacts": [], "metrics": {"test_count": 10}},
+}
+
+
+def _build(executor: PackageExecutor | None = None, **overrides: Any) -> dict[str, Any]:
+    kwargs: dict[str, Any] = {
+        "status": "completed",
+        "files_modified": ["src/api/users.py"],
+        "git_base_ref": "main",
+        "git_head_commit": "abc1234def",
+        "verification_steps": [dict(_PASSING_STEP)],
+    }
+    kwargs.update(overrides)
+    return (executor or _make_executor()).build_result(**kwargs)
+
+
+class TestVacuousVerification:
+    def test_zero_steps_does_not_pass(self) -> None:
+        result = _build(verification_steps=[])
+        assert result["verification"]["passed"] is False
+        assert result["outcome"] != "PASS"
+
+    def test_one_failing_step_does_not_pass(self) -> None:
+        step = dict(_PASSING_STEP, passed=False, exit_code=1)
+        result = _build(verification_steps=[dict(_PASSING_STEP), step])
+        assert result["verification"]["passed"] is False
+
+    def test_step_without_passed_does_not_pass(self) -> None:
+        step = {k: v for k, v in _PASSING_STEP.items() if k != "passed"}
+        result = _build(verification_steps=[step])
+        assert result["verification"]["passed"] is False
+
+
+class TestBuildResultOutcome:
+    def test_passing_completed_result_is_pass(self) -> None:
+        assert _build()["outcome"] == "PASS"
+
+    def test_failed_status_is_blocked(self) -> None:
+        assert _build(status="failed", error_code="TIMEOUT")["outcome"] == "BLOCKED"
+
+    def test_failing_step_is_issues(self) -> None:
+        step = dict(_PASSING_STEP, passed=False, exit_code=1)
+        assert _build(verification_steps=[step])["outcome"] == "ISSUES"
+
+    def test_scope_violation_is_issues(self) -> None:
+        assert _build(files_modified=["config/outside.yaml"])["outcome"] == "ISSUES"
+
+    def test_explicit_downgrade_emitted_as_given(self) -> None:
+        assert _build(outcome="ISSUES")["outcome"] == "ISSUES"
+
+    def test_explicit_upgrade_emitted_as_given(self) -> None:
+        # The builder records the worker's claim; validation judges it.
+        step = dict(_PASSING_STEP, passed=False, exit_code=1)
+        result = _build(verification_steps=[step], outcome="PASS")
+        assert result["outcome"] == "PASS"
+        assert result["verification"]["passed"] is False
+
+
+class TestBuildFailureResultMarkers:
+    def test_synthetic_step_is_not_run_and_outcome_blocked(self) -> None:
+        result = _make_executor().build_failure_result(
+            error_code="TIMEOUT",
+            git_base_ref="main",
+            git_head_commit="abc1234def",
+        )
+        steps = result["verification"]["steps"]
+        assert len(steps) == 1
+        assert steps[0]["method"] == "not_run"
+        assert steps[0]["passed"] is False
+        assert result["outcome"] == "BLOCKED"

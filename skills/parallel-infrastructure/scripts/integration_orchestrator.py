@@ -4,7 +4,7 @@ Manages the review and integration sequencing after all implementation
 packages complete:
 
 C3. Per-package review dispatch
-C4. Integration gate (all packages reviewed, no blocking findings)
+C4. Integration gate (all packages accepted and reviewed, no blocking findings)
 C5. wp-integration merge package execution
 C6. Execution summary generation
 
@@ -15,7 +15,8 @@ Usage:
         feature_id="add-user-auth",
         packages=work_packages_data["packages"],
     )
-    orch.record_package_result("wp-backend", result_data)
+    acceptance = accept_package_result(result_data, package_def, 1, 1, worktree_path)
+    orch.record_package_result("wp-backend", result_data, acceptance)
     orch.record_review_findings("wp-backend", findings_data)
     gate = orch.check_integration_gate()
     summary = orch.generate_execution_summary()
@@ -23,10 +24,25 @@ Usage:
 
 from __future__ import annotations
 
+import sys
 from collections import defaultdict
 from datetime import datetime, timezone
 from enum import Enum
+from pathlib import Path
 from typing import Any
+
+from package_acceptance import PackageAcceptance, digest_result
+
+# The effective-outcome rule lives in the co-installed validate-packages skill.
+_VALIDATE_SCRIPTS_DIR = (
+    Path(__file__).resolve().parents[2] / "validate-packages" / "scripts"
+)
+if str(_VALIDATE_SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_VALIDATE_SCRIPTS_DIR))
+
+from validate_work_result import (  # type: ignore[import-not-found]  # noqa: E402
+    effective_outcome,
+)
 
 
 class ReviewDisposition(str, Enum):
@@ -45,6 +61,8 @@ class IntegrationGateStatus(str, Enum):
     BLOCKED_FIX = "blocked_fix"
     BLOCKED_ESCALATE = "blocked_escalate"
     BLOCKED_INCOMPLETE = "blocked_incomplete"
+    # A result is present but has no accepted PackageAcceptance verdict.
+    BLOCKED_NOT_PASSING = "blocked_not_passing"
 
 
 class IntegrationOrchestrator:
@@ -58,6 +76,8 @@ class IntegrationOrchestrator:
         self.feature_id = feature_id
         self.packages = {p["package_id"]: p for p in packages}
         self._results: dict[str, dict[str, Any]] = {}
+        # package_id → the acceptance verdict recorded with its result (or None)
+        self._acceptances: dict[str, PackageAcceptance | None] = {}
         # Legacy single-vendor storage (backward compat)
         self._review_findings: dict[str, dict[str, Any]] = {}
         # Multi-vendor storage: package_id → vendor → findings
@@ -83,10 +103,69 @@ class IntegrationOrchestrator:
         return None
 
     def record_package_result(
-        self, package_id: str, result: dict[str, Any]
+        self,
+        package_id: str,
+        result: dict[str, Any],
+        acceptance: PackageAcceptance | None = None,
     ) -> None:
-        """Record a completed package's work-queue result."""
+        """Record a package's work-queue result and its acceptance verdict.
+
+        A result recorded without an accepted verdict (``acceptance=None``,
+        or one from ``accept_package_result`` that refused it), or with a
+        validated verdict whose ``result_digest`` is not this result's, blocks
+        the integration gate with ``blocked_not_passing``.
+        """
         self._results[package_id] = result
+        self._acceptances[package_id] = acceptance
+
+    def _acceptance_problem(self, package_id: str) -> list[str]:
+        """Reasons the package's recorded verdict does not accept it; [] if it does."""
+        acceptance = self._acceptances.get(package_id)
+        if acceptance is None:
+            return ["no acceptance verdict recorded with the result"]
+        if not isinstance(acceptance, PackageAcceptance):
+            return [
+                f"expected a PackageAcceptance, got {type(acceptance).__name__}"
+            ]
+        if acceptance.package_id != package_id:
+            return [
+                f"acceptance is for package {acceptance.package_id!r}, "
+                f"not {package_id!r}"
+            ]
+        if not acceptance.accepted:
+            return list(acceptance.reasons) or ["acceptance was refused"]
+        # A validated verdict holds the digest of the result it was made from;
+        # an override is a recorded human decision and carries none.
+        if acceptance.override is None and acceptance.result_digest != digest_result(
+            self._results.get(package_id)
+        ):
+            return ["acceptance was not issued for the recorded result"]
+        return []
+
+    def _result_outcome(self, package_id: str) -> str | None:
+        result = self._results.get(package_id)
+        if not isinstance(result, dict):
+            return None
+        try:
+            return effective_outcome(result)
+        except (AttributeError, TypeError):
+            return None
+
+    def _overrides(self, package_ids: list[str]) -> list[dict[str, str]]:
+        overrides: list[dict[str, str]] = []
+        for pid in package_ids:
+            acceptance = self._acceptances.get(pid)
+            if (
+                isinstance(acceptance, PackageAcceptance)
+                and acceptance.override
+                and not self._acceptance_problem(pid)
+            ):
+                overrides.append({
+                    "package_id": pid,
+                    "reason": acceptance.override.get("reason", ""),
+                    "approver": acceptance.override.get("approver", ""),
+                })
+        return overrides
 
     def record_review_findings(
         self,
@@ -127,13 +206,26 @@ class IntegrationOrchestrator:
     def check_integration_gate(self) -> dict[str, Any]:
         """C4: Check if all packages are ready for integration.
 
+        Order: a missing result, then a result without an accepted verdict,
+        then missing reviews, then escalations and blocking findings.
+
         Returns:
             Dict with:
             - status: IntegrationGateStatus value
             - reason: human-readable explanation
             - blocking_findings: list of blocking finding summaries
             - missing_reviews: list of package_ids without reviews
+            - not_passing: [{package_id, outcome, reasons}] for packages
+              whose result was not accepted (empty when none)
+            - overrides: [{package_id, reason, approver}] for packages
+              accepted through a recorded override
         """
+        gate = self._evaluate_gate()
+        gate.setdefault("not_passing", [])
+        gate.setdefault("overrides", self._overrides(self.implementation_packages))
+        return gate
+
+    def _evaluate_gate(self) -> dict[str, Any]:
         impl_pkgs = self.implementation_packages
 
         # Check completeness
@@ -144,6 +236,27 @@ class IntegrationOrchestrator:
                 "reason": f"Packages not completed: {missing_results}",
                 "blocking_findings": [],
                 "missing_reviews": missing_results,
+            }
+
+        not_passing = []
+        for pid in impl_pkgs:
+            reasons = self._acceptance_problem(pid)
+            if reasons:
+                not_passing.append({
+                    "package_id": pid,
+                    "outcome": self._result_outcome(pid),
+                    "reasons": reasons,
+                })
+        if not_passing:
+            return {
+                "status": IntegrationGateStatus.BLOCKED_NOT_PASSING.value,
+                "reason": (
+                    "Packages without an accepted result: "
+                    f"{[e['package_id'] for e in not_passing]}"
+                ),
+                "blocking_findings": [],
+                "missing_reviews": [],
+                "not_passing": not_passing,
             }
 
         missing_reviews = [pid for pid in impl_pkgs if pid not in self._review_findings]
@@ -245,6 +358,18 @@ class IntegrationOrchestrator:
             result = self._results.get(pid)
             if result:
                 entry["status"] = result.get("status", "unknown")
+                entry["outcome"] = self._result_outcome(pid)
+                problems = self._acceptance_problem(pid)
+                entry["accepted"] = not problems
+                entry["acceptance_reasons"] = problems
+                acceptance = self._acceptances.get(pid)
+                entry["override"] = (
+                    dict(acceptance.override)
+                    if not problems
+                    and isinstance(acceptance, PackageAcceptance)
+                    and acceptance.override
+                    else None
+                )
                 entry["verification_passed"] = result.get("verification", {}).get("passed")
                 entry["files_modified"] = len(result.get("files_modified", []))
                 timestamps = result.get("timestamps", {})
@@ -305,6 +430,10 @@ class IntegrationOrchestrator:
                 "total": len(self.packages),
                 "implementation": len(impl_pkgs),
                 "completed": len(self._results),
+                "accepted": sum(
+                    1 for pid in impl_pkgs
+                    if pid in self._results and not self._acceptance_problem(pid)
+                ),
             },
             "gate": gate,
             "timeline": timeline,

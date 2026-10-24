@@ -4,7 +4,12 @@
 Performs:
 1. JSON Schema validation
 2. Scope check: files_modified ⊆ write_allow minus deny
-3. Verification consistency: result.verification.passed matches all steps
+3. Verification consistency: steps are non-empty, no not_run step passes, and
+   result.verification.passed matches all steps
+4. Outcome consistency: an explicit outcome never claims more than the evidence
+5. Commit resolution: git.head.commit resolves in the package worktree, is
+   reachable from the package branch and is not the base commit (only when a
+   worktree path is supplied; otherwise recorded as skipped)
 
 Callable as a library function or via CLI.
 """
@@ -13,6 +18,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import re
+import subprocess
 import sys
 from fnmatch import fnmatch
 from pathlib import Path
@@ -25,7 +33,6 @@ except ImportError:
 
 def _find_repo_root() -> Path:
     """Find the git repository root."""
-    import subprocess
     try:
         result = subprocess.run(
             ["git", "rev-parse", "--show-toplevel"],
@@ -95,7 +102,31 @@ def validate_verification_consistency(data: dict[str, Any]) -> list[str]:
     steps = verification.get("steps", [])
 
     if not steps:
+        errors.append(
+            "  no verification steps: an empty step list cannot support "
+            f"verification.passed={str(bool(overall_passed)).lower()}"
+        )
         return errors
+
+    for s in steps:
+        if not s.get("passed", False):
+            continue
+        name = s.get("name", "?")
+        if s.get("method") == "not_run":
+            errors.append(f"  step '{name}' has method=not_run but passed=true")
+        exit_code = s.get("exit_code")
+        if isinstance(exit_code, int) and exit_code != 0:
+            errors.append(
+                f"  step '{name}' has exit_code={exit_code} but passed=true"
+            )
+        evidence = s.get("evidence")
+        if not isinstance(evidence, dict):
+            evidence = {}
+        if not evidence.get("artifacts") and not evidence.get("metrics"):
+            errors.append(
+                f"  step '{name}' has passed=true but no evidence "
+                "(no artifacts and no metrics)"
+            )
 
     all_steps_passed = all(s.get("passed", False) for s in steps)
 
@@ -113,15 +144,184 @@ def validate_verification_consistency(data: dict[str, Any]) -> list[str]:
     return errors
 
 
+OUTCOMES = ("PASS", "ISSUES", "BLOCKED")
+_COMMIT_RE = re.compile(r"^[0-9a-fA-F]{7,64}$")
+COMMIT_CHECK_TIMEOUT_SECONDS = 10
+
+
+def derive_outcome(data: dict[str, Any]) -> str:
+    """Derive PASS / ISSUES / BLOCKED from a result's evidence.
+
+    This is the only derivation; every consumer calls it (directly or via
+    ``effective_outcome``) so the rule lives in one place.
+    """
+    if data.get("status") == "failed":
+        return "BLOCKED"
+    verification = data.get("verification") or {}
+    steps = verification.get("steps") or []
+    scope_check = data.get("scope_check") or {}
+    if (
+        data.get("status") == "completed"
+        and steps
+        and all(s.get("passed") is True for s in steps)
+        and verification.get("passed") is True
+        and scope_check.get("passed") is not False
+    ):
+        return "PASS"
+    return "ISSUES"
+
+
+def effective_outcome(data: dict[str, Any]) -> str:
+    """The explicit ``outcome`` when present, otherwise the derived one."""
+    outcome = data.get("outcome")
+    if outcome is not None:
+        return outcome
+    return derive_outcome(data)
+
+
+def validate_outcome_consistency(data: dict[str, Any]) -> list[str]:
+    """Reject an explicit outcome that claims more than the evidence.
+
+    Downgrades (ISSUES/BLOCKED over passing evidence) are allowed.
+    """
+    errors: list[str] = []
+    if "outcome" not in data:
+        return errors
+    outcome = data.get("outcome")
+    if outcome not in OUTCOMES:
+        errors.append(f"  outcome={outcome!r} is not one of {list(OUTCOMES)}")
+        return errors
+    derived = derive_outcome(data)
+    if outcome == "PASS" and derived != "PASS":
+        errors.append(
+            f"  outcome=PASS but the evidence derives {derived}"
+        )
+    if data.get("status") == "failed" and outcome != "BLOCKED":
+        errors.append(
+            f"  status=failed requires outcome=BLOCKED, got outcome={outcome}"
+        )
+    return errors
+
+
+# Variables that would point ``git`` at a repository other than the one at
+# ``cwd``; an inherited value (as inside a git hook) must not redirect the check.
+_GIT_LOCATION_ENV = (
+    "GIT_DIR",
+    "GIT_WORK_TREE",
+    "GIT_COMMON_DIR",
+    "GIT_INDEX_FILE",
+    "GIT_OBJECT_DIRECTORY",
+    "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+)
+
+
+def _git(path: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    """Run ``git`` in ``path`` with any inherited repository location removed."""
+    return subprocess.run(
+        ["git", *args],
+        cwd=path,
+        env={k: v for k, v in os.environ.items() if k not in _GIT_LOCATION_ENV},
+        capture_output=True,
+        text=True,
+        timeout=COMMIT_CHECK_TIMEOUT_SECONDS,
+    )
+
+
+def _resolve_commit(path: Path, rev: str) -> str | None:
+    """The full SHA ``rev`` names in ``path``, or None when it does not resolve."""
+    proc = _git(path, "rev-parse", "--verify", "--quiet", f"{rev}^{{commit}}")
+    return proc.stdout.strip() if proc.returncode == 0 else None
+
+
+def validate_commit_resolves(
+    data: dict[str, Any], worktree_path: str | Path,
+) -> dict[str, Any]:
+    """Check ``git.head.commit`` against the package worktree at ``worktree_path``.
+
+    The commit must (1) resolve to a commit, (2) be reachable from the package
+    branch (``git.head.branch`` when reported, otherwise the worktree's
+    ``HEAD``), and (3) differ from the commit ``git.base.ref`` resolves to: a
+    worker that made no commit has not produced a pass.
+    """
+    git = data.get("git") or {}
+    head = git.get("head") or {}
+    commit = head.get("commit")
+    branch = head.get("branch")
+    base_ref = (git.get("base") or {}).get("ref")
+    path = Path(worktree_path)
+
+    def _fail(msg: str) -> dict[str, Any]:
+        return {"passed": False, "errors": [f"  {msg}"]}
+
+    if not isinstance(commit, str) or not _COMMIT_RE.match(commit):
+        return _fail(
+            f"git.head.commit {commit!r} is not a 7-64 character hex SHA; "
+            f"not checked against {path}"
+        )
+    if branch is not None and (
+        not isinstance(branch, str) or not branch or branch.startswith("-")
+    ):
+        return _fail(f"git.head.branch {branch!r} is not a branch name")
+    if not isinstance(base_ref, str) or not base_ref or base_ref.startswith("-"):
+        return _fail(f"git.base.ref {base_ref!r} is not a ref")
+    if not path.is_dir():
+        return _fail(f"commit {commit} not checked: worktree {path} is not a directory")
+
+    if branch:
+        branch_rev, branch_label = f"refs/heads/{branch}", f"package branch {branch!r}"
+    else:
+        branch_rev, branch_label = "HEAD", "the worktree's HEAD"
+    try:
+        head_sha = _resolve_commit(path, commit)
+        if head_sha is None:
+            return _fail(f"commit {commit} does not resolve in worktree {path}")
+        branch_sha = _resolve_commit(path, branch_rev)
+        if branch_sha is None:
+            return _fail(
+                f"commit {commit} not checked: {branch_label} does not resolve "
+                f"in worktree {path}"
+            )
+        ancestry = _git(path, "merge-base", "--is-ancestor", head_sha, branch_sha)
+        if ancestry.returncode == 1:
+            return _fail(
+                f"commit {commit} is not reachable from {branch_label} "
+                f"in worktree {path}"
+            )
+        if ancestry.returncode != 0:
+            return _fail(
+                f"commit {commit} reachability from {branch_label} could not be "
+                f"checked in worktree {path}"
+            )
+        base_sha = _resolve_commit(path, base_ref)
+        if base_sha is None:
+            return _fail(
+                f"commit {commit} not checked: base ref {base_ref!r} does not "
+                f"resolve in worktree {path}"
+            )
+    except subprocess.TimeoutExpired:
+        return _fail(f"commit {commit} check timed out in worktree {path}")
+    except OSError as exc:
+        return _fail(f"commit {commit} could not be checked in worktree {path}: {exc}")
+    if head_sha == base_sha:
+        return _fail(
+            f"commit {commit} is the base ref {base_ref!r}: the package made no "
+            f"commit in worktree {path}"
+        )
+    return {"passed": True, "errors": []}
+
+
 def validate_result(
     data: dict[str, Any],
     schema: dict[str, Any] | None = None,
+    *,
+    worktree_path: str | Path | None = None,
 ) -> dict[str, Any]:
     """Full validation of a work-queue result payload.
 
     Returns a results dict with:
       - valid: bool
-      - checks: dict of check_name -> {passed, errors}
+      - checks: dict of check_name -> {passed, errors}; ``commit_resolves``
+        carries ``skipped: true`` when no ``worktree_path`` was supplied.
     """
     if schema is None:
         schema = load_schema()
@@ -152,6 +352,29 @@ def validate_result(
     if verification_errors:
         results["valid"] = False
 
+    # 4. Outcome consistency
+    outcome_errors = validate_outcome_consistency(data)
+    results["checks"]["outcome_consistency"] = {
+        "passed": not outcome_errors,
+        "errors": outcome_errors,
+    }
+    if outcome_errors:
+        results["valid"] = False
+
+    # 5. Commit resolution (opt-in; a skip is recorded, never reported as checked)
+    if worktree_path is None:
+        results["checks"]["commit_resolves"] = {
+            "passed": True,
+            "skipped": True,
+            "errors": [],
+            "reason": "no worktree_path supplied",
+        }
+    else:
+        commit_check = validate_commit_resolves(data, worktree_path)
+        results["checks"]["commit_resolves"] = commit_check
+        if not commit_check["passed"]:
+            results["valid"] = False
+
     return results
 
 
@@ -167,6 +390,12 @@ def main() -> int:
         default=None,
         help="Path to work-queue-result.schema.json",
     )
+    parser.add_argument(
+        "--worktree",
+        type=Path,
+        default=None,
+        help="Package worktree path; enables the commit_resolves check",
+    )
     args = parser.parse_args()
 
     if not args.path.exists():
@@ -177,7 +406,7 @@ def main() -> int:
         data = json.load(f)
 
     schema = load_schema(args.schema)
-    results = validate_result(data, schema)
+    results = validate_result(data, schema, worktree_path=args.worktree)
 
     if args.json:
         print(json.dumps(results, indent=2))
@@ -185,7 +414,10 @@ def main() -> int:
         status = "VALID" if results["valid"] else "INVALID"
         print(f"work-queue-result validation: {status}")
         for check_name, check_result in results["checks"].items():
-            symbol = "pass" if check_result["passed"] else "FAIL"
+            if check_result.get("skipped"):
+                symbol = "skip"
+            else:
+                symbol = "pass" if check_result["passed"] else "FAIL"
             print(f"  [{symbol}] {check_name}")
             for err in check_result.get("errors", []):
                 print(f"    {err}")

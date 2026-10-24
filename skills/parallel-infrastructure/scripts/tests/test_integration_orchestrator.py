@@ -16,6 +16,17 @@ from integration_orchestrator import (
     IntegrationGateStatus,
     IntegrationOrchestrator,
 )
+from package_acceptance import PackageAcceptance, digest_result
+
+
+def _ok(package_id: str, result: dict[str, Any] | None = None) -> PackageAcceptance:
+    """An accepted verdict, as accept_package_result returns for a validated PASS.
+
+    It is bound to ``result``, by default the ``_make_result(package_id)`` the
+    tests record with it.
+    """
+    bound = result if result is not None else _make_result(package_id)
+    return PackageAcceptance(package_id, True, "PASS", result_digest=digest_result(bound))
 
 
 def _make_packages() -> list[dict[str, Any]]:
@@ -40,7 +51,18 @@ def _make_result(
         "package_id": package_id,
         "status": status,
         "files_modified": files_modified or ["src/api/users.py"],
-        "verification": {"tier": "A", "passed": verification_passed, "steps": []},
+        "verification": {
+            "tier": "A",
+            "passed": verification_passed,
+            "steps": [{
+                "name": "unit-tests",
+                "kind": "command",
+                "command": "pytest -q",
+                "exit_code": 0 if verification_passed else 1,
+                "passed": verification_passed,
+                "evidence": {"artifacts": [], "metrics": {}},
+            }],
+        },
         "timestamps": {"started_at": "2026-01-01T00:00:00Z", "finished_at": "2026-01-01T00:30:00Z"},
         "git": {"base": {"ref": "main"}, "head": {"commit": "abc1234"}},
     }
@@ -102,14 +124,14 @@ class TestPendingReview:
         assert orch.get_packages_pending_review() == []
 
     def test_results_without_reviews(self, orch: IntegrationOrchestrator) -> None:
-        orch.record_package_result("wp-backend", _make_result("wp-backend"))
-        orch.record_package_result("wp-frontend", _make_result("wp-frontend"))
+        orch.record_package_result("wp-backend", _make_result("wp-backend"), _ok("wp-backend"))
+        orch.record_package_result("wp-frontend", _make_result("wp-frontend"), _ok("wp-frontend"))
         pending = orch.get_packages_pending_review()
         assert pending == ["wp-backend", "wp-frontend"]
 
     def test_results_with_partial_reviews(self, orch: IntegrationOrchestrator) -> None:
-        orch.record_package_result("wp-backend", _make_result("wp-backend"))
-        orch.record_package_result("wp-frontend", _make_result("wp-frontend"))
+        orch.record_package_result("wp-backend", _make_result("wp-backend"), _ok("wp-backend"))
+        orch.record_package_result("wp-frontend", _make_result("wp-frontend"), _ok("wp-frontend"))
         orch.record_review_findings("wp-backend", _make_findings("wp-backend"))
         pending = orch.get_packages_pending_review()
         assert pending == ["wp-frontend"]
@@ -118,7 +140,7 @@ class TestPendingReview:
 class TestIntegrationGate:
     def test_gate_passes_all_reviewed_no_blocking(self, orch: IntegrationOrchestrator) -> None:
         for pid in orch.implementation_packages:
-            orch.record_package_result(pid, _make_result(pid))
+            orch.record_package_result(pid, _make_result(pid), _ok(pid))
             orch.record_review_findings(pid, _make_findings(pid, [_make_finding(disposition="accept")]))
 
         gate = orch.check_integration_gate()
@@ -127,13 +149,13 @@ class TestIntegrationGate:
         assert gate["missing_reviews"] == []
 
     def test_gate_blocked_missing_results(self, orch: IntegrationOrchestrator) -> None:
-        orch.record_package_result("wp-backend", _make_result("wp-backend"))
+        orch.record_package_result("wp-backend", _make_result("wp-backend"), _ok("wp-backend"))
         gate = orch.check_integration_gate()
         assert gate["status"] == IntegrationGateStatus.BLOCKED_INCOMPLETE.value
 
     def test_gate_blocked_missing_reviews(self, orch: IntegrationOrchestrator) -> None:
         for pid in orch.implementation_packages:
-            orch.record_package_result(pid, _make_result(pid))
+            orch.record_package_result(pid, _make_result(pid), _ok(pid))
         # Only review one
         orch.record_review_findings("wp-backend", _make_findings("wp-backend"))
         gate = orch.check_integration_gate()
@@ -142,7 +164,7 @@ class TestIntegrationGate:
 
     def test_gate_blocked_fix_findings(self, orch: IntegrationOrchestrator) -> None:
         for pid in orch.implementation_packages:
-            orch.record_package_result(pid, _make_result(pid))
+            orch.record_package_result(pid, _make_result(pid), _ok(pid))
             findings = [] if pid != "wp-backend" else [_make_finding(disposition="fix", description="Bug found")]
             orch.record_review_findings(pid, _make_findings(pid, findings))
 
@@ -153,7 +175,7 @@ class TestIntegrationGate:
 
     def test_gate_blocked_escalate_findings(self, orch: IntegrationOrchestrator) -> None:
         for pid in orch.implementation_packages:
-            orch.record_package_result(pid, _make_result(pid))
+            orch.record_package_result(pid, _make_result(pid), _ok(pid))
             findings = [] if pid != "wp-frontend" else [_make_finding(disposition="escalate")]
             orch.record_review_findings(pid, _make_findings(pid, findings))
 
@@ -162,7 +184,7 @@ class TestIntegrationGate:
 
     def test_escalate_takes_priority_over_fix(self, orch: IntegrationOrchestrator) -> None:
         for pid in orch.implementation_packages:
-            orch.record_package_result(pid, _make_result(pid))
+            orch.record_package_result(pid, _make_result(pid), _ok(pid))
         orch.record_review_findings("wp-backend", _make_findings("wp-backend", [_make_finding(disposition="fix")]))
         orch.record_review_findings("wp-frontend", _make_findings("wp-frontend", [_make_finding(disposition="escalate")]))
         orch.record_review_findings("wp-contracts", _make_findings("wp-contracts"))
@@ -172,7 +194,7 @@ class TestIntegrationGate:
 
     def test_accept_and_regenerate_dont_block(self, orch: IntegrationOrchestrator) -> None:
         for pid in orch.implementation_packages:
-            orch.record_package_result(pid, _make_result(pid))
+            orch.record_package_result(pid, _make_result(pid), _ok(pid))
             findings = [
                 _make_finding(finding_id=1, disposition="accept"),
                 _make_finding(finding_id=2, disposition="regenerate"),
@@ -186,7 +208,7 @@ class TestIntegrationGate:
 class TestExecutionSummary:
     def _populate_all(self, orch: IntegrationOrchestrator) -> None:
         for pid in orch.implementation_packages:
-            orch.record_package_result(pid, _make_result(pid))
+            orch.record_package_result(pid, _make_result(pid), _ok(pid))
             orch.record_review_findings(pid, _make_findings(pid, [_make_finding()]))
 
     def test_summary_structure(self, orch: IntegrationOrchestrator) -> None:
@@ -239,7 +261,7 @@ class TestExecutionSummary:
         assert summary["integration"]["merge_commit"] == "merge123"
 
     def test_incomplete_summary(self, orch: IntegrationOrchestrator) -> None:
-        orch.record_package_result("wp-backend", _make_result("wp-backend"))
+        orch.record_package_result("wp-backend", _make_result("wp-backend"), _ok("wp-backend"))
         summary = orch.generate_execution_summary()
         assert summary["packages"]["completed"] == 1
         timeline_statuses = {e["package_id"]: e["status"] for e in summary["timeline"]}
@@ -276,7 +298,7 @@ class TestMultiVendorReview:
 
     def test_consensus_confirmed_fix_blocks(self, orch: IntegrationOrchestrator) -> None:
         """Confirmed fix findings in consensus block the gate."""
-        orch.record_package_result("wp-backend", _make_result("wp-backend"))
+        orch.record_package_result("wp-backend", _make_result("wp-backend"), _ok("wp-backend"))
         orch.record_review_findings("wp-backend", {"findings": []})
         orch.record_consensus("wp-backend", {
             "consensus_findings": [{
@@ -291,7 +313,7 @@ class TestMultiVendorReview:
 
     def test_consensus_disagreement_escalates(self, orch: IntegrationOrchestrator) -> None:
         """Disagreement findings trigger escalation."""
-        orch.record_package_result("wp-backend", _make_result("wp-backend"))
+        orch.record_package_result("wp-backend", _make_result("wp-backend"), _ok("wp-backend"))
         orch.record_review_findings("wp-backend", {"findings": []})
         orch.record_consensus("wp-backend", {
             "consensus_findings": [{
@@ -306,7 +328,7 @@ class TestMultiVendorReview:
 
     def test_consensus_unconfirmed_passes_with_warnings(self, orch: IntegrationOrchestrator) -> None:
         """Unconfirmed findings pass gate but produce warnings."""
-        orch.record_package_result("wp-backend", _make_result("wp-backend"))
+        orch.record_package_result("wp-backend", _make_result("wp-backend"), _ok("wp-backend"))
         orch.record_review_findings("wp-backend", {"findings": []})
         orch.record_consensus("wp-backend", {
             "consensus_findings": [{
@@ -322,7 +344,7 @@ class TestMultiVendorReview:
 
     def test_consensus_confirmed_accept_passes(self, orch: IntegrationOrchestrator) -> None:
         """Confirmed accept findings pass gate."""
-        orch.record_package_result("wp-backend", _make_result("wp-backend"))
+        orch.record_package_result("wp-backend", _make_result("wp-backend"), _ok("wp-backend"))
         orch.record_review_findings("wp-backend", {"findings": []})
         orch.record_consensus("wp-backend", {
             "consensus_findings": [{
@@ -337,7 +359,7 @@ class TestMultiVendorReview:
 
     def test_summary_includes_consensus_info(self, orch: IntegrationOrchestrator) -> None:
         """Execution summary includes consensus and vendor info."""
-        orch.record_package_result("wp-backend", _make_result("wp-backend"))
+        orch.record_package_result("wp-backend", _make_result("wp-backend"), _ok("wp-backend"))
         orch.record_review_findings("wp-backend", {"findings": []}, vendor="codex")
         orch.record_review_findings("wp-backend", {"findings": []}, vendor="grok")
         orch.record_consensus("wp-backend", {
@@ -349,3 +371,175 @@ class TestMultiVendorReview:
         assert summary["review"]["consensus"]["packages_with_consensus"] == 1
         assert "vendors" in summary["review"]
         assert set(summary["review"]["vendors"]) == {"codex", "grok"}
+
+
+# ---------------------------------------------------------------------------
+# Acceptance gating (blocked_not_passing)
+# ---------------------------------------------------------------------------
+
+def _refused(package_id: str, outcome: str, reason: str) -> PackageAcceptance:
+    return PackageAcceptance(package_id, False, outcome, (reason,))
+
+
+def _record_all_reviewed(
+    orch: IntegrationOrchestrator,
+    overrides: dict[str, tuple[dict[str, Any], PackageAcceptance | None]] | None = None,
+) -> None:
+    overrides = overrides or {}
+    for pid in orch.implementation_packages:
+        result, acceptance = overrides.get(pid, (_make_result(pid), _ok(pid)))
+        orch.record_package_result(pid, result, acceptance)
+        orch.record_review_findings(pid, _make_findings(pid))
+
+
+class TestAcceptanceGate:
+    def test_accepted_results_pass_with_empty_lists(self, orch: IntegrationOrchestrator) -> None:
+        _record_all_reviewed(orch)
+        gate = orch.check_integration_gate()
+        assert gate["status"] == IntegrationGateStatus.PASS.value
+        assert gate["not_passing"] == []
+        assert gate["overrides"] == []
+
+    def test_failed_result_blocks(self, orch: IntegrationOrchestrator) -> None:
+        failed = _make_result("wp-backend", status="failed", verification_passed=False)
+        _record_all_reviewed(orch, {
+            "wp-backend": (failed, _refused("wp-backend", "BLOCKED", "effective outcome is BLOCKED, not PASS")),
+        })
+        gate = orch.check_integration_gate()
+        assert gate["status"] == IntegrationGateStatus.BLOCKED_NOT_PASSING.value
+        assert gate["status"] == "blocked_not_passing"
+        assert [e["package_id"] for e in gate["not_passing"]] == ["wp-backend"]
+        entry = gate["not_passing"][0]
+        assert entry["outcome"] == "BLOCKED"
+        assert entry["reasons"] == ["effective outcome is BLOCKED, not PASS"]
+
+    def test_blocked_outcome_blocks(self, orch: IntegrationOrchestrator) -> None:
+        blocked = _make_result("wp-frontend")
+        blocked["outcome"] = "BLOCKED"
+        _record_all_reviewed(orch, {
+            "wp-frontend": (blocked, _refused("wp-frontend", "BLOCKED", "effective outcome is BLOCKED, not PASS")),
+        })
+        gate = orch.check_integration_gate()
+        assert gate["status"] == IntegrationGateStatus.BLOCKED_NOT_PASSING.value
+        assert [e["package_id"] for e in gate["not_passing"]] == ["wp-frontend"]
+
+    def test_missing_acceptance_blocks(self, orch: IntegrationOrchestrator) -> None:
+        _record_all_reviewed(orch, {"wp-backend": (_make_result("wp-backend"), None)})
+        gate = orch.check_integration_gate()
+        assert gate["status"] == IntegrationGateStatus.BLOCKED_NOT_PASSING.value
+        entry = gate["not_passing"][0]
+        assert entry["package_id"] == "wp-backend"
+        assert entry["outcome"] == "PASS"
+        assert any("no acceptance verdict" in r for r in entry["reasons"])
+
+    def test_record_without_acceptance_keyword_blocks(self, orch: IntegrationOrchestrator) -> None:
+        for pid in orch.implementation_packages:
+            orch.record_package_result(pid, _make_result(pid))
+            orch.record_review_findings(pid, _make_findings(pid))
+        gate = orch.check_integration_gate()
+        assert gate["status"] == IntegrationGateStatus.BLOCKED_NOT_PASSING.value
+        assert len(gate["not_passing"]) == 3
+
+    def test_acceptance_for_another_package_blocks(self, orch: IntegrationOrchestrator) -> None:
+        _record_all_reviewed(orch, {"wp-backend": (_make_result("wp-backend"), _ok("wp-frontend"))})
+        gate = orch.check_integration_gate()
+        assert gate["status"] == IntegrationGateStatus.BLOCKED_NOT_PASSING.value
+        assert gate["not_passing"][0]["package_id"] == "wp-backend"
+
+    def test_acceptance_for_another_result_blocks(self, orch: IntegrationOrchestrator) -> None:
+        # A verdict made for a good result does not accept a different, failed one.
+        failed = _make_result("wp-backend", status="failed", verification_passed=False)
+        _record_all_reviewed(orch, {"wp-backend": (failed, _ok("wp-backend"))})
+        gate = orch.check_integration_gate()
+        assert gate["status"] == IntegrationGateStatus.BLOCKED_NOT_PASSING.value
+        entry = gate["not_passing"][0]
+        assert entry["package_id"] == "wp-backend"
+        assert entry["reasons"] == ["acceptance was not issued for the recorded result"]
+
+    def test_unbound_acceptance_blocks(self, orch: IntegrationOrchestrator) -> None:
+        unbound = PackageAcceptance("wp-backend", True, "PASS")
+        _record_all_reviewed(orch, {"wp-backend": (_make_result("wp-backend"), unbound)})
+        gate = orch.check_integration_gate()
+        assert gate["status"] == IntegrationGateStatus.BLOCKED_NOT_PASSING.value
+        assert [e["package_id"] for e in gate["not_passing"]] == ["wp-backend"]
+
+    def test_non_acceptance_value_blocks(self, orch: IntegrationOrchestrator) -> None:
+        _record_all_reviewed(orch, {"wp-backend": (_make_result("wp-backend"), True)})  # type: ignore[dict-item]
+        gate = orch.check_integration_gate()
+        assert gate["status"] == IntegrationGateStatus.BLOCKED_NOT_PASSING.value
+
+    def test_missing_result_still_blocked_incomplete(self, orch: IntegrationOrchestrator) -> None:
+        orch.record_package_result(
+            "wp-backend", _make_result("wp-backend", status="failed"),
+            _refused("wp-backend", "BLOCKED", "effective outcome is BLOCKED, not PASS"),
+        )
+        gate = orch.check_integration_gate()
+        assert gate["status"] == IntegrationGateStatus.BLOCKED_INCOMPLETE.value
+        assert gate["not_passing"] == []
+
+    def test_acceptance_checked_before_reviews(self, orch: IntegrationOrchestrator) -> None:
+        for pid in orch.implementation_packages:
+            acceptance = _ok(pid) if pid != "wp-backend" else _refused(pid, "ISSUES", "x")
+            orch.record_package_result(pid, _make_result(pid), acceptance)
+        gate = orch.check_integration_gate()
+        assert gate["status"] == IntegrationGateStatus.BLOCKED_NOT_PASSING.value
+
+    def test_acceptance_checked_before_findings(self, orch: IntegrationOrchestrator) -> None:
+        for pid in orch.implementation_packages:
+            acceptance = _ok(pid) if pid != "wp-backend" else _refused(pid, "ISSUES", "x")
+            orch.record_package_result(pid, _make_result(pid), acceptance)
+            orch.record_review_findings(pid, _make_findings(pid, [_make_finding(disposition="escalate")]))
+        gate = orch.check_integration_gate()
+        assert gate["status"] == IntegrationGateStatus.BLOCKED_NOT_PASSING.value
+
+    def test_override_passes_and_is_listed(self, orch: IntegrationOrchestrator) -> None:
+        failed = _make_result("wp-backend", status="failed", verification_passed=False)
+        override = PackageAcceptance.override_for("wp-backend", "flaky CI, rerun green", "operator")
+        _record_all_reviewed(orch, {"wp-backend": (failed, override)})
+        gate = orch.check_integration_gate()
+        assert gate["status"] == IntegrationGateStatus.PASS.value
+        assert gate["overrides"] == [{
+            "package_id": "wp-backend",
+            "reason": "flaky CI, rerun green",
+            "approver": "operator",
+        }]
+
+    def test_every_response_carries_both_lists(self, orch: IntegrationOrchestrator) -> None:
+        responses = [orch.check_integration_gate()]
+        for pid in orch.implementation_packages:
+            orch.record_package_result(pid, _make_result(pid), _ok(pid))
+        responses.append(orch.check_integration_gate())
+        for pid in orch.implementation_packages:
+            orch.record_review_findings(pid, _make_findings(pid, [_make_finding(disposition="fix")]))
+        responses.append(orch.check_integration_gate())
+        for gate in responses:
+            assert gate["not_passing"] == []
+            assert gate["overrides"] == []
+
+
+class TestSummaryReportsAcceptance:
+    def test_timeline_carries_outcome_and_acceptance(self, orch: IntegrationOrchestrator) -> None:
+        failed = _make_result("wp-backend", status="failed", verification_passed=False)
+        _record_all_reviewed(orch, {
+            "wp-backend": (failed, _refused("wp-backend", "BLOCKED", "effective outcome is BLOCKED, not PASS")),
+        })
+        summary = orch.generate_execution_summary()
+        entries = {e["package_id"]: e for e in summary["timeline"]}
+        assert entries["wp-frontend"]["outcome"] == "PASS"
+        assert entries["wp-frontend"]["accepted"] is True
+        assert entries["wp-backend"]["outcome"] == "BLOCKED"
+        assert entries["wp-backend"]["accepted"] is False
+        assert entries["wp-backend"]["acceptance_reasons"] == ["effective outcome is BLOCKED, not PASS"]
+        assert summary["packages"]["accepted"] == 2
+        assert summary["gate"]["status"] == IntegrationGateStatus.BLOCKED_NOT_PASSING.value
+
+    def test_timeline_reports_missing_acceptance_and_override(self, orch: IntegrationOrchestrator) -> None:
+        override = PackageAcceptance.override_for("wp-frontend", "known flake", "operator")
+        orch.record_package_result("wp-backend", _make_result("wp-backend"))
+        orch.record_package_result("wp-frontend", _make_result("wp-frontend"), override)
+        summary = orch.generate_execution_summary()
+        entries = {e["package_id"]: e for e in summary["timeline"]}
+        assert entries["wp-backend"]["accepted"] is False
+        assert entries["wp-frontend"]["accepted"] is True
+        assert entries["wp-frontend"]["override"] == {"reason": "known flake", "approver": "operator"}
+        assert "outcome" not in entries["wp-contracts"]
