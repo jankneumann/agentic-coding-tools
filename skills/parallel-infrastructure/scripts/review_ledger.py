@@ -602,15 +602,76 @@ def parked_items(ledger: dict[str, Any]) -> list[dict[str, Any]]:
     return [item for item in ledger.get("items", []) if item.get("status") == "parked"]
 
 
+def paired_test_paths(source_path: str) -> list[str]:
+    """Return the conventional test file(s) paired with a cited source file.
+
+    A fix for a blocking finding routinely has to update the test that pins
+    the code it changes (e.g. deleting a dead method and its test). Only the
+    exact mirrored test path of the repo's layouts is derived -- never a
+    glob or directory -- so every other file stays outside the fix scope:
+
+    - ``agent-coordinator/src/<sub>/<mod>.py``
+      -> ``agent-coordinator/tests/<sub>/test_<mod>.py``
+    - ``agent-coordinator/evaluation/<sub>/<mod>.py``
+      -> ``agent-coordinator/tests/test_evaluation/<sub>/test_<mod>.py``
+    - ``skills/<skill>/scripts/<sub>/<mod>.py``
+      -> ``skills/tests/<skill>/<sub>/test_<mod>.py`` and the legacy
+      ``skills/<skill>/scripts/<sub>/tests/test_<mod>.py``
+
+    Any prefix before the anchor (an absolute worktree path) is preserved.
+    Non-Python files, ``__init__.py`` and files that are already tests
+    yield nothing.
+    """
+    parts = Path(source_path).parts
+    if not parts:
+        return []
+    name = parts[-1]
+    if (
+        not name.endswith(".py")
+        or name == "__init__.py"
+        or name.startswith("test_")
+    ):
+        return []
+    test_name = f"test_{name}"
+
+    for idx in range(len(parts) - 1):
+        prefix, head = parts[:idx], parts[idx]
+        rest = parts[idx + 1:]
+        if "tests" in rest:
+            continue
+        if head == "agent-coordinator" and len(rest) >= 2:
+            sub = rest[1:-1]
+            if rest[0] == "src":
+                return [str(Path(*prefix, head, "tests", *sub, test_name))]
+            if rest[0] == "evaluation":
+                return [str(Path(
+                    *prefix, head, "tests", "test_evaluation", *sub, test_name,
+                ))]
+        if head == "skills" and len(rest) >= 3 and rest[1] == "scripts":
+            skill, sub = rest[0], rest[2:-1]
+            return [
+                str(Path(*prefix, head, "tests", skill, *sub, test_name)),
+                str(Path(*prefix, head, skill, "scripts", *sub, "tests", test_name)),
+            ]
+    return []
+
+
 def allowed_paths(
     item: dict[str, Any],
     artifacts_dir: Path | None = None,
 ) -> list[str]:
-    """Cited write paths for a scoped fix (D7)."""
+    """Cited write paths for a scoped fix (D7).
+
+    The cited ``file_path`` plus its paired test file(s), so a fix can keep
+    the test that pins the changed code in step with it.
+    """
     paths: list[str] = []
     file_path = item.get("file_path")
     if file_path:
         paths.append(str(file_path))
+        for test_path in paired_test_paths(str(file_path)):
+            if test_path not in paths:
+                paths.append(test_path)
     finding_type = item.get("type") or item.get("agreed_type") or ""
     spec_file = item.get("spec_file")
     if finding_type == "spec_gap" and not spec_file:

@@ -27,6 +27,7 @@ from review_ledger import (  # noqa: E402
     is_blocking_item,
     load_or_create,
     merge_findings,
+    paired_test_paths,
     parked_path,
     reject_out_of_scope_fix,
     save,
@@ -394,6 +395,103 @@ def test_in_scope_fix_passes() -> None:
         allowed=["src/api.py"],
     )
     assert result["compliant"] is True
+
+
+@pytest.mark.parametrize(
+    ("source", "expected"),
+    [
+        (
+            "agent-coordinator/src/model_routing/ledger.py",
+            ["agent-coordinator/tests/model_routing/test_ledger.py"],
+        ),
+        (
+            "agent-coordinator/src/approval.py",
+            ["agent-coordinator/tests/test_approval.py"],
+        ),
+        (
+            "agent-coordinator/evaluation/harness.py",
+            ["agent-coordinator/tests/test_evaluation/test_harness.py"],
+        ),
+        (
+            "skills/autopilot/scripts/convergence_loop.py",
+            [
+                "skills/tests/autopilot/test_convergence_loop.py",
+                "skills/autopilot/scripts/tests/test_convergence_loop.py",
+            ],
+        ),
+        (
+            "/wt/skills/autopilot/scripts/convergence_loop.py",
+            [
+                "/wt/skills/tests/autopilot/test_convergence_loop.py",
+                "/wt/skills/autopilot/scripts/tests/test_convergence_loop.py",
+            ],
+        ),
+    ],
+)
+def test_paired_test_paths_follow_repo_layout(
+    source: str, expected: list[str],
+) -> None:
+    assert paired_test_paths(source) == expected
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "src/api.py",
+        "agent-coordinator/src/__init__.py",
+        "agent-coordinator/tests/test_approval.py",
+        "skills/tests/autopilot/test_convergence_loop.py",
+        "skills/autopilot/SKILL.md",
+        "agent-coordinator/database/migrations/001_init.sql",
+    ],
+)
+def test_paired_test_paths_none_outside_layout(source: str) -> None:
+    assert paired_test_paths(source) == []
+
+
+def test_allowed_paths_include_paired_test() -> None:
+    item = {"file_path": "agent-coordinator/src/model_routing/ledger.py", "type": "bug"}
+    assert allowed_paths(item) == [
+        "agent-coordinator/src/model_routing/ledger.py",
+        "agent-coordinator/tests/model_routing/test_ledger.py",
+    ]
+
+
+def test_paired_test_edit_is_in_scope() -> None:
+    allowed = allowed_paths({
+        "file_path": "agent-coordinator/src/model_routing/ledger.py", "type": "bug",
+    })
+    reject_out_of_scope_fix(
+        [
+            "agent-coordinator/src/model_routing/ledger.py",
+            "agent-coordinator/tests/model_routing/test_ledger.py",
+        ],
+        allowed,
+    )
+
+
+@pytest.mark.parametrize(
+    "unrelated",
+    [
+        # Another module's test, a sibling test dir, and a non-test file.
+        "agent-coordinator/tests/model_routing/test_resolver.py",
+        "agent-coordinator/tests/test_ledger.py",
+        "agent-coordinator/src/model_routing/resolver.py",
+    ],
+)
+def test_unrelated_file_beside_paired_test_still_rejected(unrelated: str) -> None:
+    allowed = allowed_paths({
+        "file_path": "agent-coordinator/src/model_routing/ledger.py", "type": "bug",
+    })
+    with pytest.raises(ScopeViolation, match="1 outside write_allow"):
+        reject_out_of_scope_fix(
+            [
+                "agent-coordinator/src/model_routing/ledger.py",
+                "agent-coordinator/tests/model_routing/test_ledger.py",
+                unrelated,
+            ],
+            allowed,
+        )
 
 
 def test_parked_path_location(tmp_path: Path) -> None:

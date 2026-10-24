@@ -640,18 +640,22 @@ def _init_git_repo(path: Path) -> None:
     )
 
 
-def _blocking_round(tmp_path: Path) -> tuple[dict, object]:
+def _blocking_round(
+    tmp_path: Path, file_path: str = "src/api.py",
+) -> tuple[dict, object]:
     finding = _make_consensus_finding(1, status="confirmed", criticality="high")
+    if file_path != "src/api.py":
+        finding.file_path = file_path
     results_r1 = [
         _make_review_result("vendor_a", findings=[{
             "id": 1, "type": "bug", "criticality": "high",
             "description": "High bug", "disposition": "fix",
-            "file_path": "src/api.py",
+            "file_path": file_path,
         }]),
         _make_review_result("vendor_b", findings=[{
             "id": 1, "type": "bug", "criticality": "high",
             "description": "High bug", "disposition": "fix",
-            "file_path": "src/api.py",
+            "file_path": file_path,
         }]),
     ]
     results_r2 = [
@@ -761,6 +765,69 @@ def test_converge_rejects_out_of_scope_fix(tmp_path: Path) -> None:
                 worktree_path=tmp_path,
                 orchestrator=ctx["orchestrator"],
                 fix_callback=edit_unrelated,
+            )
+    ledger = load_or_create(ctx["artifacts_dir"], "test-change")
+    assert ledger["items"][0]["status"] == "open"
+
+
+_LEDGER_SRC = "agent-coordinator/src/model_routing/ledger.py"
+_LEDGER_TEST = "agent-coordinator/tests/model_routing/test_ledger.py"
+
+
+def _commit_ledger_module(tmp_path: Path) -> None:
+    _init_git_repo(tmp_path)
+    for rel in (_LEDGER_SRC, _LEDGER_TEST, "agent-coordinator/src/model_routing/resolver.py"):
+        target = tmp_path / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("ok\n")
+    subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "src"], cwd=tmp_path, check=True, capture_output=True,
+    )
+
+
+def test_converge_accepts_fix_that_edits_paired_test(tmp_path: Path) -> None:
+    """A fix removing dead code must be able to drop the test pinning it."""
+    _commit_ledger_module(tmp_path)
+    ctx, _finding = _blocking_round(tmp_path, file_path=_LEDGER_SRC)
+
+    def fix_with_test(_blocking: list, worktree: Path) -> None:
+        (worktree / _LEDGER_SRC).write_text("dead method removed\n")
+        (worktree / _LEDGER_TEST).write_text("its test removed\n")
+
+    with patch("convergence_loop.ConsensusSynthesizer", return_value=ctx["synthesizer"]):
+        converge(
+            change_id="test-change",
+            review_type="implementation",
+            artifacts_dir=ctx["artifacts_dir"],
+            worktree_path=tmp_path,
+            orchestrator=ctx["orchestrator"],
+            fix_callback=fix_with_test,
+        )
+    ledger = load_or_create(ctx["artifacts_dir"], "test-change")
+    assert ledger["items"][0]["status"] in {"addressed", "retired"}
+
+
+def test_converge_still_rejects_unrelated_file_with_paired_test(
+    tmp_path: Path,
+) -> None:
+    _commit_ledger_module(tmp_path)
+    ctx, _finding = _blocking_round(tmp_path, file_path=_LEDGER_SRC)
+
+    def fix_with_stray_edit(_blocking: list, worktree: Path) -> None:
+        (worktree / _LEDGER_SRC).write_text("fixed\n")
+        (worktree / _LEDGER_TEST).write_text("updated\n")
+        (worktree / "agent-coordinator/src/model_routing/resolver.py").write_text("stray\n")
+
+    with patch("convergence_loop.ConsensusSynthesizer", return_value=ctx["synthesizer"]):
+        with pytest.raises(ScopeViolation, match="1 outside write_allow"):
+            converge(
+                change_id="test-change",
+                review_type="implementation",
+                artifacts_dir=ctx["artifacts_dir"],
+                worktree_path=tmp_path,
+                orchestrator=ctx["orchestrator"],
+                fix_callback=fix_with_stray_edit,
             )
     ledger = load_or_create(ctx["artifacts_dir"], "test-change")
     assert ledger["items"][0]["status"] == "open"
