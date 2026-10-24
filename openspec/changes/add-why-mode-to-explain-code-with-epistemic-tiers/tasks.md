@@ -77,3 +77,24 @@
   **Dependencies**: 4.2
 - [x] 4.4 Run `openspec validate add-why-mode-to-explain-code-with-epistemic-tiers --strict` (XS)
   **Dependencies**: 4.3
+
+## 5. Independent review fixes (wp-why-mode)
+
+- [x] 5.1 Report a shallow-clone boundary as `history_truncated` instead of tracing the graft commit (S)
+  - Test: `test_shallow_clone_boundary_is_history_truncated` (a `--depth 1` `file://` clone of the fixture); guard `test_root_commit_in_full_history_is_still_traced`.
+  **Spec scenarios**: skill-workflow.why-trace-history-truncated
+  **Design decisions**: D3, D4
+- [x] 5.2 Strip or normalise an invalid `evidence_level` at ingest and keep the finding (S)
+  - Tests: `test_invalid_evidence_level_is_dropped_and_the_finding_kept`, `test_dispatch_keeps_every_finding_when_one_evidence_level_is_bogus`.
+  **Spec scenarios**: skill-workflow.evidence-level-invalid-dropped
+  **Design decisions**: D6
+- [x] 5.3 Match `mentions_target` on whole tokens (XS)
+  - Tests: `test_mentions_target_ignores_near_miss_names`, `test_mentions_target_symbol_is_whole_word`.
+  **Spec scenarios**: skill-workflow.why-trace-mentions-target, .why-trace-near-miss-mention
+- [x] 5.4 Count a text-tier change id only when it has a change directory (XS)
+  - Test: `test_openspec_file_mention_is_not_a_change_id`.
+  **Spec scenarios**: skill-workflow.why-trace-openspec-file-mention
+- [x] 5.5 Say which record was missing in the `no_decision_record` message (XS)
+  - Tests: `test_no_decision_record_message_names_the_missing_session_log`, `test_no_decision_record_message_names_a_missing_change_dir`.
+- [x] 5.6 Cite the superseding reference, not D1's own pointer, in the `why.md` supersession example, and list `history_truncated` in the null-result rule (XS)
+  - Tests: `test_worked_example_supersession_claim_cites_the_superseding_reference`, `test_null_result_rule_lists_every_trace_status`.

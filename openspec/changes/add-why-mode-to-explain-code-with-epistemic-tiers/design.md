@@ -39,8 +39,11 @@ The script emits records and pointers and never assigns a tier.
     - `git:<sha>` of the PR-bearing commit for PR records;
     - `<session-log relpath>#<phase-slug>/D<n>` for decisions. This is the same ref
       grammar that `supersedes:` uses in `decision_index.py`.
-  - **`mentions_target`.** For each decision, true when its title or rationale contains
-    the target's repo-relative path, its basename, or the `--symbol` value. Only then
+  - **`mentions_target`.** For each decision, true when its title or rationale names
+    the target's repo-relative path, its basename, or the `--symbol` value as a whole
+    token: a path must not continue a longer path or name on either side (`app.py` does
+    not match `myapp.py`, `lib/app.py` or `app.pyc`), and a symbol must not be part of
+    a longer identifier. Only then
     may a reply say *as Direct* that the decision explains the line. Otherwise the link
     from decision to line is Inferred.
 
@@ -48,16 +51,23 @@ The script emits records and pointers and never assigns a tier.
 
 | Link | Source | Absent → |
 |---|---|---|
-| blame | `git blame --porcelain -w -M -L n,n -- <path>` against the working tree (no revision argument, so uncommitted lines report the all-zero sha) | an all-zero sha → `status: uncommitted` |
+| blame | `git blame --porcelain -w -M -L n,n -- <path>` against the working tree (no revision argument, so uncommitted lines report the all-zero sha) | an all-zero sha → `status: uncommitted`; a `boundary` commit listed in the shallow file (`git rev-parse --git-path shallow`) → `status: history_truncated` |
 | commit | `git show -s --format=…` plus `git show --name-only --format= <sha>` | — |
 | PR | 1. `(#N)` at the end of the commit subject; 2. `Merge pull request #N` in the subject; 3. the oldest merge commit on `git log --ancestry-path --merges <sha>..HEAD` whose subject carries a PR marker and whose first parent does not already contain the commit (checked with `git log <first-parent>..<sha>`), so a later, unrelated merge is never credited | `pr: null`, `pr_reason` given |
-| change-id | 1. paths the commit touches under `openspec/changes/<id>/` or `openspec/changes/archive/<date>-<id>/`; 2. `openspec/<id>` in the commit or PR-merge subject or body | `status: no_change_id` |
+| change-id | 1. paths the commit touches under `openspec/changes/<id>/` or `openspec/changes/archive/<date>-<id>/`; 2. `openspec/<id>` in the commit or PR-merge subject or body, counted only when `<id>` has a change directory (so `openspec/config.yaml` never yields `config`) | `status: no_change_id` |
 | change dir | `openspec/changes/<id>` if it is a directory, otherwise the lexically last `openspec/changes/archive/<YYYY-MM-DD>-<id>` whose name matches exactly (so `-demo-change` never matches `…-other-demo-change`) | `change_dir: null` |
 | decisions | `decision_index.extract_decisions(<change_dir>/session-log.md)` | `status: no_decision_record` |
 | superseded_by | `decision_index._build_supersession_map` over every `openspec/changes/**/session-log.md` | `null` |
 | index path | `docs/decisions/<capability>.md` if the file exists | `null` |
 
 The line-range check uses the working-tree file length, matching the blame target.
+
+Git marks a blamed commit `boundary` both when it is a true root commit and when it is
+a shallow-clone graft that stands in for all earlier history. Only the second is a
+truncation, so the trace checks the sha against the shallow file. A graft is not the
+introducing commit, and its touched paths (often the whole tree) are not evidence of a
+change id, so the trace stops with `history_truncated`, names the boundary sha and says
+the history is shallow, instead of reporting a false `traced` chain.
 
 Resolving archive paths at read time follows the path-stability rule. A commit made
 while the change was active still resolves after archival.
@@ -78,7 +88,8 @@ roadmap's instruction and avoids a second resolver. A drift in its signature fai
 The output is one JSON object on stdout, with `schema_version: 1` and these keys:
 
 - `target` — `{path, line, symbol}`
-- `status` — one of `traced`, `no_decision_record`, `no_change_id`, `uncommitted`
+- `status` — one of `traced`, `no_decision_record`, `no_change_id`, `history_truncated`,
+  `uncommitted`
 - `blame`
 - `commit`
 - `pr`
@@ -94,7 +105,7 @@ present as `[]`.
 
 | Exit | Meaning |
 |---|---|
-| `0` | A trace was produced, including all three null results |
+| `0` | A trace was produced, including all four null results |
 | `1` | Git failure: not a repository, or git cannot be spawned |
 | `2` | Invalid input: malformed target, path not tracked, line out of range |
 
@@ -145,8 +156,11 @@ absence-is-not-a-pass theme of this roadmap.
   `required`, it has no `default` and it is not `readOnly`, so the vendor is asked to
   supply it. Both schema copies are edited identically. The diff is exactly that one
   property in each copy.
-- **No consumer change.** The consensus synthesizer, the coercion table and blocking
-  logic do not read it. `evidence_class` stays the only field that affects blocking.
+- **No gating consumer.** The consensus synthesizer and blocking logic do not read it.
+  Ingest coercion does, only to keep a bad value from costing the finding: a case or
+  whitespace variant of an enum value is normalised, and any other value is removed
+  from the finding with a coercion note. Without this, one bogus `evidence_level`
+  failed validation of the whole vendor payload and discarded every finding in it. `evidence_class` stays the only field that affects blocking.
 - **Prompt builders.** Both gain an OPTIONAL line using their existing
   `if "<field>" in enums:` pattern:
   - `prompt_contract_block()`;

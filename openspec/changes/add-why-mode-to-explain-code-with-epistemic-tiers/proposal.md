@@ -48,7 +48,8 @@ answers and review findings describe their own calibration in the same words.
     files, writes nothing and makes no network calls.
   - **The null result is explicit.** When no decision record covers the line,
     `decisions` is `[]` and `null_result` names which link of the chain broke:
-    `uncommitted`, `no_change_id` or `no_decision_record`. It exits `0`, because a null
+    `uncommitted`, `history_truncated` (the line blames to a shallow-clone boundary),
+    `no_change_id` or `no_decision_record`. It exits `0`, because a null
     result is an answer, not an error.
 - **A "why" mode in explain-code.** It is a new catalogue form, the *why chain*, with
   its own `references/why.md`. No standalone `/why` skill is added (roadmap
@@ -126,7 +127,9 @@ script; tiers live in the reply contract, not in the script.**
 3. The tier names in the schema are lowercase, matching every other enum in the schema.
    SKILL.md shows them capitalised in prose.
 4. `evidence_level` is informational. The consensus synthesizer and the blocking rules
-   do not read it, so no gate behaviour changes.
+   do not read it, so no gate behaviour changes. An invalid value never costs the
+   finding: ingest coercion normalises a case variant or removes the field, and records
+   a coercion note.
 5. The why-chain reply keeps explain-code's existing grounding contract. It is a
    non-call-tree form, so it ends with
    `Grounding: source read, unverified (form not graph-backed)`. The disclosure
