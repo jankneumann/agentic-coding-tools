@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-10-23T12:12:57.453742+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "rpc_failed: ForeignKeyViolationError: insert or update on table \"handoff_documents\" violates foreign key constraint \"handoff_documents_session_id_fkey\"\nDETAIL:  Key (session_id)=(session_017qfSLYuSiyd2b5URwLucoq) is not present in table \"agent_sessions\". (HTTP 200)",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": "session_017qfSLYuSiyd2b5URwLucoq",
+    "summary": "PLAN_FIX ran inline. The escalated ledger item 1 (policy waivers had no approver) is already addressed in design.md D4 by commit f1487fc: both waiver sources require a non-blank approver, the policy approver is policy:merge-pull-requests, and eligibility_reason semantics are stated. openspec validate --strict passes. No further edits were needed in this phase.",
+    "completed_work": [
+      "Verified f1487fc against spec requirement 'Recorded Review Waivers'",
+      "openspec validate --strict passes"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "PLAN_FIX verifies an earlier fix instead of re-editing",
+        "rationale": "The fix for item 1 landed during the aborted first lane run; re-editing the same text would add churn without changing the design.",
+        "capability": "merge-pull-requests",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Re-run PLAN_REVIEW lane"
+    ],
+    "relevant_files": []
+  }
+}

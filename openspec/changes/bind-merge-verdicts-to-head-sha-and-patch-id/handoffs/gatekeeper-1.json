@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-10-23T12:04:29.975946+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "rpc_failed: ForeignKeyViolationError: insert or update on table \"handoff_documents\" violates foreign key constraint \"handoff_documents_session_id_fkey\"\nDETAIL:  Key (session_id)=(session_017qfSLYuSiyd2b5URwLucoq) is not present in table \"agent_sessions\". (HTTP 200)",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": "session_017qfSLYuSiyd2b5URwLucoq",
+    "summary": "GATEKEEPER ran inline (no sub-agent dispatch tool in this session). Signal-only verdict proceed_with_review: change is verifiable (proposal, specs with WHEN/THEN scenarios, tasks) and carries a security signal, so validation review is enabled. DEGRADED: the model-based risk/verifiability judgment did not run.",
+    "completed_work": [
+      "Read gate_signals: 6 packages, ~1130 LOC, has_security_signal true, no db migration, no broad write scope, has_proposal/specs/tasks true",
+      "Verdict proceed_with_review"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Signal-only gatekeeper verdict proceed_with_review",
+        "rationale": "No dispatch adapter; permissive fallback derives verdict from gate_signals, security signal present.",
+        "capability": "merge-pull-requests",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "PLAN: proposal_approval gate (approach=exists)"
+    ],
+    "relevant_files": []
+  }
+}

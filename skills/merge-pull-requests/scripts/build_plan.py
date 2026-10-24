@@ -174,14 +174,14 @@ def build_plan(
                     ),
                     "unresolved_comment_summary": None,
                     "vendor_verdict": None,
-                    "iterate_consensus_path": None,
+                    "review_waiver": None,
                     "blocking_reason": None,
                 },
             },
         )
 
     plan = {
-        "schema_version": "1.1",
+        "schema_version": "1.2",
         "generated_at": generated_at
         or datetime.now(timezone.utc).isoformat(),
         "storage_tier": storage_tier,

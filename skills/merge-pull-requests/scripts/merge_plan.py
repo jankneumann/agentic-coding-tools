@@ -112,9 +112,26 @@ def _validate_execution_semantics(plan: dict[str, Any]) -> None:
             )
 
 
-def validate_plan(plan: dict[str, Any]) -> None:
-    """Validate the shipped JSON contract and producer-enforced DAG rules."""
+SUPPORTED_SCHEMA_VERSION = "1.2"
 
+
+def _validate_version(plan: dict[str, Any]) -> None:
+    version = plan.get("schema_version") if isinstance(plan, dict) else None
+    if version != SUPPORTED_SCHEMA_VERSION:
+        raise MergePlanValidationError(
+            f"plan schema {version} is no longer supported; "
+            "rebuild with the analysis round",
+        )
+
+
+def validate_plan(plan: dict[str, Any]) -> None:
+    """Validate the shipped JSON contract and producer-enforced DAG rules.
+
+    Plans are short-lived analysis artifacts, so an older schema version is
+    rejected with a rebuild hint rather than migrated.
+    """
+
+    _validate_version(plan)
     _validate_schema(plan)
     _validate_dag(plan)
     _validate_execution_semantics(plan)
