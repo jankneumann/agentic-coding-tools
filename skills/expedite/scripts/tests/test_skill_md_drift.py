@@ -2,6 +2,11 @@
 
 The code side is observed by *running* each check against fixtures and
 collecting the statuses it returns, not by parsing expedite.py source.
+
+Each table row claims "this check fails under this condition". SCENARIOS names
+one fixture per condition, keyed the way the table row labels it, so the test
+can compare the table's rows with the conditions under which the code fails.
+A new failing branch in the code needs a new scenario here and a new row.
 """
 from __future__ import annotations
 
@@ -10,6 +15,7 @@ import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -21,6 +27,33 @@ import expedite as ex  # noqa: E402
 
 TABLE_HEADER = re.compile(r"^\|\s*Check fail\s*\|\s*Resolution\s*\|")
 ROW_CHECK = re.compile(r"^\|\s*`([a-z_]+)`")
+# "| `check` (condition) | ..." -> check, condition (absent for a bare check)
+ROW_CONDITION = re.compile(r"^\|\s*`([a-z_]+)`\s*(?:\(([^)]*)\))?\s*\|")
+
+# (check, condition) -> expedite() fixture for that condition. Conditions under
+# which the check does not fail are included too, so a branch that starts
+# failing without a table row is caught.
+SCENARIOS: dict[tuple[str, str | None], dict] = {
+    ("active_agents", None): dict(active=True),
+    ("active_agents", "none active"): dict(smoke="pass"),
+    ("validation_report", "no file"): {},
+    ("validation_report", "no file, override"): dict(
+        accept_missing_validation="docs-only change"),
+    ("validation_report", "unreadable"): dict(unreadable_validation=True),
+    ("validation_report", "hard gate fail"): dict(smoke="fail"),
+    ("validation_report", "hard gates pass"): dict(smoke="pass"),
+    ("rework_report", "no file"): dict(smoke="pass"),
+    ("rework_report", "none"): dict(smoke="pass", rework="none"),
+    ("rework_report", "defer"): dict(smoke="pass", rework="defer"),
+    ("rework_report", "iterate"): dict(smoke="pass", rework="iterate"),
+    ("rework_report", "revise-spec"): dict(smoke="pass", rework="revise-spec"),
+    ("rework_report", "block-cleanup"): dict(smoke="pass", rework="block-cleanup"),
+    ("rework_report", "load failure"): dict(smoke="pass", bad_rework=True),
+    # rework_report.summary_action only derives known actions, so this branch
+    # is defensive; reach it with a stubbed loader.
+    ("rework_report", "unknown summary_action"): dict(
+        smoke="pass", rework="none", unknown_action=True),
+}
 
 
 # ---------------------------------------------------------------------------
@@ -72,33 +105,54 @@ def _rework(path: Path, *, action: str) -> None:
 
 
 @pytest.fixture(scope="module")
-def observed(tmp_path_factory: pytest.TempPathFactory) -> dict[str, set[str]]:
-    """Run expedite() over fixtures covering every branch of every check."""
-    seen: dict[str, set[str]] = {}
+def runs(tmp_path_factory: pytest.TempPathFactory,
+         ) -> dict[tuple[str, str | None], dict[str, str]]:
+    """Run expedite() once per scenario; map each to its check statuses."""
+    results: dict[tuple[str, str | None], dict[str, str]] = {}
 
-    def run(**kwargs) -> None:
+    def run(**kwargs) -> dict[str, str]:
         repo = tmp_path_factory.mktemp("repo")
         _registry(repo, active=kwargs.pop("active", False))
         change = repo / "openspec" / "changes" / "abc"
         if "smoke" in kwargs:
             _validation(change / "validation-report.md", smoke=kwargs.pop("smoke"))
+        if kwargs.pop("unreadable_validation", False):
+            change.mkdir(parents=True, exist_ok=True)
+            (change / "validation-report.md").write_bytes(b"\xff\xfe")
         if "rework" in kwargs:
             _rework(change / "rework-report.json", action=kwargs.pop("rework"))
         if kwargs.pop("bad_rework", False):
             change.mkdir(parents=True, exist_ok=True)
             (change / "rework-report.json").write_text("{not json")
-        for c in ex.expedite("abc", repo, **kwargs).checks:
-            seen.setdefault(c.name, set()).add(c.status)
+        with pytest.MonkeyPatch.context() as mp:
+            if kwargs.pop("unknown_action", False):
+                mp.setattr(ex.rr, "load_rework_report", lambda _p: SimpleNamespace(
+                    summary_action="bogus", total_failures=1, holdout_failures=0))
+            checks = ex.expedite("abc", repo, **kwargs).checks
+        return {c.name: c.status for c in checks}
 
-    run()
-    run(active=True)
-    run(accept_missing_validation="docs-only change")
-    run(smoke="pass")
-    run(smoke="fail")
-    for action in ("none", "defer", "iterate", "revise-spec", "block-cleanup"):
-        run(smoke="pass", rework=action)
-    run(smoke="pass", bad_rework=True)
+    for key, kwargs in SCENARIOS.items():
+        results[key] = run(**kwargs)
+    return results
+
+
+@pytest.fixture(scope="module")
+def observed(runs: dict[tuple[str, str | None], dict[str, str]],
+             ) -> dict[str, set[str]]:
+    """Every status each check returned across all scenarios."""
+    seen: dict[str, set[str]] = {}
+    for statuses in runs.values():
+        for name, status in statuses.items():
+            seen.setdefault(name, set()).add(status)
     return seen
+
+
+@pytest.fixture(scope="module")
+def failing_conditions(runs: dict[tuple[str, str | None], dict[str, str]],
+                       ) -> set[tuple[str, str | None]]:
+    """(check, condition) pairs under which that check returned ``fail``."""
+    return {(check, cond) for (check, cond), statuses in runs.items()
+            if statuses[check] == "fail"}
 
 
 # ---------------------------------------------------------------------------
@@ -125,6 +179,17 @@ def table_checks() -> set[str]:
     return {m.group(1) for row in table_rows() if (m := ROW_CHECK.match(row))}
 
 
+def table_conditions() -> list[tuple[str, str | None]]:
+    """(check, condition) per table row, backticks stripped from the condition."""
+    pairs = []
+    for row in table_rows():
+        m = ROW_CONDITION.match(row)
+        assert m, f"unparseable SKILL.md table row: {row}"
+        cond = m.group(2)
+        pairs.append((m.group(1), cond.replace("`", "").strip() if cond else None))
+    return pairs
+
+
 def prose_sentences() -> list[str]:
     """SKILL.md sentences outside fenced code blocks and tables."""
     prose: list[str] = []
@@ -148,6 +213,19 @@ def prose_sentences() -> list[str]:
 def test_table_checks_equal_emitted_checks(observed: dict[str, set[str]]) -> None:
     assert table_checks() == set(observed), (
         "SKILL.md status table and expedite() disagree on check names"
+    )
+
+
+def test_table_rows_equal_failing_conditions(
+    failing_conditions: set[tuple[str, str | None]],
+) -> None:
+    rows = table_conditions()
+    assert len(rows) == len(set(rows)), f"duplicate SKILL.md table rows: {rows}"
+    documented = set(rows)
+    assert documented == failing_conditions, (
+        "SKILL.md table and expedite() disagree on when a check fails; "
+        f"rows that do not fail in code: {sorted(documented - failing_conditions, key=str)}; "
+        f"failing conditions with no row: {sorted(failing_conditions - documented, key=str)}"
     )
 
 

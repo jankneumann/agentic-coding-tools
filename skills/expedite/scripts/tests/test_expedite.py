@@ -105,7 +105,9 @@ class TestPathProbing:
         assert found == report
 
     def test_validation_report_found_in_worktree(self, repo: Path) -> None:
-        report = repo / ".git-worktrees" / "abc" / "validation-report.md"
+        # Where /validate-feature writes it when run inside the change's worktree.
+        report = (repo / ".git-worktrees" / "abc" / "openspec" / "changes" / "abc"
+                  / "validation-report.md")
         write_validation_report(report)
         found = ex.find_validation_report("abc", repo)
         assert found == report
@@ -146,9 +148,22 @@ class TestValidationReportCheck:
         for probed in (
             "openspec/changes/abc/validation-report.md",
             "openspec/changes/abc/reports/validation-report.md",
-            ".git-worktrees/abc/validation-report.md",
+            ".git-worktrees/abc/openspec/changes/abc/validation-report.md",
         ):
             assert probed in c.detail
+
+    def test_fail_when_report_not_utf8(self, tmp_path: Path) -> None:
+        report = tmp_path / "validation-report.md"
+        report.write_bytes(b"\xff\xfe# Validation Report\n")
+        c = ex.check_validation_report(report, change_id="abc", repo_root=tmp_path)
+        assert c.status == "fail"
+        assert "UnicodeDecodeError" in c.detail
+        assert "/validate-feature" in c.action
+
+    def test_fail_when_report_path_is_directory(self, tmp_path: Path) -> None:
+        c = ex.check_validation_report(tmp_path, change_id="abc", repo_root=tmp_path)
+        assert c.status == "fail"
+        assert "IsADirectoryError" in c.detail
 
     def test_pass_when_all_hard_gates_pass(self, tmp_path: Path) -> None:
         report = tmp_path / "validation-report.md"
@@ -263,7 +278,8 @@ class TestChangeDirDerivation:
     ) -> None:
         change_dir = repo / "openspec" / "changes" / "abc"
         change_dir.mkdir(parents=True)
-        report = repo / ".git-worktrees" / "abc" / "validation-report.md"
+        report = (repo / ".git-worktrees" / "abc" / "openspec" / "changes" / "abc"
+                  / "validation-report.md")
         write_validation_report(report)
         seen = self._capture(monkeypatch)
         ex.check_validation_report(report, change_id="abc", repo_root=repo)
@@ -272,7 +288,8 @@ class TestChangeDirDerivation:
     def test_change_dir_none_when_change_dir_absent(
         self, repo: Path, monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        report = repo / ".git-worktrees" / "abc" / "validation-report.md"
+        report = (repo / ".git-worktrees" / "abc" / "openspec" / "changes" / "abc"
+                  / "validation-report.md")
         write_validation_report(report)
         seen = self._capture(monkeypatch)
         ex.check_validation_report(report, change_id="abc", repo_root=repo)
@@ -371,6 +388,20 @@ class TestCli:
         assert "BLOCKED" in out
         assert "[fail] validation_report" in out
 
+    def test_json_emitted_when_report_unreadable(
+        self, repo: Path, capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        write_active_agent_registry(repo, active=False)
+        report = repo / "openspec" / "changes" / "abc" / "validation-report.md"
+        report.parent.mkdir(parents=True)
+        report.write_bytes(b"\xff\xfe")
+        rc = ex.main(["abc", "--repo-root", str(repo), "--json"])
+        assert rc == 1
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["ready"] is False
+        check = next(c for c in payload["checks"] if c["name"] == "validation_report")
+        assert check["status"] == "fail"
+
     def test_exit_one_when_blocked(self, repo: Path,
                                     capsys: pytest.CaptureFixture[str]) -> None:
         write_active_agent_registry(repo, active=True)
@@ -437,6 +468,24 @@ class TestAcceptMissingValidation:
                      "--accept-missing-validation", reason, "--json"])
         assert exc.value.code == 2
         assert capsys.readouterr().out == ""
+
+    @pytest.mark.parametrize("reason", ["", "   "])
+    def test_blank_reason_not_an_override_in_library(self, repo: Path,
+                                                     reason: str) -> None:
+        write_active_agent_registry(repo, active=False)
+        v = ex.expedite("abc", repo, accept_missing_validation=reason)
+        assert v.ready is False
+        check = next(c for c in v.checks if c.name == "validation_report")
+        assert check.status == "fail"
+        assert v.overrides == []
+
+    @pytest.mark.parametrize("reason", ["", "   "])
+    def test_blank_reason_not_an_override_in_check(self, repo: Path,
+                                                   reason: str) -> None:
+        c = ex.check_validation_report(None, change_id="abc", repo_root=repo,
+                                       accept_missing=reason)
+        assert c.status == "fail"
+        assert not c.detail.startswith(ex.OVERRIDE_PREFIX)
 
     def test_override_ignored_when_report_fails(
         self, repo: Path, capsys: pytest.CaptureFixture[str],
