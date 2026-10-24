@@ -1,0 +1,270 @@
+schema_version: 1
+roadmap_id: verification-enforcement-discipline
+source_proposal: openspec/roadmaps/verification-enforcement-discipline/proposal.md
+status: planning
+policy:
+  default_action: wait_if_budget_exceeded
+  max_switch_attempts_per_item: 2
+items:
+- item_id: ri-01
+  title: Bind merge verdicts to head SHA and patch-id
+  status: in_progress
+  priority: 1
+  effort: L
+  depends_on: []
+  description: Record the reviewed head SHA, its `git patch-id --stable` fingerprint,
+    and the reviewer and PR-author identities on every per-PR verdict in merge-pull-requests,
+    and make a missing or non-eligible verdict a block unless an explicit waiver reason
+    is recorded in merge-plan.json. Wire or delete the dead `iterate_consensus_path`
+    staleness check.
+  rationale: 'Phase 1 ''absence is not a pass'': execution_safety.py treats a None
+    verdict as a pass, vendor_review.py never writes head_sha, and the only staleness
+    check is dead code, so merges can land a head nobody verified or that the author
+    approved themselves.'
+  change_id: bind-merge-verdicts-to-head-sha-and-patch-id
+  acceptance_outcomes:
+  - Tests using real git repositories show a verdict whose head SHA differs from the
+    live head but whose patch-id matches is accepted, and one whose patch-id differs
+    is rejected with a 'stale verdict' block reason.
+  - execution_safety never returns 'no block' for a missing or non-eligible verdict
+    unless a waiver reason is present in merge-plan.json, and a recorded operator
+    override path exists that is never silent.
+  - A verdict whose reviewer identity (vendor + session/agent id) equals the PR author
+    identity is rejected.
+  - No code path reads `iterate_consensus_path` while nothing writes it, and the change
+    extends the add-orchestrator-adjudication-review-gate structures in execution_safety.py/convergence_loop.py
+    (declared overlap) instead of adding a parallel gate.
+  - merge-pull-requests SKILL.md stays line-neutral, with new guidance in references/
+    files.
+- item_id: ri-02
+  title: Make expedite fail closed on missing validation
+  status: in_progress
+  priority: 1
+  effort: S
+  depends_on: []
+  description: Change expedite so a deployable change with no validation-report.md
+    reports BLOCKED instead of a `skip` that rolls up to READY. A missing report is
+    accepted only through a recorded operator override (`gate_logic` has no
+    validation-exempt rule to reuse).
+  rationale: expedite.py:101-105 turns a missing report into READY, contradicting
+    the SKILL table's 'run /validate-feature first'; this is the clearest instance
+    of absence treated as a pass and is cheap to close.
+  change_id: make-expedite-fail-closed-on-missing-validation
+  acceptance_outcomes:
+  - expedite returns BLOCKED for a change with no validation report; READY remains
+    reachable without a report only through the recorded operator override, and a
+    change with a passing report is READY regardless of its deployable surface.
+  - A test asserts the expedite SKILL table and the code's status mapping agree, and
+    fails if either drifts.
+  - An explicit, recorded operator override for the missing report exists and appears
+    in the expedite output.
+- item_id: ri-03
+  title: Land verified stack prefixes via Gate.MERGE
+  status: approved
+  priority: 2
+  effort: M
+  depends_on:
+  - ri-01
+  description: For stacked PRs, merge only the contiguous prefix of nodes that carry
+    a valid SHA-bound verdict, and pass the bound verdict into autopilot's Gate.MERGE
+    evidence so /cleanup-feature can confirm it merges the head that was verified.
+  rationale: 'Completes the merge-verdict capability on top of ri-01''s bound verdicts:
+    without prefix landing a stack can merge past an unverified node, and without
+    Gate.MERGE evidence the cleanup step cannot prove it merged the verified head.'
+  change_id: land-verified-stack-prefixes-via-gate-merge
+  acceptance_outcomes:
+  - Given a stack whose third node lacks a valid verdict, the merge plan lands only
+    the first two nodes and reports the third as blocked with its reason.
+  - Autopilot's Gate.MERGE evidence records the verified head SHA and patch-id, and
+    /cleanup-feature refuses to merge when the live head's patch-id differs.
+  - Autopilot never merges on its own; the human merge gate is unchanged, and autopilot
+    and cleanup SKILL.md edits are line-neutral or go into references/.
+- item_id: ri-04
+  title: Reject vacuous worker results in the package executor
+  status: in_progress
+  priority: 1
+  effort: L
+  depends_on: []
+  description: 'Make the work-queue result contract unable to express a vacuous pass:
+    empty verification steps yield passed false, the reported git.head.commit must
+    resolve in the package worktree, and each result carries a PASS / ISSUES / BLOCKED
+    outcome plus a per-step method. dag_scheduler.mark_completed and the integration
+    gate accept a package only from a validated PASS result.'
+  rationale: 'Phase 1: package_executor.py:189 computes all([]) as true, validate_verification_consistency
+    accepts zero steps, and record_package_result counts a failed result as present,
+    so dependants can unblock on work that was never verified.'
+  change_id: reject-vacuous-worker-results-in-the-package-executor
+  acceptance_outcomes:
+  - build_result with zero steps produces verification.passed == false, and validate_work_result
+    reports it as an error.
+  - A result naming a commit absent from the package worktree fails validation.
+  - The integration gate returns a blocking status, and dag_scheduler does not mark
+    the package completed, when its only result is failed or BLOCKED.
+  - 'Every existing emitter still validates against work-queue-result: new schema
+    fields are optional or all emitters are migrated in the same change.'
+- item_id: ri-05
+  title: Add rule-to-enforcer registry with expiring waivers
+  status: approved
+  priority: 2
+  effort: L
+  depends_on:
+  - ri-01
+  - ri-02
+  - ri-04
+  description: Create docs/enforcement/rules.yaml with one row per project rule (id,
+    statement, enforcement level, enforcer path, proven-failing commit, source), generate
+    a drift-checked rule-to-enforcer table in AGENTS.md from it, add line-level waivers
+    with rule id, reason, expiry and approver, and add a prove_enforcer helper. Seed
+    it with the existing guards and the Phase 1 fail-closed guards.
+  rationale: Rules live in prose with no index to what enforces them and no waiver-with-expiry
+    mechanism; the registry is the shared infrastructure Phase 2 principles and the
+    plan linter build on, and it exposes rule ids for intervention-capture to link
+    to without creating a second correction store.
+  change_id: add-rule-to-enforcer-registry-with-expiring-waivers
+  acceptance_outcomes:
+  - A guard test fails when any registry row with a level other than docs names an
+    enforcer path that does not exist or lacks a recorded failing commit, and it ships
+    with a self-test proving it detects that violation.
+  - prove_enforcer <rule-id> demonstrates failure on the recorded commit for every
+    seeded rule, including the openspec-path-stability, CI-coverage and skill-loader-frontmatter
+    guards.
+  - The AGENTS.md rule-to-enforcer table is generated from the registry, and a drift
+    check fails when they diverge.
+  - A waiver with a past expiry date, or one missing a reason or approver, fails the
+    waiver guard.
+  - The registry documents the escalation rule (a docs-level rule corrected twice
+    is flagged for promotion) as an interface for intervention records, and adds no
+    correction store or mining logic.
+- item_id: ri-06
+  title: Inject citable principle files into archetype prompts
+  status: approved
+  priority: 3
+  effort: M
+  depends_on:
+  - ri-05
+  description: Add docs/principles/<id>.md files, each with a when-it-applies trigger,
+    a checkable bar and an optional registry rule link, seeded with test-behaviour-not-wiring,
+    build-the-lever, attack-the-premise, fix-root-causes and subtract-before-you-add.
+    Add a per-archetype principles list to archetypes.yaml that the resolver appends
+    as compact pointer + bar at the same composition point as PROCEDURE_MODE_SENTENCES,
+    and validate session-log principle citations.
+  rationale: Gives agents a small, citable, checkable set of principles linked to
+    registry rules from ri-05, without moving AGENTS.md's linked guides into principle
+    files.
+  change_id: inject-citable-principle-files-into-archetype-prompts
+  acceptance_outcomes:
+  - A test enforces that each principle file has its trigger, checkable bar and well-formed
+    optional rule link, rejects one with no checkable bar, and rejects a rule link
+    to an id not in docs/enforcement/rules.yaml.
+  - Resolving an archetype with a principles list yields a system prompt containing
+    each principle's id and bar, and a size-budget test bounds the added text.
+  - A session-log decision citing a non-existent principle id fails validation.
+  - AGENTS.md indexes the principle files.
+- item_id: ri-07
+  title: Add deterministic plan-artifact linter
+  status: approved
+  priority: 2
+  effort: M
+  depends_on:
+  - ri-05
+  description: Add a script that structurally checks proposal.md (Why / What Changes
+    / Impact plus extensible mandatory sections) and tasks.md (Spec scenarios, Files
+    and Dependencies fields per task; resolvable scenario and dependency references;
+    a verification task per requirement). Run it from plan-feature, iterate-on-plan
+    and CI, and register it in the enforcement registry.
+  rationale: Plan artifacts today are checked only by an LLM following prose instructions;
+    a deterministic linter is the host for add-verification-signals-contract-to-plan-feature's
+    check and becomes a registry-backed enforcer once ri-05 lands.
+  change_id: add-deterministic-plan-artifact-linter
+  acceptance_outcomes:
+  - On fixture plans the linter reports a missing Spec scenarios field and an unresolvable
+    scenario reference, and it passes on the template-shaped fixture.
+  - CI blocks a newly created change that fails the linter and only warns for changes
+    that existed before the linter landed.
+  - plan-feature and iterate-on-plan invoke the linter and surface its findings; their
+    SKILL.md edits are line-neutral or go into references/, and Gate 1/Gate 2 are
+    unchanged.
+  - The linter has a rules.yaml row with a recorded failing commit that prove_enforcer
+    verifies, and its tests use change_dir() and pin no openspec/changes/<change-id>/
+    literals.
+- item_id: ri-08
+  title: Audit decision trails cross-model against the transcript
+  status: approved
+  priority: 3
+  effort: L
+  depends_on:
+  - ri-01
+  description: Extend audit-choices so the auditor is resolved from archetype tiers
+    to a vendor/model family different from the author's, reads the normalized session
+    transcript via collect-transcripts adapters in addition to the diff, spec and
+    session-log, and reports decisions present in one but missing from the other.
+    Evidence cells become resolvable pointers, and the rendered ledger ends with an
+    Attention section.
+  rationale: 'Phase 3 calibrated judgement: decision trails are audited only against
+    the diff, never against what was said in the session, and by an auditor who may
+    share the author''s model family. This should share one independence rule with
+    ri-01''s author-identity check and add-eliminative-adversarial-review-mode''s
+    same-vendor refusal.'
+  change_id: audit-decision-trails-cross-model-against-the-transcript
+  acceptance_outcomes:
+  - An audit whose auditor vendor equals the author vendor is refused, or recorded
+    as a degraded inline-fallback with the reason, and is never silently accepted.
+  - A validator rejects any ledger entry whose evidence is free text rather than a
+    resolvable transcript event id, commit SHA or file:line pointer.
+  - Given a fixture transcript containing a decision absent from the session-log,
+    the audit reports it as a missing-from-trail finding.
+  - The rendered ledger ends with an Attention section naming the reviewer model and
+    listing the entries to read first; the auditor model comes from archetypes.yaml
+    tiers, with no hardcoded model ids, and any decision-choices schema additions
+    are optional.
+- item_id: ri-09
+  title: Add why mode to explain-code with epistemic tiers
+  status: in_progress
+  priority: 4
+  effort: M
+  depends_on: []
+  description: Add a why mode to explain-code, backed by a deterministic why_trace
+    script that joins git blame, commit, PR, change-id and docs/decisions entries
+    via decision_index.py, with every claim tagged Direct / Supported / Inferred /
+    Speculative / Unknown. Add an optional evidence_level field with the same vocabulary
+    to review-findings.schema.json.
+  rationale: 'Phase 3: no tool answers ''why is this code like this'' from the decision
+    record, and answers do not distinguish quoted evidence from inference. A shared
+    tier vocabulary makes judgements calibrated across explain-code and reviews.'
+  change_id: add-why-mode-to-explain-code-with-epistemic-tiers
+  acceptance_outcomes:
+  - why_trace returns the blame, commit, change-id and decision chain for a fixture
+    repository, and an explicit empty result when no decision record covers the line.
+  - The explain-code SKILL documents the tier vocabulary and the null-result and embedded-hypothesis
+    rules; no standalone /why skill is added.
+  - evidence_level is optional in review-findings.schema.json, appears in the prompt
+    contract derived by review_findings_schema.prompt_contract, and every existing
+    emitter still validates; the schema diff is limited to that one field.
+- item_id: ri-10
+  title: Apply arena discipline to prototype-feature
+  status: approved
+  priority: 4
+  effort: L
+  depends_on:
+  - ri-08
+  description: Stop naming the scoring phases in variant prompts and score a held-out
+    check set after the variants finish. Add an optional cross-family model judge
+    whose recommendation is shown beside the human pick, cap grafting from non-winning
+    variants to one or two named parts, and emit a reframe finding to iterate-on-plan
+    when variants diverge past a threshold.
+  rationale: 'Phase 3: variants currently see exactly how they will be scored, which
+    invites rubric-fitting. The judge should reuse the cross-family independence rule
+    set up in ri-08 instead of defining a second one, and the human pick must stay
+    a human gate.'
+  change_id: apply-arena-discipline-to-prototype-feature
+  acceptance_outcomes:
+  - The variant prompt no longer names the scoring phases, and a held-out check set
+    the variants never saw is scored after they finish.
+  - When enabled, the judge's model family, resolved from archetypes.yaml tiers, differs
+    from every variant's, and its recommendation is recorded beside the human pick
+    in prototype-findings.md; the pick itself stays human.
+  - Grafting from non-winning variants is limited to at most two named parts, and
+    the limit is enforced in the convergence step.
+  - Divergence past the threshold emits a reframe finding that /iterate-on-plan --prototype-context
+    consumes.
+updated_at: '2026-10-23T23:19:19.210023+00:00'

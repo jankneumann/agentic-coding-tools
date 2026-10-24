@@ -5,6 +5,72 @@
 
 ---
 
+## 2026-10-15 — bind-merge-verdicts-to-head-sha-and-patch-id
+
+### Phase: Plan
+
+**Approach A: shared verdict_binding module plus total predicate** — Selected at Gate 1. One currency rule (current/rebased/stale) closes the unbound-verdict, dead-skip, absence-as-pass and self-review gaps, and adjudication can reuse it.
+
+- Status: `active`
+- Source: [openspec/changes/bind-merge-verdicts-to-head-sha-and-patch-id/session-log.md](/openspec/changes/bind-merge-verdicts-to-head-sha-and-patch-id/session-log.md) (D1)
+
+---
+
+## 2026-10-15 — bind-merge-verdicts-to-head-sha-and-patch-id
+
+### Phase: Plan
+
+**Review waivers live in state, recorded at execute time** — Correction found during planning: eligibility is computed live by check_review_eligibility, so build_plan cannot write definition.review_waiver. execute_plan records policy waivers from a closed set.
+
+- Status: `active`
+- Source: [openspec/changes/bind-merge-verdicts-to-head-sha-and-patch-id/session-log.md](/openspec/changes/bind-merge-verdicts-to-head-sha-and-patch-id/session-log.md) (D2)
+
+---
+
+## 2026-10-15 — bind-merge-verdicts-to-head-sha-and-patch-id
+
+### Phase: Plan
+
+**Widen review_dispatcher exclude_vendor to accept a collection** — dispatch_and_wait re-runs discover_reviewers internally, so author-vendor exclusion cannot be done in vendor_review alone. Shared parallel-infrastructure file; string form unchanged.
+
+- Status: `active`
+- Source: [openspec/changes/bind-merge-verdicts-to-head-sha-and-patch-id/session-log.md](/openspec/changes/bind-merge-verdicts-to-head-sha-and-patch-id/session-log.md) (D3)
+
+---
+
+## 2026-10-15 — bind-merge-verdicts-to-head-sha-and-patch-id
+
+### Phase: Plan
+
+**Use same_family, not same_family_as_author** — Matches the field name in add-orchestrator-adjudication-review-gate so both changes share one binding shape.
+
+- Status: `active`
+- Source: [openspec/changes/bind-merge-verdicts-to-head-sha-and-patch-id/session-log.md](/openspec/changes/bind-merge-verdicts-to-head-sha-and-patch-id/session-log.md) (D4)
+
+---
+
+## 2026-10-15 — bind-merge-verdicts-to-head-sha-and-patch-id
+
+### Phase: Plan
+
+**Operator waiver does not override changes_requested** — changes_requested is a human reviewer's state, not the merge tool's to waive.
+
+- Status: `active`
+- Source: [openspec/changes/bind-merge-verdicts-to-head-sha-and-patch-id/session-log.md](/openspec/changes/bind-merge-verdicts-to-head-sha-and-patch-id/session-log.md) (D5)
+
+---
+
+## 2026-10-15 — bind-merge-verdicts-to-head-sha-and-patch-id
+
+### Phase: Plan
+
+**Plan schema 1.1 is rejected, not migrated** — Plans are short-lived analysis artifacts rebuilt every round; a migration path buys nothing.
+
+- Status: `active`
+- Source: [openspec/changes/bind-merge-verdicts-to-head-sha-and-patch-id/session-log.md](/openspec/changes/bind-merge-verdicts-to-head-sha-and-patch-id/session-log.md) (D6)
+
+---
+
 ## 2026-09-11 — 2026-09-10-rescope-merge-pull-requests-to-plan-execute
 
 ### Phase: Plan
