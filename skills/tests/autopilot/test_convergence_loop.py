@@ -1039,3 +1039,43 @@ def test_all_parked_skips_fix_callback(tmp_path: Path) -> None:
     by_id = {int(item["id"]): item for item in ledger["items"]}
     assert by_id[1]["status"] == "parked"
     assert by_id[1]["parked_reason"] == "deferred_to_followup"
+
+
+def test_landed_fix_converges_when_the_fresh_review_no_longer_raises_it(
+    tmp_path: Path,
+) -> None:
+    """ri-22 (openrouter-review-lane, #26): the fix landed, round 2 reported 0
+    blocking, but compact() reopened the item on surviving tokens and the
+    loop stalled. The fresh review's silence on a re-verified item resolves it."""
+    target = tmp_path / "src" / "api.py"
+    target.parent.mkdir(parents=True)
+    target.write_text("def parse_line(line):\n    return line.split()  # test finding\n")
+    ctx, _finding = _blocking_round(tmp_path)
+
+    def fix(_payloads: list, worktree: Path) -> None:
+        # Additive guard: the cited words survive, so compact reopens.
+        (worktree / "src" / "api.py").write_text(
+            "def parse_line(line):\n"
+            "    if line is None:\n"
+            "        return []\n"
+            "    return line.split()  # test finding\n"
+        )
+
+    with patch("convergence_loop.ConsensusSynthesizer", return_value=ctx["synthesizer"]):
+        result = converge(
+            change_id="test-change",
+            review_type="implementation",
+            artifacts_dir=ctx["artifacts_dir"],
+            worktree_path=tmp_path,
+            orchestrator=ctx["orchestrator"],
+            max_rounds=2,
+            fix_callback=fix,
+        )
+
+    assert result.converged is True
+    ledger = load_or_create(ctx["artifacts_dir"], "test-change")
+    assert len(ledger["items"]) == 1
+    assert ledger["items"][0]["status"] == "retired"
+    assert ledger["items"][0]["resolution"] == (
+        "review round 2: not re-raised on re-verification"
+    )

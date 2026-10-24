@@ -468,6 +468,45 @@ def compact(ledger: dict[str, Any], repo_root: Path) -> dict[str, Any]:
     return ledger
 
 
+def open_item_ids(ledger: dict[str, Any]) -> set[int]:
+    """Ids of open items — the set a review packet asks reviewers to re-verify."""
+    return {
+        int(item["id"])
+        for item in ledger.get("items", [])
+        if item.get("status") == "open" and item.get("id") is not None
+    }
+
+
+def retire_unreported(
+    ledger: dict[str, Any],
+    reverified_ids: set[int],
+    reported_items: list[dict[str, Any]],
+    round_num: int,
+) -> list[dict[str, Any]]:
+    """Retire open items a fresh review was asked to re-verify but did not re-raise.
+
+    The packet lists every open item and asks reviewers to re-verify it
+    (review_packet). Without this step, an item ``compact`` reopened on token
+    presence stayed open after a quorum review stopped reporting it, so a
+    landed fix still blocked convergence. Only ids in ``reverified_ids`` (open
+    when the packet was built) are eligible; an item the round re-raised
+    (``reported_items``, as ``merge_findings`` returned them) stays open.
+    Retired items keep their record and a ``resolution`` naming the round.
+    """
+    reported = {int(item["id"]) for item in reported_items if item.get("id") is not None}
+    retired: list[dict[str, Any]] = []
+    for item in ledger.get("items", []):
+        item_id = item.get("id")
+        if item_id is None or item.get("status") != "open":
+            continue
+        if int(item_id) not in reverified_ids or int(item_id) in reported:
+            continue
+        item["status"] = "retired"
+        item["resolution"] = f"review round {round_num}: not re-raised on re-verification"
+        retired.append(item)
+    return retired
+
+
 def is_blocking_item(
     item: dict[str, Any],
     *,
