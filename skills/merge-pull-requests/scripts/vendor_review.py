@@ -435,8 +435,16 @@ def _enum_hint(enums: dict[str, tuple[str, ...]], field: str) -> str:
     return "|".join(values) if values else f"<{field}>"
 
 
-def build_review_prompt(pr_number: int, pr_size: dict) -> str:
-    """Build a review prompt for vendor dispatch."""
+def build_review_prompt(
+    pr_number: int, pr_size: dict, diff_command: str | None = None
+) -> str:
+    """Build a review prompt for vendor dispatch.
+
+    ``diff_command`` is how the vendor should read the diff. It defaults to
+    ``gh pr diff``; the review-queue worker passes a ``git diff`` instead,
+    because its hosts hold no GitHub credential.
+    """
+    diff_command = diff_command or f"gh pr diff {pr_number}"
     files_list = "\n".join(f"  - {f}" for f in pr_size.get("files", []))
     required, enums = _finding_contract()
     required_list = ", ".join(required)
@@ -518,7 +526,7 @@ values and do not emit the "a|b|c" alternation itself.
 
 If you find no issues, return {{"findings": []}} rather than prose.
 Output ONLY the JSON object, no additional text.
-Use `gh pr diff {pr_number}` to read the actual diff before reviewing.
+Use `{diff_command}` to read the actual diff before reviewing.
 """
 
 
