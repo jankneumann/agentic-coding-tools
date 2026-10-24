@@ -41,7 +41,7 @@ from validate_work_result import (  # type: ignore[import-not-found]  # noqa: E4
     validate_result as validate_result_base,
 )
 
-from package_acceptance import PackageAcceptance  # noqa: E402
+from package_acceptance import PackageAcceptance, digest_result  # noqa: E402
 
 __all__ = [
     "PackageAcceptance",
@@ -221,6 +221,7 @@ def accept_package_result(
             worktree_path=worktree_path,
         )
         outcome: str | None = effective_outcome(result_data)
+        result_digest = digest_result(result_data)
     except (AttributeError, TypeError, ValueError) as exc:
         # A malformed payload must refuse, never crash the decision point.
         return PackageAcceptance(
@@ -260,4 +261,5 @@ def accept_package_result(
         accepted=not reasons,
         outcome=outcome,
         reasons=tuple(reasons),
+        result_digest=result_digest,
     )

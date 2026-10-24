@@ -276,6 +276,7 @@ import subprocess  # noqa: E402
 
 import pytest  # noqa: E402
 
+from package_acceptance import digest_result  # noqa: E402
 from result_validator import PackageAcceptance, accept_package_result  # noqa: E402
 
 
@@ -287,14 +288,20 @@ def _git(cwd: Path, *args: str) -> str:
 
 @pytest.fixture
 def repo(tmp_path: Path) -> tuple[Path, str]:
+    """A package worktree: a base commit on ``main`` and one package commit on
+    the checked-out package branch; returns (path, package_head_sha)."""
     path = tmp_path / "repo"
     path.mkdir()
     _git(path, "init", "-q")
+    _git(path, "symbolic-ref", "HEAD", "refs/heads/main")
     _git(path, "config", "user.email", "test@example.invalid")
     _git(path, "config", "user.name", "Test")
-    (path / "README").write_text("x\n")
-    _git(path, "add", "README")
-    _git(path, "commit", "-q", "-m", "init")
+    for name, branch in (("README", None), ("work", "openspec/wp-backend")):
+        if branch:
+            _git(path, "checkout", "-q", "-b", branch)
+        (path / name).write_text(f"{name}\n")
+        _git(path, "add", name)
+        _git(path, "commit", "-q", "-m", name)
     return path, _git(path, "rev-parse", "HEAD")
 
 
@@ -333,6 +340,7 @@ class TestAcceptPackageResult:
         assert acceptance.package_id == "wp-backend"
         assert acceptance.reasons == ()
         assert acceptance.override is None
+        assert acceptance.result_digest == digest_result(result)
 
     def test_failed_result_is_refused(self, repo: tuple[Path, str]) -> None:
         path, sha = repo
@@ -435,6 +443,27 @@ class TestPackageAcceptance:
         assert acceptance.override == {"reason": "flaky CI", "approver": "operator"}
         with pytest.raises(TypeError):
             acceptance.override["approver"] = "someone else"  # type: ignore[index]
+
+    @pytest.mark.parametrize("outcome", [None, "ISSUES", "BLOCKED"])
+    def test_accepted_without_pass_or_override_is_impossible(
+        self, outcome: str | None
+    ) -> None:
+        # D6: no constructor path accepts a package silently.
+        with pytest.raises(ValueError, match="outcome PASS or a recorded override"):
+            PackageAcceptance("wp-a", True, outcome)
+
+    @pytest.mark.parametrize(
+        "override",
+        [{"reason": " ", "approver": "operator"}, {"reason": "flaky CI"}],
+    )
+    def test_direct_override_needs_reason_and_approver(
+        self, override: dict[str, str]
+    ) -> None:
+        with pytest.raises(ValueError, match="non-blank"):
+            PackageAcceptance("wp-a", True, None, (), override)
+
+    def test_refused_verdict_needs_no_outcome(self) -> None:
+        assert PackageAcceptance("wp-a", False, None).accepted is False
 
     def test_reasons_are_a_tuple(self) -> None:
         acceptance = PackageAcceptance("wp-a", False, "ISSUES", ["x"])  # type: ignore[arg-type]

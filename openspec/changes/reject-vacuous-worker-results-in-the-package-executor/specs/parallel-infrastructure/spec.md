@@ -6,9 +6,11 @@
 `verification_steps` is non-empty and every step has `passed: true`; an empty step
 list SHALL produce `verification.passed == false`.
 `validate_work_result.validate_verification_consistency` SHALL report an error for a
-result whose `verification.steps` is empty, whatever its `verification.passed` value,
-and SHALL report an error for any step whose `method` is `not_run` and whose `passed`
-is `true`.
+result whose `verification.steps` is empty, whatever its `verification.passed` value.
+It SHALL also report an error naming the step for any step with `passed: true` that
+has `method: not_run`, or an integer `exit_code` other than 0, or evidence with
+neither `artifacts` nor `metrics` entries. A step with `passed: false` SHALL NOT be
+reported by these step rules.
 
 <!-- Scenario ID: parallel-infrastructure.empty-steps-not-passed -->
 #### Scenario: build_result with zero steps does not pass
@@ -31,14 +33,34 @@ is `true`.
 - **WHEN** a result contains a step with `method: not_run` and `passed: true`
 - **THEN** `checks.verification_consistency` reports an error naming that step
 
-### Requirement: Reported Head Commit Resolves in the Package Worktree
+<!-- Scenario ID: parallel-infrastructure.nonzero-exit-cannot-pass -->
+#### Scenario: A step with a non-zero exit code claiming a pass is rejected
+
+- **WHEN** a result contains a step with `exit_code: 1` and `passed: true`
+- **THEN** `checks.verification_consistency` reports an error naming that step and its exit code
+- **AND** `valid` is `false`
+- **AND** the same step with `passed: false` is not reported
+
+<!-- Scenario ID: parallel-infrastructure.empty-evidence-cannot-pass -->
+#### Scenario: A passing step with no evidence is rejected
+
+- **WHEN** a result contains a step with `passed: true` and `evidence: {"artifacts": [], "metrics": {}}`, whatever its `kind`
+- **THEN** `checks.verification_consistency` reports an error naming that step's missing evidence
+- **AND** a single artifact or a single metric is enough evidence to clear the error
+
+### Requirement: Reported Head Commit Is the Package's Own Commit
 
 `validate_work_result.validate_result` SHALL accept an optional `worktree_path`. When
-it is supplied, a `commit_resolves` check SHALL run
-`git rev-parse --verify --quiet <git.head.commit>^{commit}` with `worktree_path` as the
+it is supplied, a `commit_resolves` check SHALL run `git` with `worktree_path` as the
 working directory and with inherited repository-location variables such as `GIT_DIR`
-removed from its environment, and SHALL fail with an error naming the commit and the worktree
-when the command does not exit 0 or when `worktree_path` is not a git working tree.
+removed from its environment. It SHALL pass only when all of these hold:
+`git rev-parse --verify --quiet <git.head.commit>^{commit}` exits 0; the commit is
+reachable from the package branch (`git merge-base --is-ancestor`), where the package
+branch is `refs/heads/<git.head.branch>` when the result reports a branch and the
+worktree's `HEAD` otherwise; and the commit is not the commit that `git.base.ref`
+resolves to. It SHALL fail with an error naming the commit and the worktree when any
+of these does not hold, when the base ref or the package branch does not resolve, or
+when `worktree_path` is not a git working tree.
 When `worktree_path` is not supplied, the `commit_resolves` check SHALL be recorded
 with `skipped: true` and SHALL NOT change `valid`. The CLI SHALL accept
 `--worktree PATH` and pass it as `worktree_path`.
@@ -54,8 +76,24 @@ with `skipped: true` and SHALL NOT change `valid`. The CLI SHALL accept
 <!-- Scenario ID: parallel-infrastructure.present-commit-passes -->
 #### Scenario: A commit present in the worktree passes the check
 
-- **WHEN** `git.head.commit` is the HEAD commit of the repository at `worktree_path`
+- **WHEN** `git.head.commit` is the HEAD commit of the package branch checked out at `worktree_path`, one commit ahead of `git.base.ref`
 - **THEN** `checks.commit_resolves.passed` is `true`
+
+<!-- Scenario ID: parallel-infrastructure.unreachable-commit-fails -->
+#### Scenario: A commit not reachable from the package branch fails validation
+
+- **WHEN** `git.head.commit` exists in the repository at `worktree_path` but only on another branch, or only as a dangling commit
+- **THEN** `checks.commit_resolves.passed` is `false` and its error says the commit is not reachable from the package branch
+- **AND** `valid` is `false`
+- **AND** the same holds when the result reports no `git.head.branch` and the commit is not reachable from the worktree's `HEAD`
+
+<!-- Scenario ID: parallel-infrastructure.head-equals-base-fails -->
+#### Scenario: A head commit equal to the base commit fails validation
+
+- **WHEN** `git.head.commit` is the commit that `git.base.ref` resolves to, so the package made no commit
+- **THEN** `checks.commit_resolves.passed` is `false` and its error says the package made no commit
+- **AND** `valid` is `false`
+- **AND** a `git.base.ref` or `git.head.branch` that does not resolve also fails the check
 
 <!-- Scenario ID: parallel-infrastructure.commit-check-skipped-recorded -->
 #### Scenario: No worktree path records a skipped check
@@ -156,8 +194,11 @@ packages depending on it do not become ready.
 SHALL store the acceptance verdict with the result. `check_integration_gate` SHALL
 return status `blocked_incomplete` when any implementation package has no result, and
 otherwise SHALL return status `blocked_not_passing` when any implementation package's
-result has no acceptance verdict or a verdict that is not accepted, naming those
-packages and their reasons under `not_passing`, before any review-findings check runs.
+result has no acceptance verdict, a verdict that is not accepted, or an accepted
+verdict without an override whose `result_digest` is not `digest_result` of the
+recorded result, naming those packages and their reasons under `not_passing`, before
+any review-findings check runs. `accept_package_result` SHALL set `result_digest` to
+`digest_result` of the result it judged.
 The execution summary SHALL report each package's effective outcome and acceptance.
 
 <!-- Scenario ID: parallel-infrastructure.gate-blocks-failed-result -->
@@ -172,6 +213,13 @@ The execution summary SHALL report each package's effective outcome and acceptan
 
 - **WHEN** a result is recorded with `acceptance=None`
 - **THEN** `check_integration_gate` returns `blocked_not_passing` with a reason naming the missing verdict
+
+<!-- Scenario ID: parallel-infrastructure.gate-blocks-acceptance-for-another-result -->
+#### Scenario: An acceptance issued for a different result blocks the gate
+
+- **WHEN** a failed result is recorded with an accepted verdict that was made for a different, passing result of the same package
+- **THEN** `check_integration_gate` returns `blocked_not_passing` with the reason "acceptance was not issued for the recorded result"
+- **AND** the same holds for an accepted verdict that carries no `result_digest`
 
 <!-- Scenario ID: parallel-infrastructure.summary-reports-acceptance -->
 #### Scenario: The execution summary reports outcome and acceptance
@@ -189,7 +237,10 @@ The execution summary SHALL report each package's effective outcome and acceptan
 
 `PackageAcceptance.override_for(package_id, reason, approver)` SHALL return an accepted
 acceptance whose `override` records the reason and approver, and SHALL raise
-`ValueError` when either is blank. The integration gate response SHALL list every
+`ValueError` when either is blank. Constructing a `PackageAcceptance` with
+`accepted == true` SHALL raise `ValueError` unless its `outcome` is `PASS` or it
+carries an override with a non-blank reason and approver. The integration gate
+response SHALL list every
 overridden package under `overrides`, and `DAGScheduler.get_status_summary` SHALL
 report the override on each package completed through one.
 
@@ -206,6 +257,13 @@ report the override on each package completed through one.
 
 - **WHEN** `PackageAcceptance.override` is called with a blank reason or approver
 - **THEN** it raises `ValueError`
+
+<!-- Scenario ID: parallel-infrastructure.silent-accept-impossible -->
+#### Scenario: An accepted verdict cannot be built without PASS or an override
+
+- **WHEN** `PackageAcceptance("wp-a", True, None)` or `PackageAcceptance("wp-a", True, "ISSUES")` is constructed directly
+- **THEN** it raises `ValueError`
+- **AND** so does a directly passed override with a blank reason or a missing approver
 
 ### Requirement: Existing Work-Queue Result Emitters Remain Valid
 

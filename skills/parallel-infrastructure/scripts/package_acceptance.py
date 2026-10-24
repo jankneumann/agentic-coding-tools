@@ -11,6 +11,8 @@ the type without pulling in the validator and its schema dependencies.
 
 from __future__ import annotations
 
+import hashlib
+import json
 from collections.abc import Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
@@ -29,6 +31,14 @@ class PackageAcceptance:
         reasons: One entry per failed condition; empty for a clean acceptance.
         override: Read-only ``{"reason", "approver"}`` when the verdict is an
             override.
+        result_digest: ``digest_result`` of the result the verdict was made
+            from, so a decision point can tell that a recorded result is the
+            one that was accepted; None for an override.
+
+    Raises:
+        ValueError: if the verdict is accepted without either an outcome of
+            PASS or a recorded override, or if an override has a blank reason
+            or approver. There is no way to accept a package silently.
     """
 
     package_id: str
@@ -36,14 +46,21 @@ class PackageAcceptance:
     outcome: str | None
     reasons: tuple[str, ...] = ()
     override: Mapping[str, str] | None = None
+    result_digest: str | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "reasons", tuple(self.reasons))
         if self.override is not None:
+            override = dict(self.override)
+            for key in ("reason", "approver"):
+                override[key] = _require_text(key, override.get(key))
             # A read-only copy: the recorded reason and approver must not
             # change after the verdict is made.
-            object.__setattr__(
-                self, "override", MappingProxyType(dict(self.override))
+            object.__setattr__(self, "override", MappingProxyType(override))
+        elif self.accepted and self.outcome != "PASS":
+            raise ValueError(
+                "an accepted verdict needs outcome PASS or a recorded override "
+                f"(use PackageAcceptance.override_for); got outcome={self.outcome!r}"
             )
 
     @classmethod
@@ -65,6 +82,12 @@ class PackageAcceptance:
             reasons=(f"override: {clean_reason}",),
             override={"reason": clean_reason, "approver": clean_approver},
         )
+
+
+def digest_result(result: Any) -> str:
+    """A stable SHA-256 of a result payload, independent of key order."""
+    canonical = json.dumps(result, sort_keys=True, separators=(",", ":"), default=str)
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 def _require_text(name: str, value: Any) -> str:
