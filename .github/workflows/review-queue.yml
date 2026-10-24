@@ -1,0 +1,64 @@
+name: Review queue
+
+# Producer for the cross-host review queue (factory Phase 1). Each PR push
+# enqueues one review job for its head SHA on the coordinator; any host with
+# vendor CLIs claims it, and the coordinator posts the consolidated COMMENT
+# review. This workflow only submits: the token it holds can do nothing but
+# POST /reviews/jobs for allowlisted repositories.
+#
+# Configuration (repository settings → Secrets and variables → Actions):
+#   vars.COORDINATOR_URL            coordinator base URL; unset = workflow is a no-op
+#   secrets.REVIEW_PRODUCER_TOKEN   matches the coordinator's REVIEW_PRODUCER_TOKEN
+#   secrets.CF_ACCESS_CLIENT_ID     optional, when the coordinator sits behind
+#   secrets.CF_ACCESS_CLIENT_SECRET   Cloudflare Access
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions: {}
+
+# A newer push makes the older submission moot; the coordinator supersedes the
+# older head's job anyway, so there is nothing to finish.
+concurrency:
+  group: review-queue-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  submit:
+    # `pull_request` (never `pull_request_target`) withholds secrets from forks,
+    # and the explicit check keeps a fork PR from even trying.
+    if: >-
+      vars.COORDINATOR_URL != '' &&
+      !github.event.pull_request.draft &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Submit review job
+        env:
+          COORDINATOR_URL: ${{ vars.COORDINATOR_URL }}
+          PRODUCER_TOKEN: ${{ secrets.REVIEW_PRODUCER_TOKEN }}
+          CF_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          if [ -z "$PRODUCER_TOKEN" ]; then
+            echo "::warning::REVIEW_PRODUCER_TOKEN is not set; skipping review submission"
+            exit 0
+          fi
+          body=$(jq -n --arg repo "$REPO" --argjson pr "$PR" \
+            --arg head "$HEAD_SHA" --arg base "$BASE_SHA" \
+            '{repo: $repo, pr: $pr, head_sha: $head, base_sha: $base}')
+          headers=(-H "Content-Type: application/json"
+                   -H "X-Review-Producer-Token: $PRODUCER_TOKEN")
+          if [ -n "$CF_ID" ]; then
+            headers+=(-H "CF-Access-Client-Id: $CF_ID" -H "CF-Access-Client-Secret: $CF_SECRET")
+          fi
+          curl -sS --fail-with-body --retry 3 --retry-all-errors --max-time 30 \
+            "${headers[@]}" -d "$body" "${COORDINATOR_URL%/}/reviews/jobs" \
+            | jq '{created, job: (.job | {job_id, round, status}), superseded_task_ids}'
