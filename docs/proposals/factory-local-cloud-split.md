@@ -1,8 +1,9 @@
 # Factory Local/Cloud Split: Sandboxed Auto-Approval, a Review Queue, and a Merge Queue
 
-*Proposal, 2026-10-23. Status: draft for operator review. Nothing in this
-document has been applied: every settings, hook or workflow snippet below is a
-proposal.*
+*Proposal, 2026-10-23. Status: draft for operator review. Phase 0's repo
+half and Phase 1's coordinator half are applied; each phase opens with a status
+note saying exactly what. Every other settings, hook or workflow snippet below
+is a proposal.*
 
 ## Problem statement
 
@@ -315,6 +316,16 @@ checks with `ast` that no `subprocess.run` in the adapter lacks `env=`.
 
 ## Phase 1: Review queue across hosts (about one week)
 
+**Status (2026-10-24): the coordinator half and the producer are applied.**
+Built: migration `046_review_queue.sql` (`review_jobs`, `review_lane_results`),
+`POST /reviews/jobs`, `POST /reviews/results`, `GET /reviews/rounds`, the
+single publisher (`agent-coordinator/src/review_publisher.py`) and the
+producer workflow (`.github/workflows/review-queue.yml`). Not built yet: the
+review worker (1.3 steps 1–3) and reading remote rounds in `converge()` (1.5).
+Deferred: the SSE subscription (the worker polls `/work/claim` first), the
+per-lane sandbox wrapping, recovery of a pass whose worker died mid-claim, and
+the scheduled-task fire path (1.4).
+
 ### 1.1 Job contract
 
 `task_type: review`. The payload:
@@ -331,14 +342,23 @@ deadline: 2026-10-23T18:00Z
 dedup_key: [repo, pr, head_sha, round]
 ```
 
-A new push to the PR supersedes jobs for the old `head_sha`. The worker checks
-`head_sha` before it posts, so it never reviews a stale head.
+The coordinator assigns `round`. A round can take up to `REVIEW_MAX_PASSES`
+passes; each pass is one `review` work item, and a residual pass excludes the
+vendors already verified. A new push to the PR supersedes jobs for the old
+`head_sha`. Workers read `GET /reviews/rounds` before running lanes and skip a
+superseded job, so they need no GitHub credential to notice. The coordinator
+re-reads the PR head from GitHub just before it posts and records `head_moved`
+instead of posting, so a review never lands on a stale head.
 
 ### 1.2 Producer
 
-- **Preferred:** a small GitHub Action triggered by `pull_request`
-  (`opened`, `synchronize`, `ready_for_review`) that calls `/work/submit` with a
-  **submit-only** key stored as a repo secret. That key can only enqueue.
+- **Preferred (applied):** `.github/workflows/review-queue.yml`, triggered by
+  `pull_request` (`opened`, `synchronize`, `reopened`, `ready_for_review`). It
+  calls `POST /reviews/jobs` with the producer token in
+  `X-Review-Producer-Token`, stored as the repo secret `REVIEW_PRODUCER_TOKEN`.
+  That token can only enqueue, and only for repositories in
+  `REVIEW_ALLOWED_REPOS`. The workflow holds no repository permissions, uses
+  `pull_request` rather than `pull_request_target`, and skips forks and drafts.
 - **Alternative:** add `handle_pull_request_webhook` next to
   `handle_push_webhook` (`github_coordination.py:265`). This adds work to the
   public 8081 surface, so the Action is simpler and keeps the coordinator's
@@ -359,15 +379,20 @@ Phase 2, cut down to one job type.
    - The env allowlist from 0.6.
    - Each vendor CLI uses its own OAuth login. Codex, Gemini and opencode
      permit programmatic CLI use. The Claude lane uses the **API key**
-     (Phase 3), not the subscription, in line with the subscription terms
+     (Phase 4), not the subscription, in line with the subscription terms
      recorded in `sandboxed-harness-execution.md:9`.
-4. `/work/complete` with structured findings keyed
-   `(pr, head_sha, round, vendor)`. That needs a small findings table, or
-   findings stored on the work-item result.
+4. `POST /reviews/results` with one entry per lane
+   (`vendor, verified, verdict, model, findings, error`), stored in
+   `review_lane_results` keyed `(job, vendor)`, then `/work/complete`. Only the
+   agent that claimed the pass can record it, and a verified lane is never
+   replaced by an unverified one.
 5. The **coordinator** posts one consolidated PR review using a GitHub App
-   installation token from OpenBao, scoped to `pull_requests: write`. The
+   installation token minted per publication, scoped to
+   `pull_requests: write`. The App key sits in the coordinator's environment
+   (`REVIEW_GITHUB_APP_*`) for now; moving it to OpenBao is a follow-up. The
    worker never holds that key. The review uses the `COMMENT` event and never
-   `APPROVE`: approval stays human.
+   `APPROVE`: approval stays human. A round that runs out of passes without
+   quorum is still posted, marked as a partial review.
 
 ### 1.4 Waking the cloud implementer
 
@@ -396,11 +421,150 @@ meaning, with "verified lanes" now counted per round.
 The `TRUST_POSTURE.md` sunset clause names the condition: "API-based
 multi-vendor review … or the GX10 review lane is available to cloud workers".
 The queue makes the GX10 lane available to cloud workers. An OpenRouter lane
-(Phase 3) satisfies the API-based alternative. Once either has run for a week,
+(Phase 4) satisfies the API-based alternative. Once either has run for a week,
 delete the exception as an operator decision. Until then, keep it and keep
 recording `single_vendor_review`.
 
-## Phase 2: Unblock merge linearization (about one week, then follow-ups)
+## Phase 2: Research lane — search without open web access (about one week)
+
+Agents often need current information: a library's latest release, an API
+that changed last week, an error message someone else already hit. Opening the
+web to implementer sessions is the wrong way to get it. This phase adds
+`research` as a second task type on the Phase 1 queue, next to `review`, and
+keeps general web access out of every session that holds a repo, a push path
+or a key.
+
+### 2.1 Three risks, not one
+
+"Web access" bundles three separate risks:
+
+| Risk | What it is | What controls it |
+|---|---|---|
+| Untrusted input | Any page or snippet the model reads can carry instructions (prompt injection). | Who reads the content, and what that reader can do. |
+| Egress | Data leaving the sandbox: a secret in a URL's query string, a POST to an attacker's host. | The network allowlist, and which secrets the process holds. |
+| Capability | What an injected instruction could make the agent do: push, call the coordinator, read keys. | Credentials and tools held by the role (Principle 2). |
+
+Injection does real harm only when all three meet in one process: untrusted
+content, something worth stealing or doing, and a way out (the "lethal
+trifecta"). Remove any one and an injected page can at worst corrupt the
+answer. A domain allowlist addresses only egress.
+
+### 2.2 Is a search-API allowlist enough?
+
+Allowing only a search API (Tavily, Brave, or the model provider's server-side
+web search tool) narrows *where* traffic goes, not *what comes back*. Snippets
+and extracted pages are third-party content, chosen by whoever ranks well for
+the query.
+
+- **For security, no.** It closes exfiltration to arbitrary hosts (the query
+  itself still reaches the search provider), but the injection surface is the
+  same as browsing. An agent that holds a push path and reads search results is
+  still exposed.
+- **For quality, mostly.** Snippets answer version lookups, "does this flag
+  exist" and error-message searches. A full changelog, migration guide or issue
+  thread needs the page itself. Search APIs with extraction (Tavily `extract`,
+  a provider's web fetch tool) fetch on their side: that removes the sandbox's
+  egress, not the untrusted content.
+- **A cached trusted index with no live access** is the safest and the most
+  reproducible, but it is stale exactly when research matters most: yesterday's
+  release, this morning's advisory. As the only source it fails the main use
+  case.
+
+So the answer is a split by role, not one web policy for every session.
+
+### 2.3 Sources in tiers
+
+Use the lowest tier that answers the question:
+
+1. **Structured APIs.** PyPI, npm and crates metadata, GitHub releases and
+   advisories, OSV. These return data, not prose, so the injection surface is
+   small. Most "is there a newer version" questions stop here.
+2. **Coordinator read-through cache.** A trusted index of pinned sources
+   (official docs for the stack in `pyproject.toml`, vendor changelogs, the
+   specs this repo depends on), keyed by URL and retrieval date, with a content
+   hash. The research worker refreshes it; every role may read it.
+3. **Live search** through the allowlisted search API, only inside the
+   research worker.
+4. **Full page fetch**, only inside the research worker, bounded by
+   `max_fetches`.
+
+### 2.4 `task_type: research`
+
+Same queue and claim path as `review` (`/work/claim` with
+`task_types=[research]`). The payload:
+
+```yaml
+question: "Does httpx 0.28 still accept `proxies=`?"
+scope: dependency          # dependency | api | incident | vendor-terms
+allowed_sources: [pypi, github-releases, docs-cache, search]
+max_fetches: 5
+deadline: 2026-10-24T18:00Z
+requester_task_id: 8c1d…   # the implementer or review job that asked
+dedup_key: [question_hash, scope]
+```
+
+The result is a size-limited, schema-checked artifact, not free text:
+
+```yaml
+answer: "No. `proxies=` was removed in 0.28; use `proxy=` or transport mounts."
+citations:
+  - {url: https://…/CHANGELOG.md, retrieved_at: 2026-10-24T09:12Z, sha256: …, tier: 2}
+confidence: high           # high | medium | low
+```
+
+Rules:
+
+- **The research worker holds almost nothing.** Egress to the search API, the
+  allowlisted fetch targets and the coordinator. Credentials: the search API
+  key and a coordinator key that can only claim `research` and post its
+  result. No repo checkout, no GitHub token, no vendor OAuth logins.
+- **Requesters treat the answer as data** (Principle 3), as with fire payloads
+  in 1.4. The answer is short and schema-checked, which limits how much
+  injected text can ride along, and the citations let a human check the claim.
+- **Dedup across agents.** Ten implementers asking about the same release make
+  one job, and a fresh tier-2 entry answers without a job at all.
+- **Reviewers can ask too.** A lane that flags "this API is deprecated" can
+  attach a research citation instead of a recollection.
+
+### 2.5 Grants per role
+
+| Role | Web access | Why |
+|---|---|---|
+| Cloud implementer | Tiers 1–2 through the coordinator; asks `research` for the rest | Holds a push path and the coordinator key |
+| Review worker lanes | None, or tier 2 | Hold vendor OAuth logins; they review code, not the web |
+| Research worker | Tiers 1–4 | Holds only the search key and a research-only coordinator key |
+| Personal agents (Phase 5) | Their own browsing | Already outside the factory's credentials; their outputs are data |
+
+For cloud sessions this is the Custom network level from 0.2: implementer
+environments allow the coordinator and the package mirrors, not search or
+arbitrary hosts.
+
+### 2.6 Opportunities
+
+- **A shared docs cache.** Tier 2 doubles as a changelog watcher: when a pinned
+  dependency publishes a release, one research job summarizes the breaking
+  changes for every agent.
+- **Provenance in findings.** Review findings and fix packets can cite a
+  retrieved, hashed source, so a human sees why an agent believes an API
+  changed.
+- **Replay and evals.** Cached retrievals make a research answer reproducible:
+  an eval can rerun a session against the same pages, which live search cannot
+  offer.
+- **Spend control.** Search and fetch calls are counted per lane with a monthly
+  cap, alongside the LLM gateway in Phase 4, so a runaway loop shows up in the
+  existing reports.
+- **A home for the terms watcher.** The Muse role in Phase 5 ("tracks vendor
+  term changes") becomes a scheduled `research` job with
+  `scope: vendor-terms`, whichever agent runs it.
+- **Quarantine as a pattern.** The same split, a reader with no capability and
+  a doer with no untrusted input, applies to issue bodies and PR comments from
+  outside contributors.
+
+Build order: the worker with tiers 1 and 3 first (the job contract, the result
+schema, dedup), then the tier-2 cache once repeated questions show which
+sources to pin.
+
+## Phase 3: Unblock merge linearization (about one week, then follow-ups)
 
 1. **Turn on GitHub's merge queue** for `main`. `ci.yml` already triggers on
    `merge_group`. Require the 6 existing checks. Under a merge queue,
@@ -426,7 +590,7 @@ recording `single_vendor_review`.
    batches and bisection, or Trunk multi-queue, are the external options if the
    built-in queue saturates.
 
-## Phase 3: Spending the $200 of metered Claude credit
+## Phase 4: Spending the $200 of metered Claude credit
 
 **Assumption:** the $200 is API-key credit on the Claude Console. If it turns
 out to be a pool tied to the subscription, the authentication differs (see
@@ -474,7 +638,7 @@ Controls:
 - Never export `ANTHROPIC_API_KEY` in a shell where interactive Claude Code
   runs. It overrides the subscription login.
 
-## Phase 4: Persistent personal agents
+## Phase 5: Persistent personal agents
 
 All four have launched or entered preview since August 2026. Each has its own
 always-on cloud computer and memory. Each is a natural place for one bounded
@@ -506,12 +670,15 @@ Guardrails common to all four:
 | 0.3 / 0.4 / 0.5 local sandbox, repo rules, guard hook | 1–2 days | local approval fatigue | operator applies the settings |
 | 0.6 env scrub | ½ day | credential separation | nothing |
 | 1 review queue and cross-host quorum | ~1 week | reviews from the cloud, removing the cloud exception | 0.6 |
-| 2.1–2.2 merge queue | 1–2 days | parallel merges | repo admin enables the queue |
-| 2.3–2.4 state-file hotspots, narrower guard | 2–3 days | stops false chaining | 2.1 |
-| 3 metered Claude lanes and gateway | 2–3 days | two-vendor quorum without a second CLI, CI first pass | 1 (for lane 1) |
-| 4 personal agents | incremental | notification channel, cloud non-Claude lane | 1, scoped keys |
+| 2 research lane (worker, tiers 1 and 3, then the cache) | 3–5 days | current information without web access in implementer sessions | 1 (queue), 0.2 (network level) |
+| 3.1–3.2 merge queue | 1–2 days | parallel merges | repo admin enables the queue |
+| 3.3–3.4 state-file hotspots, narrower guard | 2–3 days | stops false chaining | 3.1 |
+| 4 metered Claude lanes and gateway | 2–3 days | two-vendor quorum without a second CLI, CI first pass | 1 (for lane 1) |
+| 5 personal agents | incremental | notification channel, cloud non-Claude lane | 1, scoped keys |
 
-Phase 4's Duet or notifier digest can also clear the `TRUST_POSTURE.md` note
+Phases 2 and 3 are independent and can run in parallel.
+
+Phase 5's Duet or notifier digest can also clear the `TRUST_POSTURE.md` note
 that no approval-notification channel exists. That is what lets
 `notify_with_timeout` dispositions work at all.
 
@@ -524,7 +691,7 @@ that no approval-notification channel exists. That is what lets
   Claude review. Verify the terms of the other three vendors before making them
   unattended queue consumers.
 - **Where the $200 comes from.** No subscription-tied SDK credit pool is
-  documented. If the credit is tied to the subscription, Phase 3 lanes 1 and 4
+  documented. If the credit is tied to the subscription, Phase 4 lanes 1 and 4
   need a different credential path.
 - **The classifier allows pushes to the default branch.** Branch protection is
   the only control here, so verify it before turning on Auto mode in the cloud.
@@ -540,6 +707,13 @@ that no approval-notification channel exists. That is what lets
 - **Personal-agent maturity.** Duet is waitlisted. Grok Bot is beta and its
   price is unclear. Dots lacks Codex delegation. Plan for any of them to be
   missing and keep each optional.
+- **Research answers are still untrusted.** An answer can be wrong, or carry
+  injected text inside its `answer` field. The size limit, the schema and the
+  citations reduce this; they do not remove it. Nothing a research answer
+  proposes runs without the gates any other agent output goes through.
+- **Search queries leave the factory.** A query can name private code or an
+  unreleased feature. Keep research questions about public artifacts, and
+  check the search provider's retention terms.
 - **Managed Code Review** (Anthropic's hosted reviewer) needs a Team or
   Enterprise plan. `/code-review` runs locally on any plan and can be a manual
   lane meanwhile.
@@ -555,6 +729,7 @@ that no approval-notification channel exists. That is what lets
   [cloud environments](https://code.claude.com/docs/en/cloud-environments),
   [GitHub Actions](https://code.claude.com/docs/en/github-actions),
   [Agent SDK overview](https://code.claude.com/docs/en/agent-sdk/overview)
+- Prompt injection: [Simon Willison, "The lethal trifecta for AI agents"](https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/)
 - Merge queues: [tianpan, "The merge queue is the new bottleneck"](https://tianpan.co/blog/2026-07-02-the-merge-queue-is-the-new-bottleneck),
   [Mergify, merge queues and AI coding agents](https://mergify.com/blog/merge-queues-and-ai-coding-agents),
   [Mergify merge-batch changelog](https://docs.mergify.com/changelog/2026-04-07-new-merge-batch-merge-method-for-merge-queue.md),
