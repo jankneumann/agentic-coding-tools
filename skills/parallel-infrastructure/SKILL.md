@@ -46,6 +46,7 @@ Cross-package integration management — tracks package completion, consensus re
 Record each result with its verdict: `record_package_result(package_id, result,
 acceptance)`. The gate returns `blocked_incomplete` for a missing result, then
 `blocked_not_passing` (listing `not_passing`) for a result with no accepted verdict,
+or with a validated verdict whose `result_digest` is not the recorded result's,
 before any review check. Every gate response lists `overrides`.
 
 ### `<skill-base-dir>/scripts/result_validator.py`
@@ -54,10 +55,14 @@ Validates work-queue results against `work-queue-result.schema.json`.
 `accept_package_result(result, package_def, contracts_rev, plan_rev, worktree_path)`
 is the only way to obtain an accepted `PackageAcceptance`: full Phase C1 validation
 must be valid, the `commit_resolves` check must have run in `worktree_path` (a
-skipped check is refused), and the effective outcome must be `PASS`. Absence of
-evidence is not a pass. Step `method` is `executed`, `ci`, `inspected` or `not_run`;
-a `not_run` step can never pass, and a worker may downgrade its outcome but never
-upgrade it. To proceed past a refusal, construct
+skipped check is refused), and the effective outcome must be `PASS`. The commit check
+requires `git.head.commit` to resolve, to be reachable from the package branch
+(`git.head.branch`, else the worktree `HEAD`), and not to be the `git.base.ref`
+commit. Absence of evidence is not a pass: a passing step needs an artifact or a
+metric and must not carry a non-zero `exit_code`. Step `method` is `executed`, `ci`,
+`inspected` or `not_run`; a `not_run` step can never pass, and a worker may downgrade
+its outcome but never upgrade it. `PackageAcceptance(accepted=True)` without outcome
+`PASS` or an override raises `ValueError`. To proceed past a refusal, construct
 `PackageAcceptance.override_for(package_id, reason, approver)` — both must be
 non-blank, and the override is surfaced by the scheduler and the gate.
 

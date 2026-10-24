@@ -287,6 +287,60 @@ class TestVacuousVerification:
         data["verification"]["steps"][0]["method"] = "not_run"
         assert validate_verification_consistency(data) == []
 
+    def test_nonzero_exit_code_claiming_pass_is_rejected(self, schema, valid_result):
+        data = deepcopy(valid_result)
+        data["verification"]["steps"][0]["exit_code"] = 1
+        errors = validate_verification_consistency(data)
+        assert len(errors) == 1
+        assert "unit-tests" in errors[0]
+        assert "exit_code=1" in errors[0]
+        assert validate_result(data, schema)["valid"] is False
+
+    def test_nonzero_exit_code_failing_is_consistent(self, valid_result):
+        data = deepcopy(valid_result)
+        data["verification"]["passed"] = False
+        data["verification"]["steps"][0]["exit_code"] = 2
+        data["verification"]["steps"][0]["passed"] = False
+        assert validate_verification_consistency(data) == []
+
+    @pytest.mark.parametrize("kind", ["command", "manual"])
+    def test_empty_evidence_claiming_pass_is_rejected(
+        self, schema, valid_result, kind,
+    ):
+        data = deepcopy(valid_result)
+        step = data["verification"]["steps"][0]
+        step["evidence"] = {"artifacts": [], "metrics": {}}
+        if kind == "manual":
+            for key in ("command", "exit_code"):
+                step.pop(key)
+            step["kind"] = "manual"
+            step["manual"] = {"instructions": "look at it"}
+        errors = validate_verification_consistency(data)
+        assert len(errors) == 1
+        assert "unit-tests" in errors[0]
+        assert "no evidence" in errors[0]
+        assert validate_result(data, schema)["valid"] is False
+
+    @pytest.mark.parametrize(
+        "evidence",
+        [
+            {"artifacts": ["artifacts/pytest.xml"], "metrics": {}},
+            {"artifacts": [], "metrics": {"test_count": 3}},
+        ],
+    )
+    def test_any_artifact_or_metric_is_evidence(self, valid_result, evidence):
+        data = deepcopy(valid_result)
+        data["verification"]["steps"][0]["evidence"] = evidence
+        assert validate_verification_consistency(data) == []
+
+    def test_empty_evidence_failing_is_consistent(self, valid_result):
+        data = deepcopy(valid_result)
+        data["verification"]["passed"] = False
+        data["verification"]["steps"][0]["passed"] = False
+        data["verification"]["steps"][0]["exit_code"] = 1
+        data["verification"]["steps"][0]["evidence"] = {"artifacts": [], "metrics": {}}
+        assert validate_verification_consistency(data) == []
+
 
 # --- Commit resolution ---
 
@@ -299,18 +353,29 @@ def _git(cwd: Path, *args: str) -> str:
     ).stdout.strip()
 
 
+PACKAGE_BRANCH = "openspec/feat-test"
+
+
+def _commit(path: Path, name: str) -> str:
+    (path / name).write_text(f"{name}\n")
+    _git(path, "add", name)
+    _git(path, "commit", "-q", "-m", name)
+    return _git(path, "rev-parse", "HEAD")
+
+
 @pytest.fixture
 def repo(tmp_path):
-    """A temporary git repository with one commit; returns (path, head_sha)."""
+    """A package worktree: a base commit on ``main`` and one package commit on
+    ``PACKAGE_BRANCH`` (checked out); returns (path, package_head_sha)."""
     path = tmp_path / "repo"
     path.mkdir()
     _git(path, "init", "-q")
+    _git(path, "symbolic-ref", "HEAD", "refs/heads/main")
     _git(path, "config", "user.email", "test@example.invalid")
     _git(path, "config", "user.name", "Test")
-    (path / "README").write_text("x\n")
-    _git(path, "add", "README")
-    _git(path, "commit", "-q", "-m", "init")
-    return path, _git(path, "rev-parse", "HEAD")
+    _commit(path, "README")
+    _git(path, "checkout", "-q", "-b", PACKAGE_BRANCH)
+    return path, _commit(path, "work")
 
 
 ABSENT_SHA = "0123456789abcdef0123456789abcdef01234567"
@@ -412,6 +477,87 @@ class TestCommitResolves:
         assert check["errors"] == []
         assert "no worktree_path" in check["reason"]
         assert results["valid"] is True
+
+    def test_commit_on_another_branch_is_not_reachable(self, repo, valid_result):
+        path, _ = repo
+        _git(path, "checkout", "-q", "-b", "elsewhere", "main")
+        other = _commit(path, "elsewhere")
+        _git(path, "checkout", "-q", PACKAGE_BRANCH)
+        data = deepcopy(valid_result)
+        data["git"]["head"]["commit"] = other
+        check = validate_commit_resolves(data, path)
+        assert check["passed"] is False
+        assert "not reachable" in check["errors"][0]
+        assert PACKAGE_BRANCH in check["errors"][0]
+
+    def test_unreported_branch_checks_the_worktree_head(self, repo, valid_result):
+        path, sha = repo
+        _git(path, "checkout", "-q", "-b", "elsewhere", "main")
+        other = _commit(path, "elsewhere")
+        _git(path, "checkout", "-q", PACKAGE_BRANCH)
+        data = deepcopy(valid_result)
+        del data["git"]["head"]["branch"]
+        data["git"]["head"]["commit"] = other
+        check = validate_commit_resolves(data, path)
+        assert check["passed"] is False
+        assert "HEAD" in check["errors"][0]
+        data["git"]["head"]["commit"] = sha
+        assert validate_commit_resolves(data, path)["passed"] is True
+
+    def test_dangling_commit_is_not_reachable(self, repo, valid_result):
+        path, _ = repo
+        dangling = _commit(path, "dangling")
+        _git(path, "reset", "-q", "--hard", "HEAD~1")
+        data = deepcopy(valid_result)
+        data["git"]["head"]["commit"] = dangling
+        check = validate_commit_resolves(data, path)
+        assert check["passed"] is False
+        assert "not reachable" in check["errors"][0]
+
+    def test_head_equal_to_base_is_refused(self, schema, repo, valid_result):
+        path, _ = repo
+        base = _git(path, "rev-parse", "main")
+        _git(path, "reset", "-q", "--hard", "main")  # the branch holds no commit
+        data = deepcopy(valid_result)
+        data["git"]["head"]["commit"] = base
+        results = validate_result(data, schema, worktree_path=path)
+        check = results["checks"]["commit_resolves"]
+        assert check["passed"] is False
+        assert "made no commit" in check["errors"][0]
+        assert results["valid"] is False
+
+    def test_unresolvable_base_ref_fails(self, repo, valid_result):
+        path, sha = repo
+        data = deepcopy(valid_result)
+        data["git"]["head"]["commit"] = sha
+        data["git"]["base"]["ref"] = "no-such-base"
+        check = validate_commit_resolves(data, path)
+        assert check["passed"] is False
+        assert "no-such-base" in check["errors"][0]
+
+    def test_unresolvable_branch_fails(self, repo, valid_result):
+        path, sha = repo
+        data = deepcopy(valid_result)
+        data["git"]["head"]["commit"] = sha
+        data["git"]["head"]["branch"] = "no-such-branch"
+        check = validate_commit_resolves(data, path)
+        assert check["passed"] is False
+        assert "no-such-branch" in check["errors"][0]
+
+    def test_option_like_base_ref_fails_without_invoking_git(
+        self, monkeypatch, repo, valid_result,
+    ):
+        path, sha = repo
+
+        def _forbidden(*args, **kwargs):
+            raise AssertionError("git must not be invoked for an option-like ref")
+
+        monkeypatch.setattr(validate_work_result.subprocess, "run", _forbidden)
+        data = deepcopy(valid_result)
+        data["git"]["head"]["commit"] = sha
+        data["git"]["base"]["ref"] = "--output=x"
+        check = validate_commit_resolves(data, path)
+        assert check["passed"] is False
 
 
 # --- Outcome derivation and consistency ---

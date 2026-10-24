@@ -36,24 +36,56 @@ because it names the problem ("no verification steps") instead of leaving a gene
 schema message, and because it keeps working if a caller validates with a looser
 schema.
 
-The checker also rejects `method: not_run` together with `passed: true`, which is
-the step-level form of the same lie.
+The checker also rejects three step-level forms of the same lie, each on a step
+that claims `passed: true`:
 
-### D2 — Commit resolution is an explicit, opt-in check, enforced at acceptance
+- `method: not_run`;
+- an integer `exit_code` other than 0 (the command failed);
+- empty evidence: no `artifacts` and no `metrics`. This applies to every step
+  kind, including `command` steps, because a pass that leaves no trace is not
+  evidence. Any single artifact or metric is enough.
+
+A failing step is not held to these rules, since a failure claims nothing.
+`method: inspected` with evidence is still allowed (A2).
+
+### D2 — The commit check binds the head to the package branch, opt-in and enforced at acceptance
 
 `validate_result(data, schema=None, *, worktree_path=None)` adds a
-`commit_resolves` check:
+`commit_resolves` check. It keeps that name, but it checks more than resolution.
+With `cwd=worktree_path`, and a 10-second timeout per `git` call, it requires all
+of these:
 
-- it runs `git rev-parse --verify --quiet <sha>^{commit}` with `cwd=worktree_path`
-  and a 10-second timeout;
-- `rev-parse` handles abbreviated SHAs, and an ambiguous prefix fails, which is
-  what we want;
-- a missing directory, a non-repository, a timeout or a non-zero exit is a failure
-  whose error names the commit and the path;
-- a commit that does not match `^[0-9a-fA-F]{7,64}$` fails without invoking `git`.
-  The schema already enforces the pattern, but this check must not depend on the
-  schema having run, and a value starting with `-` would be read by `git` as an
-  option.
+1. **The head resolves.** `git rev-parse --verify --quiet <sha>^{commit}`.
+   `rev-parse` handles abbreviated SHAs, and an ambiguous prefix fails, which is
+   what we want.
+2. **The head is on the package branch.** The package branch is
+   `refs/heads/<git.head.branch>` when the result reports a branch, and the
+   worktree's `HEAD` otherwise. `git merge-base --is-ancestor <head> <branch>`
+   must exit 0. Exit 1 means "not reachable", which catches a commit that exists
+   only on another branch, and a dangling commit. Any other exit is reported as
+   "could not be checked". Either way the check fails.
+3. **The head is not the base.** `git.base.ref` must resolve to a commit, and
+   that commit must differ from the head. A worker that made no commit reports
+   the base as its head, and that is not a pass.
+
+Failures:
+
+- A missing directory, a non-repository, a timeout or a non-zero exit fails the
+  check, with an error that names the commit and the path.
+- So does a base ref or branch that does not resolve. The check cannot be
+  satisfied by leaving its inputs unresolvable.
+- A commit that does not match `^[0-9a-fA-F]{7,64}$` fails without invoking `git`.
+- So does a branch or base ref that is empty or starts with `-`. The schema
+  already constrains these fields, but this check must not depend on the schema
+  having run, and `git` would read a value starting with `-` as an option.
+- Inherited `GIT_DIR`-style environment variables are stripped, so the check
+  inspects the given worktree and not the caller's repository.
+
+The check does not compare `files_modified` with the commit's diff (Non-Goal). It
+also accepts a head that is an older ancestor of the base, because it compares
+the head only with the base commit itself, as the user decision states.
+`git.head.branch` is self-reported. Falling back to the worktree's `HEAD` covers
+results that omit it.
 
 Without `worktree_path` the check is recorded as
 `{"passed": true, "skipped": true, "errors": [], "reason": "no worktree_path supplied"}`.
@@ -119,6 +151,11 @@ class PackageAcceptance:
 (The classmethod is `override_for`, not `override`, because a dataclass field and a
 classmethod cannot share the name `override`.)
 
+The verdict also carries `result_digest: str | None`. This is
+`digest_result(result)`, a SHA-256 of the canonical JSON of the result the
+verdict was made from. `accept_package_result` sets it. D5 uses it to bind the
+verdict to the result.
+
 `accept_package_result(result_data, package_def, expected_contracts_revision,
 expected_plan_revision, worktree_path, schema=None)` runs
 `validate_package_result(..., worktree_path=worktree_path)`. It is accepted only
@@ -158,6 +195,15 @@ In `check_integration_gate` the order is:
 Acceptance is checked before reviews because reviewing a package that did not pass
 wastes a review dispatch, and the failure is more fundamental.
 
+Step 2 also requires the verdict to belong to the recorded result. A verdict with
+no override must carry a `result_digest` equal to `digest_result` of the result
+recorded with it. Otherwise the reason is "acceptance was not issued for the
+recorded result". This covers both a verdict made for a different result and a
+verdict that carries no digest. An override carries no digest and is exempt,
+because it records a human decision about the package, not about one payload. The
+digest compares content, so recording a copy of the accepted result still
+passes. Mutating the result after acceptance blocks the gate.
+
 A new `IntegrationGateStatus.BLOCKED_NOT_PASSING = "blocked_not_passing"`. It is
 not a reuse of `blocked_incomplete`, so callers and the summary can tell "never
 reported" from "reported a failure". Every gate response gains
@@ -179,7 +225,14 @@ same code path. Because it carries `override`, every consumer can surface it:
 - `PackageStatus` gains `override: dict | None`, which `get_status_summary` reports;
 - the gate lists overrides.
 
-There is no boolean that can skip the check silently.
+There is no boolean that can skip the check silently. `PackageAcceptance` also
+enforces this in `__post_init__`:
+
+- `accepted=True` without an override requires `outcome == "PASS"`, and anything
+  else raises `ValueError`;
+- a directly passed override must have a non-blank reason and approver.
+
+So a hand-built `PackageAcceptance("wp", True, None)` cannot complete a package.
 
 ### D7 — Emitter compatibility is pinned by tests, not by convention
 

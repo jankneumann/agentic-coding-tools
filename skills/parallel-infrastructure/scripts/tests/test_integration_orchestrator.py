@@ -16,12 +16,17 @@ from integration_orchestrator import (
     IntegrationGateStatus,
     IntegrationOrchestrator,
 )
-from package_acceptance import PackageAcceptance
+from package_acceptance import PackageAcceptance, digest_result
 
 
-def _ok(package_id: str) -> PackageAcceptance:
-    """An accepted verdict, as accept_package_result returns for a validated PASS."""
-    return PackageAcceptance(package_id, True, "PASS")
+def _ok(package_id: str, result: dict[str, Any] | None = None) -> PackageAcceptance:
+    """An accepted verdict, as accept_package_result returns for a validated PASS.
+
+    It is bound to ``result``, by default the ``_make_result(package_id)`` the
+    tests record with it.
+    """
+    bound = result if result is not None else _make_result(package_id)
+    return PackageAcceptance(package_id, True, "PASS", result_digest=digest_result(bound))
 
 
 def _make_packages() -> list[dict[str, Any]]:
@@ -440,6 +445,23 @@ class TestAcceptanceGate:
         gate = orch.check_integration_gate()
         assert gate["status"] == IntegrationGateStatus.BLOCKED_NOT_PASSING.value
         assert gate["not_passing"][0]["package_id"] == "wp-backend"
+
+    def test_acceptance_for_another_result_blocks(self, orch: IntegrationOrchestrator) -> None:
+        # A verdict made for a good result does not accept a different, failed one.
+        failed = _make_result("wp-backend", status="failed", verification_passed=False)
+        _record_all_reviewed(orch, {"wp-backend": (failed, _ok("wp-backend"))})
+        gate = orch.check_integration_gate()
+        assert gate["status"] == IntegrationGateStatus.BLOCKED_NOT_PASSING.value
+        entry = gate["not_passing"][0]
+        assert entry["package_id"] == "wp-backend"
+        assert entry["reasons"] == ["acceptance was not issued for the recorded result"]
+
+    def test_unbound_acceptance_blocks(self, orch: IntegrationOrchestrator) -> None:
+        unbound = PackageAcceptance("wp-backend", True, "PASS")
+        _record_all_reviewed(orch, {"wp-backend": (_make_result("wp-backend"), unbound)})
+        gate = orch.check_integration_gate()
+        assert gate["status"] == IntegrationGateStatus.BLOCKED_NOT_PASSING.value
+        assert [e["package_id"] for e in gate["not_passing"]] == ["wp-backend"]
 
     def test_non_acceptance_value_blocks(self, orch: IntegrationOrchestrator) -> None:
         _record_all_reviewed(orch, {"wp-backend": (_make_result("wp-backend"), True)})  # type: ignore[dict-item]

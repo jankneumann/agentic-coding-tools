@@ -91,7 +91,7 @@ def _step(passed: bool = True) -> dict[str, Any]:
         "command": "pytest -q",
         "exit_code": 0 if passed else 1,
         "passed": passed,
-        "evidence": {"artifacts": [], "metrics": {}},
+        "evidence": {"artifacts": [], "metrics": {"test_count": 3}},
     }
 
 
@@ -150,7 +150,8 @@ def _clean_review() -> dict[str, Any]:
 
 @pytest.fixture
 def repo(tmp_path: Path) -> tuple[Path, str]:
-    """A git working tree with one commit; returns (path, HEAD SHA)."""
+    """A package worktree: a base commit on ``main`` and one package commit on
+    the checked-out package branch; returns (path, package HEAD SHA)."""
     path = tmp_path / "worktree"
     path.mkdir()
 
@@ -160,11 +161,15 @@ def repo(tmp_path: Path) -> tuple[Path, str]:
         ).stdout.strip()
 
     git("init", "-q")
+    git("symbolic-ref", "HEAD", "refs/heads/main")
     git("config", "user.email", "pin@example.com")
     git("config", "user.name", "pin")
-    (path / "README").write_text("pin\n")
-    git("add", "README")
-    git("commit", "-q", "-m", "initial")
+    for name, branch in (("README", None), ("work", f"openspec/{PACKAGE_ID}")):
+        if branch:
+            git("checkout", "-q", "-b", branch)
+        (path / name).write_text(f"{name}\n")
+        git("add", name)
+        git("commit", "-q", "-m", name)
     return path, git("rev-parse", "HEAD")
 
 
@@ -252,6 +257,23 @@ class TestVacuousResultEndToEnd:
         assert result["outcome"] == "PASS"  # the claim alone looks clean
 
         acceptance = _accept(result, worktree)
+        assert acceptance.accepted is False
+        assert any("commit_resolves" in reason for reason in acceptance.reasons)
+
+        scheduler = _scheduler(tmp_path)
+        assert scheduler.mark_completed(PACKAGE_ID, acceptance) is False
+        assert DEPENDANT_ID not in scheduler.get_ready_packages()
+
+    def test_no_package_commit_is_refused(
+        self, tmp_path: Path, repo: tuple[Path, str]
+    ) -> None:
+        # A worker that made no commit reports the base commit as its head.
+        worktree, _head = repo
+        base = subprocess.run(
+            ["git", "rev-parse", "main"], cwd=worktree, check=True,
+            capture_output=True, text=True,
+        ).stdout.strip()
+        acceptance = _accept(_build(base, [_step(True)]), worktree)
         assert acceptance.accepted is False
         assert any("commit_resolves" in reason for reason in acceptance.reasons)
 

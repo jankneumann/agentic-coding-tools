@@ -7,8 +7,9 @@ Performs:
 3. Verification consistency: steps are non-empty, no not_run step passes, and
    result.verification.passed matches all steps
 4. Outcome consistency: an explicit outcome never claims more than the evidence
-5. Commit resolution: git.head.commit resolves in the package worktree (only when
-   a worktree path is supplied; otherwise recorded as skipped)
+5. Commit resolution: git.head.commit resolves in the package worktree, is
+   reachable from the package branch and is not the base commit (only when a
+   worktree path is supplied; otherwise recorded as skipped)
 
 Callable as a library function or via CLI.
 """
@@ -108,9 +109,23 @@ def validate_verification_consistency(data: dict[str, Any]) -> list[str]:
         return errors
 
     for s in steps:
-        if s.get("method") == "not_run" and s.get("passed", False):
+        if not s.get("passed", False):
+            continue
+        name = s.get("name", "?")
+        if s.get("method") == "not_run":
+            errors.append(f"  step '{name}' has method=not_run but passed=true")
+        exit_code = s.get("exit_code")
+        if isinstance(exit_code, int) and exit_code != 0:
             errors.append(
-                f"  step '{s.get('name', '?')}' has method=not_run but passed=true"
+                f"  step '{name}' has exit_code={exit_code} but passed=true"
+            )
+        evidence = s.get("evidence")
+        if not isinstance(evidence, dict):
+            evidence = {}
+        if not evidence.get("artifacts") and not evidence.get("metrics"):
+            errors.append(
+                f"  step '{name}' has passed=true but no evidence "
+                "(no artifacts and no metrics)"
             )
 
     all_steps_passed = all(s.get("passed", False) for s in steps)
@@ -200,11 +215,39 @@ _GIT_LOCATION_ENV = (
 )
 
 
+def _git(path: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    """Run ``git`` in ``path`` with any inherited repository location removed."""
+    return subprocess.run(
+        ["git", *args],
+        cwd=path,
+        env={k: v for k, v in os.environ.items() if k not in _GIT_LOCATION_ENV},
+        capture_output=True,
+        text=True,
+        timeout=COMMIT_CHECK_TIMEOUT_SECONDS,
+    )
+
+
+def _resolve_commit(path: Path, rev: str) -> str | None:
+    """The full SHA ``rev`` names in ``path``, or None when it does not resolve."""
+    proc = _git(path, "rev-parse", "--verify", "--quiet", f"{rev}^{{commit}}")
+    return proc.stdout.strip() if proc.returncode == 0 else None
+
+
 def validate_commit_resolves(
     data: dict[str, Any], worktree_path: str | Path,
 ) -> dict[str, Any]:
-    """Check that ``git.head.commit`` resolves to a commit in ``worktree_path``."""
-    commit = ((data.get("git") or {}).get("head") or {}).get("commit")
+    """Check ``git.head.commit`` against the package worktree at ``worktree_path``.
+
+    The commit must (1) resolve to a commit, (2) be reachable from the package
+    branch (``git.head.branch`` when reported, otherwise the worktree's
+    ``HEAD``), and (3) differ from the commit ``git.base.ref`` resolves to: a
+    worker that made no commit has not produced a pass.
+    """
+    git = data.get("git") or {}
+    head = git.get("head") or {}
+    commit = head.get("commit")
+    branch = head.get("branch")
+    base_ref = (git.get("base") or {}).get("ref")
     path = Path(worktree_path)
 
     def _fail(msg: str) -> dict[str, Any]:
@@ -215,25 +258,55 @@ def validate_commit_resolves(
             f"git.head.commit {commit!r} is not a 7-64 character hex SHA; "
             f"not checked against {path}"
         )
+    if branch is not None and (
+        not isinstance(branch, str) or not branch or branch.startswith("-")
+    ):
+        return _fail(f"git.head.branch {branch!r} is not a branch name")
+    if not isinstance(base_ref, str) or not base_ref or base_ref.startswith("-"):
+        return _fail(f"git.base.ref {base_ref!r} is not a ref")
     if not path.is_dir():
         return _fail(f"commit {commit} not checked: worktree {path} is not a directory")
+
+    if branch:
+        branch_rev, branch_label = f"refs/heads/{branch}", f"package branch {branch!r}"
+    else:
+        branch_rev, branch_label = "HEAD", "the worktree's HEAD"
     try:
-        proc = subprocess.run(
-            ["git", "rev-parse", "--verify", "--quiet", f"{commit}^{{commit}}"],
-            cwd=path,
-            env={
-                k: v for k, v in os.environ.items() if k not in _GIT_LOCATION_ENV
-            },
-            capture_output=True,
-            text=True,
-            timeout=COMMIT_CHECK_TIMEOUT_SECONDS,
-        )
+        head_sha = _resolve_commit(path, commit)
+        if head_sha is None:
+            return _fail(f"commit {commit} does not resolve in worktree {path}")
+        branch_sha = _resolve_commit(path, branch_rev)
+        if branch_sha is None:
+            return _fail(
+                f"commit {commit} not checked: {branch_label} does not resolve "
+                f"in worktree {path}"
+            )
+        ancestry = _git(path, "merge-base", "--is-ancestor", head_sha, branch_sha)
+        if ancestry.returncode == 1:
+            return _fail(
+                f"commit {commit} is not reachable from {branch_label} "
+                f"in worktree {path}"
+            )
+        if ancestry.returncode != 0:
+            return _fail(
+                f"commit {commit} reachability from {branch_label} could not be "
+                f"checked in worktree {path}"
+            )
+        base_sha = _resolve_commit(path, base_ref)
+        if base_sha is None:
+            return _fail(
+                f"commit {commit} not checked: base ref {base_ref!r} does not "
+                f"resolve in worktree {path}"
+            )
     except subprocess.TimeoutExpired:
         return _fail(f"commit {commit} check timed out in worktree {path}")
     except OSError as exc:
         return _fail(f"commit {commit} could not be checked in worktree {path}: {exc}")
-    if proc.returncode != 0:
-        return _fail(f"commit {commit} does not resolve in worktree {path}")
+    if head_sha == base_sha:
+        return _fail(
+            f"commit {commit} is the base ref {base_ref!r}: the package made no "
+            f"commit in worktree {path}"
+        )
     return {"passed": True, "errors": []}
 
 
