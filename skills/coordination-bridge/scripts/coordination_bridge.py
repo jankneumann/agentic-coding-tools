@@ -366,6 +366,44 @@ def _http_request(
         return {"status_code": None, "data": None, "error": str(exc)}
 
 
+class CoordinatorHttpClient:
+    """Raw coordinator HTTP calls for scripts outside the ``try_*`` operations.
+
+    ``request`` returns ``{"status_code", "data", "error"}`` and carries the
+    SSRF host allowlist and the Cloudflare Access headers of ``_http_request``.
+    Raises ``ValueError`` when no allowed coordinator URL resolves.
+    """
+
+    def __init__(
+        self,
+        http_url: str | None = None,
+        api_key: str | None = None,
+        *,
+        timeout: float = DEFAULT_TIMEOUT_SECONDS,
+    ) -> None:
+        url = _resolve_http_url(http_url)
+        if not url:
+            raise ValueError(
+                "no allowed coordinator URL "
+                "(set COORDINATION_API_URL and COORDINATION_ALLOWED_HOSTS)"
+            )
+        self.http_url = url
+        self._api_key = _resolve_api_key(api_key)
+        self.timeout = timeout
+
+    def request(
+        self, method: str, path: str, payload: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
+        return _http_request(
+            method=method,
+            path=path,
+            payload=payload,
+            http_url=self.http_url,
+            api_key=self._api_key,
+            timeout=self.timeout,
+        )
+
+
 def _probe_capability(
     *,
     probes: list[tuple[str, str, dict[str, Any] | None]],

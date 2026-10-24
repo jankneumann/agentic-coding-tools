@@ -351,6 +351,20 @@ def _accepts_kwarg(func: Callable[..., Any], name: str) -> bool:
     )
 
 
+def _merge_remote_results(
+    local: list[ReviewResult], remote: list[ReviewResult],
+) -> list[ReviewResult]:
+    """Add successful remote lanes from vendors with no local success.
+
+    A local success for a vendor wins (it carries the full dispatch detail);
+    a remote success replaces that vendor's local failure, so quorum counts
+    each vendor once.
+    """
+    local_ok = {r.vendor for r in local if r.success}
+    extra = {r.vendor: r for r in remote if r.success and r.vendor not in local_ok}
+    return [r for r in local if r.vendor not in extra] + list(extra.values())
+
+
 def _write_review_checkpoint(
     checkpoint_dir: Path,
     results: list[ReviewResult],
@@ -726,6 +740,7 @@ def converge(
     verified_lanes: list[str] | None = None,
     counting_lanes: list[str] | None = None,
     base_ref: str | None = None,
+    remote_results: Callable[[int], list[ReviewResult]] | None = None,
 ) -> ConvergenceResult:
     """Run the review-fix convergence loop.
 
@@ -734,6 +749,14 @@ def converge(
     ``reason="capability_unavailable"`` with ``missing_lanes`` (the
     ``counting_lanes`` not verified) before dispatching anything. It never
     lowers the quorum and writes no loop state.
+
+    Cross-host rounds (factory Phase 1, 1.5): ``remote_results`` is called
+    with the round number after local dispatch and returns lanes other hosts
+    verified for the same head (see ``remote_rounds.coordinator_round_source``).
+    They merge into the round before the checkpoint, so quorum counts distinct
+    vendors from any host. Because remote lanes are only known once the round
+    has run, a wired ``remote_results`` defers the D10 guard to that per-round
+    count: a round still short of quorum returns ``reason="quorum_lost"``.
 
     Args:
         change_id: OpenSpec change identifier.
@@ -770,6 +793,9 @@ def converge(
         base_ref: Ref the review packet diffs against. ``None`` (default)
             keeps the packet builder's ``DEFAULT_BASE_REF``; a stacked branch
             passes its PR base (e.g. ``origin/openspec/<parent>``).
+        remote_results: Optional per-round source of lanes verified on other
+            hosts. A failure to read it is logged and the round continues
+            with local lanes only.
 
     Returns:
         ConvergenceResult with convergence status and details.
@@ -777,7 +803,7 @@ def converge(
     start_time = time.monotonic()
 
     # 0. Pre-dispatch quorum guard (D10).
-    if verified_lanes is not None:
+    if verified_lanes is not None and remote_results is None:
         verified = sorted(set(verified_lanes))
         if len(verified) < min_quorum:
             missing = sorted(set(counting_lanes or []) - set(verified))
@@ -870,6 +896,16 @@ def converge(
         if _accepts_kwarg(orchestrator.dispatch_and_wait, "result_callback"):
             dispatch_kwargs["result_callback"] = _checkpoint_result
         results = orchestrator.dispatch_and_wait(**dispatch_kwargs)
+        if remote_results is not None:
+            try:
+                remote = remote_results(round_num)
+            except Exception as exc:  # noqa: BLE001 - remote lanes are additive
+                logger.warning(
+                    "Remote round read failed for %s round %d: %s: %s",
+                    change_id, round_num, type(exc).__name__, exc,
+                )
+                remote = []
+            results = _merge_remote_results(results, remote)
 
         # 2aa. Durably checkpoint vendor findings BEFORE synthesis. This is
         # the load-bearing write of the proposal: if synthesizer.synthesize()
