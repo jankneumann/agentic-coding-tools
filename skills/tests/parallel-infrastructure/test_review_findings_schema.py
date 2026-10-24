@@ -302,3 +302,46 @@ def test_evidence_level_adds_no_error_to_committed_findings_documents():
             continue
         added = _error_set(current_v, doc) - _error_set(without_v, doc)
         assert not added, f"{path.relative_to(REPO_ROOT)}: {sorted(added)[:3]}"
+
+
+def test_invalid_evidence_level_is_dropped_and_the_finding_kept():
+    """A bad optional field must not cost the vendor its whole payload (PR #484 class)."""
+    from review_findings_schema import coerce_findings_payload, validate_findings_payload
+
+    payload = _minimal_payload(evidence_level="certain")
+    payload["findings"].append(dict(payload["findings"][0], id=2, evidence_level="Direct"))
+    payload["findings"].append(dict(payload["findings"][0], id=3, evidence_level="inferred"))
+    coerced, notes = coerce_findings_payload(payload)
+    assert [f["id"] for f in coerced["findings"]] == [1, 2, 3]
+    assert "evidence_level" not in coerced["findings"][0]
+    assert coerced["findings"][1]["evidence_level"] == "direct"
+    assert coerced["findings"][2]["evidence_level"] == "inferred"
+    assert "evidence_level:dropped:'certain'" in notes
+    assert "evidence_level:Direct->direct" in notes
+    assert len([n for n in notes if n.startswith("evidence_level:")]) == 2
+    assert validate_findings_payload(coerced) == []
+
+
+def test_dispatch_keeps_every_finding_when_one_evidence_level_is_bogus():
+    from review_dispatcher import CliConfig, CliVendorAdapter, ModeConfig
+
+    base = _minimal_payload()["findings"][0]
+    findings = [dict(base, id=i) for i in (1, 2, 3)]
+    findings[1]["evidence_level"] = "very-high"
+    adapter = CliVendorAdapter(
+        agent_id="grok-local",
+        vendor="grok",
+        cli_config=CliConfig(
+            command="grok",
+            dispatch_modes={"review": ModeConfig(args=["--output-format", "json"])},
+            model_flag="-m",
+        ),
+    )
+    result = adapter._ingest_stdout(
+        json.dumps({"findings": findings}), "",
+        elapsed=60.0, model_name="m", models_attempted=["m"],
+    )
+    assert result.success is True, result.error
+    assert [f["id"] for f in result.findings["findings"]] == [1, 2, 3]
+    assert "evidence_level" not in result.findings["findings"][1]
+    assert "evidence_level:dropped:'very-high'" in result.coercions

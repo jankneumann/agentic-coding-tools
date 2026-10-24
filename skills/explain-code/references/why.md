@@ -35,23 +35,31 @@ links the trace actually resolved.
 | Unknown | The trace has no evidence either way |
 
 **Tag format.** Every claim sentence ends with its tier in brackets. Direct and
-Supported tags carry at least one pointer, for example `[Direct git:1a2b3c4]` or
+Supported tags carry at least one pointer (or, for a supersession claim, the
+`superseded_by` reference), for example `[Direct git:1a2b3c4]` or
 `[Supported git:1a2b3c4 openspec/changes/archive/2026-01-01-demo-change/session-log.md#plan/D1]`.
 
 **Decision-to-line links.** Saying that a decision explains *this line* is Direct
-only when that decision's `mentions_target` is `true`. Otherwise the link is
+only when that decision's `mentions_target` is `true`, which means its title or
+rationale names the target's path, basename or symbol as a whole token (`app.py`
+does not match `myapp.py`, and `load` does not match `loader`). Otherwise the link is
 Inferred, even when the decision itself is quoted directly.
 
 A decision with a non-null `superseded_by` is history. Say so, and cite the
-superseding reference.
+superseding reference (the `superseded_by` value): the evidence for supersession is
+the later decision's `supersedes:` line, so the superseded decision's own `pointer`
+does not support the claim.
 
 ## Null-result rule
 
-When `null_result` is non-null (`uncommitted`, `no_change_id` or
-`no_decision_record`), the absence is the finding. Open the reply with
-`No decision record covers <path>:<line> (<reason>). [Unknown]`. Do not present an
-inferred or speculative rationale as the answer. At most one further sentence may
-offer a reading, tagged `[Inferred]` or `[Speculative]`.
+When `null_result` is non-null (`uncommitted`, `history_truncated`, `no_change_id`
+or `no_decision_record`), the absence is the finding. Open the reply with
+`No decision record covers <path>:<line> (<reason>). [Unknown]`.
+`history_truncated` means the line blames to a shallow-clone boundary commit, so the
+introducing commit is not in this clone: say the history is shallow, not that no
+decision exists. Do not present an inferred or speculative rationale as the answer.
+At most one further sentence may offer a reading, tagged `[Inferred]` or
+`[Speculative]`.
 
 ## Embedded-hypothesis rule
 
@@ -77,8 +85,8 @@ src/app.py:42 → 1a2b3c4 → #123 → demo-change → D1 (demo-cap)
 Decision D1 says `fetch` retries three times because the upstream drops one request
 in fifty. [Direct openspec/changes/archive/2026-01-01-demo-change/session-log.md#plan/D1]
 The flaky-coordinator reason is untested: no record in the trace mentions the
-coordinator. [Unknown] D1 is history: it was superseded by
-`other-demo-change#plan/D1`. [Direct openspec/changes/archive/2026-01-01-demo-change/session-log.md#plan/D1]
+coordinator. [Unknown] D1 is history: a later decision names it in its `supersedes:`
+line. [Direct other-demo-change#plan/D1]
 
 Grounding: source read, unverified (form not graph-backed)
 

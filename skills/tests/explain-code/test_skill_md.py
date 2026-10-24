@@ -141,3 +141,27 @@ def test_worked_example_tags_follow_the_tier_rules():
     for tag in re.findall(r"\[(?:Direct|Supported)([^\]]*)\]", prose):
         assert tag.strip(), "Direct and Supported tags must cite a pointer"
     assert "mentions_target: true" in example
+
+
+def test_worked_example_supersession_claim_cites_the_superseding_reference():
+    """The superseded decision's own pointer does not record its supersession, so
+    the history claim must cite the reported ``superseded_by`` reference."""
+    import re
+
+    example = _why_md().split("## Worked example", 1)[1].split("\n## ", 1)[0]
+    ref = re.search(r"superseded_by: ([^`\s]+)`", example).group(1)
+    prose = example.split("```text", 1)[1].split("```", 1)[1].split("Grounding:", 1)[0]
+    flat = prose.replace("\n", " ")
+    history = [m for m in re.finditer(r"([^.\]]+?\.)\s*\[(\w+)([^\]]*)\]", flat)
+               if "history" in m.group(1) or "supersed" in m.group(1)]
+    assert history, "the worked example must show the supersession claim"
+    for m in history:
+        assert ref in m.group(3).split()
+        assert "demo-change/session-log.md#plan/D1" not in m.group(3)
+
+
+def test_null_result_rule_lists_every_trace_status():
+    section = _why_md().split("## Null-result rule", 1)[1].split("\n## ", 1)[0]
+    for status in ("uncommitted", "history_truncated", "no_change_id",
+                   "no_decision_record"):
+        assert f"`{status}`" in section

@@ -193,6 +193,39 @@ def test_mentions_target_flag(repo):
     assert d2["mentions_target"] is True
 
 
+NEAR_MISS_LOG = """# Session Log: near-miss-change
+
+---
+
+## Phase: Plan (2026-04-01)
+
+**Agent**: test | **Session**: N/A
+
+### Decisions
+1. **Load myapp.py through lib/app.py** `architectural: demo-cap` — keeps app.pyc out of the bundle
+"""
+
+
+def test_mentions_target_ignores_near_miss_names(repo):
+    root = repo["root"]
+    _append_line(root, "f = 6")
+    _write(root, "openspec/changes/near-miss-change/session-log.md", NEAR_MISS_LOG)
+    _commit(root, "feat: near miss", "src/app.py", "openspec")
+    (d,) = _trace(repo, "src/app.py:6")["decisions"]
+    assert d["mentions_target"] is False  # myapp.py, lib/app.py, app.pyc are other files
+    (d,) = _trace(repo, "src/app.py:6", "--symbol", "load")["decisions"]
+    assert d["mentions_target"] is False  # case differs: Load
+    (d,) = _trace(repo, "src/app.py:6", "--symbol", "Load")["decisions"]
+    assert d["mentions_target"] is True
+
+
+def test_mentions_target_symbol_is_whole_word(repo):
+    d1, d2 = _trace(repo, "src/app.py:3", "--symbol", "time")["decisions"]
+    assert d2["mentions_target"] is False  # "timeout" is not "time"
+    d1, d2 = _trace(repo, "src/app.py:3", "--symbol", "default")["decisions"]
+    assert d2["mentions_target"] is True
+
+
 def test_index_path_reported_when_present(repo):
     _write(repo["root"], "docs/decisions/demo-cap.md", "# demo-cap\n")
     d1, _ = _trace(repo, "src/app.py:3")["decisions"]
@@ -218,6 +251,80 @@ def test_no_decision_record(repo):
     assert doc["decisions"] == []
     assert doc["null_result"]["reason"] == "no_decision_record"
     assert doc["null_result"]["message"]
+
+
+def test_no_decision_record_message_names_the_missing_session_log(repo):
+    msg = _trace(repo, "src/app.py:4")["null_result"]["message"]
+    assert "bare-change" in msg
+    assert "no session-log.md" in msg
+    assert "architectural:" not in msg  # nothing was parsed, so no bullet was missing
+
+
+def test_no_decision_record_message_names_a_missing_change_dir(repo):
+    root = repo["root"]
+    _append_line(root, "f = 6")
+    _write(root, "openspec/changes/gone-change/proposal.md", "# gone\n")
+    _commit(root, "feat: gone change", "src/app.py", "openspec")
+    _git(root, "rm", "-q", "-r", "openspec/changes/gone-change")
+    _git(root, "commit", "-q", "-m", "chore: drop gone change")
+    doc = _trace(repo, "src/app.py:6")
+    assert doc["status"] == "no_decision_record"
+    assert doc["change_ids"][0] == {
+        "change_id": "gone-change", "source": "commit_paths", "change_dir": None,
+    }
+    assert "gone-change has no change directory" in doc["null_result"]["message"]
+
+
+def test_change_id_from_commit_message(repo):
+    root = repo["root"]
+    _append_line(root, "f = 6")
+    _commit(root, "feat: wire the logger for openspec/merged-change", "src/app.py")
+    doc = _trace(repo, "src/app.py:6")
+    assert doc["change_ids"] == [{
+        "change_id": "merged-change",
+        "source": "commit_message",
+        "change_dir": "openspec/changes/merged-change",
+    }]
+    assert doc["status"] == "traced"
+
+
+def test_openspec_file_mention_is_not_a_change_id(repo):
+    """`openspec/config.yaml` is a file, not a change named `config`."""
+    root = repo["root"]
+    _append_line(root, "f = 6")
+    _write(root, "openspec/config.yaml", "schema: x\n")
+    _commit(root, "chore: tune openspec/config.yaml", "src/app.py", "openspec/config.yaml")
+    doc = _trace(repo, "src/app.py:6")
+    assert doc["change_ids"] == []
+    assert doc["status"] == "no_change_id"
+
+
+def test_shallow_clone_boundary_is_history_truncated(repo, tmp_path):
+    """A depth-1 clone's only commit stands in for all history; never trace it."""
+    shallow = tmp_path / "shallow"
+    _git(tmp_path, "clone", "-q", "--depth", "1", f"file://{repo['root']}", str(shallow))
+    assert _git(shallow, "rev-parse", "--is-shallow-repository") == "true"
+    for target in ("src/app.py:1", "src/app.py:3", "src/app.py:5"):
+        proc = _run(shallow, target)
+        assert proc.returncode == 0, proc.stderr
+        doc = json.loads(proc.stdout)
+        assert doc["status"] == "history_truncated", (target, doc["status"])
+        assert doc["blame"]["sha"] == repo["merge"]
+        assert doc["commit"] is None
+        assert doc["pr"] is None
+        assert doc["change_ids"] == []
+        assert doc["decisions"] == []
+        assert doc["null_result"]["reason"] == "history_truncated"
+        assert repo["merge"] in doc["null_result"]["message"]
+        assert "shallow" in doc["null_result"]["message"]
+
+
+def test_root_commit_in_full_history_is_still_traced(repo):
+    """git also marks a real root commit `boundary`; that one did introduce the line."""
+    doc = _trace(repo, "src/app.py:1")
+    assert doc["blame"]["sha"] == repo["init"]
+    assert doc["status"] == "traced"
+    assert doc["change_ids"][0]["change_id"] == "merged-change"
 
 
 def test_pr_and_change_id_from_merge_commit(repo):
