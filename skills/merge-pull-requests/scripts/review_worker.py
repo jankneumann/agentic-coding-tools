@@ -76,39 +76,6 @@ class CoordinatorClient(Protocol):
     ) -> dict[str, Any]: ...
 
 
-class BridgeClient:
-    """Coordinator access through the coordination bridge's HTTP helper.
-
-    Reusing ``_http_request`` brings the SSRF host allowlist and the
-    Cloudflare Access service-token headers along with it.
-    """
-
-    def __init__(self, http_url: str | None = None, api_key: str | None = None):
-        import coordination_bridge as bridge
-
-        self._bridge = bridge
-        self._url = bridge._resolve_http_url(http_url)
-        self._key = bridge._resolve_api_key(api_key)
-        if not self._url:
-            raise SystemExit(
-                "review_worker: no allowed coordinator URL "
-                "(set COORDINATION_API_URL and COORDINATION_ALLOWED_HOSTS)"
-            )
-
-    def request(
-        self, method: str, path: str, payload: dict[str, Any] | None = None
-    ) -> dict[str, Any]:
-        result: dict[str, Any] = self._bridge._http_request(
-            method=method,
-            path=path,
-            payload=payload,
-            http_url=self._url,
-            api_key=self._key,
-            timeout=HTTP_TIMEOUT_SECONDS,
-        )
-        return result
-
-
 @dataclass(frozen=True)
 class ReviewTask:
     """A claimed review pass, as ``review_enqueue_pass`` wrote its input_data."""
@@ -478,7 +445,12 @@ def main(argv: list[str] | None = None) -> int:
     repo_dirs = parse_repo_dirs(args.repo_dir, Path.cwd())
     if not repo_dirs:
         raise SystemExit("review_worker: no repository to review (pass --repo-dir)")
-    client = BridgeClient()
+    from coordination_bridge import CoordinatorHttpClient
+
+    try:
+        client = CoordinatorHttpClient(timeout=HTTP_TIMEOUT_SECONDS)
+    except ValueError as exc:
+        raise SystemExit(f"review_worker: {exc}") from exc
     host_excluded = frozenset(v.lower() for v in args.exclude_vendor)
 
     while True:
