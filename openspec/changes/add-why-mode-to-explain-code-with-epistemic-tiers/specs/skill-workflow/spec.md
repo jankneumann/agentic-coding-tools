@@ -2,7 +2,7 @@
 
 ### Requirement: Why Trace Script
 
-The `explain-code` skill SHALL ship a read-only script `skills/explain-code/scripts/why_trace.py` that, given a target `<path>:<line>` (and an optional `--symbol <name>`), emits exactly one JSON object on stdout describing the chain blame → commit → PR → change-id → decisions for that line. The object SHALL carry `schema_version: 1` and the keys `target`, `status`, `blame`, `commit`, `pr`, `pr_reason`, `change_ids`, `decisions`, and `null_result`. `status` SHALL be one of `traced`, `uncommitted`, `no_change_id`, or `no_decision_record`. The script SHALL parse Decision bullets only through `extract_decisions` and resolve supersession only through the supersession resolver in `skills/explore-feature/scripts/decision_index.py`; it SHALL NOT contain a second session-log parser. The script SHALL run only read-only git subcommands (`blame`, `show`, `log`, `rev-parse`, `ls-files`), SHALL NOT write any file, and SHALL NOT make network calls. Every blame, commit, and PR record SHALL carry a `pointer` of the form `git:<sha>`, and every decision record SHALL carry a `pointer` of the form `<session-log repo-relative path>#<phase-slug>/D<n>` and a boolean `mentions_target`. Output SHALL be deterministic for a given repository state.
+The `explain-code` skill SHALL ship a read-only script `skills/explain-code/scripts/why_trace.py` that, given a target `<path>:<line>` (and an optional `--symbol <name>`), emits exactly one JSON object on stdout describing the chain blame → commit → PR → change-id → decisions for that line. The object SHALL carry `schema_version: 1` and the keys `target`, `status`, `blame`, `commit`, `pr`, `pr_reason`, `change_ids`, `decisions`, and `null_result`. `status` SHALL be one of `traced`, `uncommitted`, `history_truncated`, `no_change_id`, or `no_decision_record`. A change id found only in commit or PR-merge text SHALL count only when it resolves to a change directory under `openspec/changes/` (active or archived), so a mention of a file such as `openspec/config.yaml` SHALL NOT yield a change id. The script SHALL parse Decision bullets only through `extract_decisions` and resolve supersession only through the supersession resolver in `skills/explore-feature/scripts/decision_index.py`; it SHALL NOT contain a second session-log parser. The script SHALL run only read-only git subcommands (`blame`, `show`, `log`, `rev-parse`, `ls-files`), SHALL NOT write any file, and SHALL NOT make network calls. Every blame, commit, and PR record SHALL carry a `pointer` of the form `git:<sha>`, and every decision record SHALL carry a `pointer` of the form `<session-log repo-relative path>#<phase-slug>/D<n>` and a boolean `mentions_target`. Output SHALL be deterministic for a given repository state.
 
 #### Scenario: Full chain traced in a fixture repository
 
@@ -19,15 +19,30 @@ The `explain-code` skill SHALL ship a read-only script `skills/explain-code/scri
 - **AND** `decisions` SHALL be `[]`
 - **AND** `null_result.reason` SHALL be `no_change_id` with a non-empty `null_result.message`
 
+#### Scenario: OpenSpec file mention is not a change id
+
+- **WHEN** the commit that last changed the line touches no `openspec/changes/` path and its message names `openspec/config.yaml`
+- **THEN** `change_ids` SHALL NOT contain `config`
+- **AND** `status` SHALL be `no_change_id`
+
 #### Scenario: Change found but no decision record covers it
 
 - **WHEN** a change id is resolved but its `session-log.md` is absent or holds no `architectural:`-tagged Decision bullet
 - **THEN** it SHALL exit `0` with `status` equal to `no_decision_record`, `decisions` equal to `[]`, and `null_result.reason` equal to `no_decision_record`
+- **AND** `null_result.message` SHALL say, per change id, whether the change directory, its `session-log.md`, or an `architectural:`-tagged Decision bullet was the missing record
 
 #### Scenario: Uncommitted line
 
 - **WHEN** the target line exists in the working tree but has not been committed
 - **THEN** it SHALL exit `0` with `status` equal to `uncommitted`, `commit` equal to `null`, `decisions` equal to `[]`, and `null_result.reason` equal to `uncommitted`
+
+#### Scenario: Shallow-clone boundary reported as history_truncated
+
+- **WHEN** the target line blames to a commit that git marks as a `boundary` and that commit is listed in the repository's shallow file, as in a `git clone --depth 1`
+- **THEN** it SHALL exit `0` with `status` equal to `history_truncated` and `null_result.reason` equal to `history_truncated`
+- **AND** `blame.sha` SHALL be the boundary commit's sha, and `commit`, `pr`, `change_ids` and `decisions` SHALL be `null`, `null`, `[]` and `[]`
+- **AND** `null_result.message` SHALL name the boundary sha and say that the history is shallow
+- **AND** a root commit in a full (non-shallow) history SHALL still be traced
 
 #### Scenario: Invalid input rejected
 
@@ -42,9 +57,14 @@ The `explain-code` skill SHALL ship a read-only script `skills/explain-code/scri
 
 #### Scenario: Target mention flag
 
-- **WHEN** a decision's title or rationale contains the target's repo-relative path, its basename, or the `--symbol` value
+- **WHEN** a decision's title or rationale names the target's repo-relative path, its basename, or the `--symbol` value as a whole token
 - **THEN** that decision's `mentions_target` SHALL be `true`
 - **AND** otherwise it SHALL be `false`
+
+#### Scenario: Near-miss name does not set the mention flag
+
+- **WHEN** the target is `app.py` with `--symbol load` and a decision names only `myapp.py`, `lib/app.py`, `app.pyc`, or `loader`
+- **THEN** that decision's `mentions_target` SHALL be `false`
 
 #### Scenario: No side effects
 
@@ -82,7 +102,7 @@ The `explain-code` catalogue SHALL include a *why chain* form, documented in `sk
 
 ### Requirement: Review Finding Evidence Level
 
-`openspec/schemas/review-findings.schema.json` and its install-assets mirror SHALL define, in `findings.items.properties`, an optional string property `evidence_level` with the enum `["direct", "supported", "inferred", "speculative", "unknown"]`. The property SHALL NOT be listed in `required`, SHALL NOT declare a `default`, and SHALL NOT be `readOnly`. The diff of each schema copy against its base SHALL consist of that one property only, and the two copies SHALL remain byte-identical. `review_findings_schema.prompt_contract()` SHALL expose the `evidence_level` enum, and both `prompt_contract_block()` and `vendor_review.build_review_prompt()` SHALL name the field as optional. No consensus, coercion, or blocking logic SHALL read `evidence_level`.
+`openspec/schemas/review-findings.schema.json` and its install-assets mirror SHALL define, in `findings.items.properties`, an optional string property `evidence_level` with the enum `["direct", "supported", "inferred", "speculative", "unknown"]`. The property SHALL NOT be listed in `required`, SHALL NOT declare a `default`, and SHALL NOT be `readOnly`. The diff of each schema copy against its base SHALL consist of that one property only, and the two copies SHALL remain byte-identical. `review_findings_schema.prompt_contract()` SHALL expose the `evidence_level` enum, and both `prompt_contract_block()` and `vendor_review.build_review_prompt()` SHALL name the field as optional. No consensus or blocking logic SHALL read `evidence_level`. At ingest, findings coercion SHALL normalise a case or whitespace variant of an enum value to that value, and SHALL remove any other `evidence_level` value from the finding, recording a coercion note either way; an invalid `evidence_level` SHALL NOT cause the finding or the vendor payload to be rejected.
 
 #### Scenario: Prompt contract includes the field
 
@@ -105,6 +125,13 @@ The `explain-code` catalogue SHALL include a *why chain* form, documented in `sk
 - **WHEN** an otherwise valid finding carries `"evidence_level": "inferred"`
 - **THEN** it SHALL validate
 - **AND** a finding carrying `"evidence_level": "certain"` SHALL fail validation
+
+#### Scenario: Invalid evidence level dropped, finding kept
+
+- **WHEN** a vendor payload of several findings is ingested and one finding carries `"evidence_level": "very-high"`
+- **THEN** the dispatch SHALL succeed with every finding kept
+- **AND** that finding SHALL have no `evidence_level`, and the result's coercion notes SHALL record the drop
+- **AND** a finding carrying `"evidence_level": "Direct"` SHALL be kept with `evidence_level` equal to `direct`
 
 ## MODIFIED Requirements
 

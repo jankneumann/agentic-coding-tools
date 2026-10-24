@@ -318,7 +318,9 @@ def coerce_findings_payload(
     """Apply the alias table to *payload* before schema validation.
 
     Does not invent findings. Unknown enums are left unchanged so validation
-    still fails closed. Returns ``(payload, coercion_notes)``.
+    still fails closed, except the optional, informational ``evidence_level``,
+    which is normalised or removed instead (see ``_coerce_evidence_level``).
+    Returns ``(payload, coercion_notes)``.
     """
     table = table if table is not None else load_coercion_table()
     type_aliases: dict[str, str] = table.get("type_aliases") or {}
@@ -369,7 +371,32 @@ def coerce_findings_payload(
             if mapped:
                 finding["criticality"] = mapped
                 notes.append(f"criticality:from-severity:{finding['severity']}")
+        _coerce_evidence_level(finding, notes)
     return payload, notes
+
+
+def _coerce_evidence_level(finding: dict[str, Any], notes: list[str]) -> None:
+    """Normalise or drop an invalid optional ``evidence_level``, keeping the finding.
+
+    The field is informational, so a bad value must not fail the payload and
+    discard every finding from that vendor (the PR #484 failure class). A
+    case or whitespace variant of a legal value ("Direct") maps to it; any
+    other value is removed and recorded in the coercion notes.
+    """
+    if "evidence_level" not in finding:
+        return
+    raw = finding["evidence_level"]
+    levels = finding_item_schema()["properties"].get("evidence_level", {}).get("enum") or ()
+    if not levels or raw in levels:
+        # No enum to judge against (an older schema): leave validation to decide.
+        return
+    lowered = raw.strip().lower() if isinstance(raw, str) else None
+    if lowered in levels:
+        finding["evidence_level"] = lowered
+        notes.append(f"evidence_level:{raw}->{lowered}")
+    else:
+        del finding["evidence_level"]
+        notes.append(f"evidence_level:dropped:{raw!r}")
 
 
 def stamp_judgment_ingest(

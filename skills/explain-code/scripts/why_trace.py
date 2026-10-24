@@ -20,6 +20,11 @@ import) and makes no network call.
 
 Exit codes: 0 a trace was produced (null results included), 1 git failure,
 2 invalid input.
+
+On a shallow clone the oldest fetched commit stands in for all earlier
+history, so blame credits it with every older line. When blame lands on such a
+shallow boundary the script returns the ``history_truncated`` null result
+instead of tracing that commit.
 """
 
 from __future__ import annotations
@@ -142,7 +147,25 @@ def _has_head(root: Path) -> bool:
     return True
 
 
-def _blame(rel: str, line: int, root: Path) -> dict:
+def _shallow_commits(root: Path) -> frozenset[str]:
+    """Shas recorded as shallow boundaries; empty for a full-history repository."""
+    if _git(["rev-parse", "--is-shallow-repository"], root).strip() != "true":
+        return frozenset()
+    shallow_file = root / _git(["rev-parse", "--git-path", "shallow"], root).strip()
+    try:
+        text = shallow_file.read_text(encoding="utf-8")
+    except OSError:
+        return frozenset()
+    return frozenset(ln.strip() for ln in text.splitlines() if ln.strip())
+
+
+def _blame(rel: str, line: int, root: Path) -> tuple[dict, bool]:
+    """Return ``(record, boundary)``.
+
+    ``boundary`` is git's porcelain ``boundary`` marker: the line reached a
+    commit with no visible parent, either a real root commit or a shallow-clone
+    boundary.
+    """
     if not _has_head(root):
         # Unborn HEAD: nothing is committed yet, so the line is uncommitted.
         return {
@@ -153,7 +176,7 @@ def _blame(rel: str, line: int, root: Path) -> dict:
             "author_time": None,
             "summary": None,
             "pointer": f"git:{_ZERO_SHA}",
-        }
+        }, False
     out = _git(["blame", "--porcelain", "-w", "-M", "-L", f"{line},{line}", "--", rel], root)
     lines = out.splitlines()
     head = lines[0].split()
@@ -166,6 +189,7 @@ def _blame(rel: str, line: int, root: Path) -> dict:
         "summary": None,
         "pointer": f"git:{head[0]}",
     }
+    boundary = False
     for entry in lines[1:]:
         if entry.startswith("\t"):
             break
@@ -178,7 +202,9 @@ def _blame(rel: str, line: int, root: Path) -> dict:
             record["summary"] = value
         elif key == "filename":
             record["orig_path"] = value
-    return record
+        elif key == "boundary":
+            boundary = True
+    return record, boundary
 
 
 def _commit(sha: str, root: Path) -> dict:
@@ -239,11 +265,17 @@ def _pr_record(match: re.Match, source: str, commit: dict) -> dict:
     }
 
 
-def _ids_from_text(text: str) -> list[str]:
+def _ids_from_text(text: str, root: Path) -> list[str]:
+    """``openspec/<id>`` mentions that name a real change directory.
+
+    A mention such as ``openspec/config.yaml`` matches the branch grammar but
+    is a file, so a candidate counts only when ``openspec/changes/<id>/`` or
+    ``openspec/changes/archive/<date>-<id>/`` exists.
+    """
     ids = []
     for m in _BRANCH_RE.finditer(text):
         cid = re.sub(r"--.*$", "", m.group(1))
-        if cid and cid not in _NOT_CHANGE_IDS:
+        if cid and cid not in _NOT_CHANGE_IDS and _change_dir(cid, root):
             ids.append(cid)
     return ids
 
@@ -256,8 +288,8 @@ def _change_ids(commit: dict, pr_merge_message: str, root: Path) -> list[dict]:
         if m and m.group(1) not in _NOT_CHANGE_IDS:
             path_ids.append(m.group(1))
     tiers.append(("commit_paths", path_ids))
-    tiers.append(("commit_message", _ids_from_text(f"{commit['subject']}\n{commit['body']}")))
-    tiers.append(("pr_merge_message", _ids_from_text(pr_merge_message)))
+    tiers.append(("commit_message", _ids_from_text(f"{commit['subject']}\n{commit['body']}", root)))
+    tiers.append(("pr_merge_message", _ids_from_text(pr_merge_message, root)))
     for source, ids in tiers:
         if ids:
             seen: list[str] = []
@@ -314,8 +346,25 @@ def _decision_ref(d: TaggedDecision) -> str:
     return f"{cid_s}#{_phase_slug(d.phase_name)}/D{d.decision_index_in_phase}"
 
 
+def _mention_patterns(rel: str, symbol: str | None) -> list[re.Pattern]:
+    """Whole-token patterns for the target's path, basename and symbol.
+
+    A path must not continue a longer path or name on either side
+    (``app.py`` never matches ``myapp.py``, ``lib/app.py`` or ``app.pyc``); a
+    symbol must not continue a longer identifier (``run`` never matches
+    ``running``, but ``self.run`` matches).
+    """
+    pats = [
+        re.compile(r"(?<![\w./-])" + re.escape(n) + r"(?![\w-]|[./]\w)")
+        for n in dict.fromkeys((rel, Path(rel).name))
+    ]
+    if symbol:
+        pats.append(re.compile(r"(?<!\w)" + re.escape(symbol) + r"(?!\w)"))
+    return pats
+
+
 def _decisions(change_ids: list[dict], rel: str, symbol: str | None, root: Path) -> list[dict]:
-    needles = [rel, Path(rel).name] + ([symbol] if symbol else [])
+    patterns = _mention_patterns(rel, symbol)
     maps: list[dict] | None = None
     out = []
     for entry in change_ids:
@@ -349,7 +398,7 @@ def _decisions(change_ids: list[dict], rel: str, symbol: str | None, root: Path)
                 "superseded_by": _decision_ref(sup) if sup else None,
                 "pointer": f"{log_rel}#{slug}/D{idx}",
                 "index_path": index_path if (root / index_path).is_file() else None,
-                "mentions_target": any(n and n in text for n in needles),
+                "mentions_target": any(p.search(text) for p in patterns),
                 "_offset": d.source_offset,
             })
     out.sort(key=lambda r: (r["change_id"], r["date"], r["index"], r["_offset"]))
@@ -368,7 +417,7 @@ def trace(target: str, symbol: str | None, cwd: Path) -> dict:
         "schema_version": SCHEMA_VERSION,
         "target": {"path": rel, "line": line, "symbol": symbol},
         "status": None,
-        "blame": _blame(rel, line, root),
+        "blame": None,
         "commit": None,
         "pr": None,
         "pr_reason": None,
@@ -376,10 +425,20 @@ def trace(target: str, symbol: str | None, cwd: Path) -> dict:
         "decisions": [],
         "null_result": None,
     }
+    doc["blame"], boundary = _blame(rel, line, root)
     where = f"{rel}:{line}"
     if doc["blame"]["sha"] == _ZERO_SHA:
         doc["pr_reason"] = "the line is not committed"
         return _null(doc, "uncommitted", f"{where} has not been committed; there is no commit to trace")
+
+    if boundary and doc["blame"]["sha"] in _shallow_commits(root):
+        sha = doc["blame"]["sha"]
+        doc["pr_reason"] = "history is shallow; the introducing commit is not available"
+        return _null(doc, "history_truncated", (
+            f"{where} reaches shallow-clone boundary commit {sha}, which stands in for "
+            "all earlier history, so the commit that introduced the line is not in this "
+            "clone; fetch full history (git fetch --unshallow) and trace again"
+        ))
 
     commit = _commit(doc["blame"]["sha"], root)
     doc["commit"] = commit
@@ -388,17 +447,25 @@ def trace(target: str, symbol: str | None, cwd: Path) -> dict:
     short = commit["sha"][:12]
     if not doc["change_ids"]:
         return _null(doc, "no_change_id", (
-            f"commit {short} touches no openspec/changes/ path and neither it nor a PR "
-            "merge commit names an openspec/<id> branch"
+            f"commit {short} touches no openspec/changes/ path, and neither it nor a PR "
+            "merge commit names an openspec/<id> that has a change directory here"
         ))
     doc["decisions"] = _decisions(doc["change_ids"], rel, symbol, root)
     if not doc["decisions"]:
-        ids = ", ".join(e["change_id"] for e in doc["change_ids"])
-        return _null(doc, "no_decision_record", (
-            f"change {ids} has no architectural:-tagged Decision bullet in a session-log.md"
+        return _null(doc, "no_decision_record", "no decision record found: " + "; ".join(
+            _why_no_decisions(e, root) for e in doc["change_ids"]
         ))
     doc["status"] = "traced"
     return doc
+
+
+def _why_no_decisions(entry: dict, root: Path) -> str:
+    cid, cdir = entry["change_id"], entry["change_dir"]
+    if not cdir:
+        return f"change {cid} has no change directory under openspec/changes/ in this checkout"
+    if not (root / cdir / "session-log.md").is_file():
+        return f"change {cid} has no session-log.md in {cdir}"
+    return f"{cdir}/session-log.md has no architectural:-tagged Decision bullet"
 
 
 def _null(doc: dict, reason: str, message: str) -> dict:
