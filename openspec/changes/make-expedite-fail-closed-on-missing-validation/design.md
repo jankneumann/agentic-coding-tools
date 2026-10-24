@@ -37,7 +37,8 @@ consumers never have to distinguish "absent" from "none".
 - The reason is validated in `main()` before any check runs: `reason.strip()`
   empty → `argparse` error → exit 2. Validating in the CLI rather than in
   `expedite()` keeps the library function total and lets tests call it with a
-  reason directly.
+  reason directly. The library does not raise on a blank reason; it treats one
+  as no override, so a programmatic caller cannot record a reasonless bypass.
 - The override applies **only** when no report exists. A failing report is not
   maskable by this flag; that is what `--force` at merge time is for, and it
   already records its own `FORCED OVERRIDE`.
@@ -46,7 +47,8 @@ consumers never have to distinguish "absent" from "none".
 
 `check_validation_report(report_path, *, change_id, repo_root, accept_missing=None)`.
 `change_dir = repo_root / "openspec" / "changes" / change_id` when that directory
-exists, else `None`. Today `change_dir` is `report_path.parent`, which is wrong
+exists, else `None` (an absent change directory means no declared metadata
+applies; `pre_merge_gate` already treats `change_dir=None` that way). Today `change_dir` is `report_path.parent`, which is wrong
 for the `reports/` and `.git-worktrees/` probe locations, so `pre_merge_gate`
 silently loses a declared `deployable` flag there.
 
@@ -65,11 +67,17 @@ report, failing report, passing report, each rework action) and collecting the
 statuses each check can return, rather than parsing `expedite.py` source. It
 then parses the SKILL.md `| Check fail | Resolution |` table and asserts:
 
-1. every check name in the table is one `expedite()` emits;
+1. the set of check names in the table equals the set `expedite()` emits
+   (both directions, so a check added on either side alone fails the test);
 2. a `validation_report` (no file) row exists;
 3. `rework_report` is the only check observed to return `skip`;
 4. no SKILL.md sentence matching `skip` … `does not block` mentions the
-   validation report.
+   validation report;
+5. the table's rows, read as (check, condition) pairs, equal the set of
+   fixture conditions under which that check returns `fail`. Each fixture is
+   keyed by the condition label its row uses, and non-failing conditions are
+   fixtures too, so a removed row, a row for a condition that passes, and a
+   branch that changes status all fail the test.
 
 ## Risks
 

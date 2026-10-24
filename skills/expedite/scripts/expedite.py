@@ -14,17 +14,24 @@ Use::
     python skills/expedite/scripts/expedite.py <change-id> \\
         --validation-report path/to/validation-report.md \\
         --rework-report path/to/rework-report.json
+    python skills/expedite/scripts/expedite.py <change-id> \\
+        --accept-missing-validation "<reason>"
+
+A missing validation report blocks, and so does one that cannot be read.
+``--accept-missing-validation`` accepts its absence with a recorded,
+non-blank reason; it never masks a report that exists.
 
 Default report paths probed (in order)::
 
     openspec/changes/<change-id>/validation-report.md
     openspec/changes/<change-id>/reports/validation-report.md
-    .git-worktrees/<change-id>/validation-report.md
+    .git-worktrees/<change-id>/openspec/changes/<change-id>/validation-report.md
 
 Exit codes::
 
     0  READY    — no blocking checks
     1  BLOCKED  — at least one check failed
+    2  usage error (including a blank --accept-missing-validation reason)
 """
 from __future__ import annotations
 
@@ -44,6 +51,10 @@ import active_agents  # noqa: E402
 import gate_logic  # noqa: E402
 import rework_report as rr  # noqa: E402
 
+# Mirrors gate_logic.pre_merge_gate's "FORCED OVERRIDE —" so one grep for
+# "OVERRIDE —" finds every accepted bypass.
+OVERRIDE_PREFIX = "OVERRIDE — no validation report accepted: "
+
 
 @dataclass
 class CheckResult:
@@ -61,21 +72,36 @@ class Verdict:
     change_id: str
     ready: bool
     checks: list[CheckResult] = field(default_factory=list)
+    overrides: list[dict[str, str]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "change_id": self.change_id,
             "ready": self.ready,
             "checks": [c.to_dict() for c in self.checks],
+            "overrides": list(self.overrides),
         }
 
 
-def _probe_paths(change_id: str, repo_root: Path, filename: str) -> Path | None:
-    candidates = [
+def _candidate_paths(change_id: str, repo_root: Path, filename: str) -> list[Path]:
+    # The last entry is where /validate-feature writes when it runs inside the
+    # change's worktree, so a run from the shared checkout still finds it.
+    return [
         repo_root / "openspec" / "changes" / change_id / filename,
         repo_root / "openspec" / "changes" / change_id / "reports" / filename,
-        repo_root / ".git-worktrees" / change_id / filename,
+        repo_root / ".git-worktrees" / change_id / "openspec" / "changes" / change_id / filename,
     ]
+
+
+def _override_reason(accept_missing: str | None) -> str | None:
+    """A blank or whitespace-only reason is no override at all."""
+    if accept_missing is None or not accept_missing.strip():
+        return None
+    return accept_missing
+
+
+def _probe_paths(change_id: str, repo_root: Path, filename: str) -> Path | None:
+    candidates = _candidate_paths(change_id, repo_root, filename)
     return next((p for p in candidates if p.is_file()), None)
 
 
@@ -98,15 +124,38 @@ def check_active_agents(repo_root: Path) -> CheckResult:
                        action="wait, or pass --force to /cleanup-feature after confirming with operator")
 
 
-def check_validation_report(report_path: Path | None) -> CheckResult:
+def check_validation_report(
+    report_path: Path | None,
+    *,
+    change_id: str,
+    repo_root: Path,
+    accept_missing: str | None = None,
+) -> CheckResult:
+    accept_missing = _override_reason(accept_missing)
+    if report_path is None and accept_missing is not None:
+        return CheckResult(name="validation_report", status="pass",
+                           detail=OVERRIDE_PREFIX + accept_missing)
     if report_path is None:
-        return CheckResult(name="validation_report", status="skip",
-                           detail="no validation-report.md at any candidate path",
+        probed = ", ".join(
+            p.relative_to(repo_root).as_posix()
+            for p in _candidate_paths(change_id, repo_root, "validation-report.md")
+        )
+        return CheckResult(name="validation_report", status="fail",
+                           detail=f"no validation-report.md at any probed path ({probed})",
                            action="run /validate-feature")
-    change_dir = report_path.parent if report_path.name == "validation-report.md" else None
-    action, reason, _details = gate_logic.pre_merge_gate(
-        str(report_path), force=False, change_dir=change_dir,
-    )
+    # Derive change_dir from the change id, not the report location: a report
+    # under reports/ or in a worktree must still see the change's metadata.
+    change_dir_path = repo_root / "openspec" / "changes" / change_id
+    change_dir = change_dir_path if change_dir_path.is_dir() else None
+    try:
+        action, reason, _details = gate_logic.pre_merge_gate(
+            str(report_path), force=False, change_dir=change_dir,
+        )
+    except Exception as exc:  # unreadable report: fail closed, keep the verdict
+        return CheckResult(name="validation_report", status="fail",
+                           detail=f"failed to read {report_path.name}: "
+                                  f"{exc.__class__.__name__}: {exc}",
+                           action="inspect the report, then re-run /validate-feature")
     if action == "continue":
         return CheckResult(name="validation_report", status="pass",
                            detail=f"hard gates pass ({report_path.name})")
@@ -157,6 +206,7 @@ def expedite(
     *,
     validation_report: Path | None = None,
     rework_report_path: Path | None = None,
+    accept_missing_validation: str | None = None,
 ) -> Verdict:
     if validation_report is None:
         validation_report = find_validation_report(change_id, repo_root)
@@ -165,11 +215,19 @@ def expedite(
 
     checks = [
         check_active_agents(repo_root),
-        check_validation_report(validation_report),
+        check_validation_report(validation_report, change_id=change_id,
+                                repo_root=repo_root,
+                                accept_missing=accept_missing_validation),
         check_rework_report(rework_report_path),
     ]
+    accept_missing_validation = _override_reason(accept_missing_validation)
+    overrides: list[dict[str, str]] = []
+    if validation_report is None and accept_missing_validation is not None:
+        overrides.append({"check": "validation_report",
+                          "reason": accept_missing_validation})
     ready = all(c.status != "fail" for c in checks)
-    return Verdict(change_id=change_id, ready=ready, checks=checks)
+    return Verdict(change_id=change_id, ready=ready, checks=checks,
+                   overrides=overrides)
 
 
 def render_text(v: Verdict) -> str:
@@ -198,15 +256,22 @@ def main(argv: list[str] | None = None) -> int:
                    help="path to validation-report.md (default: probe candidate paths)")
     p.add_argument("--rework-report", type=Path, default=None,
                    help="path to rework-report.json (default: probe candidate paths)")
+    p.add_argument("--accept-missing-validation", metavar="REASON", default=None,
+                   help="accept a missing validation report, recording REASON "
+                        "(ignored when a report exists)")
     p.add_argument("--json", action="store_true",
                    help="emit JSON to stdout instead of human text")
     args = p.parse_args(argv)
+    if (args.accept_missing_validation is not None
+            and not args.accept_missing_validation.strip()):
+        p.error("--accept-missing-validation requires a non-empty reason")
 
     verdict = expedite(
         args.change_id,
         args.repo_root,
         validation_report=args.validation_report,
         rework_report_path=args.rework_report,
+        accept_missing_validation=args.accept_missing_validation,
     )
 
     if args.json:

@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-10-23T12:29:28.590161+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "rpc_failed: ForeignKeyViolationError: insert or update on table \"handoff_documents\" violates foreign key constraint \"handoff_documents_session_id_fkey\"\nDETAIL:  Key (session_id)=(session_017qfSLYuSiyd2b5URwLucoq) is not present in table \"agent_sessions\". (HTTP 200)",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": "session_017qfSLYuSiyd2b5URwLucoq",
+    "summary": "Opened PR #702 against openspec/adopt-verification-enforcement-discipline; pr_creation gate auto-approved by trust posture.",
+    "completed_work": [
+      "Pushed branch openspec/make-expedite-fail-closed-on-missing-validation",
+      "Opened https://github.com/jankneumann/agentic-coding-tools/pull/702"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Do not merge",
+        "rationale": "Supervised dispatch: merge belongs to the merge gate and the supervisor",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Merge gate decision by supervisor"
+    ],
+    "relevant_files": []
+  }
+}

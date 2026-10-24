@@ -1,0 +1,144 @@
+{
+  "review_type": "implementation",
+  "target": "make-expedite-fail-closed-on-missing-validation",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "low",
+      "severity": "nit",
+      "axis": "correctness",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/make-expedite-fail-closed-on-missing-validation/specs/expedite/spec.md",
+      "line_range": "16-18",
+      "description": "Two normative sentences added in this round have no WHEN/THEN scenario (Group 2 rule). (a) 'When that directory does not exist, the pre-merge gate SHALL be invoked with no change directory' \u2014 ledger item 6 was answered with the sentence only; the behaviour is pinned by test_change_dir_none_when_change_dir_absent but not by a scenario. (b) 'When a validation report does exist, the flag MUST NOT change the check's outcome and MUST NOT add an overrides entry' \u2014 the only scenario (override-ignored-when-report-exists) covers a failing report; the passing-report case is tested (test_override_ignored_when_report_passes) but not scenario-backed. Add a scenario for each (absent change dir -> change_dir None; passing report + flag -> pass without OVERRIDE prefix and overrides == [])."
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "low",
+      "severity": "optional",
+      "axis": "resilience",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "skills/expedite/scripts/tests/test_expedite.py",
+      "existing_code": "class TestAcceptMissingValidation:",
+      "description": "The implementation-iteration handoff records the decision 'No change for an explicit but missing --validation-report path' on the grounds that it 'already fails closed through pre_merge_gate', but no test in the suite exercises an explicit --validation-report pointing at a non-existent file (with or without --accept-missing-validation). That path is now the only way to reach pre_merge_gate with a missing file, and the Group 4 concern (unhandled file I/O on the guarded failure path) is unpinned: if pre_merge_gate's missing-file handling ever changes to raise, expedite would crash instead of reporting BLOCKED. Add a CLI test: explicit missing path -> exit 1, validation_report fail, overrides == [] even when the flag is given.",
+      "line_range": {
+        "start": 402,
+        "end": 402
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "low",
+      "severity": "fyi",
+      "axis": "correctness",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "skills/expedite/scripts/tests/test_skill_md_drift.py",
+      "existing_code": "def test_table_checks_equal_emitted_checks(observed: dict[str, set[str]]) -> None:",
+      "description": "The drift guard compares check *names* in both directions and the skip property, but the spec text says the test must fail when the table and the code's 'check-to-status mapping' disagree. The per-condition rows (hard gate fail, block-cleanup, iterate) are not reconciled with observed fail conditions, so e.g. changing rework_report so that `iterate` passes, or removing the hard-gate-fail row, leaves the test green. This matches design D4's stated scope, so it is acceptable, but the spec/proposal wording overstates the guarantee; consider softening it to 'check names and skip reachability' or extending the fixture to tag which fixture produced each fail and require a row per (check, condition).",
+      "line_range": {
+        "start": 148,
+        "end": 148
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "low",
+      "severity": "optional",
+      "axis": "resilience",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "skills/expedite/scripts/tests/test_skill_md_drift.py",
+      "existing_code": "    run()\n    run(active=True)",
+      "description": "The `observed` fixture always writes a .git-worktrees/.registry.json before running, so check_active_agents is never observed with the registry absent or unreadable. If that check has (or later gains) a `skip` branch for a missing registry, test_only_rework_report_can_skip cannot see it and the 'only rework_report can skip' assertion is weaker than it claims. Add a run with no registry file (and ideally a malformed one) so every branch of every check is observed, which is what the fixture docstring promises.",
+      "line_range": {
+        "start": 93,
+        "end": 94
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 5,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "severity": "fyi",
+      "axis": "readability",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "skills/expedite/SKILL.md",
+      "line_range": "62-64",
+      "description": "Group 3: the status table's `active_agents` and `validation_report (hard gate fail)` rows say to 'pass `--force`', but expedite.py accepts no --force flag (its own action text says 'pass --force to /cleanup-feature'). Pre-existing wording, but the table was edited in this change and the new drift test now advertises table/code agreement, so the dangling flag reads as an expedite option. Qualify both rows as '--force to /cleanup-feature' (or /merge-pull-requests) so a reader does not re-run expedite with a flag it rejects with exit 2."
+    },
+    {
+      "id": 6,
+      "type": "observability",
+      "criticality": "medium",
+      "severity": "optional",
+      "axis": "observability",
+      "disposition": "escalate",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/make-expedite-fail-closed-on-missing-validation/handoffs/implementation-1.json",
+      "line_range": "4-8",
+      "description": "Re-verify ledger item 3: still open and now recurring. All five new handoffs (gatekeeper-1, plan-iteration-1-1, plan-review-1, implementation-1, implementation-iteration-1-1) carry the identical coordinator_error (ForeignKeyViolationError: session_id not present in agent_sessions), so no phase of this lifecycle was persisted to the coordinator; only the local JSON exists. The session-log phase entries do not mention the coordinator failure at all, and the gatekeeper additionally ran 'DEGRADED, fail-open' without a judge. The SessionStart hook reports the session as registered, so the session-row/handoff-write mismatch looks like a coordinator-side or env-profile issue (Profile: local, Transport: none) that should be surfaced to the operator before the merge gate rather than left implicit."
+    },
+    {
+      "id": 7,
+      "type": "spec_gap",
+      "criticality": "low",
+      "severity": "none",
+      "axis": "correctness",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/make-expedite-fail-closed-on-missing-validation/design.md",
+      "description": "Re-verify ledger item 1: resolved. design D4 and the spec drift scenario now require set equality in both directions, and test_table_checks_equal_emitted_checks asserts table_checks() == set(observed); the implementation handoff records both mutation directions failing."
+    },
+    {
+      "id": 8,
+      "type": "spec_gap",
+      "criticality": "low",
+      "severity": "none",
+      "axis": "correctness",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/make-expedite-fail-closed-on-missing-validation/specs/expedite/spec.md",
+      "description": "Re-verify ledger items 4 and 5: resolved. The Recorded Override requirement now states the text verdict SHALL print the override detail (with an AND clause in override-records-reason, backed by test_override_visible_in_text_output), and the new scenario expedite.overrides-key-always-present covers the no-flag path (backed by test_overrides_key_always_present)."
+    },
+    {
+      "id": 9,
+      "type": "architecture",
+      "criticality": "low",
+      "severity": "none",
+      "axis": "resilience",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "skills/expedite/scripts/expedite.py",
+      "existing_code": "    if (args.accept_missing_validation is not None\n            and not args.accept_missing_validation.strip()):",
+      "description": "Re-verify ledger item 9: not implemented, but explicitly adjudicated in plan-review-1 ('Keep reason validation in main()') with a recorded rationale. expedite() still accepts a blank reason from library callers; acceptable given the CLI is the sole entry point, and the decision is on record.",
+      "line_range": {
+        "start": 247,
+        "end": 248
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 10,
+      "type": "spec_gap",
+      "criticality": "low",
+      "severity": "fyi",
+      "axis": "architecture",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/make-expedite-fail-closed-on-missing-validation/session-log.md",
+      "description": "Re-verify ledger items 2, 7, 8 and 10: untouched by this diff (work-packages.yaml, proposal.md and the roadmap are not in the packet; session-log still shows the 'rejected because Self-certification\u2026' concatenation in the original planning entry). They remain open; the plan-review handoff says 'accepted findings applied to spec.md, design.md and tasks.md', so these were presumably declined, but no decision records that. Either apply them (openapi.primary mislabel, deny-vs-read_allow precedence, roadmap outcome correction) or add an explicit 'declined' decision so the ledger can close them."
+    }
+  ]
+}
