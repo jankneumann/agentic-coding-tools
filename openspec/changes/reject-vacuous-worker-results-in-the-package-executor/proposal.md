@@ -31,12 +31,23 @@ the package executor's contract cannot tell "verified" from "claimed".
 
 1. **Empty verification cannot pass.** `build_result` computes
    `passed = bool(steps) and all(step passed)`. `validate_verification_consistency`
-   reports zero steps as an error whatever `passed` says.
-2. **The head commit must resolve.** `validate_result` gains an optional
-   `worktree_path`. When it is given, a `commit_resolves` check runs
-   `git rev-parse --verify --quiet <commit>^{commit}` in that worktree and fails when
-   the commit does not resolve. The CLI gains `--worktree PATH`. When no path is
-   given the check is recorded as `skipped`. It is never silently passed.
+   reports zero steps as an error whatever `passed` says. It also rejects a passing
+   step that carries a non-zero `exit_code`, or that has no evidence at all (no
+   artifacts and no metrics).
+2. **The head commit must be the package's own commit.** `validate_result` gains
+   an optional `worktree_path`. When it is given, a `commit_resolves` check runs in
+   that worktree and fails unless all three of these hold:
+   - `git.head.commit` resolves to a commit (`git rev-parse --verify --quiet
+     <commit>^{commit}`);
+   - it is reachable from the package branch (`git merge-base --is-ancestor`). The
+     package branch is `refs/heads/<git.head.branch>` when the result reports one,
+     and the worktree's `HEAD` otherwise;
+   - it is not the commit that `git.base.ref` resolves to. A worker that made no
+     commit has not passed.
+
+   A base ref or branch that does not resolve fails the check. The CLI gains
+   `--worktree PATH`. When no path is given the check is recorded as `skipped`. It
+   is never silently passed.
 3. **Explicit outcome and per-step method.** The result schema gains an optional
    top-level `outcome` (`PASS` / `ISSUES` / `BLOCKED`) and an optional per-step
    `method` (`executed` / `ci` / `inspected` / `not_run`). `build_result` always
@@ -59,11 +70,14 @@ the package executor's contract cannot tell "verified" from "claimed".
    `check_integration_gate` returns a new `blocked_not_passing` status for any
    implementation package whose recorded result is present but not accepted.
    Results that are `failed`, `BLOCKED` or `ISSUES`, or that have no acceptance
-   verdict, all count. A missing result keeps returning `blocked_incomplete`.
+   verdict, all count. So does a validated verdict whose `result_digest` is not the
+   digest of the recorded result, since that verdict was made for another result.
+   A missing result keeps returning `blocked_incomplete`.
 6. **A recorded override, never a silent one.** `PackageAcceptance.override_for(...)`
    requires a non-blank reason and approver. It produces an accepted verdict that
    carries the override, and the gate response and the scheduler status summary
-   surface it.
+   surface it. Constructing `PackageAcceptance` directly with `accepted=True` and
+   neither outcome `PASS` nor an override raises `ValueError`.
 7. **Existing emitters keep validating.** Both new schema fields are optional,
    `schema_version` stays `1`, and the installed schema copy is kept byte-identical.
    A test validates the outputs of `build_result` and `build_failure_result`, plus
@@ -117,9 +131,12 @@ overturn it:
 ## Non-Goals
 
 - Changing how workers run verification steps, or which steps a package declares.
-- Checking that the head commit descends from `git.base.ref`, or that
-  `files_modified` matches the commit's diff. Resolution only, per the roadmap
-  outcome.
+- Checking that `files_modified` matches the commit's diff. The commit check
+  binds the head commit to the package branch and rejects head == base. It does
+  not compare the diff with the reported file list. (An earlier draft also left
+  branch reachability and head == base out of scope. After review, the user chose
+  the strict reading: the commit must be reachable from the package branch and
+  must not be the base commit.)
 - Any change to the review-findings or consensus path of the integration gate.
 - Coordinator or work-queue server changes. The coordinator stores the result
   payload opaquely.

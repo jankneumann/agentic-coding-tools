@@ -31,7 +31,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
-from package_acceptance import PackageAcceptance
+from package_acceptance import PackageAcceptance, digest_result
 
 # The effective-outcome rule lives in the co-installed validate-packages skill.
 _VALIDATE_SCRIPTS_DIR = (
@@ -111,8 +111,9 @@ class IntegrationOrchestrator:
         """Record a package's work-queue result and its acceptance verdict.
 
         A result recorded without an accepted verdict (``acceptance=None``,
-        or one from ``accept_package_result`` that refused it) blocks the
-        integration gate with ``blocked_not_passing``.
+        or one from ``accept_package_result`` that refused it), or with a
+        validated verdict whose ``result_digest`` is not this result's, blocks
+        the integration gate with ``blocked_not_passing``.
         """
         self._results[package_id] = result
         self._acceptances[package_id] = acceptance
@@ -133,6 +134,12 @@ class IntegrationOrchestrator:
             ]
         if not acceptance.accepted:
             return list(acceptance.reasons) or ["acceptance was refused"]
+        # A validated verdict holds the digest of the result it was made from;
+        # an override is a recorded human decision and carries none.
+        if acceptance.override is None and acceptance.result_digest != digest_result(
+            self._results.get(package_id)
+        ):
+            return ["acceptance was not issued for the recorded result"]
         return []
 
     def _result_outcome(self, package_id: str) -> str | None:

@@ -113,3 +113,33 @@
   - The `docs/parallel-agentic-development.md` C4 row: add `BLOCKED_NOT_PASSING`.
   **Dependencies**: 3.4
 - [x] Checkpoint: run the full affected suites and `openspec validate --strict`
+
+## 5. Independent review fixes
+
+- [x] 5.1 Make the commit check strict, per the user decision (S)
+  - `validate_commit_resolves` requires three things:
+    - the head resolves;
+    - it is reachable from `refs/heads/<git.head.branch>`, or from the worktree's `HEAD` when no branch is reported;
+    - it is not the commit `git.base.ref` resolves to.
+  - An unresolvable base ref or branch fails. So does an option-like base ref or branch, without `git` being invoked.
+  - Tests: `TestCommitResolves` in `test_validate_work_result.py` covers another branch, a dangling commit, head == base, an unreported branch, and an unresolvable base and branch. `test_no_package_commit_is_refused` in `test_vacuous_results.py` is the end-to-end pin.
+  **Spec scenarios**: parallel-infrastructure.unreachable-commit-fails, parallel-infrastructure.head-equals-base-fails, parallel-infrastructure.present-commit-passes
+  **Design decisions**: D2
+  **Dependencies**: None
+- [x] 5.2 Reject a passing step with a non-zero `exit_code` or with no evidence (XS)
+  - Tests: `TestVacuousVerification` in `test_validate_work_result.py`.
+  **Spec scenarios**: parallel-infrastructure.nonzero-exit-cannot-pass, parallel-infrastructure.empty-evidence-cannot-pass
+  **Design decisions**: D1
+  **Dependencies**: None
+- [x] 5.3 Make `PackageAcceptance(accepted=True)` without PASS or an override raise `ValueError`, and re-validate a directly passed override (XS)
+  - Tests: `TestPackageAcceptance` in `test_result_validator.py`.
+  **Spec scenarios**: parallel-infrastructure.silent-accept-impossible
+  **Design decisions**: D6
+  **Dependencies**: None
+- [x] 5.4 Bind an acceptance to its result (S)
+  - `PackageAcceptance.result_digest` is set by `accept_package_result`.
+  - The gate refuses a non-override verdict whose digest does not match the recorded result.
+  - Tests: `test_acceptance_for_another_result_blocks` and `test_unbound_acceptance_blocks` in `test_integration_orchestrator.py`.
+  **Spec scenarios**: parallel-infrastructure.gate-blocks-acceptance-for-another-result
+  **Design decisions**: D4, D5
+  **Dependencies**: 5.3
