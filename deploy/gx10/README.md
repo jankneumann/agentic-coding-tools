@@ -36,16 +36,31 @@ These need credentials or a UI and cannot be scripted from here.
    seeds exactly one project, so the second is created once via the Langfuse
    API or UI. Store its two keys at `secret/coordinator/gx10/runtime` as
    `langfuse_public_key` and `langfuse_secret_key`.
-2. **An OpenBao AppRole** scoped to read `secret/coordinator/gx10/*` only —
-   not the analyzer's path. Write its role id and secret id to
-   `/etc/aca/gx10/coordinator-role-id` and `.../coordinator-secret-id`, mode
-   0600 root. The secrets unit loads them as systemd credentials so they never
-   enter the environment.
-3. **The remaining secrets** at the same path: `postgres_password`,
-   `coordination_api_keys`, `coordination_api_key_identities`,
-   `coordination_api_key`, `sse_signing_key`, and the Access application's
-   `cf_access_team_domain` / `cf_access_aud` (step 5). The compose forces
-   Access verification on, so without the last two the API refuses to start.
+2. **OpenBao: policy, AppRole and secrets**, in one re-runnable step:
+
+   ```bash
+   sudo /opt/agentic-coding-tools/deploy/gx10/openbao/provision-coordinator.sh \
+     --import-keys ~/.gx10-seed/railway-coord-keys.json
+   ```
+
+   It uploads a policy that reads `secret/coordinator/gx10/runtime` only — not
+   the analyzer's path — creates the `aca-gx10-coordinator` AppRole, and writes
+   its role id and secret id to `/etc/aca/gx10/coordinator-{role,secret}-id`
+   (0600 root; the secrets unit loads them as systemd credentials, so they never
+   enter the environment). The secret id never expires: it is reused at every
+   boot, so a TTL would be a reboot bug with a timer on it.
+
+   It generates `postgres_password`, `sse_signing_key` and
+   `coordination_api_key` once and never again (the database keeps the
+   password it was initialised with), adds the `gx10-kanban` identity, and
+   prompts for the Langfuse keys (item 1) and the Access team domain and AUD
+   (cutover step 1). The compose forces Access verification on, so without
+   those the API refuses to start; the script lists anything still missing.
+   `--import-keys` carries the Railway key set over, built with
+   `railway variables --json | jq '{coordination_api_keys: .COORDINATION_API_KEYS,
+   coordination_api_key_identities: .COORDINATION_API_KEY_IDENTITIES}'`.
+   Re-run with blank answers to change nothing, or `--rotate-secret-id`.
+3. *(folded into 2)*
 4. **A Cloudflare tunnel** — `cloudflared tunnel create gx10-coordinator` —
    with its credentials JSON at `/etc/aca/gx10/cloudflared/credentials.json`
    (0600) and a config whose only ingress rule is the coordinator API.
@@ -256,8 +271,8 @@ Universal SSL certificate covers only `*.rotkohl.ai`.
    the API through Cloudflare like everyone else. Turn on the expiring-token
    notification. One policy, **Action: Service Auth**, including those
    tokens. No Bypass policy, not even for `/health`.
-3. **OpenBao** — add `cf_access_team_domain` and `cf_access_aud` to
-   `secret/coordinator/gx10/runtime` (`bao kv patch`, so the other fields stay).
+3. **OpenBao** — run `provision-coordinator.sh` (prerequisite 2) and answer
+   the team-domain and AUD prompts; blank answers keep every other field.
 4. **Tunnel** — `cloudflared tunnel create gx10-coordinator`; credentials to
    `/etc/aca/gx10/cloudflared/credentials.json` (0600, never `/run`); a config with one
    ingress rule, `coord.rotkohl.ai` → `http://coordinator-api:8081`, then
