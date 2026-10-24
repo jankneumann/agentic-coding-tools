@@ -3354,6 +3354,39 @@ The coordinator SHALL expose identity reload health as a distinct readiness comp
 - **WHEN** identity reload is degraded while the database is healthy
 - **THEN** the readiness response SHALL show those component states separately
 
+### Requirement: Cross-Host Review Queue
+
+The system SHALL queue pull-request reviews as `work_queue` tasks of type `review`, indexed by `(repo, pr, head_sha, round)`, so that any host with vendor CLIs can claim a pass and quorum is counted across hosts. Quorum SHALL be the number of distinct vendors with a verified lane result for one round of one head. The coordinator, not the review hosts, SHALL post the consolidated review to GitHub, and it SHALL post it with the `COMMENT` event only, never `APPROVE`.
+
+- Submitting the same `(repo, pr, head_sha, round)` twice SHALL return the existing job and SHALL NOT enqueue a second pass
+- Submitting a new head for a PR SHALL mark the older heads' unpublished jobs `superseded` and cancel their open passes
+- Lane results SHALL be accepted only from the agent that claimed the pass
+- A pass that ends below quorum SHALL enqueue a residual pass that excludes the vendors already verified, up to a bounded number of passes, after which the job is `unreachable`
+- A terminal job SHALL be published at most once, after re-checking that the PR head still equals the job's `head_sha`
+- The CI producer SHALL authenticate with a submit-only token that can reach only allowlisted repositories
+
+#### Scenario: Duplicate submission is deduplicated
+- **WHEN** a producer submits a review job for a `(repo, pr, head_sha, round)` that already has one
+- **THEN** the system returns `{success: true, created: false, deduplicated: true, job}`
+
+#### Scenario: A new push supersedes the old head
+- **WHEN** a producer submits a review job for a PR whose earlier head has an active job
+- **THEN** the earlier job's status becomes `superseded` and its open pass is cancelled
+- **AND** a worker recording results for the superseded pass receives `reason: superseded`
+
+#### Scenario: Quorum is met across hosts
+- **WHEN** one host records a verified lane for vendor A and another host records a verified lane for vendor B on the same round
+- **THEN** the job's status becomes `quorum_met` and the response carries `publish_ready: true`
+
+#### Scenario: The review is posted as a comment
+- **WHEN** a job becomes terminal and the GitHub publisher is configured
+- **THEN** the coordinator posts one review with event `COMMENT` on the job's `head_sha`
+- **AND** a second publication attempt for the same job returns `already_claimed`
+
+#### Scenario: The head moved before publication
+- **WHEN** the PR head no longer equals the job's `head_sha` at publication time
+- **THEN** no review is posted and the job records `head_moved`
+
 ## Database Tables
 
 ### Phase 1 (Implemented)

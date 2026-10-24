@@ -5,7 +5,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-RPC_CALL_RE = re.compile(r'\.rpc\(\s*"([a-zA-Z_][a-zA-Z0-9_]*)"')
+# ``.rpc("fn"`` directly, or through a service's ``self._call("fn"`` wrapper.
+RPC_CALL_RE = re.compile(r'(?:\.rpc|self\._call)\(\s*"([a-zA-Z_][a-zA-Z0-9_]*)"')
 MIGRATION_FUNC_RE = re.compile(
     r"CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+([a-zA-Z_][a-zA-Z0-9_\.]*)\s*\(",
     re.IGNORECASE,
@@ -38,6 +39,7 @@ def test_coordination_api_rpc_calls_match_migrations() -> None:
         src_dir / "handoffs.py",
         src_dir / "profiles.py",
         src_dir / "feature_registry.py",
+        src_dir / "review_queue.py",
     ]
 
     called_rpcs: set[str] = set()
