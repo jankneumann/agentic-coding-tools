@@ -1,0 +1,289 @@
+{
+  "schema_version": 6,
+  "change_id": "add-why-mode-to-explain-code-with-epistemic-tiers",
+  "current_phase": "ESCALATE",
+  "iteration": 0,
+  "total_iterations": 10,
+  "max_phase_iterations": 3,
+  "findings_trend": [],
+  "blocking_findings": [],
+  "vendor_availability": {},
+  "packages_status": {},
+  "package_authors": {},
+  "implementation_strategy": {},
+  "memory_ids": [],
+  "handoff_ids": [
+    "local:handoffs/gatekeeper-1.json",
+    "local:handoffs/plan-1.json",
+    "local:handoffs/plan-iteration-1-1.json",
+    "local:handoffs/plan-review-1-1.json",
+    "local:handoffs/implementation-1-1.json",
+    "local:handoffs/implementation-iteration-1-1.json",
+    "local:handoffs/implementation-review-1-1.json",
+    "local:handoffs/validation-1.json"
+  ],
+  "phase_history": [
+    {
+      "at": "2026-10-23T22:22:26.574145+00:00",
+      "outcome": "proceed",
+      "phase": "GATEKEEPER"
+    },
+    {
+      "at": "2026-10-23T22:32:16.681010+00:00",
+      "outcome": "created",
+      "phase": "PLAN"
+    },
+    {
+      "at": "2026-10-23T22:34:29.643494+00:00",
+      "outcome": "complete",
+      "phase": "PLAN_ITERATE"
+    },
+    {
+      "at": "2026-10-23T22:39:21.005878+00:00",
+      "outcome": "converged",
+      "phase": "PLAN_REVIEW"
+    },
+    {
+      "at": "2026-10-23T22:52:38.945163+00:00",
+      "outcome": "complete",
+      "phase": "IMPLEMENT"
+    },
+    {
+      "at": "2026-10-23T22:54:53.088703+00:00",
+      "outcome": "complete",
+      "phase": "IMPL_ITERATE"
+    },
+    {
+      "at": "2026-10-23T22:58:37.470545+00:00",
+      "outcome": "converged",
+      "phase": "IMPL_REVIEW"
+    },
+    {
+      "at": "2026-10-23T23:04:36.994667+00:00",
+      "outcome": "passed",
+      "phase": "VALIDATE"
+    }
+  ],
+  "last_handoff_id": "local:handoffs/validation-1.json",
+  "started_at": "2026-10-23T22:20:27.866191+00:00",
+  "phase_started_at": "2026-10-23T23:17:44.239875+00:00",
+  "previous_phase": "SUBMIT_PR",
+  "escalation_reason": "goal gate refused: validate record predates report",
+  "val_review_enabled": false,
+  "cli_review_enabled": true,
+  "error": null,
+  "phase_archetype": "runner",
+  "force": false,
+  "gate_signals": {},
+  "gate_verdict": "proceed",
+  "gate_decisions": [
+    {
+      "approval_id": null,
+      "authorizing_disposition": "auto",
+      "default_action": null,
+      "disposition": "auto",
+      "gate": "proposal_approval",
+      "notified": null,
+      "outcome": "proceed",
+      "phase": "PLAN",
+      "posture_present": true,
+      "provenance": {
+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24",
+        "source": "posture"
+      },
+      "reason": "gate 'proposal_approval' auto-approved by trust posture",
+      "recorded_at": "2026-10-23T22:31:37.504690+00:00",
+      "resolution": "auto",
+      "scope": "roadmap_approval",
+      "timeout_seconds": null
+    },
+    {
+      "gate": "pr_creation",
+      "outcome": "proceed",
+      "resolution": "auto",
+      "authorizing_disposition": "auto",
+      "reason": "gate 'pr_creation' auto-approved by trust posture",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "posture",
+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
+      },
+      "disposition": "auto",
+      "phase": "SUBMIT_PR",
+      "recorded_at": "2026-10-23T23:05:06.639647+00:00"
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "posture",
+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
+      },
+      "disposition": "block",
+      "phase": "ESCALATE",
+      "recorded_at": "2026-10-23T23:18:30.798081+00:00"
+    }
+  ],
+  "pending_gate": {
+    "schema_version": 1,
+    "change_id": "add-why-mode-to-explain-code-with-epistemic-tiers",
+    "gate": "escalate_resume",
+    "phase": "ESCALATE",
+    "requested_at": "2026-10-23T23:18:30.799070+00:00",
+    "prompt": "Has this escalation been resolved? Resume the loop?",
+    "context": {
+      "escalation_reason": "goal gate refused: validate record predates report",
+      "previous_phase": "SUBMIT_PR",
+      "pr_url": "https://github.com/jankneumann/agentic-coding-tools/pull/705",
+      "branch": "openspec/add-why-mode-to-explain-code-with-epistemic-tiers",
+      "change_id": "add-why-mode-to-explain-code-with-epistemic-tiers"
+    },
+    "posture": {
+      "disposition": "block",
+      "posture_present": true,
+      "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
+    },
+    "edge": {
+      "outcome": "resolved",
+      "target": "SUBMIT_PR"
+    }
+  },
+  "goal_gate": {
+    "verdict": "refused",
+    "reason": "validate record predates report",
+    "evidence": {
+      "report_path": "openspec/changes/add-why-mode-to-explain-code-with-epistemic-tiers/validation-report.md",
+      "checked_at": "2026-10-23T23:17:43.825912+00:00",
+      "validate_outcome": "passed",
+      "validate_at": "2026-10-23T23:04:36.994667+00:00",
+      "report_time": "2026-10-23T23:04:50+00:00",
+      "report_time_source": "commit",
+      "bound_by": "VALIDATE"
+    }
+  },
+  "park": null,
+  "degradations": [
+    {
+      "code": "coordinator_projection_forbidden",
+      "detail": "project-state submit returned {reason: forbidden, status: degraded}",
+      "phase": "INIT"
+    },
+    {
+      "code": "phase_fallback_inline",
+      "detail": "no sub-agent dispatch tool (Agent) exposed in this session; build-dispatch resolved archetype gatekeeper; signal-only verdict proceed",
+      "phase": "GATEKEEPER"
+    },
+    {
+      "code": "handoff_local_fallback",
+      "detail": "coordinator handoff write failed: FK violation handoff_documents_session_id_fkey; wrote handoffs/gatekeeper-1.json",
+      "phase": "GATEKEEPER"
+    },
+    {
+      "code": "phase_fallback_inline",
+      "detail": "no sub-agent dispatch tool (Agent) exposed in this session; /plan-feature authored inline by the orchestrator",
+      "phase": "PLAN"
+    },
+    {
+      "code": "audit_sink_failed",
+      "detail": "audit sink reported failure for gate proposal_approval decision auto",
+      "phase": "PLAN"
+    },
+    {
+      "code": "handoff_local_fallback",
+      "detail": "coordinator handoff write failed: FK violation handoff_documents_session_id_fkey; wrote handoffs/plan-1.json",
+      "phase": "PLAN"
+    },
+    {
+      "code": "phase_fallback_inline",
+      "detail": "no sub-agent dispatch tool (Agent) exposed in this session; build-dispatch resolved archetype architect; self-review run inline",
+      "phase": "PLAN_ITERATE"
+    },
+    {
+      "code": "handoff_local_fallback",
+      "detail": "coordinator handoff write failed: FK violation handoff_documents_session_id_fkey; wrote handoffs/plan-iteration-1-1.json",
+      "phase": "PLAN_ITERATE"
+    },
+    {
+      "code": "single_vendor_review",
+      "detail": "vendor=claude_code",
+      "phase": "PLAN_REVIEW"
+    },
+    {
+      "code": "phase_fallback_inline",
+      "detail": "Agent tool unavailable in this child session; review lane driven inline via agent_lane file handshake",
+      "phase": "PLAN_REVIEW"
+    },
+    {
+      "code": "handoff_local_fallback",
+      "detail": "coordinator handoff write failed (FK violation on agent_sessions); local handoff plan-review-1-1.json retained",
+      "phase": "PLAN_REVIEW"
+    },
+    {
+      "code": "phase_fallback_inline",
+      "detail": "Agent tool unavailable in this child session; implementer archetype work done inline",
+      "phase": "IMPLEMENT"
+    },
+    {
+      "code": "handoff_local_fallback",
+      "detail": "coordinator handoff write failed (ForeignKeyViolation on handoff_documents.session_id); handoff kept locally at handoffs/implementation-1-1.json",
+      "phase": "IMPLEMENT"
+    },
+    {
+      "code": "phase_fallback_inline",
+      "detail": "no sub-agent dispatch adapter in this harness (Agent tool unavailable); iterate-on-implementation self-review ran inline",
+      "phase": "IMPL_ITERATE"
+    },
+    {
+      "code": "handoff_local_fallback",
+      "detail": "coordinator handoff write failed (ForeignKeyViolation on handoff_documents.session_id); handoff kept locally at handoffs/implementation-iteration-1-1.json",
+      "phase": "IMPL_ITERATE"
+    },
+    {
+      "code": "single_vendor_review",
+      "detail": "vendor=claude_code",
+      "phase": "IMPL_REVIEW"
+    },
+    {
+      "code": "phase_fallback_inline",
+      "detail": "no sub-agent dispatch adapter in this harness (Agent tool unavailable); claude_code review lane ran inline via agent_lane file handshake",
+      "phase": "IMPL_REVIEW"
+    },
+    {
+      "code": "handoff_local_fallback",
+      "detail": "coordinator handoff write failed (ForeignKeyViolation on handoff_documents.session_id); handoff kept locally at handoffs/implementation-review-1-1.json",
+      "phase": "IMPL_REVIEW"
+    },
+    {
+      "code": "phase_fallback_inline",
+      "detail": "no sub-agent dispatch adapter in this harness (Agent tool unavailable); validate-feature checks ran inline",
+      "phase": "VALIDATE"
+    },
+    {
+      "code": "handoff_local_fallback",
+      "detail": "coordinator handoff write failed (session FK violation); handoff written to handoffs/validation-1.json",
+      "phase": "VALIDATE"
+    },
+    {
+      "code": "audit_sink_failed",
+      "phase": "SUBMIT_PR",
+      "detail": "audit sink reported failure for auto-approved pr_creation gate"
+    },
+    {
+      "code": "audit_sink_failed",
+      "phase": "ESCALATE",
+      "detail": "audit sink reported failure for escalate_resume gate (posture_block)"
+    }
+  ]
+}

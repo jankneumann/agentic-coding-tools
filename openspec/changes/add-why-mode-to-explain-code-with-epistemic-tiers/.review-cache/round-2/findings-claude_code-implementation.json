@@ -1,0 +1,19 @@
+{
+  "review_type": "implementation",
+  "target": "add-why-mode-to-explain-code-with-epistemic-tiers",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "style",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "fyi",
+      "evidence_class": "judgment",
+      "evidence_level": "direct",
+      "disposition": "accept",
+      "file_path": "skills/explain-code/scripts/why_trace.py",
+      "description": "Round-1 fixes verified: `_blame` now reports the all-zero sha when HEAD is unborn (re-running the reproduction gives status `uncommitted`, exit 0), and an OSError while reading the target becomes the one-line exit-2 InputError. The fix request scoped only why_trace.py, so regression tests for both paths belong in skills/tests/explain-code/test_why_trace.py as a follow-up commit; no further code change is needed."
+    }
+  ]
+}

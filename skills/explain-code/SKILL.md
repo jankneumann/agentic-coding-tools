@@ -6,6 +6,7 @@ tags: [architecture, visualization, explanation, mermaid, grounding]
 user_invocable: true
 related:
   - codebase-atlas
+  - explore-feature
   - refresh-architecture
 ---
 
@@ -35,6 +36,7 @@ skill; grounding and coverage disclosure are this repository's addition.
 | File tree | Responsibility layout | `references/file-tree.md` |
 | Sequence | Interaction over time (Mermaid) | `references/sequence.md` |
 | Structural diff | What changed in shape | `references/structural-diff.md` |
+| Why chain | Why code is like this (decision record) | `references/why.md` |
 
 ## Grounding (summary)
 
@@ -47,6 +49,25 @@ ungrounded reasons, and exemptions: `references/grounding.md`.
 
 Whole-repository questions → name `/codebase-atlas` and stop (no `Grounding:` line).
 
+## Why mode
+
+For "why is this code like this?", resolve the target to `<path>:<line>` and run the
+read-only trace (blame → commit → PR → change-id → decisions):
+`python3 "<skill-base-dir>/scripts/why_trace.py" <path>:<line> [--symbol <name>]`.
+Reply with one fenced why chain and at most three claim sentences, each ending in a
+bracketed tier tag: **Direct**, **Supported**, **Inferred**, **Speculative** or
+**Unknown**. Direct and Supported tags cite a trace `pointer`; a decision explains
+*this line* as Direct only when its `mentions_target` is true.
+
+- **Null-result rule:** a non-null `null_result` is the finding. Lead with
+  `No decision record covers <path>:<line> (<reason>)` tagged `[Unknown]`; never
+  present an inferred rationale as the answer.
+- **Embedded-hypothesis rule:** a reason asserted in the question is restated as a
+  claim with one verdict (confirmed, contradicted or untested), never a premise.
+
+Tiers, tag format and a worked example: `references/why.md`. The reply ends with
+`Grounding: source read, unverified (form not graph-backed)`.
+
 ## Common Rationalizations
 
 | Rationalization | Why it's wrong |
@@ -54,15 +75,18 @@ Whole-repository questions → name `/codebase-atlas` and stop (no `Grounding:` 
 | "I'll sketch from memory — the graph is probably fine" | Ungrounded trees look identical to grounded ones; run `--check` and disclose. |
 | "A whole-repo atlas page answers a narrow question better" | That is `/codebase-atlas`'s job; this skill stops and redirects. |
 | "I'll refresh the graph myself so the answer is grounded" | The skill never runs `--ensure` or the pipeline; disclose ungrounded instead. |
+| "No record covers it, but the reason is obvious" | The absence is the answer; lead with it, tagged `[Unknown]`. |
 
 ## Red Flags
 
 - A sketching reply with no final `Grounding:` line.
 - A call tree that invents symbols not returned by `--tree` after a fresh check.
 - The skill invoked `--ensure`, created or modified a file, or opened one for the user.
+- A why reply with an untagged claim, or one that adopts the question's hypothesis.
 
 ## Verification
 
 1. Confirm the catalogue form matches the question and cites a `references/*.md`.
 2. Confirm sketching replies end with exactly one `Grounding:` line (or an exempt clarification/redirect).
 3. Confirm sibling invocations use `<skill-base-dir>/../codebase-atlas/` and `<skill-base-dir>/../refresh-architecture/`.
+4. Confirm a why reply tags every claim, cites a pointer for Direct and Supported, and leads with any null result.

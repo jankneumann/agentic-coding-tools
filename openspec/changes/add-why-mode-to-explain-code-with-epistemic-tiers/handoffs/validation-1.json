@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-10-23T23:04:29.888594+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "rpc_failed: ForeignKeyViolationError: insert or update on table \"handoff_documents\" violates foreign key constraint \"handoff_documents_session_id_fkey\"\nDETAIL:  Key (session_id)=(session_017qfSLYuSiyd2b5URwLucoq) is not present in table \"agent_sessions\". (HTTP 200)",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": "session_017qfSLYuSiyd2b5URwLucoq",
+    "summary": "Validation passed for the change's scope. The affected suites (588 passed, 2 skipped), the guard suites (68 passed, 15 skipped), ruff and openspec validate --strict are all green. Both schema copies differ from base only by the evidence_level property and are byte-identical.",
+    "completed_work": [
+      "validation-report.md with a scenario-to-test table covering all ADDED and MODIFIED requirements",
+      "schema diff scope check against base",
+      "pytest, ruff and openspec strict validation"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Report GATEKEEPER as DEGRADED in validation-report.md",
+        "rationale": "The judge ran as a signal-only permissive fallback because no dispatch adapter was available. A gate that could not run is recorded as DEGRADED, not as pass. It is not a required pre-merge phase, so it does not block.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Deploy, smoke, security and E2E are skipped",
+        "rationale": "work-packages.yaml declares deployable: false. The change is a read-only skill script, documentation and one optional schema property, with no service, network or auth surface.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "SUBMIT_PR"
+    ],
+    "relevant_files": []
+  }
+}
