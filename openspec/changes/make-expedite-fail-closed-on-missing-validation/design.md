@@ -37,7 +37,8 @@ consumers never have to distinguish "absent" from "none".
 - The reason is validated in `main()` before any check runs: `reason.strip()`
   empty → `argparse` error → exit 2. Validating in the CLI rather than in
   `expedite()` keeps the library function total and lets tests call it with a
-  reason directly.
+  reason directly. The library does not raise on a blank reason; it treats one
+  as no override, so a programmatic caller cannot record a reasonless bypass.
 - The override applies **only** when no report exists. A failing report is not
   maskable by this flag; that is what `--force` at merge time is for, and it
   already records its own `FORCED OVERRIDE`.
@@ -71,7 +72,12 @@ then parses the SKILL.md `| Check fail | Resolution |` table and asserts:
 2. a `validation_report` (no file) row exists;
 3. `rework_report` is the only check observed to return `skip`;
 4. no SKILL.md sentence matching `skip` … `does not block` mentions the
-   validation report.
+   validation report;
+5. the table's rows, read as (check, condition) pairs, equal the set of
+   fixture conditions under which that check returns `fail`. Each fixture is
+   keyed by the condition label its row uses, and non-failing conditions are
+   fixtures too, so a removed row, a row for a condition that passes, and a
+   branch that changes status all fail the test.
 
 ## Risks
 

@@ -83,3 +83,20 @@
 - [x] 4.2 Run strict OpenSpec validation (XS)
   - `openspec validate make-expedite-fail-closed-on-missing-validation --strict`
   **Dependencies**: 4.1
+
+## 5. Independent-review fixes (wp-expedite)
+
+- [x] 5.1 An unreadable report fails the check and the verdict is still emitted (XS)
+  - `test_fail_when_report_not_utf8`, `test_fail_when_report_path_is_directory`, `test_json_emitted_when_report_unreadable`.
+  **Spec scenarios**: expedite.unreadable-report-blocks
+- [x] 5.2 Probe the worktree report where `/validate-feature` writes it (XS)
+  - `.git-worktrees/<id>/openspec/changes/<id>/validation-report.md` replaces `.git-worktrees/<id>/validation-report.md`, which nothing writes.
+  **Spec scenarios**: expedite.worktree-report-found
+- [x] 5.3 Table rows for every failing condition; drift test compares conditions (S)
+  - Rows for `validation_report` (unreadable), `rework_report` (`revise-spec`), (load failure) and (unknown `summary_action`); `test_table_rows_equal_failing_conditions`.
+  **Spec scenarios**: expedite.skill-table-drift
+  **Design decisions**: D4
+- [x] 5.4 A blank reason passed to the library is no override (XS)
+  - `test_blank_reason_not_an_override_in_library`, `test_blank_reason_not_an_override_in_check`.
+  **Spec scenarios**: expedite.override-blank-reason-library
+  **Design decisions**: D2

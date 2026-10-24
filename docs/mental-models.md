@@ -260,7 +260,7 @@ WTWO's amplification is meaningless without **swarming**: when the line stops, m
   1. Active-agent guard (delegates to `skills/shared/active_agents.py`).
   2. Validation hard gates (delegates to `skills/validate-feature/scripts/gate_logic.py:pre_merge_gate` against the change's `validation-report.md`). A missing validation report blocks; `--accept-missing-validation "<reason>"` lets it pass with an `OVERRIDE —` detail and the reason recorded in the verdict's `overrides` list.
   3. Rework report status (delegates to `rework_report.load_rework_report` and inspects `summary_action`; `block-cleanup` and `iterate` block, `defer` and `none` pass, a missing rework report skips — the only non-blocking `skip`).
-- `skills/expedite/scripts/tests/test_expedite.py` — 41 tests covering each check's branches, the path-probing fallback chain, change-directory derivation, the recorded override, end-to-end composition, and CLI exit codes; `test_skill_md_drift.py` fails when the SKILL.md status table and the code's check-to-status mapping disagree.
+- `skills/expedite/scripts/tests/test_expedite.py` — 48 tests covering each check's branches, the path-probing fallback chain, change-directory derivation, the recorded override, end-to-end composition, and CLI exit codes; `test_skill_md_drift.py` fails when the SKILL.md status table and the code's check-to-status mapping disagree.
 
 The skill is **read-only** by contract: it does not merge, push, teardown worktrees, update specs, re-validate, or auto-fix. It refuses outgoing work or it doesn't — nothing in between. This is the kitchen-brigade pass: the expediter inspects, the line cooks (or sous chef) act on the verdict.
 
