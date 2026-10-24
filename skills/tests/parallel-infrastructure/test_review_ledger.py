@@ -476,3 +476,96 @@ def test_fix_touched_file_survives_a_save_and_reload(tmp_path: Path) -> None:
     compact(reloaded, tmp_path)
 
     assert reloaded["items"][0]["status"] == "addressed"
+
+
+def _reopened_after_fix(tmp_path: Path) -> tuple[dict, Path]:
+    """A blocking finding whose fix landed but whose tokens survive it.
+
+    Mirrors ri-22 (openrouter-review-lane, #26): the fix commit adds a guard,
+    the description words stay in the file, and compact() reopens the item as
+    "claimed fix did not take" before the next review round runs.
+    """
+    from review_ledger import mark_addressed
+
+    target = tmp_path / "src" / "api.py"
+    target.parent.mkdir(parents=True)
+    target.write_text("def parse_line(line):\n    return line.split()  # parse_line helper\n")
+    artifacts = tmp_path / "change"
+    artifacts.mkdir()
+    ledger = load_or_create(artifacts, "demo")
+    merge_findings(
+        ledger,
+        [_cf(description="Missing null check in parse_line helper", file_path="src/api.py")],
+        round_num=1,
+    )
+    assert len(blocking_items(ledger)) == 1
+    mark_addressed(ledger, [ledger["items"][0]["id"]])
+    # The fix commit: a null check, added beside the words the finding cites.
+    target.write_text(
+        "def parse_line(line):\n"
+        "    if line is None:  # null check\n"
+        "        return []\n"
+        "    return line.split()  # parse_line helper\n"
+    )
+    compact(ledger, tmp_path)
+    assert ledger["items"][0]["status"] == "open"
+    assert ledger["items"][0]["resolution"] == "compact: claimed fix did not take"
+    return ledger, artifacts
+
+
+def test_a_fixed_finding_resolves_when_the_fresh_review_no_longer_raises_it(
+    tmp_path: Path,
+) -> None:
+    from review_ledger import open_item_ids, retire_unreported
+
+    ledger, artifacts = _reopened_after_fix(tmp_path)
+    reverify = open_item_ids(ledger)
+
+    reported = merge_findings(ledger, [], round_num=2)
+    retired = retire_unreported(ledger, reverify, reported, round_num=2)
+
+    item = ledger["items"][0]
+    assert [r["id"] for r in retired] == [item["id"]]
+    assert item["status"] == "retired"
+    assert item["resolution"] == "review round 2: not re-raised on re-verification"
+    assert blocking_items(ledger) == []
+    # Audit trail: the record stays, with its history, and survives a save.
+    save(ledger, artifacts)
+    on_disk = json.loads((artifacts / ".review-ledger" / "ledger.json").read_text())
+    Draft202012Validator(LEDGER_SCHEMA).validate(on_disk)
+    assert on_disk["items"][0]["id"] == item["id"]
+    assert on_disk["items"][0]["status"] == "retired"
+    assert on_disk["items"][0]["first_seen_round"] == 1
+
+
+def test_a_finding_the_fresh_review_still_raises_stays_open(tmp_path: Path) -> None:
+    from review_ledger import open_item_ids, retire_unreported
+
+    ledger, _artifacts = _reopened_after_fix(tmp_path)
+    reverify = open_item_ids(ledger)
+
+    reported = merge_findings(
+        ledger,
+        [_cf(id=3, description="Missing null check in parse_line helper", file_path="src/api.py")],
+        round_num=2,
+    )
+    retired = retire_unreported(ledger, reverify, reported, round_num=2)
+
+    assert retired == []
+    assert ledger["items"][0]["status"] == "open"
+    assert ledger["items"][0]["last_seen_round"] == 2
+    assert len(blocking_items(ledger)) == 1
+
+
+def test_retire_unreported_ignores_items_the_packet_did_not_list(tmp_path: Path) -> None:
+    # An item that opens during the round (a new finding) was never offered for
+    # re-verification, so its absence from other findings says nothing.
+    from review_ledger import retire_unreported
+
+    artifacts = tmp_path / "change"
+    artifacts.mkdir()
+    ledger = load_or_create(artifacts, "demo")
+    merge_findings(ledger, [_cf()], round_num=1)
+
+    assert retire_unreported(ledger, set(), [], round_num=1) == []
+    assert ledger["items"][0]["status"] == "open"

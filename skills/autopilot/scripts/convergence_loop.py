@@ -63,9 +63,11 @@ from review_ledger import (  # noqa: E402
     is_blocking_item,
     load_or_create as load_or_create_ledger,
     merge_findings,
+    open_item_ids,
     park_item,
     parked_items,
     reject_out_of_scope_fix,
+    retire_unreported,
     save as save_ledger,
     scoped_fix_payload,
     mark_addressed,
@@ -819,7 +821,10 @@ def converge(
             compact_ledger(ledger, worktree_path)
             save_ledger(ledger, artifacts_dir)
 
-        # 2a. Pack the review input, then dispatch.
+        # 2a. Pack the review input, then dispatch. The packet lists every
+        # open item for re-verification; remember which, so step 2f.5 can
+        # retire the ones this review no longer raises.
+        reverify_ids = open_item_ids(ledger)
         checkpoint_dir = artifacts_dir / ".review-cache" / f"round-{round_num}"
         packet_path, _packet_meta = build_review_packet(
             change_id=change_id,
@@ -1018,6 +1023,7 @@ def converge(
         agreed_findings = [
             cf for cf in all_findings if cf.get("status") != "disagreement"
         ]
+        reported_items: list[dict[str, Any]] = []
         if disagreement_findings:
             logger.info(
                 "Parking %d disagreement findings in round %d",
@@ -1027,6 +1033,7 @@ def converge(
                 ledger, disagreement_findings, round_num,
                 artifacts_dir=artifacts_dir,
             )
+            reported_items.extend(parked)
             for item in parked:
                 park_item(ledger, item)
                 dispositions: dict[str, str] = {}
@@ -1052,10 +1059,22 @@ def converge(
                     "disagreements — continuing"
                 )
 
-        merge_findings(
+        reported_items.extend(merge_findings(
             ledger, agreed_findings, round_num,
             artifacts_dir=artifacts_dir,
-        )
+        ))
+
+        # 2f.5. Reconcile against this review, not the persisted entry: an
+        # open item the quorum review was asked to re-verify and did not
+        # re-raise is resolved (retired, record kept). compact() alone
+        # reopens fixed items whose tokens survive the fix.
+        resolved = retire_unreported(ledger, reverify_ids, reported_items, round_num)
+        if resolved:
+            logger.info(
+                "Round %d: retired %d ledger item(s) not re-raised on "
+                "re-verification: %s",
+                round_num, len(resolved), [item["id"] for item in resolved],
+            )
         save_ledger(ledger, artifacts_dir)
 
         # 2g. Blocking set is the ledger after compact+merge (D3).
