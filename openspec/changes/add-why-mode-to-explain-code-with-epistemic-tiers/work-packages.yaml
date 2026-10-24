@@ -85,6 +85,8 @@ packages:
         - "skills/parallel-infrastructure/scripts/consensus_synthesizer.py"
     context_impact:
       surfaces:
+        - "apis"
+        - "documentation"
         - "semantic_code"
     worktree:
       name: wp-why-mode
