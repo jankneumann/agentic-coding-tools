@@ -174,6 +174,9 @@ All write endpoints require `X-API-Key` header.
 | `/policy/validate` | POST | Yes | Validate Cedar policy text |
 | `/profiles/me` | GET | Yes | Get agent profile |
 | `/audit` | GET | Yes | Query audit trail |
+| `/reviews/jobs` | POST | Producer token or key | Enqueue a PR review job for a head SHA (supersedes older heads) |
+| `/reviews/results` | POST | Yes (claimant) | Record a review pass's lane results; publishes the COMMENT review at quorum |
+| `/reviews/rounds` | GET | Yes | Latest (or a given) review round for a PR head, with every lane |
 | `/archetypes/resolve_for_phase` | POST | Yes | Resolve archetype + model + system_prompt for an autopilot phase (per-phase archetype resolution) |
 | `/health` | GET | No | Health check |
 | `/status/report` | POST | No | Report agent status (heartbeat side effect) |
@@ -283,6 +286,17 @@ TELEGRAM_BOT_TOKEN=...                   # Optional: Telegram Bot API token
 TELEGRAM_CHAT_ID=...                     # Optional: Telegram chat to notify
 WEBHOOK_URL=https://ntfy.sh/my-topic     # Optional: generic webhook endpoint
 WATCHDOG_INTERVAL_SECONDS=60             # Watchdog check frequency (default 60)
+
+# Cross-host PR review queue (factory Phase 1; see src/review_routes.py)
+REVIEW_PRODUCER_TOKEN=...                # Submit-only token for the GitHub Action producer;
+                                         # authorizes POST /reviews/jobs and nothing else
+REVIEW_ALLOWED_REPOS=owner/name          # Comma-separated allowlist; the producer token
+                                         # reaches only these (empty = none)
+REVIEW_MAX_PASSES=3                      # Claim passes before a job publishes as unreachable
+REVIEW_GITHUB_APP_ID=...                 # GitHub App that posts the consolidated COMMENT
+REVIEW_GITHUB_APP_INSTALLATION_ID=...    # review; publishing is off unless all three are set
+REVIEW_GITHUB_APP_PRIVATE_KEY=...
+REVIEW_GITHUB_API_URL=https://api.github.com  # default
 
 # Adaptive model routing
 ROUTING_ADAPTIVE=off                     # CLIENT side: on/true/1/yes delegates phase model resolution
