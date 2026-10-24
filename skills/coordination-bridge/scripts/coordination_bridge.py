@@ -83,10 +83,15 @@ _CAPABILITY_FLAGS = (
 )
 
 _CAPABILITY_PROBES: dict[str, list[tuple[str, str, dict[str, Any] | None]]] = {
-    # Empty payload intentionally triggers 422 on healthy endpoints and avoids
-    # creating side effects during detection.
+    # Mutating routes are probed with a body that fails request validation, so a
+    # healthy endpoint answers 422 without running the handler. An empty payload
+    # only does that when the request model has a required field (file_path,
+    # summary, agent_id, operation_text below).
     "CAN_LOCK": [("POST", "/locks/acquire", {})],
-    "CAN_QUEUE_WORK": [("POST", "/work/claim", {})],
+    # WorkClaimRequest is all-optional: `{}` validates and claims the next
+    # pending task of any type, stranding it (e.g. a review pass) with the
+    # probing agent. A non-list task_types is a type error, never coerced.
+    "CAN_QUEUE_WORK": [("POST", "/work/claim", {"task_types": "not-a-list"})],
     "CAN_HANDOFF": [("POST", "/handoffs/write", {})],
     "CAN_MEMORY": [("POST", "/memory/query", {})],
     "CAN_GUARDRAILS": [("POST", "/guardrails/check", {})],

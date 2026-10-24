@@ -553,6 +553,56 @@ def test_claim_work_uses_authenticated_fallback_identity_when_body_omits_it(
     )
 
 
+def test_claim_work_empty_body_claims_any_task_type(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``{}`` is a real claim, not a probe.
+
+    Every WorkClaimRequest field is optional, so an empty body reaches the
+    service with ``task_types=None`` and claims the next pending task of any
+    type. This is why the coordination bridge's CAN_QUEUE_WORK capability probe
+    must not send ``{}``.
+    """
+    from src.work_queue import ClaimResult
+
+    mock_service = AsyncMock()
+    mock_service.claim.return_value = ClaimResult(success=False, reason="empty")
+    monkeypatch.setattr("src.coordination_api.authorize_operation", AsyncMock())
+
+    import src.work_queue
+
+    monkeypatch.setattr(src.work_queue, "_work_queue_service", mock_service)
+
+    response = client.post("/work/claim", headers=_auth_headers(), json={})
+
+    assert response.status_code == 200
+    mock_service.claim.assert_awaited_once_with(
+        agent_id="cloud-agent",
+        agent_type="cloud_agent",
+        task_types=None,
+    )
+
+
+def test_claim_work_rejects_bridge_capability_probe_body(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The bridge's CAN_QUEUE_WORK probe body must 422 before any claim runs."""
+    mock_service = AsyncMock()
+
+    import src.work_queue
+
+    monkeypatch.setattr(src.work_queue, "_work_queue_service", mock_service)
+
+    response = client.post(
+        "/work/claim",
+        headers=_auth_headers(),
+        json={"task_types": "not-a-list"},
+    )
+
+    assert response.status_code == 422
+    mock_service.claim.assert_not_awaited()
+
+
 def test_complete_work_delegates_to_service(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
