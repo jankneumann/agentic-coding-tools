@@ -47,9 +47,11 @@ These need credentials or a UI and cannot be scripted from here.
    `cf_access_team_domain` / `cf_access_aud` (step 5). The compose forces
    Access verification on, so without the last two the API refuses to start.
 4. **A Cloudflare tunnel** — `cloudflared tunnel create gx10-coordinator` —
-   with its credentials JSON at `/run/aca/gx10/cloudflared/credentials.json`
+   with its credentials JSON at `/etc/aca/gx10/cloudflared/credentials.json`
    (0600) and a config whose only ingress rule is the coordinator API.
-   `GX10_COORD_TUNNEL_CONFIG` points the renderer at the reviewed config.
+   `GX10_COORD_TUNNEL_CONFIG` points the renderer at the reviewed config. The
+   renderer copies both into `/run/aca/gx10/cloudflared/` at every start: `/run`
+   is a tmpfs, so anything placed there by hand is gone after a reboot.
 5. **A Cloudflare Access application** on `coord.<domain>` with a service
    token per client (see [Cutover](#cutover-from-railway)). Without it the tunnel publishes the API with only
    `X-API-Key` in front of it, which is the weak version of this design and
@@ -257,7 +259,7 @@ Universal SSL certificate covers only `*.rotkohl.ai`.
 3. **OpenBao** — add `cf_access_team_domain` and `cf_access_aud` to
    `secret/coordinator/gx10/runtime` (`bao kv patch`, so the other fields stay).
 4. **Tunnel** — `cloudflared tunnel create gx10-coordinator`; credentials to
-   `/run/aca/gx10/cloudflared/credentials.json` (0600); a config with one
+   `/etc/aca/gx10/cloudflared/credentials.json` (0600, never `/run`); a config with one
    ingress rule, `coord.rotkohl.ai` → `http://coordinator-api:8081`, then
    `http_status:404`; `GX10_COORD_TUNNEL_CONFIG` pointing at it.
 5. **Clients** — set `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET` beside
