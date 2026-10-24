@@ -1,0 +1,129 @@
+# agent-coordinator cross-host review queue contract.
+#
+# AUTHORED FROM openspec/specs/agent-coordinator/spec.md — NOT generated from
+# the running application (D1). FORWARD-ENFORCED (D6): every operation carries
+# an x-traceability block.
+openapi: 3.1.0
+info:
+  title: "agent-coordinator: Cross-host review queue"
+  version: 1.0.0
+  description: >-
+    Pull-request review jobs keyed by (repo, pr, head_sha, round). A CI producer
+    enqueues a job per push, any host claims a pass through /work/claim with
+    task_types=[review], records per-vendor lane results here, and the
+    coordinator posts one consolidated COMMENT review once quorum is met or the
+    pass budget is spent (Cross-Host Review Queue).
+paths:
+  /reviews/jobs:
+    post:
+      operationId: submitReviewJob
+      summary: Enqueue a review of one pull-request head
+      description: >-
+        Creates the job and its first claimable pass, or returns the existing job
+        for the same (repo, pr, head_sha, round) with deduplicated=true. A new
+        head supersedes the PR's older unpublished jobs and cancels their open
+        passes. Accepts either the coordinator API key or the CI producer token;
+        the producer token reaches only allowlisted repositories.
+      security:
+        - coordinatorApiKey: []
+        - reviewProducerToken: []
+      x-traceability:
+        requirements:
+          - agent-coordinator.cross-host-review-queue
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [repo, pr, head_sha, base_sha]
+              properties:
+                repo: {type: string, pattern: "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"}
+                pr: {type: integer, minimum: 1}
+                head_sha: {type: string, pattern: "^[0-9a-f]{40}$"}
+                base_sha: {type: string, pattern: "^[0-9a-f]{40}$"}
+                round: {type: [integer, "null"], minimum: 1}
+                lanes_required: {type: integer, minimum: 1, maximum: 8, default: 2}
+                risk: {type: string, enum: [low, medium, high, critical], default: medium}
+                deadline: {type: [string, "null"], format: date-time}
+      responses:
+        "200": {description: "{success, created, deduplicated, superseded_task_ids, job}"}
+        "401": {description: Missing or invalid API key or producer token}
+        "403": {description: Repository not allowlisted, or submit_work denied by policy}
+        "422": {description: Invalid request body or rejected round}
+  /reviews/results:
+    post:
+      operationId: recordReviewResults
+      summary: Record lane results for a claimed review pass
+      description: >-
+        Records one result per vendor lane for the pass the caller claimed. A
+        pass that ends below quorum enqueues a residual pass excluding the
+        verified vendors. When the job becomes terminal the response carries
+        publish_ready=true and a publication outcome; the coordinator posts the
+        review with event COMMENT after re-checking the PR head. A superseded or
+        stale pass is reported in the body with reason superseded or stale_pass.
+      security:
+        - coordinatorApiKey: []
+      x-traceability:
+        requirements:
+          - agent-coordinator.cross-host-review-queue
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [task_id, lanes]
+              properties:
+                task_id: {type: string, minLength: 1, maxLength: 64}
+                lanes:
+                  type: array
+                  minItems: 1
+                  maxItems: 16
+                  items:
+                    type: object
+                    required: [vendor, verified]
+                    properties:
+                      vendor: {type: string, pattern: "^[a-z0-9][a-z0-9_-]{0,63}$"}
+                      verified: {type: boolean}
+                      verdict: {type: [string, "null"], maxLength: 64}
+                      model: {type: [string, "null"], maxLength: 128}
+                      findings: {type: array, maxItems: 200, items: {type: object}}
+                      error: {type: [string, "null"], maxLength: 2000}
+      responses:
+        "200": {description: "{success, verified_vendors, residual_task_id, publish_ready, job, publication?}"}
+        "401": {description: Missing or invalid API key}
+        "403": {description: Caller did not claim this pass, or complete_work denied}
+        "404": {description: Task or job not found}
+  /reviews/rounds:
+    get:
+      operationId: getReviewRound
+      summary: Read a review round for a pull-request head
+      description: >-
+        Returns the latest round (or the given round) for (repo, pr, head_sha)
+        with every lane result recorded by any host. Workers use it to detect a
+        superseded job before running lanes; the convergence loop uses it to
+        count remote verified vendors toward quorum.
+      security:
+        - coordinatorApiKey: []
+      x-traceability:
+        requirements:
+          - agent-coordinator.cross-host-review-queue
+      parameters:
+        - {name: repo, in: query, required: true, schema: {type: string}}
+        - {name: pr, in: query, required: true, schema: {type: integer, minimum: 1}}
+        - {name: head_sha, in: query, required: true, schema: {type: string, pattern: "^[0-9a-f]{40}$"}}
+        - {name: round, in: query, required: false, schema: {type: integer, minimum: 1}}
+      responses:
+        "200": {description: "{found, job}"}
+        "401": {description: Missing or invalid API key}
+components:
+  securitySchemes:
+    coordinatorApiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+    reviewProducerToken:
+      type: apiKey
+      in: header
+      name: X-Review-Producer-Token
