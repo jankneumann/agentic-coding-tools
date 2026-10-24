@@ -43,15 +43,17 @@ items:
   effort: S
   depends_on: []
   description: Change expedite so a deployable change with no validation-report.md
-    reports BLOCKED instead of a `skip` that rolls up to READY, reusing the `gate_logic`
-    non-deployable / validation-exempt rules that pre_merge_gate already applies.
+    reports BLOCKED instead of a `skip` that rolls up to READY. A missing report is
+    accepted only through a recorded operator override (`gate_logic` has no
+    validation-exempt rule to reuse).
   rationale: expedite.py:101-105 turns a missing report into READY, contradicting
     the SKILL table's 'run /validate-feature first'; this is the clearest instance
     of absence treated as a pass and is cheap to close.
   change_id: make-expedite-fail-closed-on-missing-validation
   acceptance_outcomes:
-  - expedite returns BLOCKED for a deployable change with no validation report, and
-    READY remains reachable for a change that gate_logic declares validation-exempt.
+  - expedite returns BLOCKED for a change with no validation report; READY remains
+    reachable without a report only through the recorded operator override, and a
+    change with a passing report is READY regardless of its deployable surface.
   - A test asserts the expedite SKILL table and the code's status mapping agree, and
     fails if either drifts.
   - An explicit, recorded operator override for the missing report exists and appears
