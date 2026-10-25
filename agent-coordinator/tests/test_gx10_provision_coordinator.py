@@ -207,9 +207,30 @@ def test_a_key_without_an_identity_is_refused(run, bao, tmp_path: Path) -> None:
 
 def test_a_malformed_answer_is_asked_again(run, bao, tmp_path: Path) -> None:
     fake, _ = bao
-    result = run(["rotkohl.cloudflareaccess.com", TEAM, AUD, "pk-lf-public", "sk-lf-secret"])
+    result = run(["https://rotkohl.example.com", TEAM, AUD, "pk-lf-public", "sk-lf-secret"])
     assert result.returncode == 0, result.stderr
     assert fake.kv["coordinator/gx10/runtime"]["cf_access_team_domain"] == TEAM
+
+
+@pytest.mark.parametrize(
+    "pasted",
+    [
+        "rotkohl.cloudflareaccess.com",  # how the dashboard shows it
+        "https://rotkohl.cloudflareaccess.com/",
+        "  https://Rotkohl.cloudflareaccess.com\r",  # a paste with a carriage return
+    ],
+)
+def test_the_team_domain_is_accepted_as_pasted_and_stored_in_full(run, bao, pasted: str) -> None:
+    fake, _ = bao
+    result = run([pasted, AUD, "pk-lf-public", "sk-lf-secret"])
+    assert result.returncode == 0, result.stderr
+    assert fake.kv["coordinator/gx10/runtime"]["cf_access_team_domain"] == TEAM
+
+
+def test_a_rejected_answer_says_what_was_expected(run, bao) -> None:
+    result = run(["https://rotkohl.example.com", TEAM, AUD, "pk-lf-public", "sk-lf-secret"])
+    assert result.returncode == 0, result.stderr
+    assert "expected <team>.cloudflareaccess.com" in result.stderr
 
 
 def test_missing_fields_are_reported_not_invented(run, bao) -> None:
