@@ -54,8 +54,12 @@ services:
     networks:
       coord:
         ipv4_address: 10.89.3.251
+    # PostgreSQL 18 images keep PGDATA at /var/lib/postgresql/18/docker and
+    # declare the VOLUME one level up. Mounting the old .../data path leaves
+    # the real data in an anonymous volume that the next `down`/`up` replaces
+    # with an empty one -- the database vanishes at the first restart.
     volumes:
-    - /srv/aca/coordinator-postgres:/var/lib/postgresql/data:rw
+    - /srv/aca/coordinator-postgres:/var/lib/postgresql:rw
     tmpfs:
     - /tmp:rw,noexec,nosuid,size=128m
     healthcheck:
