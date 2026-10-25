@@ -186,6 +186,16 @@ def test_the_renderer_refuses_a_tunnel_config_exposing_a_secret_store() -> None:
     assert "must never be public" in script
 
 
+def test_the_database_lives_on_the_host_not_in_an_anonymous_volume(compose: dict) -> None:
+    """PostgreSQL 18 images write PGDATA under /var/lib/postgresql/<major>/docker
+    and declare VOLUME /var/lib/postgresql. A bind mount anywhere below that
+    leaves the data in an anonymous volume that `down` + `up` replaces."""
+    postgres = compose["services"]["coordinator-postgres"]
+    targets = [v.split(":")[1] for v in postgres["volumes"]]
+    assert targets == ["/var/lib/postgresql"]
+    assert "PGDATA" not in (postgres.get("environment") or {})
+
+
 def test_the_tunnel_files_are_readable_by_the_tunnel_user(compose: dict) -> None:
     """cloudflared runs non-root with every capability dropped: root-owned 0600
     files would fail its first start with permission denied."""
