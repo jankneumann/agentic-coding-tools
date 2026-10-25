@@ -48,10 +48,13 @@ services:
     # Block form, not [a, b, c]: in a YAML flow sequence the comma inside the
     # library list splits it into a fourth argument, and postgres exits with
     # `invalid argument: "pg_stat_statements"` before initdb's setup completes.
+    # The list must match the image's own sample, as the analyzer's does: the
+    # image's first-boot bootstrap runs CREATE EXTENSION pg_cron, which fails
+    # unless pg_cron is preloaded -- and the entrypoint then aborts mid-init.
     command:
     - postgres
     - -c
-    - shared_preload_libraries=pg_search,pg_stat_statements
+    - shared_preload_libraries=pg_search,pg_cron,pg_stat_statements
     env_file:
     - /run/aca/gx10/coordinator.env
     environment:
