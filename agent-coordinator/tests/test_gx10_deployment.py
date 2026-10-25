@@ -186,6 +186,22 @@ def test_the_renderer_refuses_a_tunnel_config_exposing_a_secret_store() -> None:
     assert "must never be public" in script
 
 
+def test_the_tunnel_files_are_readable_by_the_tunnel_user(compose: dict) -> None:
+    """cloudflared runs non-root with every capability dropped: root-owned 0600
+    files would fail its first start with permission denied."""
+    script = (DEPLOY / "openbao" / "render-coordinator-secrets.sh").read_text(encoding="utf-8")
+    uid = compose["services"]["cloudflared"]["user"].split(":")[0]
+    assert f'GX10_CLOUDFLARED_UID:-{uid}' in script
+    owned = 'install -o "$CLOUDFLARED_UID" -g "$CLOUDFLARED_UID" -m 0400'
+    for name in ("config.yaml", "credentials.json"):
+        install_lines = [
+            line for line in script.splitlines()
+            if line.strip().startswith("install ") and f"cloudflared/{name}.new" in line
+        ]
+        assert install_lines, name
+        assert all(owned in line for line in install_lines), name
+
+
 def test_the_tunnel_credential_survives_a_reboot(compose: dict) -> None:
     """/run is a tmpfs: the credential cloudflared mounts must be re-rendered from
     persistent storage at every start, not placed in /run once by hand."""
