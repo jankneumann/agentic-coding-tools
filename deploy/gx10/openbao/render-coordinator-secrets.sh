@@ -70,8 +70,12 @@ mv -f "$RUNTIME_DIR/coordinator.env.new" "$RUNTIME_DIR/coordinator.env"
 # file mounts them from the same 0700 runtime directory as everything else
 # rather than from the repo.
 install -d -m 0700 "$RUNTIME_DIR/cloudflared"
+# The cloudflared image runs as its own non-root user and the compose drops
+# every capability, so root-owned 0600 files are unreadable to it. Hand both
+# files to that uid; the 0700 root directory still keeps every host user out.
+CLOUDFLARED_UID="${GX10_CLOUDFLARED_UID:-65532}"
 if [[ -n "${GX10_COORD_TUNNEL_CONFIG:-}" && -f "${GX10_COORD_TUNNEL_CONFIG}" ]]; then
-  install -m 0600 "$GX10_COORD_TUNNEL_CONFIG" "$RUNTIME_DIR/cloudflared/config.yaml.new"
+  install -o "$CLOUDFLARED_UID" -g "$CLOUDFLARED_UID" -m 0400 "$GX10_COORD_TUNNEL_CONFIG" "$RUNTIME_DIR/cloudflared/config.yaml.new"
   mv -f "$RUNTIME_DIR/cloudflared/config.yaml.new" "$RUNTIME_DIR/cloudflared/config.yaml"
 fi
 
@@ -81,7 +85,7 @@ fi
 # than as a crash-looping cloudflared.
 TUNNEL_CREDENTIALS="${GX10_COORD_TUNNEL_CREDENTIALS:-/etc/aca/gx10/cloudflared/credentials.json}"
 if [[ -f "$TUNNEL_CREDENTIALS" ]]; then
-  install -m 0600 "$TUNNEL_CREDENTIALS" "$RUNTIME_DIR/cloudflared/credentials.json.new"
+  install -o "$CLOUDFLARED_UID" -g "$CLOUDFLARED_UID" -m 0400 "$TUNNEL_CREDENTIALS" "$RUNTIME_DIR/cloudflared/credentials.json.new"
   mv -f "$RUNTIME_DIR/cloudflared/credentials.json.new" "$RUNTIME_DIR/cloudflared/credentials.json"
 elif [[ -f "$RUNTIME_DIR/cloudflared/config.yaml" ]]; then
   echo "tunnel credential $TUNNEL_CREDENTIALS is missing" >&2
