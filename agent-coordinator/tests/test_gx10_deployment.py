@@ -198,9 +198,10 @@ def test_the_database_lives_on_the_host_not_in_an_anonymous_volume(compose: dict
 
 def test_the_preload_list_reaches_postgres_as_one_argument(compose: dict) -> None:
     """A flow sequence `[postgres, -c, a=x,y]` parses as four items: postgres
-    then sees `y` as a stray positional argument and exits at first boot."""
+    then sees `y` as a stray positional argument and exits at first boot. And
+    pg_cron must be in it: the image's first-boot bootstrap creates it."""
     command = compose["services"]["coordinator-postgres"]["command"]
-    assert command == ["postgres", "-c", "shared_preload_libraries=pg_search,pg_stat_statements"]
+    assert command == ["postgres", "-c", "shared_preload_libraries=pg_search,pg_cron,pg_stat_statements"]
 
 
 def test_the_tunnel_files_are_readable_by_the_tunnel_user(compose: dict) -> None:
