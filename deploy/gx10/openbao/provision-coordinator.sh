@@ -91,8 +91,23 @@ for field in postgres_password sse_signing_key coordination_api_key; do
   has_field "$field" || set_field "$field" "$(random_key)"
 done
 
+# The dashboard shows the team domain without a scheme, and pastes carry stray
+# carriage returns, so normalise before matching. The stored form must be the
+# full https URL: the API also pins it as the JWT issuer.
+normalise() {
+  local field="$1" value="${2//$'\r'/}"
+  value="${value#"${value%%[![:space:]]*}"}"; value="${value%"${value##*[![:space:]]}"}"
+  # Blank means "keep the stored value"; never turn it into "https://".
+  [[ -n "$value" ]] || return 0
+  if [[ "$field" == cf_access_team_domain ]]; then
+    value="${value,,}"; value="${value%/}"
+    [[ "$value" == https://* ]] || value="https://$value"
+  fi
+  [[ "$field" == cf_access_aud ]] && value="${value,,}"
+  printf '%s' "$value"
+}
 prompt() {
-  local field="$1" pattern="$2" hidden="$3" stored value
+  local field="$1" pattern="$2" hidden="$3" example="$4" stored value
   stored="$(has_field "$field" && echo stored || echo unset)"
   while true; do
     if [[ "$hidden" == yes ]]; then
@@ -100,15 +115,16 @@ prompt() {
     else
       read -rp "$field [$stored; blank keeps]: " value
     fi
+    value="$(normalise "$field" "$value")"
     [[ -n "$value" ]] || return 0
     [[ "$value" =~ $pattern ]] && { set_field "$field" "$value"; return 0; }
-    echo "  does not look like a $field; try again" >&2
+    echo "  expected $example; try again" >&2
   done
 }
-prompt cf_access_team_domain '^https://[a-z0-9-]+\.cloudflareaccess\.com$' no
-prompt cf_access_aud '^[0-9a-f]{64}(,[0-9a-f]{64})*$' no
-prompt langfuse_public_key '^pk-lf-' no
-prompt langfuse_secret_key '^sk-lf-' yes
+prompt cf_access_team_domain '^https://[a-z0-9-]+\.cloudflareaccess\.com$' no '<team>.cloudflareaccess.com'
+prompt cf_access_aud '^[0-9a-f]{64}(,[0-9a-f]{64})*$' no '64 hex characters (the AUD tag)'
+prompt langfuse_public_key '^pk-lf-' no 'a key starting pk-lf-'
+prompt langfuse_secret_key '^sk-lf-' yes 'a key starting sk-lf-'
 
 jq '{data: .}' "$work/merged.json" >"$work/secret.json"
 bao -X POST --data-binary "@$work/secret.json" "$BAO_ADDR$RUNTIME_ENDPOINT" >/dev/null
