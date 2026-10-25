@@ -313,8 +313,9 @@ Universal SSL certificate covers only `*.rotkohl.ai`.
    # server listens only there, and would pass a moment before it shuts down.
    c=aca-gx10-coord_coordinator-postgres_1
    for _ in $(seq 40); do
-     sudo podman exec "$c" pg_isready -q -h 127.0.0.1 -U coordinator -d coordinator && break
-     [[ "$(sudo podman inspect -f '{{.State.Status}}' "$c")" == running ]] || break
+     sudo podman exec "$c" pg_isready -q -h 127.0.0.1 -U coordinator -d coordinator 2>/dev/null && break
+     # Only "exited" is final: right after `up -d` the state can still be in transition.
+     [[ "$(sudo podman inspect -f '{{.State.Status}}' "$c")" == exited ]] && break
      sleep 3
    done
    sudo podman exec "$c" pg_isready -h 127.0.0.1 -U coordinator -d coordinator \
