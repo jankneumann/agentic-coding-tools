@@ -45,7 +45,13 @@ services:
     read_only: false
     image: ${GX10_COORD_POSTGRES_IMAGE:?set a reviewed paradedb tag@sha256 digest}
     user: "999:999"
-    command: [postgres, -c, shared_preload_libraries=pg_search,pg_stat_statements]
+    # Block form, not [a, b, c]: in a YAML flow sequence the comma inside the
+    # library list splits it into a fourth argument, and postgres exits with
+    # `invalid argument: "pg_stat_statements"` before initdb's setup completes.
+    command:
+    - postgres
+    - -c
+    - shared_preload_libraries=pg_search,pg_stat_statements
     env_file:
     - /run/aca/gx10/coordinator.env
     environment:

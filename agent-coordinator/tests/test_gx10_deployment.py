@@ -196,6 +196,13 @@ def test_the_database_lives_on_the_host_not_in_an_anonymous_volume(compose: dict
     assert "PGDATA" not in (postgres.get("environment") or {})
 
 
+def test_the_preload_list_reaches_postgres_as_one_argument(compose: dict) -> None:
+    """A flow sequence `[postgres, -c, a=x,y]` parses as four items: postgres
+    then sees `y` as a stray positional argument and exits at first boot."""
+    command = compose["services"]["coordinator-postgres"]["command"]
+    assert command == ["postgres", "-c", "shared_preload_libraries=pg_search,pg_stat_statements"]
+
+
 def test_the_tunnel_files_are_readable_by_the_tunnel_user(compose: dict) -> None:
     """cloudflared runs non-root with every capability dropped: root-owned 0600
     files would fail its first start with permission denied."""
