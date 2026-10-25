@@ -149,6 +149,9 @@ services:
     <<: *hardening
     read_only: true
     image: ${GX10_CLOUDFLARED_IMAGE:?set a reviewed cloudflared tag@sha256 digest}
+    # The image's own nonroot user, pinned so the renderer knows whom to hand
+    # the 0400 tunnel config and credential to (GX10_CLOUDFLARED_UID).
+    user: "65532:65532"
     command: [tunnel, --no-autoupdate, --config, /etc/cloudflared/config.yaml, run]
     volumes:
     - /run/aca/gx10/cloudflared/config.yaml:/etc/cloudflared/config.yaml:ro
