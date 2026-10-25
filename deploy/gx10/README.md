@@ -307,7 +307,18 @@ Universal SSL certificate covers only `*.rotkohl.ai`.
    # so load the pins the unit gets from EnvironmentFile= by hand:
    sudo bash -c 'set -a; . /etc/aca/gx10-images.env; set +a
      exec podman-compose -p aca-gx10-coord -f /opt/agentic-coding-tools/deploy/gx10/docker-compose.coordinator.yml up -d coordinator-postgres'
-   until [[ "$(sudo podman inspect -f '{{.State.Health.Status}}' aca-gx10-coord_coordinator-postgres_1)" == healthy ]]; do sleep 3; done
+   # Ask Postgres itself, over TCP, for at most two minutes. Not podman's
+   # health status: a hand-run container may get no healthcheck timer, so it
+   # stays "starting" forever. Not the socket: the image's first-boot init
+   # server listens only there, and would pass a moment before it shuts down.
+   c=aca-gx10-coord_coordinator-postgres_1
+   for _ in $(seq 40); do
+     sudo podman exec "$c" pg_isready -q -h 127.0.0.1 -U coordinator -d coordinator && break
+     [[ "$(sudo podman inspect -f '{{.State.Status}}' "$c")" == running ]] || break
+     sleep 3
+   done
+   sudo podman exec "$c" pg_isready -h 127.0.0.1 -U coordinator -d coordinator \
+     || { sudo podman logs --tail 30 "$c"; echo "Postgres is not ready: stop here"; }
    sudo --preserve-env=PG_TOOLS_IMAGE,SEED_ACCEPT_CHANGED \
      /opt/agentic-coding-tools/deploy/gx10/seed-from-railway.sh restore coord.dump
    sudo /opt/agentic-coding-tools/deploy/gx10/coordinator-runtime.sh down
