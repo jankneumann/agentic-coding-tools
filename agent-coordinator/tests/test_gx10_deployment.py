@@ -7,6 +7,7 @@ study in the analyzer repo for what each one cost.
 
 from __future__ import annotations
 
+import shlex
 from pathlib import Path
 
 import pytest
@@ -201,7 +202,20 @@ def test_the_preload_list_reaches_postgres_as_one_argument(compose: dict) -> Non
     then sees `y` as a stray positional argument and exits at first boot. And
     pg_cron must be in it: the image's first-boot bootstrap creates it."""
     command = compose["services"]["coordinator-postgres"]["command"]
-    assert command == ["postgres", "-c", "shared_preload_libraries=pg_search,pg_cron,pg_stat_statements"]
+    preload = "shared_preload_libraries=pg_search,pg_cron,pg_stat_statements"
+    assert command == ["postgres", "-c", preload]
+
+
+@pytest.mark.parametrize("service", ["coordinator-postgres", "coordinator-api"])
+def test_the_healthcheck_survives_podman_compose_quoting(compose: dict, service: str) -> None:
+    """podman-compose 1.0.6 turns a CMD list into "/bin/sh -c " + "' '".join(
+    shlex.quote(arg)), which only parses when no argument needs quoting. An
+    API whose check is a shell syntax error stays unhealthy however well it runs."""
+    kind, *args = compose["services"][service]["healthcheck"]["test"]
+    if kind == "CMD":
+        assert all(shlex.quote(arg) == arg for arg in args), args
+    else:
+        assert kind == "CMD-SHELL" and len(args) == 1
 
 
 def test_the_tunnel_files_are_readable_by_the_tunnel_user(compose: dict) -> None:

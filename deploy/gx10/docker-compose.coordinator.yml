@@ -133,12 +133,12 @@ services:
       coordinator-postgres:
         condition: service_healthy
     healthcheck:
+      # CMD-SHELL, not CMD: podman-compose 1.0.6 joins a CMD list into one
+      # `sh -c` string with broken quoting, so any argument that needs quotes
+      # (like this one) becomes a shell syntax error and the check never passes.
       test:
-      - CMD
-      - /app/.venv/bin/python
-      - -c
-      - import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8081/health',timeout=2).status==200
-        else 1)
+      - CMD-SHELL
+      - /app/.venv/bin/python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8081/health',timeout=2).status==200 else 1)"
       interval: 15s
       timeout: 5s
       retries: 12
