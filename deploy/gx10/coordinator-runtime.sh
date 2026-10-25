@@ -68,18 +68,25 @@ wait_healthy() {
   return 1
 }
 
+# Remove rather than stop: podman-compose 1.0.6 meets an existing name with
+# `podman start`, reviving the container as it was created -- old image, old
+# healthcheck -- instead of recreating it from the current compose file.
+sweep_project_containers() {
+  "$PODMAN" ps -a --filter "label=io.podman.compose.project=$PROJECT" --format '{{.ID}}' \
+    | xargs -r "$PODMAN" rm -f --depend -t "$DOWN_TIMEOUT"
+}
+
 case "${1:-}" in
   up)
     require_external_networks
+    # A failed start leaves its containers for a post-mortem; this is where
+    # they go. All state lives on bind mounts, as in the analyzer's runtime.
+    sweep_project_containers
     compose up -d
     wait_healthy "${SERVICES[@]}"
     ;;
   down)
-    # Remove rather than stop: podman-compose 1.0.6 hashes the whole compose
-    # file, and a container left behind from an older file is restarted as-is
-    # by a later `up` instead of being recreated.
-    "$PODMAN" ps -a --filter "label=io.podman.compose.project=$PROJECT" --format '{{.ID}}' \
-      | xargs -r "$PODMAN" rm -f --depend -t "$DOWN_TIMEOUT"
+    sweep_project_containers
     ;;
   *)
     echo "usage: ${0##*/} {up|down}" >&2
