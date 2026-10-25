@@ -303,7 +303,11 @@ Universal SSL certificate covers only `*.rotkohl.ai`.
    # c. On GX-10, with the dump copied over (0600): start only Postgres, restore
    #    into the still-empty database, then hand the container back to the unit.
    sudo systemctl start aca-gx10-coordinator-secrets.service
-   sudo podman-compose -p aca-gx10-coord -f /opt/agentic-coding-tools/deploy/gx10/docker-compose.coordinator.yml up -d coordinator-postgres
+   # podman-compose interpolates the WHOLE file, and every image pin is ${...:?},
+   # so load the pins the unit gets from EnvironmentFile= by hand:
+   sudo bash -c 'set -a; . /etc/aca/gx10-images.env; set +a
+     exec podman-compose -p aca-gx10-coord -f /opt/agentic-coding-tools/deploy/gx10/docker-compose.coordinator.yml up -d coordinator-postgres'
+   until [[ "$(sudo podman inspect -f '{{.State.Health.Status}}' aca-gx10-coord_coordinator-postgres_1)" == healthy ]]; do sleep 3; done
    sudo --preserve-env=PG_TOOLS_IMAGE,SEED_ACCEPT_CHANGED \
      /opt/agentic-coding-tools/deploy/gx10/seed-from-railway.sh restore coord.dump
    sudo /opt/agentic-coding-tools/deploy/gx10/coordinator-runtime.sh down
