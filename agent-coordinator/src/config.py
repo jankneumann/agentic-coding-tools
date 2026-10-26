@@ -36,6 +36,7 @@ Environment variables:
 
 from __future__ import annotations
 
+import ipaddress
 import json
 import logging
 import os
@@ -484,6 +485,8 @@ class CloudflareAccessConfig:
         default_factory=lambda: ["/live", "/ready", "/health", "/metrics"]
     )
     jwks_cache_seconds: int = 3600
+    # Exact peer IPs that skip verification (a local non-Cloudflare proxy).
+    trusted_peers: list[str] = field(default_factory=list)
 
     @classmethod
     def from_env(cls) -> CloudflareAccessConfig:
@@ -508,6 +511,16 @@ class CloudflareAccessConfig:
         else:
             exempt_paths = ["/live", "/ready", "/health", "/metrics"]
 
+        # Exact addresses only: a CIDR or hostname would widen the exception
+        # beyond the one container it exists for. Fail at startup, not later.
+        trusted_peers = [
+            p.strip()
+            for p in os.environ.get("CF_ACCESS_TRUSTED_PEERS", "").split(",")
+            if p.strip()
+        ]
+        for peer in trusted_peers:
+            ipaddress.ip_address(peer)
+
         return cls(
             enabled=enabled,
             team_domain=team_domain,
@@ -516,6 +529,7 @@ class CloudflareAccessConfig:
             jwks_cache_seconds=int(
                 os.environ.get("CF_ACCESS_JWKS_CACHE_SECONDS", "3600")
             ),
+            trusted_peers=trusted_peers,
         )
 
 
