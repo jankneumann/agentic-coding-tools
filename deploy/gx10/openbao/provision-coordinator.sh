@@ -110,10 +110,11 @@ prompt() {
   local field="$1" pattern="$2" hidden="$3" example="$4" stored value
   stored="$(has_field "$field" && echo stored || echo unset)"
   while true; do
+    # End of input (Ctrl-D) counts as blank: keep the stored value.
     if [[ "$hidden" == yes ]]; then
-      read -rsp "$field [$stored; blank keeps] (hidden): " value; echo >&2
+      read -rsp "$field [$stored; blank keeps] (hidden): " value || true; echo >&2
     else
-      read -rp "$field [$stored; blank keeps]: " value
+      read -rp "$field [$stored; blank keeps]: " value || true
     fi
     value="$(normalise "$field" "$value")"
     [[ -n "$value" ]] || return 0
@@ -125,6 +126,10 @@ prompt cf_access_team_domain '^https://[a-z0-9-]+\.cloudflareaccess\.com$' no '<
 prompt cf_access_aud '^[0-9a-f]{64}(,[0-9a-f]{64})*$' no '64 hex characters (the AUD tag)'
 prompt langfuse_public_key '^pk-lf-' no 'a key starting pk-lf-'
 prompt langfuse_secret_key '^sk-lf-' yes 'a key starting sk-lf-'
+# Optional, so not in REQUIRED: the coordinator's own OpenRouter calls (the
+# watchdog's probe, the model-catalog refresh) stay off without it. Give the
+# server its own key with a credit limit, not one shared with an agent harness.
+prompt openrouter_api_key '^sk-or-' yes 'a key starting sk-or-'
 
 jq '{data: .}' "$work/merged.json" >"$work/secret.json"
 bao -X POST --data-binary "@$work/secret.json" "$BAO_ADDR$RUNTIME_ENDPOINT" >/dev/null
