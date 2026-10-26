@@ -55,23 +55,26 @@ at load time — edit the YAML, not this table.
 
 | Phase | Archetype | Tier (→ Claude model) | Signals consulted |
 |---|---|---|---|
-| `PLAN` | `architect` | `frontier → fable` | `capabilities_touched` |
-| `PLAN_ITERATE` | `architect` | `frontier → fable` | `capabilities_touched`, `iteration_count` |
-| `PLAN_REVIEW` | `reviewer` | `premium → fable` | `proposal_loc`, `capabilities_touched` |
-| `PLAN_FIX` | `architect` | `frontier → fable` | `findings_severity`, `findings_count` |
-| `IMPLEMENT` | `implementer` | `standard → sonnet` | `loc_estimate`, `write_allow`, `dependencies`, `complexity` |
-| `IMPL_ITERATE` | `implementer` | `standard → sonnet` | `iteration_count`, `write_allow` |
-| `IMPL_REVIEW` | `reviewer` | `premium → fable` | `files_changed`, `lines_changed` |
-| `IMPL_FIX` | `implementer` | `standard → sonnet` | `findings_severity`, `findings_count` |
-| `VALIDATE` | `validator` | `standard → sonnet` | `test_count`, `suite_duration` |
-| `VAL_REVIEW` | `reviewer` | `premium → fable` | `findings_severity` |
-| `VAL_FIX` | `implementer` | `standard → sonnet` | `findings_severity` |
-| `INIT` | `runner` | `economy → haiku` | (none) |
-| `GATEKEEPER` | `gatekeeper` | `premium → fable` | `gate_signals` |
-| `SUBMIT_PR` | `runner` | `economy → haiku` | (none) |
+| `PLAN` | `architect` | `frontier → claude-opus-5-5 @ high` | `capabilities_touched` |
+| `PLAN_ITERATE` | `architect` | `frontier → claude-opus-5-5 @ high` | `capabilities_touched`, `iteration_count` |
+| `PLAN_REVIEW` | `reviewer` | `premium → claude-opus-5-5 @ high` | `proposal_loc`, `capabilities_touched` |
+| `PLAN_FIX` | `architect` | `frontier → claude-opus-5-5 @ high` | `findings_severity`, `findings_count` |
+| `IMPLEMENT` | `implementer` | `standard → claude-sonnet-5-5 @ medium` | `loc_estimate`, `write_allow`, `dependencies`, `complexity` |
+| `IMPL_ITERATE` | `implementer` | `standard → claude-sonnet-5-5 @ medium` | `iteration_count`, `write_allow` |
+| `IMPL_REVIEW` | `reviewer` | `premium → claude-opus-5-5 @ high` | `files_changed`, `lines_changed` |
+| `IMPL_FIX` | `implementer` | `standard → claude-sonnet-5-5 @ medium` | `findings_severity`, `findings_count` |
+| `VALIDATE` | `validator` | `standard → claude-sonnet-5-5 @ medium` | `test_count`, `suite_duration` |
+| `VAL_REVIEW` | `reviewer` | `premium → claude-opus-5-5 @ high` | `findings_severity` |
+| `VAL_FIX` | `implementer` | `standard → claude-sonnet-5-5 @ medium` | `findings_severity` |
+| `INIT` | `runner` | `economy → claude-haiku-5-5 @ low` | (none) |
+| `GATEKEEPER` | `gatekeeper` | `premium → claude-opus-5-5 @ high` | `gate_signals` |
+| `SUBMIT_PR` | `runner` | `economy → claude-haiku-5-5 @ low` | (none) |
 
-**Tuning**: Edit `agent-coordinator/archetypes.yaml` and restart the
-coordinator. No code changes required.
+**Tuning**: Edit `agent-coordinator/archetypes.yaml`. The coordinator
+re-reads the file when its mtime or size changes. The next
+`resolve_for_phase` call uses the new map. A save that does not validate
+stays off the air: the process keeps serving the last good config and logs
+the error. No restart is required.
 
 
 ## The `local` Provider

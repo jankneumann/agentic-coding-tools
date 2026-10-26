@@ -23,6 +23,7 @@ from src.agents_config import (
     get_archetype,
     load_archetypes_config,
     reset_archetypes_config,
+    resolve_archetype_for_phase,
     resolve_model,
 )
 
@@ -158,15 +159,78 @@ class TestArchetypeLoading:
         assert result is not None
         assert result.model == "opus"
 
-    def test_caching_avoids_reload(
+    def test_unchanged_file_returns_the_cached_object(
         self, valid_archetypes_yaml: Path,
     ) -> None:
-        """Config is loaded once and cached (singleton pattern)."""
+        """An unchanged file is not parsed again."""
         a1 = load_archetypes_config(path=valid_archetypes_yaml)
-        # Modify file — cached version should be returned
-        valid_archetypes_yaml.write_text("schema_version: 1\narchetypes: {}")
         a2 = load_archetypes_config(path=valid_archetypes_yaml)
-        assert a1 is a2  # Same object reference = cached
+        assert a1 is a2
+
+    def test_valid_edit_is_picked_up_without_reset(
+        self, valid_archetypes_yaml: Path,
+    ) -> None:
+        """A running process sees a saved model change on the next load."""
+        load_archetypes_config(path=valid_archetypes_yaml)
+        original = valid_archetypes_yaml.read_text()
+        updated = original.replace("model: opus", "model: sonnet", 1)
+        assert updated != original
+        valid_archetypes_yaml.write_text(updated)
+
+        again = load_archetypes_config(path=valid_archetypes_yaml)
+
+        assert again["architect"].model == "sonnet"
+
+    def test_invalid_edit_keeps_the_last_good_config(
+        self, valid_archetypes_yaml: Path,
+    ) -> None:
+        """A save that fails validation does not replace the live config."""
+        first = load_archetypes_config(path=valid_archetypes_yaml)
+        valid_archetypes_yaml.write_text("schema_version: 1\narchetypes: {}\n")
+
+        second = load_archetypes_config(path=valid_archetypes_yaml)
+
+        assert second is first
+        assert second["architect"].model == "opus"
+
+    def test_resolve_sees_a_provider_map_edit(self, tmp_path: Path) -> None:
+        """Phase resolution re-reads model_aliases without a process restart."""
+        path = tmp_path / "archetypes.yaml"
+        path.write_text(textwrap.dedent("""\
+            schema_version: 4
+            model_aliases:
+              claude_code:
+                premium:
+                  model: claude-opus-5
+                  thinking: high
+                standard:
+                  model: claude-sonnet-5-5
+                  thinking: medium
+                economy:
+                  model: claude-haiku-5-5
+                  thinking: low
+            archetypes:
+              architect:
+                write_capable: true
+                model: premium
+                system_prompt: "You are a software architect."
+              runner:
+                write_capable: false
+                model: economy
+                system_prompt: "Execute and report."
+            phase_mapping:
+              PLAN: {archetype: architect}
+              INIT: {archetype: runner}
+        """))
+        load_archetypes_config(path=path)
+        before = resolve_archetype_for_phase("PLAN", {}, provider="claude_code")
+        assert before.model == "claude-opus-5"
+
+        path.write_text(path.read_text().replace("claude-opus-5", "claude-opus-5-5", 1))
+        after = resolve_archetype_for_phase("PLAN", {}, provider="claude_code")
+
+        assert after.model == "claude-opus-5-5"
+        assert after.thinking == "high"
 
     def test_archetype_name_validation(self, tmp_path: Path) -> None:
         """Archetype names must match ^[a-z][a-z0-9_-]{0,31}$."""
