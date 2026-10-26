@@ -28,15 +28,24 @@ COORD_TMP="$(mktemp "$RUNTIME_DIR/coordinator.env.XXXXXX")"
 cleanup() { rm -f -- "$CURL_CONFIG" "$COORD_TMP"; }
 trap cleanup EXIT
 
+read_doc() {
+  /usr/bin/curl --fail --silent --show-error --config "$CURL_CONFIG" "$BAO_ADDR/${1%%/*}/data/${1#*/}"
+}
 fetch() {
   local path="$1" key="$2" value
-  value="$(/usr/bin/curl --fail --silent --show-error --config "$CURL_CONFIG" \
-    "$BAO_ADDR/${path%%/*}/data/${path#*/}" \
-    | /usr/bin/jq -er --arg k "$key" '.data.data[$k]')" || {
+  value="$(read_doc "$path" | /usr/bin/jq -er --arg k "$key" '.data.data[$k]')" || {
       echo "coordinator secret $path/$key is unavailable" >&2; exit 1; }
   printf '%s' "$value"
 }
 emit() { printf '%s=%s\n' "$2" "$(fetch "$3" "$4")" >>"$1"; }
+# An unset optional field leaves its variable out entirely; an unreachable
+# OpenBao still fails the render, as for every required field.
+emit_optional() {
+  local value
+  value="$(read_doc "$3" | /usr/bin/jq -r --arg k "$4" '.data.data[$k] // empty')" || {
+      echo "coordinator secret $3 is unavailable" >&2; exit 1; }
+  [[ -z "$value" ]] || printf '%s=%s\n' "$2" "$value" >>"$1"
+}
 
 # Postgres: the server reads POSTGRES_PASSWORD, the API reads the DSN. Both
 # come from the same stored password so they cannot drift.
@@ -62,6 +71,10 @@ emit "$COORD_TMP" CF_ACCESS_AUD "$COORD_PATH" cf_access_aud
 # traces and its retention window are separate from the analyzer's.
 emit "$COORD_TMP" LANGFUSE_PUBLIC_KEY "$COORD_PATH" langfuse_public_key
 emit "$COORD_TMP" LANGFUSE_SECRET_KEY "$COORD_PATH" langfuse_secret_key
+
+# OpenRouter: optional. Without it the watchdog skips its OpenRouter probe and
+# the model-catalog refresh fails, as before; nothing else depends on it.
+emit_optional "$COORD_TMP" OPENROUTER_API_KEY "$COORD_PATH" openrouter_api_key
 
 install -m 0600 "$COORD_TMP" "$RUNTIME_DIR/coordinator.env.new"
 mv -f "$RUNTIME_DIR/coordinator.env.new" "$RUNTIME_DIR/coordinator.env"

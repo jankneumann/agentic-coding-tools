@@ -272,14 +272,80 @@ def test_the_secret_id_is_minted_once_and_rotated_only_on_request(run, bao, tmp_
     assert (tmp_path / "creds" / "coordinator-secret-id").read_text() == "secret-2\n"
 
 
-def test_no_secret_value_reaches_the_output(run, bao, tmp_path: Path) -> None:
+def test_the_openrouter_key_is_optional_and_kept_once_given(run, bao, tmp_path: Path) -> None:
     fake, _ = bao
     result = run(FULL_ANSWERS, "--import-keys", str(_import_file(tmp_path, RAILWAY)))
+    assert result.returncode == 0, result.stderr
+    assert "openrouter_api_key" not in fake.kv["coordinator/gx10/runtime"]
+    assert "complete." in result.stdout  # not reported missing
+
+    run(["", "", "", "", "sk-or-v1-server"])
+    run(["", "", "", ""])  # a later run that never reaches the prompt keeps it
+
+    assert fake.kv["coordinator/gx10/runtime"]["openrouter_api_key"] == "sk-or-v1-server"
+
+
+def test_a_malformed_openrouter_key_is_asked_again(run, bao) -> None:
+    fake, _ = bao
+    result = run([*FULL_ANSWERS, "sk-lf-wrong-paste", "sk-or-v1-server"])
+    assert result.returncode == 0, result.stderr
+    assert "expected a key starting sk-or-" in result.stderr
+    assert fake.kv["coordinator/gx10/runtime"]["openrouter_api_key"] == "sk-or-v1-server"
+
+
+def test_no_secret_value_reaches_the_output(run, bao, tmp_path: Path) -> None:
+    fake, _ = bao
+    result = run([*FULL_ANSWERS, "sk-or-v1-server"],
+                 "--import-keys", str(_import_file(tmp_path, RAILWAY)))
     stored = fake.kv["coordinator/gx10/runtime"]
     secret_fields = (
-        "postgres_password", "sse_signing_key", "coordination_api_key", "langfuse_secret_key"
+        "postgres_password", "sse_signing_key", "coordination_api_key", "langfuse_secret_key",
+        "openrouter_api_key",
     )
     for field in secret_fields:
         assert stored[field] not in result.stdout + result.stderr, field
     for key in stored["coordination_api_keys"].split(","):
         assert key not in result.stdout + result.stderr
+
+
+@pytest.fixture
+def render(bao: tuple[FakeBao, str], tmp_path: Path):
+    """Run the renderer against the fake OpenBao and return the env file it wrote."""
+    _, addr = bao
+    runtime = tmp_path / "run"
+    runtime.mkdir()
+    (runtime / "coordinator-openbao-token").write_text("approle-token")
+
+    def _render() -> dict[str, str]:
+        subprocess.run(
+            ["bash", str(RENDERER)],
+            env={
+                **os.environ,
+                "GX10_RUNTIME_DIR": str(runtime),
+                "GX10_BAO_ADDR": addr,
+                "GX10_COORD_TUNNEL_CREDENTIALS": str(tmp_path / "no-tunnel"),
+                "NO_PROXY": "127.0.0.1",
+                "no_proxy": "127.0.0.1",
+            },
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        lines = (runtime / "coordinator.env").read_text().splitlines()
+        return dict(line.split("=", 1) for line in lines)
+
+    return _render
+
+
+def test_the_renderer_passes_the_openrouter_key_through_when_stored(run, bao, render) -> None:
+    run([*FULL_ANSWERS, "sk-or-v1-server"])
+    assert render()["OPENROUTER_API_KEY"] == "sk-or-v1-server"
+
+
+def test_the_renderer_leaves_the_openrouter_key_out_when_unset(run, bao, render) -> None:
+    """Unset must mean absent, not `OPENROUTER_API_KEY=`: the watchdog strips
+    and skips either way, but an empty value would read as configured."""
+    run(FULL_ANSWERS)
+    env = render()
+    assert "OPENROUTER_API_KEY" not in env
+    assert env["LANGFUSE_SECRET_KEY"] == "sk-lf-secret"  # the required fields still render
