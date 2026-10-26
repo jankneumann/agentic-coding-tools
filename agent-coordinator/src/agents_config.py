@@ -77,40 +77,43 @@ DEFAULT_LOCAL_HOST_CLASS: dict[str, Any] = {
 _REVIEWED_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 # Emergency fallback ONLY — used when archetypes.yaml cannot be loaded.
-# The authored tier→model map lives solely in archetypes.yaml::model_aliases.
-# get_provider_model_map() prefers that YAML; do not edit roster values here
-# to "keep in sync". Tests must derive expectations from the loaded YAML.
+# The authored tier→model map lives in archetypes.yaml::model_aliases.
+# get_provider_model_map() prefers that YAML. These values mirror that file
+# so a failed load does not dispatch the previous generation, and so tests
+# that read this dict agree with resolution against the YAML. Tune the YAML
+# first, then copy the resulting tier entries here.
 DEFAULT_PROVIDER_MODEL_MAP: dict[str, Any] = {
     "schema_version": 2,
     "tiers": list(ALL_MODEL_TIERS),
     "providers": {
         "claude_code": {
-            "frontier": "fable",
-            "premium": {"model": "fable", "thinking": "medium"},
-            "standard": "sonnet",
-            "economy": "haiku",
+            "frontier": {"model": "claude-opus-5-5", "thinking": "high"},
+            "premium": {"model": "claude-opus-5-5", "thinking": "high"},
+            "standard": {"model": "claude-sonnet-5-5", "thinking": "medium"},
+            "economy": {"model": "claude-haiku-5-5", "thinking": "low"},
         },
         "codex": {
-            "frontier": {"model": "gpt-5.6-sol", "thinking": "xhigh"},
-            "premium": {"model": "gpt-5.6-sol", "thinking": "high"},
-            "standard": "gpt-5.6-terra",
-            "economy": "gpt-5.6-luna",
+            "frontier": {"model": "gpt-6-astra", "thinking": "high"},
+            "premium": {"model": "gpt-6-sol", "thinking": "high"},
+            "standard": {"model": "gpt-6-sol", "thinking": "medium"},
+            "economy": {"model": "gpt-6-luna", "thinking": "low"},
         },
         "antigravity": {
             "premium": "gemini-3.8-flash-high",
-            "standard": "gemini-3.6-flash-medium",
-            "economy": "gemini-3.6-flash-low",
+            "standard": "gemini-3.8-flash-medium",
+            "economy": "gemini-3.8-flash-low",
         },
         "grok": {
-            "premium": {"model": "grok-4.5", "thinking": "high"},
-            "standard": {"model": "grok-4.5", "thinking": "medium"},
-            "economy": {"model": "grok-4.5", "thinking": "low"},
+            "frontier": {"model": "grok-4.7", "thinking": "xhigh"},
+            "premium": {"model": "grok-4.7", "thinking": "high"},
+            "standard": {"model": "grok-4.7", "thinking": "medium"},
+            "economy": {"model": "grok-4.7", "thinking": "low"},
         },
         "pi": {
             "frontier": "moonshotai/kimi-k3",
-            "premium": "nvidia/nemotron-3-ultra-550b-a55b",
+            "premium": "qwen/qwen3.8-max-0902",
             "standard": "qwen/qwen3-coder",
-            "economy": "qwen/qwen3-coder-flash",
+            "economy": "qwen/qwen3.8-flash",
         },
         "local": {
             "standard": "gpt-oss-120b",
@@ -2173,36 +2176,23 @@ def _validate_local_roster(
             )
 
 
-def load_archetypes_config(
-    path: Path | None = None,
-) -> dict[str, ArchetypeConfig]:
-    """Load and validate ``archetypes.yaml``.
+def _observe_archetypes_source(path: Path) -> tuple[str, int, int]:
+    """Identity of the file currently on disk.
 
-    Returns a dict mapping archetype names to :class:`ArchetypeConfig`.
-    Uses the global cache — subsequent calls return the same dict.
-
-    Also populates the parallel ``_phase_mapping`` cache when the file
-    contains a ``phase_mapping`` section (schema_version=2). The mapping is
-    accessible via :func:`get_phase_mapping`. Raises ``ValueError`` if a
-    ``phase_mapping`` entry references an archetype that is not defined in
-    the same file.
-
-    If the file does not exist, returns an empty dict and logs a warning
-    (design decision D5: graceful degradation).
+    ``mtime_ns`` of -1 means the path is missing. A later save changes the
+    token, which is what tells a long-running coordinator to re-read.
     """
-    global _archetypes, _phase_mapping, _provider_model_map
-    if _archetypes is not None:
-        return _archetypes
+    try:
+        st = path.stat()
+    except OSError:
+        return (str(path), -1, -1)
+    return (str(path.resolve()), st.st_mtime_ns, st.st_size)
 
-    if path is None:
-        path = _default_archetypes_path()
 
-    if not path.exists():
-        logger.warning("archetypes.yaml not found at %s — falling back to ambient model", path)
-        _archetypes = {}
-        _phase_mapping = {}
-        return _archetypes
-
+def _parse_archetypes_file(
+    path: Path,
+) -> tuple[dict[str, ArchetypeConfig], dict[str, PhaseMappingEntry], dict[str, Any]]:
+    """Read and validate ``archetypes.yaml``. Does not touch the process cache."""
     with open(path) as fh:
         raw = yaml.safe_load(fh)
 
@@ -2211,7 +2201,7 @@ def load_archetypes_config(
 
     validate(instance=raw, schema=ARCHETYPES_SCHEMA)
     _validate_local_roster(raw.get("model_aliases"), raw.get("local_host_class"))
-    _provider_model_map = _normalize_provider_model_map(raw.get("model_aliases"))
+    provider_model_map = _normalize_provider_model_map(raw.get("model_aliases"))
 
     result: dict[str, ArchetypeConfig] = {}
     for name, data in raw["archetypes"].items():
@@ -2271,14 +2261,85 @@ def load_archetypes_config(
             signals=list(entry_data.get("signals", [])),
         )
 
-    _archetypes = result
+    return result, phase_mapping, provider_model_map
+
+
+def load_archetypes_config(
+    path: Path | None = None,
+) -> dict[str, ArchetypeConfig]:
+    """Load and validate ``archetypes.yaml``, refreshing when the file changes.
+
+    Returns a dict mapping archetype names to :class:`ArchetypeConfig`.
+    An unchanged file returns the cached dict. A changed file is parsed
+    again, so a running coordinator picks up a tier-map edit without a
+    restart. A parse or validation failure after a successful load keeps
+    the last good config and logs the error. The first load of a bad file
+    still raises.
+
+    Also populates the parallel ``_phase_mapping`` and provider-model-map
+    caches. Raises ``ValueError`` if a ``phase_mapping`` entry references
+    an archetype that is not defined in the same file.
+
+    If the file does not exist on the first load, returns an empty dict and
+    logs a warning (design decision D5: graceful degradation). If it
+    disappears after a successful load, the last good config stays in service.
+    """
+    global _archetypes, _phase_mapping, _provider_model_map
+    global _archetypes_observed, _archetypes_path
+    if path is None:
+        path = _archetypes_path or _default_archetypes_path()
+
+    observed = _observe_archetypes_source(path)
+    if _archetypes is not None and observed == _archetypes_observed:
+        return _archetypes
+
+    if not path.exists():
+        if _archetypes is not None:
+            logger.warning(
+                "archetypes.yaml disappeared at %s — keeping the last good config",
+                path,
+            )
+            _archetypes_observed = observed
+            _archetypes_path = path
+            return _archetypes
+        logger.warning("archetypes.yaml not found at %s — falling back to ambient model", path)
+        _archetypes = {}
+        _phase_mapping = {}
+        _archetypes_observed = observed
+        _archetypes_path = path
+        return _archetypes
+
+    try:
+        archetypes, phase_mapping, provider_model_map = _parse_archetypes_file(path)
+    except Exception:
+        if _archetypes is not None:
+            logger.exception(
+                "archetypes.yaml at %s failed to reload — keeping the last good config",
+                path,
+            )
+            _archetypes_observed = observed
+            _archetypes_path = path
+            return _archetypes
+        raise
+
+    _archetypes = archetypes
     _phase_mapping = phase_mapping
+    _provider_model_map = provider_model_map
+    _archetypes_observed = observed
+    _archetypes_path = path
     return _archetypes
 
 
 _archetypes: dict[str, ArchetypeConfig] | None = None
 _phase_mapping: dict[str, PhaseMappingEntry] | None = None
 _provider_model_map: dict[str, Any] | None = None
+# Last observed (path, mtime_ns, size). A mismatch with the file on disk
+# triggers a reload. A failed reload records the bad token so the next
+# request does not parse the same broken file again.
+_archetypes_observed: tuple[str, int, int] | None = None
+# Path the cache was loaded from. Later refreshes stat this path, so a test
+# or caller that loaded an explicit file is not overwritten by the repo default.
+_archetypes_path: Path | None = None
 
 
 def get_archetype(name: str) -> ArchetypeConfig | None:
@@ -2301,18 +2362,19 @@ def get_phase_mapping() -> dict[str, PhaseMappingEntry]:
     Returns ``{}`` for legacy ``schema_version=1`` configs that omit
     ``phase_mapping`` entirely (per spec agent-archetypes.1).
     """
-    global _phase_mapping
-    if _phase_mapping is None:
-        load_archetypes_config()
+    load_archetypes_config()
     return _phase_mapping if _phase_mapping is not None else {}
 
 
 def reset_archetypes_config() -> None:
     """Reset the global archetypes + phase_mapping caches (for testing)."""
     global _archetypes, _phase_mapping, _provider_model_map
+    global _archetypes_observed, _archetypes_path
     _archetypes = None
     _phase_mapping = None
     _provider_model_map = None
+    _archetypes_observed = None
+    _archetypes_path = None
 
 
 def _served_local_roster(roster: Any) -> Any:
@@ -2397,23 +2459,22 @@ def get_provider_model_map() -> dict[str, Any]:
     returned only when the YAML path is missing or fails to load.
     """
     global _provider_model_map
-    if _provider_model_map is None:
-        path = _default_archetypes_path()
-        if path.exists():
-            try:
-                load_archetypes_config(path)
-            except Exception:  # noqa: BLE001 — fall back loudly
-                logger.exception(
-                    "Failed to load archetypes.yaml from %s; using emergency "
-                    "DEFAULT_PROVIDER_MODEL_MAP",
-                    path,
-                )
-        else:
-            logger.warning(
-                "archetypes.yaml not found at %s — using emergency "
+    path = _archetypes_path or _default_archetypes_path()
+    if path.exists() or _archetypes is not None:
+        try:
+            load_archetypes_config(path)
+        except Exception:  # noqa: BLE001 — fall back loudly
+            logger.exception(
+                "Failed to load archetypes.yaml from %s; using emergency "
                 "DEFAULT_PROVIDER_MODEL_MAP",
                 path,
             )
+    elif _provider_model_map is None:
+        logger.warning(
+            "archetypes.yaml not found at %s — using emergency "
+            "DEFAULT_PROVIDER_MODEL_MAP",
+            path,
+        )
     if _provider_model_map is None:
         return _normalize_provider_model_map(None)
     return _provider_model_map
@@ -2722,8 +2783,7 @@ def _resolve_archetype_for_phase_static(
             phase's archetype is outside :data:`LOCAL_TRUSTED_ARCHETYPES`
             (design D3) — raised before any model resolution or dispatch.
     """
-    if _phase_mapping is None:
-        load_archetypes_config()
+    load_archetypes_config()
     mapping = _phase_mapping if _phase_mapping is not None else {}
 
     if phase not in mapping:
