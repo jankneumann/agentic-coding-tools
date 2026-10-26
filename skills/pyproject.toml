@@ -41,7 +41,7 @@ test = [
     # (coordination-bridge/scripts/generate_bindings.py). Pinned exactly: its
     # output is checked in and `generate_bindings.py --check` gates CI, so a
     # floating version would turn a tool release into a stale-bindings failure.
-    "datamodel-code-generator==0.83.0",
+    "datamodel-code-generator==0.86.0",
 ]
 
 [tool.uv.sources]
