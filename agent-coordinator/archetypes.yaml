@@ -21,51 +21,77 @@ local_host_class:
 # vocabularies are vendor-specific; the dispatch adapter translates them.
 # Tests derive expectations from this file — tune tiers here freely.
 model_aliases:
+  # Refreshed 2026-10-11 from each CLI's live catalog. A tier is the current
+  # generation's model at the vendor-recommended effort for that job. The
+  # effort step above the recommendation is reserved for frontier. Max, ultra,
+  # and priced-up "fast" SKUs are left off: they cost more per successful task
+  # than the recommended point. This block is the sole authored tier→model map.
   claude_code:
-    frontier: fable
-    # Reviewer (premium): Fable 5.1 at medium effort — bounded multi-vendor review.
-    premium:
-      model: fable
-      thinking: medium
-    standard: sonnet
-    economy: haiku
-  codex:
+    # Pinned ids from the Claude Code 2.1.296 catalog, not the floating
+    # aliases. `opus` still names Opus 5 (`claude-opus-5`), which is a
+    # different model from Opus 5.5. Fable 5.1 (`claude-fable-5-1`) is
+    # $10/$50 per Mtok. Opus 5.5 is $4/$20 and is the judgment model for
+    # supervisor, planning, and review. Sonnet 5.5 is $2/$10. Haiku 5.5 is
+    # $0.10/$0.50. The catalog badges medium as the rate-limit effort for
+    # Opus 5.5; high is the deliberate spend for the judgment tiers.
     frontier:
-      model: gpt-5.6-sol
-      thinking: xhigh
-    premium:
-      model: gpt-5.6-sol
+      model: claude-opus-5-5
       thinking: high
-    standard: gpt-5.6-terra
-    economy: gpt-5.6-luna
-  # Roster per contracts/roster.md; tier slugs from Phase 1 empirical findings
-  # (design.md § Empirical CLI findings, E1/E5/E8), operator-signed at
-  # checkpoint 1.4 (2026-07-23). This block is the sole authored tier→model map.
-  antigravity:
-    # agy `models` catalog (E1); one model across three effort suffixes.
-    # frontier omitted → falls back to premium (operator, 2026-07-23).
-    # Premium refreshed to Gemini 3.8 Flash for bounded review (2026-09-13).
-    premium: gemini-3.8-flash-high
-    standard: gemini-3.6-flash-medium
-    economy: gemini-3.6-flash-low
-  grok:
-    # Single model grok-4.5 (E5); tiers differ only by thinking budget.
     premium:
-      model: grok-4.5
+      model: claude-opus-5-5
       thinking: high
     standard:
-      model: grok-4.5
+      model: claude-sonnet-5-5
       thinking: medium
     economy:
-      model: grok-4.5
+      model: claude-haiku-5-5
+      thinking: low
+  codex:
+    # codex 0.156.1 catalog: gpt-6-astra (frontier), gpt-6-sol (workhorse),
+    # gpt-6-luna (fast). Catalog default effort is medium. gpt-5.6 is the
+    # previous generation.
+    frontier:
+      model: gpt-6-astra
+      thinking: high
+    premium:
+      model: gpt-6-sol
+      thinking: high
+    standard:
+      model: gpt-6-sol
+      thinking: medium
+    economy:
+      model: gpt-6-luna
+      thinking: low
+  antigravity:
+    # agy 1.3.3. Effort is the model-slug suffix; the dispatch adapter does
+    # not pass --effort. Newest flash is 3.8, so every tier stays on it.
+    # frontier omitted → falls back to premium.
+    premium: gemini-3.8-flash-high
+    standard: gemini-3.8-flash-medium
+    economy: gemini-3.8-flash-low
+  grok:
+    # grok 1.0.50 catalog. grok-4.7 is the frontier model. high is marked
+    # "Recommended". grok-4.7-build-fast is 2x the price and is not used.
+    frontier:
+      model: grok-4.7
+      thinking: xhigh
+    premium:
+      model: grok-4.7
+      thinking: high
+    standard:
+      model: grok-4.7
+      thinking: medium
+    economy:
+      model: grok-4.7
       thinking: low
   pi:
-    # OpenRouter <publisher>/<model> slugs; standard fixed by ri-01; frontier
-    # is Kimi 3 (E8). Premium is Nemotron 3 Ultra for bounded review (2026-09-13).
+    # OpenRouter slugs via pi 0.85.1. The adapter does not forward a thinking
+    # field, so tiers differ by model. standard stays qwen/qwen3-coder
+    # (configuration spec). Frontier stays Kimi K3.
     frontier: moonshotai/kimi-k3
-    premium: nvidia/nemotron-3-ultra-550b-a55b
+    premium: qwen/qwen3.8-max-0902
     standard: qwen/qwen3-coder
-    economy: qwen/qwen3-coder-flash
+    economy: qwen/qwen3.8-flash
   # Always-on local host (see local_host_class above). Entries use the extended
   # form {model, total_params_b, active_params_b, reviewed} so the MoE-first
   # rule is validated, not merely documented; `reviewed` is the operator's
@@ -166,9 +192,10 @@ archetypes:
   supervisor:
     write_capable: false
     # frontier: the supervisor decomposes the objective, routes each work
-    # package to the best-fit archetype/vendor, and adjudicates every gate —
-    # the reasoning-heaviest, highest-leverage role, so it always takes the
-    # frontier tier. It is a read-only orchestrator (write_capable: false):
+    # package to the best-fit archetype/vendor, and adjudicates every gate.
+    # On Claude that tier is Opus 5.5 at high, pinned as claude-opus-5-5,
+    # the same model planning and review use. It is a read-only orchestrator
+    # (write_capable: false):
     # it never edits code itself, it dispatches write-capable workers. The
     # archetype resolver rejects any config that marks it write_capable.
     model: frontier
