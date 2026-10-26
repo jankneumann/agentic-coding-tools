@@ -27,6 +27,8 @@
       "Bash(uniq *)",
       "Bash(echo *)",
       "Bash(jq *)",
+      "Bash(curl https://*.rotkohl.ai/*)",
+      "Bash(curl * https://*.rotkohl.ai/*)",
       "Bash(git log)",
       "Bash(git log *)",
       "Bash(git status)",
