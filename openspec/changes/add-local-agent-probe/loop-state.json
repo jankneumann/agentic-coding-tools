@@ -1,0 +1,42 @@
+{
+  "blocking_findings": [],
+  "change_id": "add-local-agent-probe",
+  "cli_review_enabled": true,
+  "current_phase": "PLAN",
+  "degradations": [],
+  "error": null,
+  "escalation_reason": null,
+  "findings_trend": [],
+  "force": false,
+  "gate_decisions": [],
+  "gate_signals": {},
+  "gate_verdict": "proceed_with_review",
+  "goal_gate": null,
+  "handoff_ids": [
+    "none"
+  ],
+  "implementation_strategy": {},
+  "iteration": 0,
+  "last_handoff_id": "none",
+  "max_phase_iterations": 3,
+  "memory_ids": [],
+  "package_authors": {},
+  "packages_status": {},
+  "park": null,
+  "pending_gate": null,
+  "phase_archetype": "architect",
+  "phase_history": [
+    {
+      "at": "2026-10-28T22:34:49.950521+00:00",
+      "outcome": "proceed_with_review",
+      "phase": "GATEKEEPER"
+    }
+  ],
+  "phase_started_at": "2026-10-28T22:34:58.993126+00:00",
+  "previous_phase": null,
+  "schema_version": 6,
+  "started_at": "2026-10-28T22:33:13.375284+00:00",
+  "total_iterations": 2,
+  "val_review_enabled": true,
+  "vendor_availability": {}
+}

@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools/contracts/vendor-probe-cache.schema.json",
+  "title": "Per-machine vendor probe cache",
+  "description": "Written by vendor_probe.py; read by review_dispatcher.discover_reviewers. Holds only paths, versions, booleans and reason codes — never credential material (design D3/D4).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "lanes"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "lanes": {
+      "type": "object",
+      "additionalProperties": {"$ref": "#/$defs/lane"}
+    }
+  },
+  "$defs": {
+    "reason": {
+      "enum": ["cli_not_found", "probe_timeout", "probe_failed", "missing_flags", "auth_failed", "auth_unknown"]
+    },
+    "tier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ok"],
+      "properties": {
+        "ok": {"type": "boolean"},
+        "reason": {"$ref": "#/$defs/reason"},
+        "missing_flags": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "lane": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["agent_id", "command", "cli_realpath", "config_fingerprint", "probed_at", "ttl_seconds", "l0", "modes", "l2"],
+      "properties": {
+        "agent_id": {"type": "string", "minLength": 1},
+        "command": {"type": "string", "minLength": 1},
+        "cli_realpath": {"type": ["string", "null"]},
+        "cli_version": {"type": ["string", "null"], "maxLength": 200},
+        "config_fingerprint": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "probed_at": {"type": "string", "format": "date-time"},
+        "ttl_seconds": {"type": "integer", "minimum": 1},
+        "l0": {"$ref": "#/$defs/tier"},
+        "modes": {
+          "type": "object",
+          "description": "L1 result per dispatch mode name",
+          "additionalProperties": {"$ref": "#/$defs/tier"}
+        },
+        "l2": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status"],
+          "properties": {
+            "status": {"enum": ["auth_ok", "auth_failed", "auth_unknown", "probe_timeout"]},
+            "method": {"enum": ["status_command", "credential_files", "none"]}
+          }
+        },
+        "runtime_failure": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["error_class", "observed_at", "ttl_seconds"],
+          "properties": {
+            "error_class": {"enum": ["auth_required", "vendor_unavailable"]},
+            "observed_at": {"type": "string", "format": "date-time"},
+            "ttl_seconds": {"type": "integer", "minimum": 1}
+          }
+        }
+      }
+    }
+  }
+}
