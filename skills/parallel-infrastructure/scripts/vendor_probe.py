@@ -23,6 +23,7 @@ import logging
 import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -235,22 +236,32 @@ def _run(argv: list[str], timeout: float, capture: bool) -> tuple[str, int | Non
     With capture=False output is never read (stdout/stderr go to DEVNULL).
     """
     try:
-        # subprocess.run (not Popen): on timeout it kills the child and only
-        # waits for it, so a descendant holding the pipe cannot hang the probe.
-        proc = subprocess.run(
+        # Popen + start_new_session: the child leads its own process group, so
+        # on timeout we can SIGKILL the whole group (vendor CLIs that fork/exec
+        # would otherwise leave hung grandchildren behind). After the kill we
+        # only wait() — never communicate() — because a descendant that escaped
+        # the group could still hold the pipe and hang the probe.
+        proc = subprocess.Popen(
             argv,
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE if capture else subprocess.DEVNULL,
             stderr=subprocess.STDOUT if capture else subprocess.DEVNULL,
-            timeout=timeout,
-            check=False,
             start_new_session=True,
         )
-    except subprocess.TimeoutExpired:
-        return "timeout", None, ""
     except OSError:
         return "launch_error", None, ""
-    text = proc.stdout.decode("utf-8", "replace") if capture and proc.stdout else ""
+    try:
+        out, _ = proc.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        try:
+            os.killpg(proc.pid, signal.SIGKILL)
+        except (ProcessLookupError, PermissionError, AttributeError):
+            proc.kill()
+        proc.wait()
+        if proc.stdout is not None:
+            proc.stdout.close()
+        return "timeout", None, ""
+    text = out.decode("utf-8", "replace") if capture and out else ""
     return "ok", proc.returncode, text
 
 

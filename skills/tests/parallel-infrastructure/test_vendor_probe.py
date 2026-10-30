@@ -330,3 +330,21 @@ def test_stdin_is_devnull(tmp_path):
     make_cli(tmp_path, helps={"--help": FULL_HELP})
     status, rc, _ = vp._run(["sh", "-c", "cat; exit 0"], 5, True)
     assert (status, rc) == ("ok", 0)
+
+
+@pytest.mark.skipif(os.name != "posix", reason="process groups are POSIX-only")
+def test_timeout_kills_grandchildren(tmp_path):
+    pidfile = tmp_path / "grandchild.pid"
+    status, rc, out = vp._run(
+        ["sh", "-c", f"sleep 30 & echo $! > {pidfile}; wait"], 1, True
+    )
+    assert (status, rc, out) == ("timeout", None, "")
+    pid = int(pidfile.read_text().strip())
+    deadline = time.monotonic() + 2
+    while True:
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            break
+        assert time.monotonic() < deadline, f"grandchild {pid} survived the timeout"
+        time.sleep(0.05)
