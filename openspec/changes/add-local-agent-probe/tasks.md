@@ -77,9 +77,9 @@ Sizes follow the plan-feature Task Sizing Reference. No task is XL; one is L (3.
   **Dependencies**: 1.1
 - [x] 4.2 Implement the `probe` schema property, `CliConfig.probe`, validation rule, and dispatch-configs serialization **(S)**
   **Dependencies**: 4.1
-- [ ] 4.3 Add `probe:` blocks to `agents.yaml` per design D3's table and remove stale `# … verified <date>` comments **(XS)**
+- [x] 4.3 Add `probe:` blocks to `agents.yaml` per design D3's table and remove stale `# … verified <date>` comments **(XS)**
   **Dependencies**: 4.2
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 
 ## 5. Install report (wp-install)
 
