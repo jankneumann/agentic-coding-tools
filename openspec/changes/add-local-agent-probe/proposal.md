@@ -30,6 +30,8 @@ a local probe becomes the authority on capability, and dispatch uses their inter
     output. Reports the CLI version and any `missing_flags`.
   - **L2 auth** — run a declared non-inference auth-status command, or check that declared
     credential files *exist* (contents are never read, printed, or cached).
+  - Every declared probe argv (version, help, auth) is screened against the same
+    credential-printing token denylist, because version and help output are captured.
 - `vendor_health.py` and `review_dispatcher.py --check-vendors` both delegate to
   `vendor_probe.py`, so `/vendor-status` and the autopilot quorum check can no longer
   disagree. Existing output fields are preserved; probe tiers are added fields.
@@ -38,8 +40,9 @@ a local probe becomes the authority on capability, and dispatch uses their inter
   Required flags are *derived* from `dispatch_modes`, not hand-listed. The coordinator's
   `AGENTS_SCHEMA`, `CliConfig`, and `get_dispatch_configs()` carry the new key.
 - A per-machine probe cache (user cache directory, outside any repository) records each
-  lane's tier results with a timestamp and TTL, invalidated when the CLI path or version
-  changes. `review_dispatcher` excludes lanes whose cached probe failed before dispatch.
+  lane's tier results with a timestamp and TTL, invalidated when the CLI's resolved path or
+  the lane's normalized config fingerprint changes (the version is re-read on every re-probe;
+  design D4). `review_dispatcher` excludes lanes whose cached probe failed before dispatch.
 - Runtime `auth_required` and `vendor_unavailable` classifications observed during dispatch
   are written to a separate `runtime_failures` map in the same cache, so an account-scoped
   failure is remembered across runs until its TTL expires (or, for `auth_required`, a
@@ -60,12 +63,15 @@ lane ids and reason codes so a later change can.
 
 No **BREAKING** changes: the `probe:` key is optional, absent blocks fall back to L0 plus a
 `--version` call (today's `--check-vendors` behaviour), and all existing JSON fields remain.
+One field narrows in meaning: `vendor_health --json` `dispatch_modes` lists only modes that pass
+L1 — identical to today for a lane without a `probe` block whose `--version` succeeds (vendor-ux
+spec).
 
 ## Non-Functional Requirements
 
 | Attribute | Metric | Target | Verified by (phase) |
 |-----------|--------|--------|---------------------|
-| Performance | Wall-clock of a cold full probe (all lanes, L0–L2) | 10 s per subprocess, 25 s per-lane deadline, lanes concurrent → total ≤ 30 s (inside `install.sh`'s 60 s budget) | Unit tests with sleeping fake CLIs |
+| Performance | Wall-clock of a cold full probe (all lanes, L0–L2) | Each subprocess timeout `min(10 s, remaining lane budget)`, 25 s hard per-lane deadline, ≤ 8 lanes concurrent → ≤ ~25 s for ≤ 8 lanes; the report's 60 s timeout caps larger rosters (design D10) | Unit tests with sleeping fake CLIs |
 | Performance | Dispatch-time overhead with a warm cache | Zero subprocesses started by `discover_reviewers`; ≤ 50 ms added (generous bound, not a micro-benchmark) | Unit test patching `subprocess` to fail on call, plus a coarse timing check |
 | Performance | Coordinator event loop | Watchdog vendor-health call runs in `asyncio.to_thread` and reuses fresh cache entries | `agent-coordinator/tests/test_watchdog_vendor.py` |
 | Resilience | `install.sh --check` exit code when probes fail or no vendor is installed | Unchanged from pre-change behaviour (probe never contributes a failure) | `skills/tests/install_sh` tests |

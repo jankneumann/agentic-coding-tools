@@ -22,3 +22,7 @@ valid state, not an error.
 #### Scenario: Unresolvable config is reported, not fatal
 - **WHEN** `--check` runs in a consumer repo with no `AGENTS_YAML`, no `COORDINATION_API_URL`, and no local `agent-coordinator/agents.yaml`
 - **THEN** it SHALL print `probe report unavailable: no agents configuration resolved` and its exit code SHALL be unchanged
+
+#### Scenario: A hung probe is cut off at the overall timeout
+- **WHEN** `--check` runs and a lane's fake CLI never exits
+- **THEN** `--check` SHALL finish within the 60-second report bound plus its drift checks, print a report or a `probe report unavailable: timeout` line, and exit with the drift checks' status

@@ -47,6 +47,11 @@ skipped). The help command for that mode is `[command, *subcommand_path, "--help
 `-s`. Flags named by `cli` keys ending in `_flag` (`model_flag`, `thinking_flag`, …) are added,
 because the dispatcher injects them at runtime. `probe.ignore_flags` removes false positives.
 
+`probe.help_args` is constrained because it replaces a generated help command with an
+arbitrary argv: each value must contain `--help`, `-h`, or `help` (enforced in
+`agents_config.validate`), so an override cannot run a real subcommand such as
+`exec -s read-only`, and it passes the same denied-token check as every other probe argv (D3).
+
 A flag is present when it occurs in help output as a whole token
 (`(?<![\w-])<flag>(?![\w-])`). L1 is therefore **per (lane, mode)**, which matches
 `--check-vendors`' per-mode report.
@@ -56,18 +61,34 @@ this change exists to remove.
 
 ### D3 — Auth is exit-code-only, allowlist-shaped
 
+**Every probe argv is denylisted, not only the auth one.** The version command's stdout *is*
+captured (it becomes `cli_version` in the cache and the report), and help output is captured for
+the flag check, so a mis-declared `version_args: [auth, print-api-key]` would otherwise persist a
+credential. The denied-token rule below therefore applies to `version_args`, every `help_args`
+value, and `auth_status_args` alike, and every declared argv list must be non-empty. As defence in
+depth, only the first line of version output, truncated to 200 characters, is stored.
+
 L2 runs `probe.auth_status_args` with stdin/stdout/stderr bound to `DEVNULL`; only the exit code
 is used (0 → `auth_ok`, non-zero → `auth_failed`, timeout → `probe_timeout`). Output is never
 captured, so an auth command that prints an account email or a token cannot leak it.
 `probe.credential_files` is checked with `Path.expanduser().exists()` only — never opened.
 
-`AGENTS_SCHEMA` validation rejects an `auth_status_args` list when any token matches
-`print-api-key|print-bearer-token|--credentials|--show-token|logout` (case-insensitive), or when
-its **last** token is `login` — because several CLIs put credential-printing subcommands next to
+`AGENTS_SCHEMA` validation rejects any probe argv list (`version_args`, a `help_args` value, or
+`auth_status_args`) when any token matches
+`print-api-key|print-bearer-token|--credentials|--show-token|logout` (case-insensitive, written
+as explicit character classes because JSON Schema patterns are ECMA-262 and do not accept an
+inline `(?i)` flag), and rejects an `auth_status_args` list whose **last** token is `login` — because several CLIs put credential-printing subcommands next to
 their status commands (`pi auth print-api-key`), and a bare `grok login` would start an
 interactive login. `login` elsewhere stays legal so `codex login status` is accepted. The
 last-token rule is not expressible in JSON Schema, so it is enforced in `agents_config.validate`
-alongside the schema check. With neither key declared, L2 is `auth_unknown`, which never excludes a lane.
+alongside the schema check. **Precedence.** Exactly one L2 method runs, recorded as `l2.method`: when `auth_status_args` is
+declared it is used and `credential_files` is ignored (`status_command`); otherwise, when
+`credential_files` is declared, L2 is `auth_ok` if every listed path exists and `auth_failed` if
+any is missing (`credential_files`); with neither key declared, L2 is `auth_unknown` (`none`),
+which never excludes a lane. A status command that cannot be launched (`FileNotFoundError` /
+`PermissionError`) yields `auth_unknown`, not `auth_failed`. `credential_files` evidence is
+weaker than a status command — a stale token file still exists — so it never clears a runtime
+`auth_required` failure (D6).
 
 Initial declarations (verified locally 2026-10-29 by `--help` only):
 
@@ -75,7 +96,7 @@ Initial declarations (verified locally 2026-10-29 by `--help` only):
 |---|---|
 | `claude` | `auth_status_args: [auth, status]` |
 | `codex` | `auth_status_args: [login, status]` |
-| `pi` | `auth_status_args: [auth, check, --provider, <lane provider>, --no-refresh]` |
+| `pi` | `auth_status_args: [auth, check, --provider, openrouter, --no-refresh]` (literal; `openrouter` is the provider `pi-local`'s dispatch args pass — the probe block does no templating) |
 | `grok` | `credential_files: ["~/.grok/auth.json"]` (no status subcommand exists) |
 | `agy` (antigravity) | none → `auth_unknown` (CLI not installed here to verify) |
 
@@ -106,7 +127,10 @@ differently depending on which source the writer (`install.sh --check`) and the 
 `vendor_probe.lane_fingerprint(cli)` therefore hashes the canonical JSON (sorted keys, no
 whitespace) of exactly the probe-relevant fields with defaults applied: `command`,
 `{mode: args}` for every dispatch mode, every key ending in `_flag` (with `model_flag`
-defaulting to `"-m"`), and `probe` (absent → `{}`). Fields that do not change probe outcome
+defaulting to `"-m"`; for every other `_flag` key, `null` and absent are the same and the key is
+dropped from the projection), and `probe` (absent → `null`, kept distinct from a declared `{}`
+because D9 gives the two different L1 behaviour — adding `probe: {}` to turn flag checking on
+must invalidate a cached version-only result). Fields that do not change probe outcome
 (`model`, `model_fallbacks`, `api_key_env`, …) are excluded so editing a model list does not
 discard capability results.
 
@@ -126,7 +150,10 @@ mutation during install.
 
 `discover_reviewers` (`review_dispatcher.py:2817`) consults the cache before the Tier 1
 `can_dispatch` check and excludes a lane/mode when a **fresh** entry records `cli_not_found`,
-`missing_flags` for that mode, `auth_failed`, or a fresh `runtime_failures` record. Missing or stale
+`missing_flags` or `probe_failed` (a version or help command that exited non-zero) for that mode,
+`auth_failed`, or a fresh `runtime_failures` record. `probe_timeout` never excludes — a slow
+machine is not a broken CLI. This is the same predicate `--check-vendors` uses to mark a lane/mode
+unverified, so the INIT quorum check and dispatch agree on which lanes exist. Missing or stale
 entries never exclude — dispatch adds no subprocesses, keeping warm-cache overhead ≤ 50 ms.
 Probing (and cache writes) happen in `--check-vendors` (autopilot INIT), `vendor_health.py`,
 and `install.sh --check`. `AGENTIC_PROBE_IGNORE_CACHE=1` disables the filter. Every exclusion
@@ -141,7 +168,9 @@ best-effort: an `OSError` is logged at WARNING and never changes the `ReviewResu
 
 Clearing differs by class, because the probe can only observe what it can observe token-free:
 
-- `auth_required` is cleared by a later probe whose L2 is `auth_ok`.
+- `auth_required` is cleared by a later probe whose L2 is `auth_ok` **with method
+  `status_command`**. An `auth_ok` from `credential_files` (existence only) does not clear it,
+  because an expired token file still exists; such a failure clears only when its TTL expires.
 - `vendor_unavailable` is the **billing/credits** class (`_UNAVAILABLE_PATTERNS`, HTTP 402); no
   token-free probe can show credits were restored, so it clears only when its TTL expires.
 
@@ -158,9 +187,14 @@ Existing codes keep their meaning: `cli_not_found`, `probe_timeout`, `probe_fail
 
 After the existing drift checks, `--check` runs
 `python3 <skills>/parallel-infrastructure/scripts/vendor_probe.py report` with a 60 s overall
-timeout. It prints a table (lane, version, L0/L1/L2, remediation hint) to stdout. Any failure —
+timeout. Config resolution is the one non-stdlib step and lives only in the `report` entry
+point: it lazily imports `review_dispatcher`'s existing resolver (`AGENTS_YAML` →
+`COORDINATION_API_URL` `/agents/dispatch-configs` → local `agent-coordinator/agents.yaml`) and
+passes the resulting plain dicts to the stdlib-only library functions. If that import fails
+(e.g. no PyYAML) or no source resolves, the report prints `probe report unavailable: <reason>`.
+The library path used by `vendor_health.py` and the watchdog never performs this import (D1). It prints a table (lane, version, L0/L1/L2, remediation hint) to stdout. Any failure —
 no `python3`, no config resolvable, timeout — prints one `probe report unavailable: <reason>`
-line. The probe's exit status is discarded; `--check`'s exit code is computed exactly as before.
+line. `report` itself exits 0 whenever it prints a table (zero dispatchable lanes included) and 2 when it prints the `unavailable` line. The probe's exit status is discarded by `--check`; `--check`'s exit code is computed exactly as before.
 
 ### D9 — Backward compatibility
 
@@ -173,9 +207,12 @@ when present, so the endpoint payload is unchanged for configs without it.
 Lanes are probed in a `ThreadPoolExecutor` (≤ 8 workers); each subprocess has a 10 s timeout
 (matching the existing `_dry_invoke` contract) and runs with `stdin=DEVNULL`. Within a lane the
 subprocesses run sequentially (version, then each **distinct** help argv — modes sharing a help
-command run it once — then auth), under a **25 s per-lane deadline**: a subprocess that cannot
-start before the deadline is not run and its tier is recorded `probe_timeout`. A cold full probe
-is therefore bounded by ~25 s regardless of mode count, inside `install.sh`'s 60 s budget.
+command run it once — then auth), under a **25 s per-lane deadline**: each subprocess's timeout
+is `min(10 s, remaining lane budget)`, and a subprocess with no budget left is not run and its
+tier is recorded `probe_timeout`. A lane therefore never exceeds 25 s (plus kill latency). With
+≤ 8 lanes the pool runs one wave, so a cold full probe is bounded by ~25 s; with more lanes the
+bound is `ceil(lanes / 8) × 25 s`, which the report's 60 s timeout (D8) still caps — lanes not
+finished when it fires are reported as `probe_timeout`.
 
 ### D11 — Who re-probes, who reuses
 
@@ -201,6 +238,16 @@ bound, so the call moves to `await asyncio.to_thread(self._load_vendor_health_re
   probes, so the filter does not fire (never a wrong exclusion). Accepted: keying by
   `(agent_id, fingerprint)` would grow the cache without bound for a rare case.
 
+- **Runtime failures are keyed by `agent_id` only** — the cache is per user, so the same
+  `agent_id` in two repositories on one machine normally runs under the same login and account;
+  the record is deliberately not fingerprinted so it survives config edits (D4). Where two repos
+  drive one `agent_id` with different credentials (e.g. a per-repo API-key env), one repo's
+  failure can exclude the lane in the other for at most the 1 h TTL. Mitigation:
+  `AGENTIC_PROBE_IGNORE_CACHE=1`, and every exclusion is logged with its reason (D5). Accepted.
+- **In-place CLI upgrades** — an upgrade that keeps the same realpath keeps a fresh entry for up
+  to the 24 h TTL; the version is only re-read on a re-probe. Autopilot INIT re-probes
+  (`reuse_fresh=False`, D11), so a run never starts on a stale verdict; only between-run
+  discovery can lag. Accepted.
 - **Help text formats vary** — a CLI listing flags only under `--help-all` would false-negative.
   Mitigation: `probe.help_args` override and `ignore_flags`; a `missing_flags` result reports
   the exact flags so the fix is obvious.

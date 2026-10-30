@@ -20,6 +20,10 @@ event loop (`asyncio.to_thread`).
 - **WHEN** a lane's CLI is installed but lacks a flag its `review` mode uses
 - **THEN** `vendor_health --json` SHALL omit `review` from that lane's `dispatch_modes` and report it in `missing_flags`, and `--check-vendors --json` SHALL list the lane as `unverified` for `review` with reason `missing_flags`
 
+#### Scenario: An expired login makes a lane unhealthy
+- **WHEN** a lane's CLI and flags pass and its auth-status command exits 1
+- **THEN** `vendor_health --json` SHALL report `auth_status: "auth_failed"` and `healthy: false` for that lane
+
 #### Scenario: The watchdog loader still works
 - **WHEN** `agent-coordinator/src/watchdog.py` loads `vendor_health.py` by path from a directory that also contains `vendor_probe.py` and has no PyYAML installed
 - **THEN** `check_all_vendors` SHALL run without an import error
