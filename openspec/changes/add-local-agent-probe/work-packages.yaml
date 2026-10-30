@@ -2,7 +2,7 @@ schema_version: 1
 feature:
   id: add-local-agent-probe
   title: "Tiered local vendor CLI probe with per-machine cache"
-  plan_revision: 1
+  plan_revision: 2
   created_by: claude_code
   deployable: false
 contracts:
@@ -147,6 +147,7 @@ packages:
         - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
         - "skills/parallel-infrastructure/scripts/vendor_health.py"
         - "agent-coordinator/Dockerfile"
+        - "agent-coordinator/src/watchdog.py"
       keys: []
       ttl_minutes: 120
       reason: "Dispatcher vendor selection"
@@ -155,6 +156,8 @@ packages:
         - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
         - "skills/parallel-infrastructure/scripts/vendor_health.py"
         - "agent-coordinator/Dockerfile"
+        - "agent-coordinator/src/watchdog.py"
+        - "agent-coordinator/tests/test_watchdog_vendor.py"
         - "skills/tests/parallel-infrastructure/test_vendor_health_probe.py"
         - "skills/tests/parallel-infrastructure/test_dispatch_probe_cache.py"
       read_allow: ["**"]
@@ -220,13 +223,15 @@ packages:
   - package_id: wp-integration
     title: "Merged-tree gates and real-CLI verification"
     task_type: integration
-    description: "Tasks 6.1-6.2."
+    description: "Tasks 6.1-6.3 — cross-source fingerprint test, merged-tree gates, real-CLI verification."
     role: integrator
     priority: 4
     depends_on: [wp-dispatch, wp-config, wp-install]
     locks: {files: [], keys: [], ttl_minutes: 60, reason: "Integration"}
     scope:
-      write_allow: ["openspec/changes/add-local-agent-probe/validation-report.md"]
+      write_allow:
+        - "openspec/changes/add-local-agent-probe/validation-report.md"
+        - "agent-coordinator/tests/test_probe_fingerprint_sources.py"
       read_allow: ["**"]
     worktree: {name: probe-integration, mode: isolated}
     timeout_minutes: 90
@@ -235,6 +240,12 @@ packages:
     verification:
       tier_required: A
       steps:
+        - name: "Cross-source fingerprint"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_probe_fingerprint_sources.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence: {artifacts: [], result_keys: [fingerprint_sources_passed]}
         - name: "Skills regression"
           kind: command
           command: "skills/.venv/bin/python -m pytest skills/tests -q -m 'not e2e and not integration'"
@@ -262,5 +273,5 @@ packages:
     metadata: {loc_estimate: 20, complexity: medium, package_kind: integration}
     inputs: {}
     outputs:
-      result_keys: [skills_regression_passed, coordinator_regression_passed, openspec_strict_passed, install_check_passed]
+      result_keys: [fingerprint_sources_passed, skills_regression_passed, coordinator_regression_passed, openspec_strict_passed, install_check_passed]
       artifacts: ["openspec/changes/add-local-agent-probe/validation-report.md"]

@@ -2,69 +2,173 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://agentic-coding-tools/contracts/vendor-probe-cache.schema.json",
   "title": "Per-machine vendor probe cache",
-  "description": "Written by vendor_probe.py; read by review_dispatcher.discover_reviewers. Holds only paths, versions, booleans and reason codes — never credential material (design D3/D4).",
+  "description": "Written by vendor_probe.py; read by review_dispatcher.discover_reviewers. Holds only paths, versions, booleans and reason codes \u2014 never credential material (design D3/D4).",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "lanes"],
+  "required": [
+    "schema_version",
+    "lanes"
+  ],
   "properties": {
-    "schema_version": {"const": 1},
+    "schema_version": {
+      "const": 1
+    },
     "lanes": {
       "type": "object",
-      "additionalProperties": {"$ref": "#/$defs/lane"}
+      "additionalProperties": {
+        "$ref": "#/$defs/lane"
+      }
+    },
+    "runtime_failures": {
+      "type": "object",
+      "description": "Keyed by agent_id; written by review_dispatcher on auth_required / vendor_unavailable.",
+      "additionalProperties": {
+        "$ref": "#/$defs/runtime_failure"
+      }
     }
   },
   "$defs": {
     "reason": {
-      "enum": ["cli_not_found", "probe_timeout", "probe_failed", "missing_flags", "auth_failed", "auth_unknown"]
+      "enum": [
+        "cli_not_found",
+        "probe_timeout",
+        "probe_failed",
+        "missing_flags",
+        "auth_failed",
+        "auth_unknown"
+      ]
     },
     "tier": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["ok"],
+      "required": [
+        "ok"
+      ],
       "properties": {
-        "ok": {"type": "boolean"},
-        "reason": {"$ref": "#/$defs/reason"},
-        "missing_flags": {"type": "array", "items": {"type": "string"}}
+        "ok": {
+          "type": "boolean"
+        },
+        "reason": {
+          "$ref": "#/$defs/reason"
+        },
+        "missing_flags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
       }
     },
     "lane": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["agent_id", "command", "cli_realpath", "config_fingerprint", "probed_at", "ttl_seconds", "l0", "modes", "l2"],
+      "required": [
+        "agent_id",
+        "command",
+        "cli_realpath",
+        "config_fingerprint",
+        "probed_at",
+        "ttl_seconds",
+        "l0",
+        "modes",
+        "l2"
+      ],
       "properties": {
-        "agent_id": {"type": "string", "minLength": 1},
-        "command": {"type": "string", "minLength": 1},
-        "cli_realpath": {"type": ["string", "null"]},
-        "cli_version": {"type": ["string", "null"], "maxLength": 200},
-        "config_fingerprint": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
-        "probed_at": {"type": "string", "format": "date-time"},
-        "ttl_seconds": {"type": "integer", "minimum": 1},
-        "l0": {"$ref": "#/$defs/tier"},
+        "agent_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "command": {
+          "type": "string",
+          "minLength": 1
+        },
+        "cli_realpath": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "cli_version": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 200
+        },
+        "config_fingerprint": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "description": "sha256 of the normalized probe-relevant projection of the cli block (design D4), not of its raw JSON."
+        },
+        "probed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "ttl_seconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "l0": {
+          "$ref": "#/$defs/tier"
+        },
         "modes": {
           "type": "object",
           "description": "L1 result per dispatch mode name",
-          "additionalProperties": {"$ref": "#/$defs/tier"}
+          "additionalProperties": {
+            "$ref": "#/$defs/tier"
+          }
         },
         "l2": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["status"],
+          "required": [
+            "status"
+          ],
           "properties": {
-            "status": {"enum": ["auth_ok", "auth_failed", "auth_unknown", "probe_timeout"]},
-            "method": {"enum": ["status_command", "credential_files", "none"]}
-          }
-        },
-        "runtime_failure": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["error_class", "observed_at", "ttl_seconds"],
-          "properties": {
-            "error_class": {"enum": ["auth_required", "vendor_unavailable"]},
-            "observed_at": {"type": "string", "format": "date-time"},
-            "ttl_seconds": {"type": "integer", "minimum": 1}
+            "status": {
+              "enum": [
+                "auth_ok",
+                "auth_failed",
+                "auth_unknown",
+                "probe_timeout"
+              ]
+            },
+            "method": {
+              "enum": [
+                "status_command",
+                "credential_files",
+                "none"
+              ]
+            }
           }
         }
       }
+    },
+    "runtime_failure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "error_class",
+        "observed_at",
+        "ttl_seconds"
+      ],
+      "properties": {
+        "error_class": {
+          "enum": [
+            "auth_required",
+            "vendor_unavailable"
+          ]
+        },
+        "observed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "ttl_seconds": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "description": "Account-scoped dispatch failure (design D4/D6). Independent of lanes[] and of config_fingerprint; fresh while now - observed_at < ttl_seconds."
     }
   }
 }
