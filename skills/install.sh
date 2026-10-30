@@ -251,6 +251,41 @@ is_self_install() {
   [[ -n "$target_skills" && "$target_skills" == "$SCRIPT_DIR" ]]
 }
 
+# Informational vendor probe report (add-local-agent-probe D8). Never affects
+# the exit status: every failure prints one "probe report unavailable:" line.
+print_vendor_probe_report() {
+  local probe="$SCRIPT_DIR/parallel-infrastructure/scripts/vendor_probe.py"
+  local limit="${AGENTIC_PROBE_REPORT_TIMEOUT:-60}"
+  local py="$SCRIPT_DIR/.venv/bin/python"
+  local out
+
+  echo
+  echo "Vendor probe report:"
+  if [[ ! -f "$probe" ]]; then
+    echo "probe report unavailable: vendor_probe.py not found"
+    return 0
+  fi
+  if [[ ! -x "$py" ]]; then
+    if ! py="$(command -v python3 2>/dev/null)"; then
+      echo "probe report unavailable: python3 not found"
+      return 0
+    fi
+  fi
+  if command -v timeout >/dev/null 2>&1; then
+    out="$(cd "$TARGET_ROOT" && timeout "$((limit + 5))" "$py" "$probe" report --timeout "$limit" 2>&1)" || true
+  else
+    out="$(cd "$TARGET_ROOT" && "$py" "$probe" report --timeout "$limit" 2>&1)" || true
+  fi
+  if [[ -z "$out" ]]; then
+    echo "probe report unavailable: probe error"
+  elif [[ "$out" == *"probe report unavailable:"* ]]; then
+    printf '%s\n' "$out" | grep -m1 'probe report unavailable:'
+  else
+    printf '%s\n' "$out"
+  fi
+  return 0
+}
+
 check_install_payload() {
   local drift=0
   local agent rel_dir dest_dir skill_path skill_name dest_path library_name
@@ -319,6 +354,9 @@ check_install_payload() {
   if ! check_install_stamp; then
     drift=1
   fi
+
+  # Informational only: runs after the drift verdict and cannot change it.
+  print_vendor_probe_report || true
 
   [[ $drift -eq 0 ]]
 }

@@ -83,11 +83,11 @@ Sizes follow the plan-feature Task Sizing Reference. No task is XL; one is L (3.
 
 ## 5. Install report (wp-install)
 
-- [ ] 5.1 Write tests that `install.sh --check` prints the probe report and that its exit code is unchanged across pass/drift × probe-pass/probe-fail/unavailable **(S)**
+- [x] 5.1 Write tests that `install.sh --check` prints the probe report and that its exit code is unchanged across pass/drift × probe-pass/probe-fail/unavailable **(S)**
   **Spec scenarios**: toolkit-distribution — No vendor CLIs installed; Drift still fails regardless of the report; Unresolvable config is reported, not fatal; A bare interpreter without PyYAML is reported, not fatal; A hung probe is cut off at the overall timeout
   **Design decisions**: D8
   **Dependencies**: 2.8
-- [ ] 5.2 Wire the bounded, exit-code-neutral report into `install.sh --check`; document tiers and cache in `skills/vendor-status/SKILL.md` **(S)**
+- [x] 5.2 Wire the bounded, exit-code-neutral report into `install.sh --check`; document tiers and cache in `skills/vendor-status/SKILL.md` **(S)**
   **Dependencies**: 5.1
 
 ## 6. Integration (wp-integration)
