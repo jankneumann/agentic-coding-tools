@@ -159,6 +159,7 @@ packages:
         - "agent-coordinator/Dockerfile"
         - "agent-coordinator/src/watchdog.py"
         - "skills/parallel-infrastructure/scripts/checkpoint_findings.py"
+        - "agent-coordinator/tests/test_dockerfile_vendor_registry.py"
         - "agent-coordinator/tests/test_watchdog_vendor.py"
         - "skills/tests/parallel-infrastructure/test_vendor_health_probe.py"
         - "skills/tests/parallel-infrastructure/test_dispatch_probe_cache.py"

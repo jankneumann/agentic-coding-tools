@@ -30,7 +30,7 @@ Sizes follow the plan-feature Task Sizing Reference. No task is XL; one is L (3.
   **Dependencies**: 2.3
 - [ ] Checkpoint: run tests, review diff, verify scope
 - [ ] 2.5 Write tests for the probe cache — path resolution precedence, normalized-projection fingerprint, realpath invalidation, TTL, locked read-modify-write with `0600` atomic replace, corrupt-file recovery, `runtime_failures` record (with and without a `lanes` entry) and per-class clearing, `probe_lanes(reuse_fresh=True)` starting no subprocesses **(M)**
-  **Spec scenarios**: parallel-infrastructure — Cache path precedence; The cache file is private; Declaring an empty probe block invalidates a version-only entry; Changing the CLI invalidates its entry; Changing the lane config invalidates its entry; The same lane fingerprints identically across config sources (unit level, hand-built dicts); Editing a model list does not invalidate capability results; Concurrent writers do not lose updates; A corrupt cache does not break dispatch; A billing failure is not cleared by a passing auth probe; Credential-file evidence does not clear a runtime auth failure
+  **Spec scenarios**: parallel-infrastructure — Cache path precedence; The cache file is private; Declaring an empty probe block invalidates a version-only entry; Changing the CLI invalidates its entry; Changing the lane config invalidates its entry; The same lane fingerprints identically across config sources (unit level, hand-built dicts); Editing a model list does not invalidate capability results; Concurrent writers do not lose updates; A corrupt cache does not break dispatch; A billing failure is not cleared by a passing auth probe; Credential-file evidence does not clear a runtime auth failure; A probe that started before the failure does not clear it; A defaulted version argv fingerprints like an absent one
   **Also asserts**: a `null` and an absent non-`model_flag` `*_flag` key fingerprint identically; parallel-infrastructure scenarios An expired entry is stale; An unwritable cache does not fail a probe
   **Contracts**: contracts/vendor-probe-cache.schema.json
   **Design decisions**: D4, D6, D11
@@ -71,7 +71,7 @@ Sizes follow the plan-feature Task Sizing Reference. No task is XL; one is L (3.
 ## 4. Coordinator config (wp-config)
 
 - [ ] 4.1 Write tests for `cli.probe` in `AGENTS_SCHEMA`, `CliConfig`, the semantic rules in `agents_config.validate` (last-token `login`; each `help_args` value contains a help token), and `get_dispatch_configs()` round-trip (present-only) **(S)**
-  **Spec scenarios**: agent-identity — all six scenarios of Declarative CLI Probe Block (including `["login"]` rejected, which only `validate` can enforce)
+  **Spec scenarios**: agent-identity — every scenario of Declarative CLI Probe Block, including An empty probe block survives the round-trip (including `["login"]` rejected, which only `validate` can enforce)
   **Contracts**: contracts/cli-probe-block.schema.json
   **Design decisions**: D3, D9
   **Dependencies**: 1.1
@@ -84,7 +84,7 @@ Sizes follow the plan-feature Task Sizing Reference. No task is XL; one is L (3.
 ## 5. Install report (wp-install)
 
 - [ ] 5.1 Write tests that `install.sh --check` prints the probe report and that its exit code is unchanged across pass/drift × probe-pass/probe-fail/unavailable **(S)**
-  **Spec scenarios**: toolkit-distribution — No vendor CLIs installed; Drift still fails regardless of the report; Unresolvable config is reported, not fatal; A hung probe is cut off at the overall timeout
+  **Spec scenarios**: toolkit-distribution — No vendor CLIs installed; Drift still fails regardless of the report; Unresolvable config is reported, not fatal; A bare interpreter without PyYAML is reported, not fatal; A hung probe is cut off at the overall timeout
   **Design decisions**: D8
   **Dependencies**: 2.8
 - [ ] 5.2 Wire the bounded, exit-code-neutral report into `install.sh --check`; document tiers and cache in `skills/vendor-status/SKILL.md` **(S)**

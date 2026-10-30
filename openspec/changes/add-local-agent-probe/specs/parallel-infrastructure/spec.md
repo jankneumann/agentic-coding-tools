@@ -17,7 +17,9 @@ values and placeholder tokens such as `@review-findings-schema` skipped) and fro
 `*_flag` keys of the same normalized projection the fingerprint uses (`model_flag` defaulting to
 `-m`; `null` keys dropped), minus `probe.ignore_flags`; the help command for a mode SHALL be
 `probe.help_args[<mode>]` when that mode is listed and `[command, <leading non-flag args>,
-"--help"]` otherwise (a partial `help_args` map overrides only the modes it lists). Every probe subprocess SHALL run with `stdin` bound to
+"--help"]` otherwise (a partial `help_args` map overrides only the modes it lists). Every declared probe argv
+(`version_args`, `help_args` values, `auth_status_args`) SHALL be executed as arguments after
+`cli.command` — `[command, *argv]` — never as a bare argv. Every probe subprocess SHALL run with `stdin` bound to
 `DEVNULL` and a timeout of `min(10 s, remaining lane budget)`; a lane's subprocesses SHALL share a
 25-second per-lane deadline (a subprocess with no budget left is not run and its tier is
 `probe_timeout`); modes sharing a help argv SHALL run it once; and the probe SHALL NOT execute any dispatch-mode argument vector (so no model
@@ -143,6 +145,10 @@ absent cache directory.
 - **WHEN** `codex-local` is loaded once from a local `agents.yaml` that omits `model_flag` and once from a `/agents/dispatch-configs` payload that serializes `model_flag: "-m"` and `prompt_via_stdin: false`
 - **THEN** both SHALL produce the same `config_fingerprint`
 
+#### Scenario: A defaulted version argv fingerprints like an absent one
+- **WHEN** one source carries `probe: {auth_status_args: ["auth", "status"]}` and another carries the same block plus `version_args: ["--version"]`
+- **THEN** both SHALL produce the same `config_fingerprint`
+
 #### Scenario: Editing a model list does not invalidate capability results
 - **WHEN** a fresh entry exists and only the lane's `model_fallbacks` are edited
 - **THEN** the fingerprint SHALL be unchanged and the entry SHALL remain fresh
@@ -185,6 +191,10 @@ when its TTL expires.
 #### Scenario: A remembered auth failure skips the lane in the next run
 - **WHEN** run 1 dispatches `grok-local`, which fails with error class `auth_required`, and run 2 starts within one hour
 - **THEN** run 2's `discover_reviewers` SHALL omit `grok-local` and log reason `runtime_auth_required`
+
+#### Scenario: A probe that started before the failure does not clear it
+- **WHEN** a re-probe's auth-status command for `codex-local` starts at T, a dispatch records `auth_required` at T+1 s, and the auth command exits 0 at T+2 s
+- **THEN** the runtime failure SHALL remain
 
 #### Scenario: A remembered auth failure expires
 - **WHEN** a lane's `auth_required` runtime failure is older than its 1-hour TTL

@@ -16,7 +16,8 @@ lane. Its existing `--json` fields (`cli_installed`, `api_key_available`, `dispa
 `--check-vendors` and `discover_reviewers` use. The probe SHALL remain loadable from the coordinator container
 by file path alongside `vendor_health.py`, using only the standard library. The `vendor_health`
 CLI SHALL re-probe; the programmatic `check_all_vendors()` used by the coordinator watchdog SHALL
-reuse fresh cache entries without starting subprocesses, and the watchdog SHALL run it off the
+evaluate L0 live and reuse L1/L2 cache entries younger than one hour without starting
+subprocesses (re-probing older ones), and the watchdog SHALL run it off the
 event loop (`asyncio.to_thread`).
 
 #### Scenario: vendor-status and check-vendors agree
