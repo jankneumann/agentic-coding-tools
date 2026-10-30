@@ -628,10 +628,13 @@ def probe_lanes(
         for probe in fresh:
             results[probe.agent_id] = probe
 
+    # Re-read after store_probes: an auth_required failure disproved by a
+    # status-command probe is cleared inside store_probes' locked RMW, so the
+    # returned runtime_failure must reflect exactly what is on disk. Clearing
+    # again in memory would hide a failed write and make --check-vendors
+    # disagree with discover_reviewers, which reads the disk cache.
     doc = read_cache(path)
     for probe in results.values():
-        if not probe.reused:
-            _clear_auth_failure(doc, probe)
         probe.runtime_failure = fresh_runtime_failure(doc, probe.agent_id)
     return {a: results[a] for a in configs if a in results}
 

@@ -215,6 +215,25 @@ def test_status_command_clears_auth_required_only(tmp_path):
     assert "a" not in vp.read_cache()["runtime_failures"]
 
 
+def test_unwritable_cache_keeps_auth_required_in_returned_probe(tmp_path, monkeypatch):
+    """A clear that cannot be persisted must not show up in the returned LaneProbe.
+
+    Otherwise --check-vendors (returned object) says the lane is clear while
+    discover_reviewers (disk cache) still excludes it with runtime_auth_required.
+    """
+    block = cli(probe={"auth_status_args": ["auth", "status"]})
+    vp.record_runtime_failure("a", "auth_required")
+    time.sleep(1.1)  # observed_at has 1 s resolution
+    # Simulate an unwritable cache: the seeded record stays readable, but the
+    # locked read-modify-write in store_probes cannot persist the clear.
+    monkeypatch.setattr(vp, "update_cache", lambda mutate, path=None: False)
+    result = vp.probe_lanes({"a": block}, reuse_fresh=False)
+    assert result["a"].entry["l2"]["status"] == "auth_ok"
+    assert result["a"].runtime_failure is not None
+    assert result["a"].runtime_failure["error_class"] == "auth_required"
+    assert vp.read_cache()["runtime_failures"]["a"]["error_class"] == "auth_required"
+
+
 def test_billing_failure_not_cleared_by_auth_ok(tmp_path):
     block = cli(probe={"auth_status_args": ["auth", "status"]})
     vp.record_runtime_failure("a", "vendor_unavailable")
