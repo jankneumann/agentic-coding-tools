@@ -77,7 +77,7 @@ spec).
 | Resilience | `install.sh --check` exit code when probes fail or no vendor is installed | Unchanged from pre-change behaviour (probe never contributes a failure) | `skills/tests/install_sh` tests |
 | Security | Credential material in probe output, cache file, or logs | Zero occurrences (only paths + booleans recorded) | Unit test scanning cache/report for seeded secret values |
 | Cost | Model tokens spent by any probe tier | 0 | Spec scenario + test asserting no dispatch-mode args are executed |
-| Compatibility | Existing `vendor_health --json` / `--check-vendors --json` fields | All present with unchanged meaning | Existing test suites pass unmodified |
+| Compatibility | Existing `vendor_health --json` / `--check-vendors --json` fields | All present. Two intentional semantic narrowings: `vendor_health` `dispatch_modes` lists only modes passing L1, and `healthy` / `--check-vendors` `verified` additionally require L2 ≠ `auth_failed` and no fresh runtime failure. Unchanged for a lane without a `probe` block, with a passing `--version`, and no runtime failure | Existing test suites pass; tests asserting the narrowings are new |
 
 ## Approaches Considered
 

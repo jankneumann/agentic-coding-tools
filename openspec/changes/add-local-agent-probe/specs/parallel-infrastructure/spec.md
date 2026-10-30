@@ -12,9 +12,12 @@ token in that mode's help output), and **L2 auth**. L2 SHALL use exactly one met
 listed path exists and `auth_failed` when any is missing; otherwise `auth_unknown`. A status
 command that cannot be launched SHALL yield `auth_unknown`. Only the first line of version output,
 truncated to 200 characters, SHALL be retained. Required flags SHALL be derived from the mode's
-`dispatch_modes.<mode>.args` and from `cli` keys whose name ends in `_flag`, minus
-`probe.ignore_flags`; the help command SHALL be `[command, <leading non-flag args>, "--help"]`
-unless `probe.help_args` is declared. Every probe subprocess SHALL run with `stdin` bound to
+`dispatch_modes.<mode>.args` (tokens starting with `-`; `--flag=value` counted as `--flag`;
+values and placeholder tokens such as `@review-findings-schema` skipped) and from the `cli`
+`*_flag` keys of the same normalized projection the fingerprint uses (`model_flag` defaulting to
+`-m`; `null` keys dropped), minus `probe.ignore_flags`; the help command for a mode SHALL be
+`probe.help_args[<mode>]` when that mode is listed and `[command, <leading non-flag args>,
+"--help"]` otherwise (a partial `help_args` map overrides only the modes it lists). Every probe subprocess SHALL run with `stdin` bound to
 `DEVNULL` and a timeout of `min(10 s, remaining lane budget)`; a lane's subprocesses SHALL share a
 25-second per-lane deadline (a subprocess with no budget left is not run and its tier is
 `probe_timeout`); modes sharing a help argv SHALL run it once; and the probe SHALL NOT execute any dispatch-mode argument vector (so no model
@@ -33,6 +36,26 @@ help command SHALL fail L1 for the modes using it with the same reasons.
 #### Scenario: Injected flags are required
 - **WHEN** a lane declares `model_flag: "-m"` and the help output lacks `-m`
 - **THEN** every mode of that lane SHALL fail L1 with `missing_flags` containing `-m`
+
+#### Scenario: Value and placeholder tokens are not required flags
+- **WHEN** a lane's `review` mode passes `["-p", "--output-format=json", "--json-schema", "@review-findings-schema"]`
+- **THEN** the required flags for `review` SHALL be exactly `-p`, `--output-format`, `--json-schema`, plus the lane's injected `*_flag` values
+
+#### Scenario: An undeclared model flag is still required
+- **WHEN** a lane loaded from a raw `agents.yaml` omits `model_flag` and its help output lacks `-m`
+- **THEN** every mode SHALL fail L1 with `missing_flags` containing `-m`, as it does when `model_flag: "-m"` is declared
+
+#### Scenario: Ignored flags are not required
+- **WHEN** a lane's `review` mode passes `--json-schema`, help output lacks it, and the lane declares `probe: {ignore_flags: ["--json-schema"]}`
+- **THEN** `review` SHALL pass L1
+
+#### Scenario: A partial help override leaves other modes on generated help
+- **WHEN** a lane declares `probe: {help_args: {review: ["exec", "--help"]}}` and its `alternative` mode passes `["-p"]`
+- **THEN** the probe SHALL check `review` against `[command, "exec", "--help"]` and `alternative` against `[command, "--help"]`
+
+#### Scenario: Version output is truncated before it is stored
+- **WHEN** a fake version command prints a 500-character first line followed by more lines
+- **THEN** the stored `cli_version` SHALL be the first 200 characters of the first line only
 
 #### Scenario: A lane without a probe block keeps today's behaviour
 - **WHEN** a lane's `cli` block has no `probe` key
@@ -62,6 +85,10 @@ help command SHALL fail L1 for the modes using it with the same reasons.
 - **WHEN** the lane's auth-status command does not exit within 10 seconds
 - **THEN** L2 SHALL be `probe_timeout`, the subprocess SHALL be killed, and the lane SHALL NOT be excluded from discovery on that basis
 
+#### Scenario: An auth command that cannot be launched is unknown
+- **WHEN** a lane declares `auth_status_args` and launching the command raises `FileNotFoundError`
+- **THEN** L2 SHALL be `auth_unknown` and the lane SHALL NOT be excluded on that basis
+
 #### Scenario: Auth output is never captured
 - **WHEN** a fake auth-status command prints `sk-test-SENTINEL-AUTH-42` and exits 0
 - **THEN** L2 SHALL be `auth_ok`, and the sentinel SHALL NOT appear in the probe's return value, stdout, stderr, logs, or cache file
@@ -87,7 +114,10 @@ environment. Runtime failures SHALL be stored in a separate `runtime_failures` m
 recordable without a probe entry and unaffected by fingerprint changes. Every write SHALL be a
 read-modify-write under an in-process lock and, where `fcntl` is available, an exclusive file
 lock, followed by an atomic replace; the file SHALL be created with mode `0600`. A cache that
-cannot be parsed SHALL be treated as empty.
+cannot be parsed SHALL be treated as empty. A failure to write the cache (any `OSError`) SHALL be
+logged at WARNING and SHALL NOT fail the caller: `probe_lanes()` SHALL still return the results it
+computed, so `vendor_health`, the watchdog, `--check-vendors`, and `report` work on a read-only or
+absent cache directory.
 
 #### Scenario: Cache path precedence
 - **WHEN** `AGENTIC_PROBE_CACHE` and `XDG_CACHE_HOME` are both set
@@ -121,6 +151,14 @@ cannot be parsed SHALL be treated as empty.
 - **WHEN** two threads record runtime failures for `grok-local` and `pi-local` at the same time against the same cache file
 - **THEN** after both complete the cache SHALL contain both runtime failures and SHALL validate against the schema
 
+#### Scenario: An expired entry is stale
+- **WHEN** an entry's `probed_at` is older than its `ttl_seconds`
+- **THEN** the entry SHALL be treated as stale and SHALL NOT exclude the lane
+
+#### Scenario: An unwritable cache does not fail a probe
+- **WHEN** `probe_lanes()` runs and the cache directory is read-only
+- **THEN** it SHALL log a warning and return the computed results
+
 #### Scenario: A corrupt cache does not break dispatch
 - **WHEN** the cache file contains `{not json`
 - **THEN** reads SHALL return no entries, dispatch SHALL proceed unfiltered, and the next probe SHALL overwrite the file with a valid document
@@ -131,7 +169,10 @@ cannot be parsed SHALL be treated as empty.
 lane, `cli_not_found`, `auth_failed`, a fresh runtime failure, or `missing_flags` or
 `probe_failed` for that mode. `probe_timeout` SHALL NOT exclude a lane. Missing or stale entries
 SHALL NOT exclude a lane, and discovery SHALL NOT start probe
-subprocesses. Each exclusion SHALL be logged with lane, mode, and reason.
+subprocesses. Each exclusion SHALL be logged with lane, mode, and reason, and SHALL be recorded in
+the review dispatch manifest as an `excluded_lanes` entry `{vendor, mode, reason, since}` (where
+`since` is the entry's `probed_at` or the runtime failure's `observed_at`), so a narrowed round is
+visible in the artefact operators read.
 `AGENTIC_PROBE_IGNORE_CACHE=1` SHALL disable the filter. When dispatch classifies a lane failure
 as `auth_required` or `vendor_unavailable`, the dispatcher SHALL record a runtime failure for
 that lane in the cache with a 1-hour TTL, whether or not a probe entry exists for it; a failure to
@@ -143,6 +184,18 @@ when its TTL expires.
 #### Scenario: A remembered auth failure skips the lane in the next run
 - **WHEN** run 1 dispatches `grok-local`, which fails with error class `auth_required`, and run 2 starts within one hour
 - **THEN** run 2's `discover_reviewers` SHALL omit `grok-local` and log reason `runtime_auth_required`
+
+#### Scenario: A remembered auth failure expires
+- **WHEN** a lane's `auth_required` runtime failure is older than its 1-hour TTL
+- **THEN** `discover_reviewers` SHALL include the lane
+
+#### Scenario: A passing status command clears a remembered auth failure
+- **WHEN** `codex-local` (L2 via `auth_status_args`) has a fresh `auth_required` runtime failure and a re-probe's auth-status command exits 0
+- **THEN** the runtime failure SHALL be removed and `discover_reviewers` SHALL include `codex-local`
+
+#### Scenario: Cache-driven exclusions appear in the dispatch manifest
+- **WHEN** `discover_reviewers` omits `grok-local` for reason `runtime_auth_required`
+- **THEN** the round's review manifest SHALL contain an `excluded_lanes` entry naming `grok-local`, the mode, the reason, and the failure's `observed_at`
 
 #### Scenario: A known-broken CLI is not dispatched
 - **WHEN** a fresh entry records L1 `probe_failed` for `codex-local`'s `review` mode
@@ -168,17 +221,23 @@ when its TTL expires.
 - **WHEN** a fresh entry marks `codex-local` `auth_failed` and `AGENTIC_PROBE_IGNORE_CACHE=1` is set
 - **THEN** `codex-local` SHALL be eligible for discovery
 
-### Requirement: Check-Vendors Uses the Tiered Probe
+## MODIFIED Requirements
 
-`review_dispatcher.py --check-vendors` SHALL decide each lane/mode's verified status with the
-tiered probe and SHALL write the results to the probe cache. A lane/mode SHALL be verified only
-when L0 and L1 pass, L2 is not `auth_failed`, and the lane has no fresh runtime failure after the
-probe's clearing rules are applied — the same predicate `discover_reviewers` uses, so the INIT
-quorum count equals the lanes dispatch will use. The existing `--json` keys, the unverified
-reasons `cli_not_found` and `probe_timeout`, and exit codes 0/2 SHALL keep their meaning;
-unverified entries MAY carry the new reasons `missing_flags`, `auth_failed`,
-`runtime_auth_required`, and `runtime_vendor_unavailable`, and verified
-entries MAY carry an additive `probe` object with tier details.
+### Requirement: Dispatchable Vendor Verification
+
+`review_dispatcher.py --check-vendors` SHALL count a vendor lane as available for a mode only after that mode is verified. For a CLI lane, verification SHALL use the tiered probe (`vendor_probe.py`, requirement *Tiered Local Vendor Probe*) with `reuse_fresh=False`, and SHALL write its results to the probe cache: a CLI lane/mode is verified only when L0 and L1 pass, L2 is not `auth_failed`, and the lane has no fresh runtime failure after the probe's clearing rules are applied — the same predicate `discover_reviewers` uses, so the INIT quorum count equals the lanes dispatch will use. For an SDK or API lane, verification SHALL remain the adapter's own authenticated no-op (such as a model-list call) run with a 10-second timeout. Credentials MAY be read only inside the adapter's existing credential path, and the probe SHALL NOT print, log, or return any environment value or credential. With `--json` it SHALL print `{"modes": {<mode>: {"verified": [...], "unverified": [{"vendor", "reason"}]}}, "probe_command": "<argv>"}` — `probe_command` naming the version argv — and keep its existing exit codes (0 at quorum, 2 below quorum or on probe failure); when the roster cannot be resolved it SHALL print `{"error": "<reason>", "modes": {}}` and exit 2. Unverified entries MAY carry the reasons `missing_flags`, `probe_failed`, `auth_failed`, `runtime_auth_required`, and `runtime_vendor_unavailable` in addition to `cli_not_found` and `probe_timeout`; verified entries MAY carry an additive `probe` object with tier details.
+
+#### Scenario: A listed vendor without its CLI is unverified
+- **WHEN** `agents.yaml` lists `codex` for mode `review` and no `codex` executable is on `PATH`
+- **THEN** `--check-vendors --json` SHALL list `codex` under `unverified` with reason `cli_not_found`, and SHALL NOT count it toward `--min-vendors`
+
+#### Scenario: A hanging dry invocation is unverified
+- **WHEN** a lane's version command does not exit within 10 seconds
+- **THEN** the lane SHALL be `unverified` with reason `probe_timeout`
+
+#### Scenario: The probe never discloses credentials
+- **WHEN** the test sets `ANTHROPIC_API_KEY=sk-test-SENTINEL-1234567890` and `OPENAI_API_KEY=sk-test-SENTINEL-0987654321` and runs `--check-vendors --json`
+- **THEN** neither sentinel value SHALL appear in stdout, stderr, or the JSON, and no `env` or `printenv` subprocess SHALL have been spawned
 
 #### Scenario: Check-vendors rejects a lane whose login has expired
 - **WHEN** a lane's CLI is installed, its flags are all present, and its auth-status command exits 1
@@ -187,3 +246,7 @@ entries MAY carry an additive `probe` object with tier details.
 #### Scenario: Check-vendors does not count a lane dispatch will skip
 - **WHEN** a lane passes L0–L2 but has a fresh `vendor_unavailable` runtime failure
 - **THEN** `--check-vendors --json` SHALL list it under `unverified` with reason `runtime_vendor_unavailable` and SHALL NOT count it toward `--min-vendors`
+
+#### Scenario: Existing JSON keys and exit codes are preserved
+- **WHEN** `--check-vendors --json --min-vendors 2` runs with one verified lane
+- **THEN** the output SHALL contain `modes` and `probe_command` with their existing shapes and the process SHALL exit 2
