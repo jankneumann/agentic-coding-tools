@@ -96,7 +96,7 @@ Sizes follow the plan-feature Task Sizing Reference. No task is XL; one is L (3.
   **Spec scenarios**: parallel-infrastructure — The same lane fingerprints identically across config sources (end-to-end)
   **Design decisions**: D4
   **Dependencies**: 3.6, 4.3
-- [ ] 6.2 Run the full gate set (pytest both venvs, ruff, mypy on touched coordinator modules, `openspec validate --strict`, `install.sh --check`) on the merged tree **(S)**
+- [x] 6.2 Run the full gate set (pytest both venvs, ruff, mypy on touched coordinator modules, `openspec validate --strict`, `install.sh --check`) on the merged tree **(S)**
   **Dependencies**: 6.1, 5.2
-- [ ] 6.3 Verify the probe against the real local CLIs (claude, codex, grok, pi) and record the report in the validation evidence **(XS)**
+- [x] 6.3 Verify the probe against the real local CLIs (claude, codex, grok, pi) and record the report in the validation evidence **(XS)**
   **Dependencies**: 6.2
