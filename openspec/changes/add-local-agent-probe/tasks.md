@@ -92,7 +92,7 @@ Sizes follow the plan-feature Task Sizing Reference. No task is XL; one is L (3.
 
 ## 6. Integration (wp-integration)
 
-- [ ] 6.1 Write and pass a cross-source fingerprint test: every lane in the real `agent-coordinator/agents.yaml` produces the same fingerprint **and** the same required-flag set when loaded raw, when passed through `get_dispatch_configs()`, and when loaded through `review_dispatcher`'s own loader into its mirror `CliConfig` (the reader `discover_reviewers` fingerprints) **(S)**
+- [x] 6.1 Write and pass a cross-source fingerprint test: every lane in the real `agent-coordinator/agents.yaml` produces the same fingerprint **and** the same required-flag set when loaded raw, when passed through `get_dispatch_configs()`, and when loaded through `review_dispatcher`'s own loader into its mirror `CliConfig` (the reader `discover_reviewers` fingerprints) **(S)**
   **Spec scenarios**: parallel-infrastructure — The same lane fingerprints identically across config sources (end-to-end)
   **Design decisions**: D4
   **Dependencies**: 3.6, 4.3
