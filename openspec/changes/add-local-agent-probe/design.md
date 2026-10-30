@@ -21,13 +21,21 @@ the dispatcher's runtime `auth_required` / `vendor_unavailable` classifications
 **stdlib-only** (no PyYAML, no coordinator imports) because `agent-coordinator/src/watchdog.py:439`
 loads `vendor_health.py` by file path inside the coordinator container; the Dockerfile copy step
 (`agent-coordinator/Dockerfile:86`) gains `vendor_probe.py` next to `vendor_health.py`, and
-`vendor_health.py` imports it by sibling path. `vendor_health.check_vendor()` and
+`vendor_health.py` imports it by sibling path: it loads
+`Path(__file__).with_name("vendor_probe.py")` through `importlib.util.spec_from_file_location`
+and registers the module in `sys.modules["vendor_probe"]` **before** `exec_module` (the #643
+lesson: `@dataclass` resolves postponed annotations through `sys.modules`). A plain
+`import vendor_probe` is not used because the watchdog's by-path load does not put the scripts
+directory on `sys.path`. `vendor_health.check_vendor()` and
 `review_dispatcher._probe_mode()` both become thin adapters that map a `LaneProbe` onto their
 existing output shapes — existing fields keep their meaning, new tier fields are additive.
 
 Input to the module is a plain `dict` lane config (the `cli:` block plus `agent_id`), so it is
 agnostic of which of the three config sources (`AGENTS_YAML`, `/agents/dispatch-configs`, local
-`agents.yaml`) produced it.
+`agents.yaml`) produced it. `review_dispatcher` keeps a *mirror* `CliConfig` dataclass
+(`review_dispatcher.py:558`) that today drops every key it does not name; it gains a
+`probe: dict | None` field and the loader (`review_dispatcher.py:~2571`) populates it, otherwise
+the dispatcher would fingerprint and filter on a config that has silently lost its probe block.
 
 ### D2 — Required flags are derived, not declared
 
@@ -77,14 +85,39 @@ Path: `$AGENTIC_PROBE_CACHE` if set, else `$XDG_CACHE_HOME/agentic-coding-tools/
 else `~/.cache/agentic-coding-tools/vendor-probe.json`. Schema:
 `contracts/vendor-probe-cache.schema.json`.
 
-Each entry is keyed by `agent_id` and stores `cli_realpath`, `cli_version`,
-`config_fingerprint` (sha256 of the canonical-JSON `cli` block), `probed_at`, per-mode L1
-results, L2 result, and optional `runtime_failure`. An entry is **fresh** when
-`now - probed_at < ttl_seconds` **and** `cli_realpath` / `config_fingerprint` still match the
-current environment; the version is re-read only on a re-probe. TTL defaults: 24 h for a probe
-entry, 1 h for a `runtime_failure`. Writes are atomic (`tempfile` in the same dir +
-`os.replace`) with mode `0600`; a cache that fails to parse or validate is treated as empty and
-overwritten on the next write.
+The document has two independent maps, both keyed by `agent_id`:
+
+- `lanes` — probe entries: `cli_realpath`, `cli_version`, `config_fingerprint`, `probed_at`,
+  per-mode L1 results, L2 result. An entry is **fresh** when `now - probed_at < ttl_seconds`
+  **and** `cli_realpath` / `config_fingerprint` still match the current environment; the version
+  is re-read only on a re-probe. TTL default 24 h.
+- `runtime_failures` — `{error_class, observed_at, ttl_seconds}` written by the dispatcher (D6).
+  Kept separate because a runtime failure is **account-scoped**, not config-scoped: it must be
+  recordable when no probe entry exists yet (the schema's `lanes` entry requires L0/L1/L2 data
+  the dispatcher does not have), and it must survive a `config_fingerprint` change. Fresh while
+  `now - observed_at < ttl_seconds` (default 1 h); nothing else invalidates it.
+
+**Fingerprint is over a normalized projection, not raw JSON.** The three config sources do not
+serialize a `cli` block identically: local `agents.yaml` is raw (defaults absent), while
+`get_dispatch_configs()` emits the `CliConfig` dataclass with defaults filled in (`model_flag:
+"-m"`, `prompt_via_stdin: false`, …). A raw-JSON hash would make the same lane fingerprint
+differently depending on which source the writer (`install.sh --check`) and the reader
+(`discover_reviewers`) used, so every entry would look stale and the filter would never fire.
+`vendor_probe.lane_fingerprint(cli)` therefore hashes the canonical JSON (sorted keys, no
+whitespace) of exactly the probe-relevant fields with defaults applied: `command`,
+`{mode: args}` for every dispatch mode, every key ending in `_flag` (with `model_flag`
+defaulting to `"-m"`), and `probe` (absent → `{}`). Fields that do not change probe outcome
+(`model`, `model_fallbacks`, `api_key_env`, …) are excluded so editing a model list does not
+discard capability results.
+
+**Writes are read-modify-write under a lock.** The dispatcher dispatches lanes concurrently
+(`ThreadPoolExecutor`, `review_dispatcher.py:3181`) and several reviews can run at once, so two
+runtime-failure writes can race; `os.replace` prevents a torn file but not a lost update. Every
+write takes a module-level `threading.Lock` and an exclusive `fcntl.flock` on a sibling
+`vendor-probe.json.lock`, re-reads the current document, merges, writes a `tempfile` in the same
+directory with mode `0600`, and `os.replace`s it. Where `fcntl` is unavailable the flock is
+skipped (best-effort; a lost update only delays one exclusion). Readers take no lock. A cache that
+fails to parse or validate is treated as empty and overwritten on the next write.
 
 Rejected: repo-local `.agents/agents.local.json` (Approach 2) — needs a consumer `.gitignore`
 mutation during install.
@@ -93,7 +126,7 @@ mutation during install.
 
 `discover_reviewers` (`review_dispatcher.py:2817`) consults the cache before the Tier 1
 `can_dispatch` check and excludes a lane/mode when a **fresh** entry records `cli_not_found`,
-`missing_flags` for that mode, `auth_failed`, or a fresh `runtime_failure`. Missing or stale
+`missing_flags` for that mode, `auth_failed`, or a fresh `runtime_failures` record. Missing or stale
 entries never exclude — dispatch adds no subprocesses, keeping warm-cache overhead ≤ 50 ms.
 Probing (and cache writes) happen in `--check-vendors` (autopilot INIT), `vendor_health.py`,
 and `install.sh --check`. `AGENTIC_PROBE_IGNORE_CACHE=1` disables the filter. Every exclusion
@@ -103,9 +136,16 @@ is logged at INFO with lane, mode, and reason so a run is never silently narrowe
 
 Where `classify_error` yields `ErrorClass.AUTH` or `ErrorClass.UNAVAILABLE`
 (`review_dispatcher.py:1073–1097`), the dispatcher records
-`runtime_failure = {error_class, observed_at, ttl_seconds: 3600}` for that lane. A later probe
-whose L2 is `auth_ok` clears it. Capacity limits stay with `vendor_limit_reporter.py`;
-nothing is duplicated.
+`runtime_failures[agent_id] = {error_class, observed_at, ttl_seconds: 3600}`. The write is
+best-effort: an `OSError` is logged at WARNING and never changes the `ReviewResult`.
+
+Clearing differs by class, because the probe can only observe what it can observe token-free:
+
+- `auth_required` is cleared by a later probe whose L2 is `auth_ok`.
+- `vendor_unavailable` is the **billing/credits** class (`_UNAVAILABLE_PATTERNS`, HTTP 402); no
+  token-free probe can show credits were restored, so it clears only when its TTL expires.
+
+Capacity limits stay with `vendor_limit_reporter.py`; nothing is duplicated.
 
 ### D7 — Reason codes
 
@@ -131,9 +171,35 @@ when present, so the endpoint payload is unchanged for configs without it.
 ### D10 — Concurrency and bounds
 
 Lanes are probed in a `ThreadPoolExecutor` (≤ 8 workers); each subprocess has a 10 s timeout
-(matching the existing `_dry_invoke` contract) and runs with `stdin=DEVNULL`.
+(matching the existing `_dry_invoke` contract) and runs with `stdin=DEVNULL`. Within a lane the
+subprocesses run sequentially (version, then each **distinct** help argv — modes sharing a help
+command run it once — then auth), under a **25 s per-lane deadline**: a subprocess that cannot
+start before the deadline is not run and its tier is recorded `probe_timeout`. A cold full probe
+is therefore bounded by ~25 s regardless of mode count, inside `install.sh`'s 60 s budget.
+
+### D11 — Who re-probes, who reuses
+
+`vendor_probe.probe_lanes(configs, reuse_fresh: bool)` returns fresh cache entries without
+running subprocesses when `reuse_fresh=True`.
+
+| Caller | `reuse_fresh` | Why |
+|---|---|---|
+| `review_dispatcher.py --check-vendors` (autopilot INIT) | `False` | Authoritative refresh point before a run |
+| `vendor_probe.py report` (`install.sh --check`) | `False` | Operator asked for a live check |
+| `vendor_health.py` CLI `main()` (`/vendor-status`) | `False` | Operator asked for a live check |
+| `vendor_health.check_all_vendors()` default (watchdog) | `True` | Runs every 5 min; must not spawn auth commands each cycle |
+| `discover_reviewers` | never probes (D5) | Dispatch-time overhead budget |
+
+The watchdog calls `check_all_vendors()` synchronously inside an `async` method
+(`watchdog.py:472–480`). A cold probe would block the coordinator's event loop for up to the D10
+bound, so the call moves to `await asyncio.to_thread(self._load_vendor_health_report)`.
 
 ## Risks
+
+- **Cross-repo thrash** — two consumer repos with differently-configured lanes under the same
+  `agent_id` alternately overwrite one `lanes` entry; each sees a stale entry after the other
+  probes, so the filter does not fire (never a wrong exclusion). Accepted: keying by
+  `(agent_id, fingerprint)` would grow the cache without bound for a rare case.
 
 - **Help text formats vary** — a CLI listing flags only under `--help-all` would false-negative.
   Mitigation: `probe.help_args` override and `ignore_flags`; a `missing_flags` result reports

@@ -39,3 +39,37 @@
 ### Context
 Plan a tiered, token-free local probe of vendor CLIs (presence, flag capability vs dispatch_modes, auth status) shared by vendor_health and --check-vendors, with a per-user cache that hard-filters reviewer discovery and remembers runtime auth/unavailable failures. Gate 1 selected Approach 1 (shared module + per-user XDG cache).
 
+---
+
+## Phase: Plan Iteration 1 (2026-10-30)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Fingerprint a normalized projection of the cli block** `architectural: vendor-probe-cache` — dispatch-configs serializes defaults while local yaml is raw; hashing raw JSON would make every entry stale across sources and silently disable the filter
+2. **Store runtime failures in a top-level map, separate from probe entries** `architectural: vendor-probe-cache` — account-scoped failures must be recordable without a probe entry and must survive config edits
+3. **Lock cache writes as read-modify-write (threading.Lock + fcntl.flock)** `architectural: vendor-probe-cache` — lanes dispatch concurrently via ThreadPoolExecutor; os.replace alone loses updates
+4. **vendor_unavailable clears by TTL only** `architectural: vendor-probe-cache` — it is the billing/credits class; a token-free probe cannot observe restored credits
+5. **Watchdog reuses fresh probe results and runs off the event loop** `architectural: vendor-health` — 5-minute cadence must not spawn auth commands each cycle or block the coordinator loop
+6. **Skipped Step 10 vendor review inside PLAN_ITERATE** `architectural: skill-procedure-deviation` — autopilot runs PLAN_REVIEW as its own phase (cli_review_enabled=true); dispatching here would duplicate it
+7. **Ran analysis inline instead of parallel Explore fan-out** `architectural: skill-procedure-deviation` — seven small artifacts (~700 lines) fit one read; findings needed code cross-checks against review_dispatcher/watchdog which the architect did directly
+8. **No AskUserQuestion for assumptions** `architectural: skill-procedure-deviation` — non-interactive autopilot sub-agent after Gate 2 approval; no finding changed scope or technology choice; engineering choices recorded as design decisions instead
+
+### Alternatives Considered
+- Key cache entries by (agent_id, fingerprint): rejected because unbounded growth for a rare cross-repo case; stale-not-wrong behaviour is acceptable
+- Make watchdog always re-probe: rejected because spawns auth-status commands every 5 minutes and blocks the event loop
+
+### Trade-offs
+- Accepted best-effort flock (skipped without fcntl) over a hard cross-platform lock dependency because a lost update only delays one exclusion
+- Accepted 25 s per-lane deadline with probe_timeout for unrun tiers over unbounded sequential subprocesses because keeps cold probe inside install.sh 60 s budget
+
+### Completed Work
+- D1/D4/D6/D10 revised, D11 added; Risks gained cross-repo thrash
+- vendor-probe-cache schema: top-level runtime_failures
+- parallel-infrastructure spec: +9 scenarios; vendor-ux spec: +1 scenario and clarified dispatch_modes
+- proposal NFRs and Impact updated (watchdog.py, Dockerfile, mirror CliConfig)
+- tasks: 3.4-3.6 sequenced; new 6.1 cross-source fingerprint test; work-packages plan_revision 2
+
+### Context
+Two iterations. Fixed 4 high and 6 medium findings: the fingerprint depended on which config source loaded the lane, the dispatcher's mirror CliConfig dropped the probe block, runtime failures needed a probe entry, concurrent cache writes lost updates, the billing-class clear rule was wrong, the NFR timing was infeasible, and the watchdog blocked its event loop. Iteration 2 found only stale wording, which was fixed. Validation is strict-clean.
+

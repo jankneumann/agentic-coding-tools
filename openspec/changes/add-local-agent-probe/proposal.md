@@ -41,8 +41,12 @@ a local probe becomes the authority on capability, and dispatch uses their inter
   lane's tier results with a timestamp and TTL, invalidated when the CLI path or version
   changes. `review_dispatcher` excludes lanes whose cached probe failed before dispatch.
 - Runtime `auth_required` and `vendor_unavailable` classifications observed during dispatch
-  are written to the same cache, so an account-scoped failure is remembered across runs
-  until the TTL expires or a re-probe succeeds.
+  are written to a separate `runtime_failures` map in the same cache, so an account-scoped
+  failure is remembered across runs until its TTL expires (or, for `auth_required`, a
+  re-probe reports auth OK). Cache writes are locked read-modify-writes because lanes are
+  dispatched concurrently.
+- The coordinator watchdog's periodic vendor-health call reuses fresh probe results and runs
+  off the event loop, so the new subprocess tiers never stall the coordinator.
 - `install.sh --check` prints a probe report (lanes, tier status, remediation hints). The
   report is informational: it never changes the exit code, and zero dispatchable vendors is
   a valid state.
@@ -61,8 +65,9 @@ No **BREAKING** changes: the `probe:` key is optional, absent blocks fall back t
 
 | Attribute | Metric | Target | Verified by (phase) |
 |-----------|--------|--------|---------------------|
-| Performance | Wall-clock of a cold full probe (all lanes, L0–L2) | ≤ 10 s per lane timeout; lanes probed concurrently, total ≤ 15 s | Unit tests with timed fake CLIs |
-| Performance | Dispatch-time overhead with a warm cache | ≤ 50 ms added to `discover_reviewers` | Unit test timing assertion |
+| Performance | Wall-clock of a cold full probe (all lanes, L0–L2) | 10 s per subprocess, 25 s per-lane deadline, lanes concurrent → total ≤ 30 s (inside `install.sh`'s 60 s budget) | Unit tests with sleeping fake CLIs |
+| Performance | Dispatch-time overhead with a warm cache | Zero subprocesses started by `discover_reviewers`; ≤ 50 ms added (generous bound, not a micro-benchmark) | Unit test patching `subprocess` to fail on call, plus a coarse timing check |
+| Performance | Coordinator event loop | Watchdog vendor-health call runs in `asyncio.to_thread` and reuses fresh cache entries | `agent-coordinator/tests/test_watchdog_vendor.py` |
 | Resilience | `install.sh --check` exit code when probes fail or no vendor is installed | Unchanged from pre-change behaviour (probe never contributes a failure) | `skills/tests/install_sh` tests |
 | Security | Credential material in probe output, cache file, or logs | Zero occurrences (only paths + booleans recorded) | Unit test scanning cache/report for seeded secret values |
 | Cost | Model tokens spent by any probe tier | 0 | Spec scenario + test asserting no dispatch-mode args are executed |
@@ -74,7 +79,8 @@ No **BREAKING** changes: the `probe:` key is optional, absent blocks fall back t
 
 `vendor_probe.py` is the single implementation; both entry points call it. Results are
 cached in the user cache directory (`$XDG_CACHE_HOME/agentic-coding-tools/vendor-probe.json`,
-falling back to `~/.cache/...`), keyed by lane id and CLI realpath + version.
+falling back to `~/.cache/...`), keyed by lane id and validated against CLI realpath and a
+config fingerprint (design D4).
 
 - Pros: CLI availability is a property of the machine, not the repo, so one cache serves every
   consumer repo; no `.gitignore` edits in consumer repos; no risk of committing machine state;
@@ -106,8 +112,9 @@ Same module, but the cache lives at `.agents/agents.local.json` inside each repo
 ### Recommended
 
 Approach 1. It satisfies the cross-run memory requirement that rules out Approach 3, and it
-avoids Approach 2's new install-time side effect on consumer repositories. Folding the
-`agents.yaml` source fingerprint into the cache key resolves its only real con.
+avoids Approach 2's new install-time side effect on consumer repositories. Checking a
+normalized `cli`-block fingerprint on every read resolves its only real con: a per-repo override
+makes the entry stale (re-probed), never wrongly applied (design D4, Risks).
 
 ### Selected Approach
 
@@ -134,7 +141,9 @@ Affected specs (delta files under `specs/`):
 Affected code:
 - `skills/parallel-infrastructure/scripts/vendor_probe.py` (new)
 - `skills/parallel-infrastructure/scripts/vendor_health.py`
-- `skills/parallel-infrastructure/scripts/review_dispatcher.py` (`_dry_invoke`/`_probe_mode`, `discover_reviewers`, error-class persistence)
+- `skills/parallel-infrastructure/scripts/review_dispatcher.py` (`_dry_invoke`/`_probe_mode`, `discover_reviewers`, error-class persistence, the mirror `CliConfig` and its loader gaining `probe`)
+- `agent-coordinator/src/watchdog.py` (`asyncio.to_thread` around the vendor-health call)
+- `agent-coordinator/Dockerfile` (copy `vendor_probe.py` beside `vendor_health.py`)
 - `agent-coordinator/src/agents_config.py` (`AGENTS_SCHEMA`, `CliConfig`, `get_dispatch_configs`)
 - `agent-coordinator/agents.yaml` (`probe:` blocks; stale verification comments removed)
 - `skills/install.sh` (`--check` report)
