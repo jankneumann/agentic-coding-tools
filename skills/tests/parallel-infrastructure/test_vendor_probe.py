@@ -267,7 +267,7 @@ def test_hanging_auth_is_probe_timeout_and_killed(tmp_path, monkeypatch):
     make_cli(tmp_path, helps={"--help": FULL_HELP})
     # hang only on the auth invocation
     path = tmp_path / "bin" / "fakecli"
-    path.write_text(path.read_text().replace("*) sleep 0;", "*) sleep 30;"))
+    path.write_text(path.read_text().replace("*) sleep 0;", "*) sleep 4;"))
     block = cli(probe={"auth_status_args": ["auth", "status"]})
     start = time.monotonic()
     entry = vp.probe_lane("a", block).entry

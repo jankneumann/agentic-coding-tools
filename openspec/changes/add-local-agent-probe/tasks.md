@@ -54,19 +54,19 @@ Sizes follow the plan-feature Task Sizing Reference. No task is XL; one is L (3.
   **Dependencies**: 2.2, 2.4, 2.6 (`reuse_fresh` and the cache API)
 - [x] 3.2 Rewire `vendor_health.check_vendor` onto `vendor_probe` (by-path sibling load); add `vendor_probe.py` to the coordinator Dockerfile copy step; wrap the watchdog's vendor-health call in `asyncio.to_thread` **(S)**
   **Dependencies**: 3.1
-- [ ] 3.3 Write tests for cache-filtered `discover_reviewers`, `--check-vendors` tier verdicts and runtime-failure write-back **(L — flagged: three entry points in one 3.7k-line file; kept as one test task because they share fixtures, implementation is split into 3.4–3.6)**
+- [x] 3.3 Write tests for cache-filtered `discover_reviewers`, `--check-vendors` tier verdicts and runtime-failure write-back **(L — flagged: three entry points in one 3.7k-line file; kept as one test task because they share fixtures, implementation is split into 3.4–3.6)**
   **Spec scenarios**: parallel-infrastructure — A remembered auth failure skips the lane in the next run; A remembered auth failure expires; A passing status command clears a remembered auth failure; Cache-driven exclusions appear in the dispatch manifest; A known-broken CLI is not dispatched; Check-vendors does not count a lane dispatch will skip; Existing JSON keys and exit codes are preserved; A listed vendor without its CLI is unverified (modified); A hanging dry invocation is unverified (modified); A billing failure is not cleared by a passing auth probe; A zero-exit review that mentions 402 is not remembered as unavailable; An unwritable cache does not fail the review; Missing cache never narrows the roster; Ignore switch restores the full roster; Check-vendors rejects a lane whose login has expired; The probe never discloses credentials (existing)
   **Also asserts**: a lane loaded through the dispatcher's own loader keeps its `probe` block on the mirror `CliConfig`; `discover_reviewers` starts no subprocesses
   **Design decisions**: D5, D6, D7
   **Dependencies**: 2.6
-- [ ] 3.4 Add `probe` to the dispatcher's mirror `CliConfig` and its loader; replace `_dry_invoke`/`_probe_mode` verdicts in `--check-vendors` with the tiered probe (`reuse_fresh=False`) and write results to the cache **(M)**
+- [x] 3.4 Add `probe` to the dispatcher's mirror `CliConfig` and its loader; replace `_dry_invoke`/`_probe_mode` verdicts in `--check-vendors` with the tiered probe (`reuse_fresh=False`) and write results to the cache **(M)**
   **Dependencies**: 3.3
-- [ ] Checkpoint: run tests, review diff, verify scope
-- [ ] 3.5 Add the cache filter to `discover_reviewers` with per-exclusion INFO logging, `ReviewOrchestrator.last_exclusions`, the additive `excluded_lanes` manifest key in `checkpoint_findings.write_manifest`, and `AGENTIC_PROBE_IGNORE_CACHE` **(S)**
+- [x] Checkpoint: run tests, review diff, verify scope
+- [x] 3.5 Add the cache filter to `discover_reviewers` with per-exclusion INFO logging, `ReviewOrchestrator.last_exclusions`, the additive `excluded_lanes` manifest key in `checkpoint_findings.write_manifest`, and `AGENTIC_PROBE_IGNORE_CACHE` **(S)**
   **Dependencies**: 3.4 (needs the mirror `CliConfig.probe` to fingerprint; same file)
-- [ ] 3.6 Record `auth_required`/`vendor_unavailable` runtime failures into `runtime_failures` at the non-zero-exit stderr `classify_error` sites only (`:1073`, `:1550`, `:1717`; never the zero-exit stdout sites `:1242`/`:1268`, design D6), best-effort (write errors logged, result unchanged) **(S)**
+- [x] 3.6 Record `auth_required`/`vendor_unavailable` runtime failures into `runtime_failures` at the non-zero-exit stderr `classify_error` sites only (`:1073`, `:1550`, `:1717`; never the zero-exit stdout sites `:1242`/`:1268`, design D6), best-effort (write errors logged, result unchanged) **(S)**
   **Dependencies**: 3.5 (same file — sequential to avoid conflicting hunks)
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 
 ## 4. Coordinator config (wp-config)
 
