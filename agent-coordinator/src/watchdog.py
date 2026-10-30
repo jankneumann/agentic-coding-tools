@@ -477,7 +477,9 @@ class WatchdogService:
         self._last_vendor_check = current_time
 
         try:
-            report = self._load_vendor_health_report()
+            # The probe can start subprocesses (bounded, but seconds on a cold
+            # cache); keep it off the coordinator's event loop.
+            report = await asyncio.to_thread(self._load_vendor_health_report)
             if report is None:
                 return
             current_state = {vendor.agent_id: vendor.healthy for vendor in report.vendors}

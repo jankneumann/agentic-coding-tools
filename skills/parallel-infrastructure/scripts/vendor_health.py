@@ -4,19 +4,50 @@ Design Decisions:
   D5: Dual-use — standalone CLI script + importable module for WatchdogService.
   D6: No inference probes — uses can_dispatch() + API key resolution only.
   D7: Watchdog events on coordinator_agent channel.
+  add-local-agent-probe D1: CLI presence/capability/auth come from the shared
+      tiered probe (vendor_probe.py), loaded by sibling file path so the
+      coordinator container's by-path load of this module keeps working.
 """
 
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import os
-import shutil
 import sys
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
+from typing import Any
+
+_PROBE_MODULE = "vendor_probe"
+WATCHDOG_MAX_AGE_SECONDS = 3600
+
+
+def _load_vendor_probe() -> Any:
+    """Load vendor_probe.py by sibling path (stdlib-only, no sys.path reliance).
+
+    Registered in ``sys.modules`` before ``exec_module`` so ``@dataclass``
+    resolves postponed annotations (#643) and every loader in the process shares
+    one module instance (and one cache lock).
+    """
+    existing = sys.modules.get(_PROBE_MODULE)
+    if existing is not None:
+        return existing
+    path = Path(__file__).with_name("vendor_probe.py")
+    spec = importlib.util.spec_from_file_location(_PROBE_MODULE, path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"cannot load {path}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[_PROBE_MODULE] = module
+    try:
+        spec.loader.exec_module(module)
+    except BaseException:
+        sys.modules.pop(_PROBE_MODULE, None)
+        raise
+    return module
 
 
 @dataclass
@@ -32,6 +63,10 @@ class VendorHealth:
     models: list[str] = field(default_factory=list)
     healthy: bool = False
     error: str | None = None
+    cli_version: str | None = None
+    missing_flags: dict[str, list[str]] = field(default_factory=dict)
+    auth_status: str = "auth_unknown"
+    runtime_failure: str | None = None
 
 
 @dataclass
@@ -50,8 +85,14 @@ class HealthReport:
         }
 
 
-def check_vendor(agent_id: str, agent_config: dict) -> VendorHealth:
-    """Check health of a single vendor from its agents.yaml config."""
+def check_vendor(
+    agent_id: str, agent_config: dict, lane_probe: Any | None = None
+) -> VendorHealth:
+    """Check health of a single vendor from its agents.yaml config.
+
+    ``lane_probe`` is a ``vendor_probe.LaneProbe``; when omitted the lane is
+    probed live (and cached).
+    """
     # `or`, not a .get default: dispatch-configs sends "cli": null for SDK-only lanes (#643).
     cli = agent_config.get("cli") or {}
     command = cli.get("command", "")
@@ -63,15 +104,27 @@ def check_vendor(agent_id: str, agent_config: dict) -> VendorHealth:
         cli_command=command,
     )
 
-    # Check 1: CLI installed
+    # Checks 1-2: CLI presence, per-mode capability and auth (tiered probe).
     if command:
-        health.cli_installed = shutil.which(command) is not None
-
-    # Check 2: Available dispatch modes
-    dispatch_modes = cli.get("dispatch_modes", {})
-    for mode_name, mode_config in dispatch_modes.items():
-        if health.cli_installed:
-            health.dispatch_modes.append(mode_name)
+        if lane_probe is None:
+            probe_mod = _load_vendor_probe()
+            lane_probe = probe_mod.probe_lanes({agent_id: cli}, reuse_fresh=False)[agent_id]
+        entry = lane_probe.entry
+        health.cli_installed = bool(entry["l0"].get("ok"))
+        health.cli_version = entry.get("cli_version")
+        health.auth_status = (entry.get("l2") or {}).get("status", "auth_unknown")
+        for mode_name, tier in (entry.get("modes") or {}).items():
+            if tier.get("ok"):
+                health.dispatch_modes.append(mode_name)
+            elif tier.get("missing_flags"):
+                health.missing_flags[mode_name] = list(tier["missing_flags"])
+        failure = lane_probe.runtime_failure
+        if failure:
+            health.runtime_failure = (
+                "runtime_auth_required"
+                if failure["error_class"] == "auth_required"
+                else "runtime_vendor_unavailable"
+            )
 
     # Check 3: Models configured
     model = cli.get("model")
@@ -104,6 +157,10 @@ def check_vendor(agent_id: str, agent_config: dict) -> VendorHealth:
         health.healthy = health.cli_installed and health.api_key_available
     else:
         health.healthy = health.cli_installed or health.api_key_available
+    # Same predicate as --check-vendors and discover_reviewers: an expired
+    # login or a remembered runtime failure is not healthy.
+    if health.auth_status == "auth_failed" or health.runtime_failure:
+        health.healthy = False
 
     has_probe_method = bool(command or api_key_env or agent_config.get("api_key"))
     if not has_probe_method:
@@ -114,14 +171,14 @@ def check_vendor(agent_id: str, agent_config: dict) -> VendorHealth:
 
 def load_agents_yaml(path: Path | None = None) -> dict:
     """Load explicit config, then public HTTP config, then a local fallback."""
-    import yaml
-
     explicit = path or (
         Path(os.environ["AGENTS_YAML"]).expanduser()
         if os.environ.get("AGENTS_YAML")
         else None
     )
     if explicit and explicit.exists():
+        import yaml  # lazy: the HTTP path must work without PyYAML
+
         with open(explicit) as f:
             return yaml.safe_load(f) or {}
 
@@ -154,20 +211,45 @@ def load_agents_yaml(path: Path | None = None) -> dict:
     ]
     for candidate in candidates:
         if candidate.exists():
+            import yaml
+
             with open(candidate) as f:
                 return yaml.safe_load(f) or {}
 
     return {}
 
 
-def check_all_vendors(agents_yaml_path: Path | None = None) -> HealthReport:
-    """Check health of all vendors configured in agents.yaml."""
+def check_all_vendors(
+    agents_yaml_path: Path | None = None,
+    *,
+    reuse_fresh: bool = True,
+    max_age_seconds: int | None = WATCHDOG_MAX_AGE_SECONDS,
+) -> HealthReport:
+    """Check health of all vendors configured in agents.yaml.
+
+    The default (watchdog) reuses probe-cache entries younger than
+    ``max_age_seconds`` without starting subprocesses; the CLI passes
+    ``reuse_fresh=False`` to re-probe.
+    """
     config = load_agents_yaml(agents_yaml_path)
     agents = config.get("agents", {})
 
+    clis = {
+        agent_id: (agent_config or {}).get("cli")
+        for agent_id, agent_config in agents.items()
+        if ((agent_config or {}).get("cli") or {}).get("command")
+    }
+    lane_probes = (
+        _load_vendor_probe().probe_lanes(
+            clis, reuse_fresh=reuse_fresh, max_age_seconds=max_age_seconds
+        )
+        if clis
+        else {}
+    )
+
     report = HealthReport()
     for agent_id, agent_config in agents.items():
-        health = check_vendor(agent_id, agent_config)
+        health = check_vendor(agent_id, agent_config, lane_probes.get(agent_id))
         report.vendors.append(health)
 
     report.total_count = len(report.vendors)
@@ -200,7 +282,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--agents-yaml", type=Path, default=None, help="Path to agents.yaml")
     args = parser.parse_args(argv)
 
-    report = check_all_vendors(args.agents_yaml)
+    report = check_all_vendors(args.agents_yaml, reuse_fresh=False)
 
     if args.json:
         print(json.dumps(report.to_dict(), indent=2))

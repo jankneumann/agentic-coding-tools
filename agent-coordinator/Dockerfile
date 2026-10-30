@@ -84,6 +84,8 @@ COPY agent-coordinator/src/ /app/src/
 COPY skills/shared/github_classifier.py /app/skills/shared/github_classifier.py
 # Watchdog loads this probe through SKILLS_ROOT in the deployed runtime.
 COPY skills/parallel-infrastructure/scripts/vendor_health.py /app/skills/parallel-infrastructure/scripts/vendor_health.py
+# vendor_health.py loads this stdlib-only tiered probe by sibling path.
+COPY skills/parallel-infrastructure/scripts/vendor_probe.py /app/skills/parallel-infrastructure/scripts/vendor_probe.py
 COPY agent-coordinator/profiles/ /app/profiles/
 COPY agent-coordinator/cedar/ /app/cedar/
 # Evaluation module is imported by src/coordination_api.py for the
