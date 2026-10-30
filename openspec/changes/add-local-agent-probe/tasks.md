@@ -4,8 +4,8 @@ Sizes follow the plan-feature Task Sizing Reference. No task is XL; one is L (3.
 
 ## 1. Contracts (wp-contracts)
 
-- [ ] 1.1 Write contract tests for the probe cache and probe-block schemas — accept/reject fixtures, including `["login","status"]` accepted, `["login"]` and `["auth","print-api-key"]` rejected, unknown probe key rejected, a cache with a top-level `runtime_failures` entry and no `lanes` entry for that lane accepted, a `runtime_failure` nested inside a `lanes` entry rejected **(S)**
-  **Spec scenarios**: agent-identity — A credential-printing auth command is rejected at load; A status subcommand under login is accepted, a bare login is not; An unknown probe key is rejected
+- [ ] 1.1 Write contract tests for the probe cache and probe-block schemas (schema layer only — the last-token `login` and help-token rules are not expressible in JSON Schema and are pinned in 4.1) — accept/reject fixtures, including `["login","status"]` accepted, `["auth","print-api-key"]` and `["auth","Print-API-Key"]` rejected in `auth_status_args`, `version_args`, and a `help_args` value, empty `version_args` / `help_args` value / `credential_files` rejected, unknown probe key rejected, every schema pattern compiles as ECMA-262 (no inline `(?i)`), an L0/L1 tier with reason `auth_failed` rejected, a cache with a top-level `runtime_failures` entry and no `lanes` entry for that lane accepted, a `runtime_failure` nested inside a `lanes` entry rejected **(S)**
+  **Spec scenarios**: agent-identity — A credential-printing auth command is rejected at load; A credential-printing version command is rejected at load; An unknown probe key is rejected
   **Contracts**: contracts/vendor-probe-cache.schema.json, contracts/cli-probe-block.schema.json
   **Design decisions**: D3, D4
   **Dependencies**: None
@@ -13,21 +13,23 @@ Sizes follow the plan-feature Task Sizing Reference. No task is XL; one is L (3.
 ## 2. Probe core (wp-probe-core)
 
 - [ ] 2.1 Write tests for flag derivation and L0/L1 tiers using fake CLI scripts on a temp `PATH` **(M)**
-  **Spec scenarios**: parallel-infrastructure — A flag missing from help output fails L1 for that mode only; Subcommand flags are checked against subcommand help; Injected flags are required; A lane without a probe block keeps today's behaviour; A failing version command fails every mode; vendor-ux — Health probes stay token-free
-  **Also asserts**: two modes sharing a help argv run it once; a lane of sleeping fake CLIs finishes within the 25 s per-lane deadline with the unrun tiers recorded `probe_timeout`
+  **Spec scenarios**: parallel-infrastructure — A flag missing from help output fails L1 for that mode only; Subcommand flags are checked against subcommand help; Injected flags are required; A lane without a probe block keeps today's behaviour; A failing version command fails every mode; Modes sharing a help command run it once; The per-lane deadline bounds a slow lane; vendor-ux — Health probes stay token-free
+  **Also asserts**: each subprocess timeout is capped at the remaining lane budget; only the first 200 characters of the first version-output line are retained
   **Design decisions**: D2, D9, D10
   **Dependencies**: 1.1
 - [ ] 2.2 Implement `vendor_probe.py` flag derivation plus L0/L1 probing (stdlib-only, 10 s timeouts, `stdin=DEVNULL`, thread pool) **(M)**
   **Dependencies**: 2.1
 - [ ] 2.3 Write tests for L2 auth — exit-code-only status command, credential-file existence on a `0000` file, sentinel never captured, hanging status command killed at 10 s **(S)**
-  **Spec scenarios**: parallel-infrastructure — Auth output is never captured; Credential files are checked for existence only; A hanging auth command times out without failing auth
+  **Spec scenarios**: parallel-infrastructure — Auth output is never captured; Credential files are checked for existence only; A hanging auth command times out without failing auth; A status command takes precedence over credential files; A missing credential file fails auth
+  **Also asserts**: an auth-status command that cannot be launched yields `auth_unknown`
   **Design decisions**: D3
   **Dependencies**: 1.1
 - [ ] 2.4 Implement L2 auth probing in `vendor_probe.py` **(S)**
   **Dependencies**: 2.3
 - [ ] Checkpoint: run tests, review diff, verify scope
 - [ ] 2.5 Write tests for the probe cache — path resolution precedence, normalized-projection fingerprint, realpath invalidation, TTL, locked read-modify-write with `0600` atomic replace, corrupt-file recovery, `runtime_failures` record (with and without a `lanes` entry) and per-class clearing, `probe_lanes(reuse_fresh=True)` starting no subprocesses **(M)**
-  **Spec scenarios**: parallel-infrastructure — Changing the CLI invalidates its entry; Changing the lane config invalidates its entry; The same lane fingerprints identically across config sources (unit level, hand-built dicts); Editing a model list does not invalidate capability results; Concurrent writers do not lose updates; A corrupt cache does not break dispatch; A billing failure is not cleared by a passing auth probe
+  **Spec scenarios**: parallel-infrastructure — Cache path precedence; The cache file is private; Declaring an empty probe block invalidates a version-only entry; Changing the CLI invalidates its entry; Changing the lane config invalidates its entry; The same lane fingerprints identically across config sources (unit level, hand-built dicts); Editing a model list does not invalidate capability results; Concurrent writers do not lose updates; A corrupt cache does not break dispatch; A billing failure is not cleared by a passing auth probe; Credential-file evidence does not clear a runtime auth failure
+  **Also asserts**: a `null` and an absent non-`model_flag` `*_flag` key fingerprint identically
   **Contracts**: contracts/vendor-probe-cache.schema.json
   **Design decisions**: D4, D6, D11
   **Dependencies**: 1.1
@@ -35,7 +37,8 @@ Sizes follow the plan-feature Task Sizing Reference. No task is XL; one is L (3.
   **Dependencies**: 2.5
 - [ ] 2.7 Write tests for the `vendor_probe.py report` CLI — table output, remediation hints, zero-vendor case, unresolvable config message **(S)**
   **Spec scenarios**: toolkit-distribution — No vendor CLIs installed; Unresolvable config is reported, not fatal
-  **Design decisions**: D8
+  **Also asserts**: config resolution happens only in the `report` entry point (importing the library functions does not import `review_dispatcher` or PyYAML)
+  **Design decisions**: D1, D8
   **Dependencies**: 1.1
 - [ ] 2.8 Implement the `report` subcommand **(S)**
   **Dependencies**: 2.7
@@ -44,13 +47,13 @@ Sizes follow the plan-feature Task Sizing Reference. No task is XL; one is L (3.
 ## 3. Dispatch integration (wp-dispatch)
 
 - [ ] 3.1 Write tests for `vendor_health.py` delegation — preserved fields, narrowed `dispatch_modes`, new `cli_version`/`missing_flags`/`auth_status`, `healthy=false` on `auth_failed`, watchdog by-path load without PyYAML (sibling load registered in `sys.modules`), CLI re-probes while `check_all_vendors()` reuses fresh entries, watchdog call runs via `asyncio.to_thread` **(M)**
-  **Spec scenarios**: vendor-ux — vendor-status and check-vendors agree; The watchdog loader still works; The watchdog reuses fresh probe results
+  **Spec scenarios**: vendor-ux — vendor-status and check-vendors agree; An expired login makes a lane unhealthy; The watchdog loader still works; The watchdog reuses fresh probe results
   **Design decisions**: D1, D11
-  **Dependencies**: 2.2, 2.4
+  **Dependencies**: 2.2, 2.4, 2.6 (`reuse_fresh` and the cache API)
 - [ ] 3.2 Rewire `vendor_health.check_vendor` onto `vendor_probe` (by-path sibling load); add `vendor_probe.py` to the coordinator Dockerfile copy step; wrap the watchdog's vendor-health call in `asyncio.to_thread` **(S)**
   **Dependencies**: 3.1
 - [ ] 3.3 Write tests for cache-filtered `discover_reviewers`, `--check-vendors` tier verdicts and runtime-failure write-back **(L — flagged: three entry points in one 3.7k-line file; kept as one test task because they share fixtures, implementation is split into 3.4–3.6)**
-  **Spec scenarios**: parallel-infrastructure — A remembered auth failure skips the lane in the next run; A billing failure is not cleared by a passing auth probe; An unwritable cache does not fail the review; Missing cache never narrows the roster; Ignore switch restores the full roster; Check-vendors rejects a lane whose login has expired; The probe never discloses credentials (existing)
+  **Spec scenarios**: parallel-infrastructure — A remembered auth failure skips the lane in the next run; A known-broken CLI is not dispatched; Check-vendors does not count a lane dispatch will skip; A billing failure is not cleared by a passing auth probe; An unwritable cache does not fail the review; Missing cache never narrows the roster; Ignore switch restores the full roster; Check-vendors rejects a lane whose login has expired; The probe never discloses credentials (existing)
   **Also asserts**: a lane loaded through the dispatcher's own loader keeps its `probe` block on the mirror `CliConfig`; `discover_reviewers` starts no subprocesses
   **Design decisions**: D5, D6, D7
   **Dependencies**: 2.6
@@ -65,8 +68,8 @@ Sizes follow the plan-feature Task Sizing Reference. No task is XL; one is L (3.
 
 ## 4. Coordinator config (wp-config)
 
-- [ ] 4.1 Write tests for `cli.probe` in `AGENTS_SCHEMA`, `CliConfig`, last-token `login` rule, and `get_dispatch_configs()` round-trip (present-only) **(S)**
-  **Spec scenarios**: agent-identity — all four scenarios of Declarative CLI Probe Block
+- [ ] 4.1 Write tests for `cli.probe` in `AGENTS_SCHEMA`, `CliConfig`, the semantic rules in `agents_config.validate` (last-token `login`; each `help_args` value contains a help token), and `get_dispatch_configs()` round-trip (present-only) **(S)**
+  **Spec scenarios**: agent-identity — all six scenarios of Declarative CLI Probe Block (including `["login"]` rejected, which only `validate` can enforce)
   **Contracts**: contracts/cli-probe-block.schema.json
   **Design decisions**: D3, D9
   **Dependencies**: 1.1
@@ -79,7 +82,7 @@ Sizes follow the plan-feature Task Sizing Reference. No task is XL; one is L (3.
 ## 5. Install report (wp-install)
 
 - [ ] 5.1 Write tests that `install.sh --check` prints the probe report and that its exit code is unchanged across pass/drift × probe-pass/probe-fail/unavailable **(S)**
-  **Spec scenarios**: toolkit-distribution — No vendor CLIs installed; Drift still fails regardless of the report; Unresolvable config is reported, not fatal
+  **Spec scenarios**: toolkit-distribution — No vendor CLIs installed; Drift still fails regardless of the report; Unresolvable config is reported, not fatal; A hung probe is cut off at the overall timeout
   **Design decisions**: D8
   **Dependencies**: 2.8
 - [ ] 5.2 Wire the bounded, exit-code-neutral report into `install.sh --check`; document tiers and cache in `skills/vendor-status/SKILL.md` **(S)**

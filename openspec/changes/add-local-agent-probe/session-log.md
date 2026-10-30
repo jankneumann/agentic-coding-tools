@@ -33,7 +33,7 @@
 
 ### Relevant Files
 - `openspec/changes/add-local-agent-probe/proposal.md` — approved direction
-- `openspec/changes/add-local-agent-probe/design.md` — decisions D1-D10
+- `openspec/changes/add-local-agent-probe/design.md` — decisions D1-D11
 - `openspec/changes/add-local-agent-probe/work-packages.yaml` — 6-package DAG
 
 ### Context

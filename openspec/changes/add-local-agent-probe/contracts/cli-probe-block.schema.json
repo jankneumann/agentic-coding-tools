@@ -2,26 +2,35 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://agentic-coding-tools/contracts/cli-probe-block.schema.json",
   "title": "agents.yaml cli.probe block",
-  "description": "Merged into AGENTS_SCHEMA under agents.*.cli.properties.probe (agent-identity: Declarative CLI Probe Block).",
+  "description": "Merged into AGENTS_SCHEMA under agents.*.cli.properties.probe (agent-identity: Declarative CLI Probe Block). Every argv list the probe executes (version_args, each help_args value, auth_status_args) is checked against the same denied-token pattern. Rules not expressible here (last token of auth_status_args is not 'login'; each help_args value contains a help token) are enforced in agents_config.validate.",
   "type": "object",
   "additionalProperties": false,
-  "properties": {
-    "version_args": {"type": "array", "items": {"type": "string", "minLength": 1}, "default": ["--version"]},
-    "help_args": {
-      "type": "object",
-      "additionalProperties": {"type": "array", "items": {"type": "string", "minLength": 1}}
-    },
-    "auth_status_args": {
-      "type": "array",
-      "minItems": 1,
-      "description": "Additionally: the last token must not be \"login\" (enforced in agents_config.validate; not expressible here).",
-      "items": {
-        "type": "string",
-        "minLength": 1,
-        "not": {"pattern": "(?i)(print-api-key|print-bearer-token|--credentials|--show-token|logout)"}
+  "$defs": {
+    "probe_token": {
+      "type": "string",
+      "minLength": 1,
+      "not": {
+        "pattern": "[Pp][Rr][Ii][Nn][Tt]-[Aa][Pp][Ii]-[Kk][Ee][Yy]|[Pp][Rr][Ii][Nn][Tt]-[Bb][Ee][Aa][Rr][Ee][Rr]-[Tt][Oo][Kk][Ee][Nn]|--[Cc][Rr][Ee][Dd][Ee][Nn][Tt][Ii][Aa][Ll][Ss]|--[Ss][Hh][Oo][Ww]-[Tt][Oo][Kk][Ee][Nn]|[Ll][Oo][Gg][Oo][Uu][Tt]"
       }
     },
-    "credential_files": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "probe_argv": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/probe_token"}
+    }
+  },
+  "properties": {
+    "version_args": {"$ref": "#/$defs/probe_argv", "default": ["--version"]},
+    "help_args": {
+      "type": "object",
+      "description": "Mode name -> help argv. Additionally each list must contain one of --help, -h, help (enforced in agents_config.validate).",
+      "additionalProperties": {"$ref": "#/$defs/probe_argv"}
+    },
+    "auth_status_args": {
+      "$ref": "#/$defs/probe_argv",
+      "description": "Additionally: the last token must not be \"login\" (enforced in agents_config.validate; not expressible here)."
+    },
+    "credential_files": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
     "ignore_flags": {"type": "array", "items": {"type": "string", "pattern": "^-"}}
   }
 }

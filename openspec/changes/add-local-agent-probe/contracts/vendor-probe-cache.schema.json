@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://agentic-coding-tools/contracts/vendor-probe-cache.schema.json",
   "title": "Per-machine vendor probe cache",
-  "description": "Written by vendor_probe.py; read by review_dispatcher.discover_reviewers. Holds only paths, versions, booleans and reason codes \u2014 never credential material (design D3/D4).",
+  "description": "Written by vendor_probe.py; read by review_dispatcher.discover_reviewers. Holds only paths, versions, booleans and reason codes — never credential material (design D3/D4).",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -29,13 +29,12 @@
   },
   "$defs": {
     "reason": {
+      "description": "L0/L1 tier reasons only; L2 outcomes live in lanes.*.l2.status.",
       "enum": [
         "cli_not_found",
         "probe_timeout",
         "probe_failed",
-        "missing_flags",
-        "auth_failed",
-        "auth_unknown"
+        "missing_flags"
       ]
     },
     "tier": {
@@ -138,7 +137,8 @@
                 "status_command",
                 "credential_files",
                 "none"
-              ]
+              ],
+              "description": "Exactly one method per probe: status_command when auth_status_args is declared (credential_files are then ignored), else credential_files when declared, else none (design D3)."
             }
           }
         }

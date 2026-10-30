@@ -270,8 +270,26 @@ packages:
           cwd: "."
           expect_exit_code: 0
           evidence: {artifacts: [], result_keys: [install_check_passed]}
+        - name: "Ruff on touched modules"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m ruff check agent-coordinator/src/agents_config.py agent-coordinator/src/watchdog.py skills/parallel-infrastructure/scripts/vendor_probe.py skills/parallel-infrastructure/scripts/vendor_health.py skills/parallel-infrastructure/scripts/review_dispatcher.py"
+          cwd: "."
+          expect_exit_code: 0
+          evidence: {artifacts: [], result_keys: [ruff_passed]}
+        - name: "Mypy on touched coordinator modules"
+          kind: command
+          command: ".venv/bin/python -m mypy src/agents_config.py src/watchdog.py"
+          cwd: "agent-coordinator"
+          expect_exit_code: 0
+          evidence: {artifacts: [], result_keys: [mypy_passed]}
+        - name: "Real-CLI probe report (task 6.3)"
+          kind: command
+          command: "skills/.venv/bin/python skills/parallel-infrastructure/scripts/vendor_probe.py report"
+          cwd: "."
+          expect_exit_code: 0
+          evidence: {artifacts: ["openspec/changes/add-local-agent-probe/validation-report.md"], result_keys: [real_cli_probe_recorded]}
     metadata: {loc_estimate: 20, complexity: medium, package_kind: integration}
     inputs: {}
     outputs:
-      result_keys: [fingerprint_sources_passed, skills_regression_passed, coordinator_regression_passed, openspec_strict_passed, install_check_passed]
+      result_keys: [fingerprint_sources_passed, skills_regression_passed, coordinator_regression_passed, openspec_strict_passed, install_check_passed, ruff_passed, mypy_passed, real_cli_probe_recorded]
       artifacts: ["openspec/changes/add-local-agent-probe/validation-report.md"]
