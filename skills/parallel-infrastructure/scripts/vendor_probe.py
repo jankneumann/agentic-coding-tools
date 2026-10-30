@@ -23,7 +23,6 @@ import logging
 import os
 import re
 import shutil
-import signal
 import subprocess
 import sys
 import tempfile
@@ -52,7 +51,7 @@ DEFAULT_FAILURE_TTL = 3600
 VERSION_MAX_CHARS = 200
 DEFAULT_VERSION_ARGS = ["--version"]
 DEFAULT_MODEL_FLAG = "-m"
-HELP_TOKENS = {"--help", "-h", "help"}
+LANE_PSEUDO_MODE = "_lane"
 
 # Reasons that exclude a lane from dispatch. ``probe_timeout`` never does.
 EXCLUDING_REASONS = frozenset(
@@ -116,7 +115,9 @@ def injected_flags(cli: dict[str, Any]) -> dict[str, str]:
     for key, value in cli.items():
         if not key.endswith("_flag") or key == "model_flag":
             continue
-        if value is not None:
+        # None, absent and "" are the same: the coordinator CliConfig serializes
+        # an unset prompt_via_flag as "" while a raw agents.yaml omits it.
+        if value is not None and value != "":
             flags[key] = str(value)
     model_flag = cli.get("model_flag")
     flags["model_flag"] = DEFAULT_MODEL_FLAG if model_flag is None else str(model_flag)
@@ -191,28 +192,22 @@ def _run(argv: list[str], timeout: float, capture: bool) -> tuple[str, int | Non
     With capture=False output is never read (stdout/stderr go to DEVNULL).
     """
     try:
-        proc = subprocess.Popen(
+        # subprocess.run (not Popen): on timeout it kills the child and only
+        # waits for it, so a descendant holding the pipe cannot hang the probe.
+        proc = subprocess.run(
             argv,
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE if capture else subprocess.DEVNULL,
             stderr=subprocess.STDOUT if capture else subprocess.DEVNULL,
+            timeout=timeout,
+            check=False,
             start_new_session=True,
         )
+    except subprocess.TimeoutExpired:
+        return "timeout", None, ""
     except OSError:
         return "launch_error", None, ""
-    try:
-        out, _ = proc.communicate(timeout=timeout)
-    except subprocess.TimeoutExpired:
-        try:
-            os.killpg(proc.pid, signal.SIGKILL)
-        except (OSError, ProcessLookupError):
-            proc.kill()
-        try:
-            proc.communicate(timeout=2)
-        except Exception:  # noqa: BLE001 - best effort reap
-            pass
-        return "timeout", None, ""
-    text = out.decode("utf-8", "replace") if capture and out else ""
+    text = proc.stdout.decode("utf-8", "replace") if capture and proc.stdout else ""
     return "ok", proc.returncode, text
 
 
@@ -275,7 +270,9 @@ def probe_lane(
     probe = cli.get("probe") or {}
     declared = _is_probe_declared(cli)
     budget = _Budget(lane_deadline)
-    mode_names = list(_modes(cli))
+    # A cli block with no dispatch modes still needs its version result to be
+    # recorded somewhere: "_lane" stands in for every mode (see mode_verdict).
+    mode_names = list(_modes(cli)) or [LANE_PSEUDO_MODE]
     found = shutil.which(command) if command else None
     realpath = os.path.realpath(found) if found else None
     method = _l2_method(probe)
@@ -563,7 +560,8 @@ def mode_verdict(
         l0 = entry.get("l0") or {}
         if not l0.get("ok", True):
             return l0.get("reason", "cli_not_found"), since
-        tier = (entry.get("modes") or {}).get(mode)
+        modes = entry.get("modes") or {}
+        tier = modes.get(mode) or modes.get(LANE_PSEUDO_MODE)
         if tier is not None and not tier.get("ok", True):
             return tier.get("reason", "probe_failed"), since
         if (entry.get("l2") or {}).get("status") == "auth_failed":
