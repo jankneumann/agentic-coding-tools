@@ -180,7 +180,8 @@ the review dispatch manifest as an `excluded_lanes` entry `{vendor, mode, reason
 `since` is the entry's `probed_at` or the runtime failure's `observed_at`), so a narrowed round is
 visible in the artefact operators read.
 `AGENTIC_PROBE_IGNORE_CACHE=1` SHALL disable the filter. When dispatch classifies a lane failure
-as `auth_required` or `vendor_unavailable`, the dispatcher SHALL record a runtime failure for
+as `auth_required` or `vendor_unavailable` from the stderr of a non-zero-exit invocation, the
+dispatcher SHALL record a runtime failure for
 that lane in the cache with a 1-hour TTL, whether or not a probe entry exists for it; a failure to
 write SHALL be logged and SHALL NOT alter the dispatch result. A later probe with L2 `auth_ok`
 with method `status_command`, whose auth subprocess started after the failure's `observed_at`,
@@ -219,6 +220,10 @@ when its TTL expires.
 #### Scenario: A billing failure is not cleared by a passing auth probe
 - **WHEN** `pi-local` has a fresh `vendor_unavailable` runtime failure and a re-probe reports L2 `auth_ok`
 - **THEN** the runtime failure SHALL remain and `discover_reviewers` SHALL still omit `pi-local` with reason `runtime_vendor_unavailable` until the TTL expires
+
+#### Scenario: A zero-exit review that mentions 402 is not remembered as unavailable
+- **WHEN** `codex-local` exits 0 with unparseable stdout containing `HTTP 402 Payment Required` as review prose, and the per-run result is classified `vendor_unavailable`
+- **THEN** no runtime failure SHALL be recorded for `codex-local`, and the next run's `discover_reviewers` SHALL include it
 
 #### Scenario: An unwritable cache does not fail the review
 - **WHEN** a lane fails with `auth_required` and the cache directory is read-only

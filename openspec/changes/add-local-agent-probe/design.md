@@ -183,8 +183,8 @@ used by `--check-vendors` (unverified) and `vendor_health` (`healthy: false`, ne
 
 ### D6 — Runtime failures write back
 
-Where `classify_error` yields `ErrorClass.AUTH` or `ErrorClass.UNAVAILABLE`
-(`review_dispatcher.py:1073–1097`), the dispatcher records
+Where `classify_error` yields `ErrorClass.AUTH` or `ErrorClass.UNAVAILABLE` **on the stderr of a
+non-zero-exit invocation** (`review_dispatcher.py:1073`, `:1550`, `:1717`), the dispatcher records
 `runtime_failures[agent_id] = {error_class, observed_at, ttl_seconds: 3600}`. The write is
 best-effort: an `OSError` is logged at WARNING and never changes the `ReviewResult`.
 
@@ -198,6 +198,13 @@ Clearing differs by class, because the probe can only observe what it can observ
   because an expired token file still exists; such a failure clears only when its TTL expires.
 - `vendor_unavailable` is the **billing/credits** class (`_UNAVAILABLE_PATTERNS`, HTTP 402); no
   token-free probe can show credits were restored, so it clears only when its TTL expires.
+
+Classifications made on **zero-exit stdout** (`review_dispatcher.py:1242`, `:1268`) are never
+written back. That path runs `classify_error` over the whole unparseable output, and PLAN_REVIEW
+observed it misclassifying a working codex review as `vendor_unavailable` because the review
+text discussed HTTP 402. Persisting that would exclude a healthy lane for an hour; the per-run
+`error_class` on the `ReviewResult` is unchanged. Narrowing `classify_error` itself is a
+separate follow-up (decided at the IMPLEMENT entry, 2026-10-30).
 
 Capacity limits stay with `vendor_limit_reporter.py`; nothing is duplicated.
 
