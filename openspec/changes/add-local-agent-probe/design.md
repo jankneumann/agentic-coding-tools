@@ -136,7 +136,11 @@ whitespace) of exactly the probe-relevant fields with defaults applied: `command
 defaulting to `"-m"`; for every other `_flag` key, `null` and absent are the same and the key is
 dropped from the projection), and `probe` (absent → `null`, kept distinct from a declared `{}`
 because D9 gives the two different L1 behaviour — adding `probe: {}` to turn flag checking on
-must invalidate a cached version-only result). Fields that do not change probe outcome
+must invalidate a cached version-only result). Inside a declared `probe`, keys equal to their
+default are dropped (`version_args: ["--version"]` ≡ absent), so a source that materializes schema
+defaults and one that does not fingerprint the same. Every carrier of the block — the
+coordinator `CliConfig`, `get_dispatch_configs()`, and the dispatcher's mirror loader — tests
+presence with `is not None`, never truthiness, so a declared `{}` survives the round-trip. Fields that do not change probe outcome
 (`model`, `model_fallbacks`, `api_key_env`, …) are excluded so editing a model list does not
 discard capability results.
 
@@ -207,8 +211,11 @@ Existing codes keep their meaning: `cli_not_found`, `probe_timeout`, `probe_fail
 ### D8 — install.sh report is informational
 
 After the existing drift checks, `--check` runs
-`python3 <skills>/parallel-infrastructure/scripts/vendor_probe.py report` with a 60 s overall
-timeout. Config resolution is the one non-stdlib step and lives only in the `report` entry
+`<py> <skills>/parallel-infrastructure/scripts/vendor_probe.py report` with a 60 s overall
+timeout, where `<py>` is `<source-root>/skills/.venv/bin/python` when it exists and `python3`
+otherwise. In a consumer repo with only a bare `python3` (no PyYAML), the lazy resolver import
+below fails and the report prints `probe report unavailable: config resolver needs PyYAML
+(run skills/.venv)` — an expected, non-fatal outcome that the install tests cover. Config resolution is the one non-stdlib step and lives only in the `report` entry
 point: it lazily imports `review_dispatcher`'s existing resolver (`AGENTS_YAML` →
 `COORDINATION_API_URL` `/agents/dispatch-configs` → local `agent-coordinator/agents.yaml`) and
 passes the resulting plain dicts to the stdlib-only library functions. If that import fails
@@ -237,15 +244,16 @@ finished when it fires are reported as `probe_timeout`.
 
 ### D11 — Who re-probes, who reuses
 
-`vendor_probe.probe_lanes(configs, reuse_fresh: bool)` returns fresh cache entries without
-running subprocesses when `reuse_fresh=True`.
+`vendor_probe.probe_lanes(configs, reuse_fresh: bool, max_age_seconds: int | None = None)`
+returns fresh cache entries without running subprocesses when `reuse_fresh=True`;
+`max_age_seconds` tightens freshness below the entry TTL for that caller only.
 
 | Caller | `reuse_fresh` | Why |
 |---|---|---|
 | `review_dispatcher.py --check-vendors` (autopilot INIT) | `False` | Authoritative refresh point before a run |
 | `vendor_probe.py report` (`install.sh --check`) | `False` | Operator asked for a live check |
 | `vendor_health.py` CLI `main()` (`/vendor-status`) | `False` | Operator asked for a live check |
-| `vendor_health.check_all_vendors()` default (watchdog) | `True` | Runs every 5 min; must not spawn auth commands each cycle |
+| `vendor_health.check_all_vendors()` default (watchdog) | `True`, `max_age_seconds=3600` | Runs every 5 min; must not spawn auth commands each cycle. L0 (`shutil.which` + realpath, no subprocess) is evaluated live every cycle; L1/L2 entries older than 1 h are re-probed, so `vendor.unavailable` lags an expired login or a flag regression by at most ~1 h instead of the 24 h TTL |
 | `discover_reviewers` | never probes (D5) | Dispatch-time overhead budget |
 
 The watchdog calls `check_all_vendors()` synchronously inside an `async` method
