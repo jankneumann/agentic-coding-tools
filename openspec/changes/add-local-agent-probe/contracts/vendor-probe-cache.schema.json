@@ -56,7 +56,68 @@
             "type": "string"
           }
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "ok": {
+                "const": false
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "reason"
+            ]
+          },
+          "else": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "reason"
+                  ]
+                },
+                {
+                  "required": [
+                    "missing_flags"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "reason": {
+                "const": "missing_flags"
+              }
+            },
+            "required": [
+              "reason"
+            ]
+          },
+          "then": {
+            "required": [
+              "missing_flags"
+            ],
+            "properties": {
+              "missing_flags": {
+                "minItems": 1
+              }
+            }
+          },
+          "else": {
+            "not": {
+              "required": [
+                "missing_flags"
+              ]
+            }
+          }
+        }
+      ]
     },
     "lane": {
       "type": "object",
@@ -65,6 +126,7 @@
         "agent_id",
         "command",
         "cli_realpath",
+        "cli_version",
         "config_fingerprint",
         "probed_at",
         "ttl_seconds",
@@ -121,7 +183,8 @@
           "type": "object",
           "additionalProperties": false,
           "required": [
-            "status"
+            "status",
+            "method"
           ],
           "properties": {
             "status": {
@@ -140,7 +203,46 @@
               ],
               "description": "Exactly one method per probe: status_command when auth_status_args is declared (credential_files are then ignored), else credential_files when declared, else none (design D3)."
             }
-          }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "method": {
+                    "const": "none"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "status": {
+                    "enum": [
+                      "auth_unknown"
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "method": {
+                    "const": "credential_files"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "status": {
+                    "enum": [
+                      "auth_ok",
+                      "auth_failed"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
         }
       }
     },

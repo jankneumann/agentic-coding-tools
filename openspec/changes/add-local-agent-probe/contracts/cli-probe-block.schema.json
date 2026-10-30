@@ -16,21 +16,45 @@
     "probe_argv": {
       "type": "array",
       "minItems": 1,
-      "items": {"$ref": "#/$defs/probe_token"}
+      "items": {
+        "$ref": "#/$defs/probe_token"
+      }
     }
   },
   "properties": {
-    "version_args": {"$ref": "#/$defs/probe_argv", "default": ["--version"]},
+    "version_args": {
+      "$ref": "#/$defs/probe_argv",
+      "default": [
+        "--version"
+      ]
+    },
     "help_args": {
       "type": "object",
       "description": "Mode name -> help argv. Additionally each list must contain one of --help, -h, help (enforced in agents_config.validate).",
-      "additionalProperties": {"$ref": "#/$defs/probe_argv"}
+      "additionalProperties": {
+        "$ref": "#/$defs/probe_argv"
+      },
+      "minProperties": 1
     },
     "auth_status_args": {
       "$ref": "#/$defs/probe_argv",
       "description": "Additionally: the last token must not be \"login\" (enforced in agents_config.validate; not expressible here)."
     },
-    "credential_files": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
-    "ignore_flags": {"type": "array", "items": {"type": "string", "pattern": "^-"}}
+    "credential_files": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "ignore_flags": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^-"
+      },
+      "minItems": 1
+    }
   }
 }

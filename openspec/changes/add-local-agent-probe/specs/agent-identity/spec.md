@@ -9,7 +9,8 @@ list), `auth_status_args` (string list), `credential_files` (string list of path
 non-empty. It SHALL reject any probe argv — `version_args`, a `help_args` value, or
 `auth_status_args` — in which any token matches `print-api-key`, `print-bearer-token`,
 `--credentials`, `--show-token`, or `logout` (case-insensitive), an `auth_status_args` list whose
-last token is `login`, and a `help_args` value that contains none of `--help`, `-h`, `help`. `CliConfig` SHALL carry the block, and `get_dispatch_configs()` SHALL include
+last token is `login`, and a `help_args` value none of whose tokens is exactly `--help`, `-h`, or `help` (whole-token
+match; `--helpful` does not count). `CliConfig` SHALL carry the block, and `get_dispatch_configs()` SHALL include
 `probe` in a lane's `cli` payload when, and only when, it is declared.
 
 #### Scenario: A credential-printing auth command is rejected at load
@@ -23,6 +24,10 @@ last token is `login`, and a `help_args` value that contains none of `--help`, `
 #### Scenario: A help override that is not a help command is rejected
 - **WHEN** an agent declares `probe: {help_args: {review: ["exec", "-s", "read-only"]}}`
 - **THEN** loading `agents.yaml` SHALL fail validation
+
+#### Scenario: An empty declared list is rejected
+- **WHEN** an agent declares `probe: {ignore_flags: []}` or `probe: {credential_files: []}`
+- **THEN** loading `agents.yaml` SHALL fail schema validation
 
 #### Scenario: A status subcommand under login is accepted, a bare login is not
 - **WHEN** one agent declares `probe: {auth_status_args: ["login", "status"]}` and another declares `probe: {auth_status_args: ["login"]}`

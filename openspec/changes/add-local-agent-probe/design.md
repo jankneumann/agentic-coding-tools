@@ -43,9 +43,13 @@ For each dispatch mode, the probe splits `args` into a **subcommand path** (lead
 the first token starting with `-`) and the **flags** (tokens starting with `-`; `--flag=value`
 normalizes to `--flag`; placeholder tokens such as `@review-findings-schema` and values are
 skipped). The help command for that mode is `[command, *subcommand_path, "--help"]` unless
-`probe.help_args` overrides it — e.g. codex's `exec -s read-only` checks `codex exec --help` for
+`probe.help_args[<mode>]` overrides it (lookup is per mode: a partial map leaves unlisted modes on
+the generated command) — e.g. codex's `exec -s read-only` checks `codex exec --help` for
 `-s`. Flags named by `cli` keys ending in `_flag` (`model_flag`, `thinking_flag`, …) are added,
-because the dispatcher injects them at runtime. `probe.ignore_flags` removes false positives.
+because the dispatcher injects them at runtime. They are read from the **same normalized
+projection the fingerprint uses (D4)** — `model_flag` defaults to `"-m"` (the dispatcher's own
+`CliConfig` default, so it is injected whether or not a raw `agents.yaml` names it) and `null`
+keys are dropped — so a lane yields the same required-flag set from every config source. `probe.ignore_flags` removes false positives.
 
 `probe.help_args` is constrained because it replaces a generated help command with an
 arbitrary argv: each value must contain `--help`, `-h`, or `help` (enforced in
@@ -141,7 +145,10 @@ write takes a module-level `threading.Lock` and an exclusive `fcntl.flock` on a 
 `vendor-probe.json.lock`, re-reads the current document, merges, writes a `tempfile` in the same
 directory with mode `0600`, and `os.replace`s it. Where `fcntl` is unavailable the flock is
 skipped (best-effort; a lost update only delays one exclusion). Readers take no lock. A cache that
-fails to parse or validate is treated as empty and overwritten on the next write.
+fails to parse or validate is treated as empty and overwritten on the next write. **Every write is
+best-effort for every caller**: an `OSError` (read-only or absent `~/.cache`, as in the
+coordinator container) is logged at WARNING and `probe_lanes()` still returns what it computed, so
+the watchdog, `vendor_health`, `--check-vendors`, and `report` never fail on cache I/O.
 
 Rejected: repo-local `.agents/agents.local.json` (Approach 2) — needs a consumer `.gitignore`
 mutation during install.
@@ -157,7 +164,16 @@ unverified, so the INIT quorum check and dispatch agree on which lanes exist. Mi
 entries never exclude — dispatch adds no subprocesses, keeping warm-cache overhead ≤ 50 ms.
 Probing (and cache writes) happen in `--check-vendors` (autopilot INIT), `vendor_health.py`,
 and `install.sh --check`. `AGENTIC_PROBE_IGNORE_CACHE=1` disables the filter. Every exclusion
-is logged at INFO with lane, mode, and reason so a run is never silently narrowed.
+is logged at INFO with lane, mode, and reason, and is also kept on the orchestrator
+(`ReviewOrchestrator.last_exclusions`) so the review manifest writer
+(`checkpoint_findings.write_manifest`) records it as an additive `excluded_lanes:
+[{vendor, mode, reason, since}]` list — INFO logs are rarely surfaced in CLI-reviewer runs, the
+manifest is what operators read. The `report` remediation hint for `auth_failed` and
+`runtime_auth_required` names the refresh command (`/vendor-status`, which re-probes), because a
+stale `auth_failed` can otherwise linger for the 24 h TTL after a re-login. The same predicate
+(fresh `cli_not_found` / `missing_flags` / `probe_failed` / `auth_failed` / runtime failure) is
+used by `--check-vendors` (unverified) and `vendor_health` (`healthy: false`, new
+`runtime_failure` field), so all three entry points agree.
 
 ### D6 — Runtime failures write back
 
