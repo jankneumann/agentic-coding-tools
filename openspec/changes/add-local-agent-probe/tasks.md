@@ -44,7 +44,7 @@ Sizes follow the plan-feature Task Sizing Reference. No task is XL; one is L (3.
   **Dependencies**: 1.1
 - [x] 2.8 Implement the `report` subcommand **(S)**
   **Dependencies**: 2.7
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 
 ## 3. Dispatch integration (wp-dispatch)
 
@@ -70,12 +70,12 @@ Sizes follow the plan-feature Task Sizing Reference. No task is XL; one is L (3.
 
 ## 4. Coordinator config (wp-config)
 
-- [ ] 4.1 Write tests for `cli.probe` in `AGENTS_SCHEMA`, `CliConfig`, the semantic rules in `agents_config.validate` (last-token `login`; each `help_args` value contains a help token), and `get_dispatch_configs()` round-trip (present-only) **(S)**
+- [x] 4.1 Write tests for `cli.probe` in `AGENTS_SCHEMA`, `CliConfig`, the semantic rules in `agents_config.validate` (last-token `login`; each `help_args` value contains a help token), and `get_dispatch_configs()` round-trip (present-only) **(S)**
   **Spec scenarios**: agent-identity — every scenario of Declarative CLI Probe Block, including An empty probe block survives the round-trip (including `["login"]` rejected, which only `validate` can enforce)
   **Contracts**: contracts/cli-probe-block.schema.json
   **Design decisions**: D3, D9
   **Dependencies**: 1.1
-- [ ] 4.2 Implement the `probe` schema property, `CliConfig.probe`, validation rule, and dispatch-configs serialization **(S)**
+- [x] 4.2 Implement the `probe` schema property, `CliConfig.probe`, validation rule, and dispatch-configs serialization **(S)**
   **Dependencies**: 4.1
 - [ ] 4.3 Add `probe:` blocks to `agents.yaml` per design D3's table and remove stale `# … verified <date>` comments **(XS)**
   **Dependencies**: 4.2

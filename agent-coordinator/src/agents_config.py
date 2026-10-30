@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import yaml
-from jsonschema import validate
+from jsonschema import ValidationError, validate
 from openbao_credentials import agent_principal_id, project_principals
 
 from src.isolation_contract import ISOLATION_MODES, IsolationMode, validate_isolation
@@ -466,6 +466,58 @@ HUMAN_PRINCIPAL_SCHEMA: dict[str, Any] = {
     },
 }
 
+# --- cli.probe block (add-local-agent-probe; contracts/cli-probe-block.schema.json) ---
+# JSON Schema patterns are ECMA-262, so case-insensitivity is spelled with
+# explicit character classes rather than an inline (?i) flag.
+def _ci(word: str) -> str:
+    return "".join(f"[{c.upper()}{c.lower()}]" if c.isalpha() else c for c in word)
+
+
+_PROBE_DENIED_PATTERN = "|".join(
+    _ci(w)
+    for w in (
+        "print-api-key",
+        "print-bearer-token",
+        "--credentials",
+        "--show-token",
+        "logout",
+    )
+)
+_PROBE_ARGV_SCHEMA: dict[str, Any] = {
+    "type": "array",
+    "minItems": 1,
+    "items": {
+        "type": "string",
+        "minLength": 1,
+        "not": {"pattern": _PROBE_DENIED_PATTERN},
+    },
+}
+_PROBE_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "version_args": _PROBE_ARGV_SCHEMA,
+        "help_args": {
+            "type": "object",
+            "minProperties": 1,
+            "additionalProperties": _PROBE_ARGV_SCHEMA,
+        },
+        "auth_status_args": _PROBE_ARGV_SCHEMA,
+        "credential_files": {
+            "type": "array",
+            "minItems": 1,
+            "items": {"type": "string", "minLength": 1},
+        },
+        "ignore_flags": {
+            "type": "array",
+            "minItems": 1,
+            "items": {"type": "string", "pattern": "^-"},
+        },
+    },
+}
+_PROBE_HELP_TOKENS = frozenset({"--help", "-h", "help"})
+
+
 AGENTS_SCHEMA: dict[str, Any] = {
     "type": "object",
     "required": ["agents", "credential_vendors"],
@@ -631,6 +683,9 @@ AGENTS_SCHEMA: dict[str, Any] = {
                             # env). Availability checks treat the binary as
                             # unavailable when the var is unset (issue #383).
                             "api_key_env": {"type": "string", "minLength": 1},
+                            # Token-free local probe declarations
+                            # (vendor_probe.py; agent-identity spec).
+                            "probe": _PROBE_SCHEMA,
                         },
                         "additionalProperties": False,
                     },
@@ -695,6 +750,9 @@ class CliConfig:
     # OPENROUTER_API_KEY). A present binary with this var unset cannot serve
     # a request, so availability checks fail closed on it (issue #383).
     api_key_env: str = ""
+    # Declarative probe block (vendor_probe.py). ``None`` = not declared; a
+    # declared empty ``{}`` is distinct (presence, not truthiness).
+    probe: dict[str, Any] | None = None
 
 
 @dataclass
@@ -923,6 +981,32 @@ def _check_principal_namespace(raw: Mapping[str, Any]) -> None:
         )
 
 
+def _check_probe_blocks(raw: Mapping[str, Any]) -> None:
+    """Probe rules JSON Schema cannot express (agent-identity spec).
+
+    Raises:
+        jsonschema.ValidationError: for an ``auth_status_args`` list whose last
+            token is ``login`` (would start an interactive login), or a
+            ``help_args`` value with no exact ``--help``/``-h``/``help`` token.
+    """
+    for agent_id, agent in (raw.get("agents") or {}).items():
+        probe = ((agent or {}).get("cli") or {}).get("probe")
+        if not probe:
+            continue
+        auth = probe.get("auth_status_args")
+        if auth and auth[-1] == "login":
+            raise ValidationError(
+                f"agents.{agent_id}.cli.probe.auth_status_args must not end with "
+                f"'login' (interactive login); use e.g. ['login', 'status']"
+            )
+        for mode, argv in (probe.get("help_args") or {}).items():
+            if not _PROBE_HELP_TOKENS.intersection(argv):
+                raise ValidationError(
+                    f"agents.{agent_id}.cli.probe.help_args.{mode} must contain "
+                    f"one of --help, -h, help"
+                )
+
+
 def load_human_principals(path: Path | None = None) -> list[HumanEntry]:
     """Load the ``humans:`` block of ``agents.yaml`` (empty list when absent).
 
@@ -939,6 +1023,7 @@ def load_human_principals(path: Path | None = None) -> list[HumanEntry]:
         raise ValueError("Empty agents.yaml file")
     validate(instance=raw, schema=AGENTS_SCHEMA)
     _check_principal_namespace(raw)
+    _check_probe_blocks(raw)
     return [
         HumanEntry(
             name=name,
@@ -986,6 +1071,7 @@ def load_agents_config(
 
     validate(instance=raw, schema=AGENTS_SCHEMA)
     _check_principal_namespace(raw)
+    _check_probe_blocks(raw)
     # Validate the cross-entry catalog and names once, before interpolation.
     project_principals({
         "credential_vendors": raw["credential_vendors"],
@@ -1063,6 +1149,7 @@ def load_agents_config(
                 prompt_via_stdin=raw_cli.get("prompt_via_stdin", False),
                 prompt_via_flag=raw_cli.get("prompt_via_flag", ""),
                 api_key_env=raw_cli.get("api_key_env", ""),
+                probe=raw_cli.get("probe"),
             )
 
         sdk_config: SdkConfig | None = None
@@ -1993,6 +2080,12 @@ def get_dispatch_configs(
                 "prompt_via_stdin": entry.cli.prompt_via_stdin,
                 "prompt_via_flag": entry.cli.prompt_via_flag,
                 "api_key_env": entry.cli.api_key_env,
+                # Only when declared; a declared ``{}`` is kept (is not None).
+                **(
+                    {"probe": entry.cli.probe}
+                    if entry.cli.probe is not None
+                    else {}
+                ),
             }
         agents_out.append({
             "agent_id": entry.name,
