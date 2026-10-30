@@ -701,7 +701,7 @@ def _resolve_cli_configs() -> dict[str, dict[str, Any]]:
     if scripts not in sys.path:
         sys.path.insert(0, scripts)
     try:
-        import yaml  # noqa: F401
+        import yaml
         import review_dispatcher as rd
     except ImportError as exc:
         raise _Unavailable(
@@ -710,16 +710,31 @@ def _resolve_cli_configs() -> dict[str, dict[str, Any]]:
             else f"config resolver import failed: {exc}"
         ) from exc
     orch = rd.ReviewOrchestrator
+
+    def _from_yaml(path: Path) -> dict[str, Any] | None:
+        try:
+            raw = yaml.safe_load(path.read_text()) or {}
+        except (OSError, yaml.YAMLError):
+            return None
+        agents = raw.get("agents") if isinstance(raw, dict) else None
+        if not isinstance(agents, dict):
+            return None
+        return {
+            "agents": [
+                {"agent_id": aid, "cli": (cfg or {}).get("cli")} for aid, cfg in agents.items()
+            ]
+        }
+
     data: dict[str, Any] | None = None
     explicit = orch._explicit_agents_yaml_path()
-    if explicit:
-        data = orch._config_from_agents_yaml(explicit)
+    if explicit and explicit.is_file():
+        data = _from_yaml(explicit)
     if data is None and os.environ.get("COORDINATION_API_URL"):
         data = orch._load_from_http()
     if data is None:
         local = orch._find_local_agents_yaml()
         if local:
-            data = orch._config_from_agents_yaml(local)
+            data = _from_yaml(local)
     if not data:
         raise _Unavailable("no agents configuration resolved")
     configs: dict[str, dict[str, Any]] = {}
@@ -751,9 +766,10 @@ def cmd_report(argv: list[str]) -> int:
     try:
         probes = future.result(timeout=args.timeout)
     except TimeoutError:
-        print("probe report unavailable: timeout")
-        pool.shutdown(wait=False, cancel_futures=True)
-        return 2
+        print("probe report unavailable: timeout", flush=True)
+        # Worker threads are joined at interpreter exit; leave immediately so the
+        # overall bound holds even when a lane's CLI never returns.
+        os._exit(2)
     except Exception as exc:  # noqa: BLE001
         print(f"probe report unavailable: {exc}")
         pool.shutdown(wait=False, cancel_futures=True)
