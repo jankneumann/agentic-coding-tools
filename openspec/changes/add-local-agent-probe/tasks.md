@@ -14,19 +14,19 @@ Sizes follow the plan-feature Task Sizing Reference. No task is XL; one is L (3.
 
 ## 2. Probe core (wp-probe-core)
 
-- [ ] 2.1 Write tests for flag derivation and L0/L1 tiers using fake CLI scripts on a temp `PATH` **(M)**
+- [x] 2.1 Write tests for flag derivation and L0/L1 tiers using fake CLI scripts on a temp `PATH` **(M)**
   **Spec scenarios**: parallel-infrastructure — A flag missing from help output fails L1 for that mode only; Subcommand flags are checked against subcommand help; Injected flags are required; A lane without a probe block keeps today's behaviour; A failing version command fails every mode; Modes sharing a help command run it once; The per-lane deadline bounds a slow lane; vendor-ux — Health probes stay token-free
   **Also asserts**: each subprocess timeout is capped at the remaining lane budget; parallel-infrastructure scenarios Value and placeholder tokens are not required flags; An undeclared model flag is still required; Ignored flags are not required; A partial help override leaves other modes on generated help; Version output is truncated before it is stored
   **Design decisions**: D2, D9, D10
   **Dependencies**: 1.1
-- [ ] 2.2 Implement `vendor_probe.py` flag derivation plus L0/L1 probing (stdlib-only, 10 s timeouts, `stdin=DEVNULL`, thread pool) **(M)**
+- [x] 2.2 Implement `vendor_probe.py` flag derivation plus L0/L1 probing (stdlib-only, 10 s timeouts, `stdin=DEVNULL`, thread pool) **(M)**
   **Dependencies**: 2.1
-- [ ] 2.3 Write tests for L2 auth — exit-code-only status command, credential-file existence on a `0000` file, sentinel never captured, hanging status command killed at 10 s **(S)**
+- [x] 2.3 Write tests for L2 auth — exit-code-only status command, credential-file existence on a `0000` file, sentinel never captured, hanging status command killed at 10 s **(S)**
   **Spec scenarios**: parallel-infrastructure — Auth output is never captured; Credential files are checked for existence only; A hanging auth command times out without failing auth; A status command takes precedence over credential files; A missing credential file fails auth
   **Also asserts**: parallel-infrastructure scenario An auth command that cannot be launched is unknown
   **Design decisions**: D3
   **Dependencies**: 1.1
-- [ ] 2.4 Implement L2 auth probing in `vendor_probe.py` **(S)**
+- [x] 2.4 Implement L2 auth probing in `vendor_probe.py` **(S)**
   **Dependencies**: 2.3
 - [ ] Checkpoint: run tests, review diff, verify scope
 - [ ] 2.5 Write tests for the probe cache — path resolution precedence, normalized-projection fingerprint, realpath invalidation, TTL, locked read-modify-write with `0600` atomic replace, corrupt-file recovery, `runtime_failures` record (with and without a `lanes` entry) and per-class clearing, `probe_lanes(reuse_fresh=True)` starting no subprocesses **(M)**
