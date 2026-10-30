@@ -110,7 +110,7 @@ def check_vendor(
             probe_mod = _load_vendor_probe()
             lane_probe = probe_mod.probe_lanes({agent_id: cli}, reuse_fresh=False)[agent_id]
         entry = lane_probe.entry
-        health.cli_installed = bool(entry["l0"].get("ok"))
+        health.cli_installed = bool((entry.get("l0") or {}).get("ok"))
         health.cli_version = entry.get("cli_version")
         health.auth_status = (entry.get("l2") or {}).get("status", "auth_unknown")
         for mode_name, tier in (entry.get("modes") or {}).items():
@@ -159,8 +159,14 @@ def check_vendor(
         health.healthy = health.cli_installed or health.api_key_available
     # Same predicate as --check-vendors and discover_reviewers: an expired
     # login or a remembered runtime failure is not healthy.
-    if health.auth_status == "auth_failed" or health.runtime_failure:
+    # health.error carries the tier so the watchdog persists 'log in again'
+    # distinctly from 'CLI broken' instead of collapsing both to probe_failed.
+    if health.auth_status == "auth_failed":
         health.healthy = False
+        health.error = "auth_failed"
+    elif health.runtime_failure:
+        health.healthy = False
+        health.error = health.runtime_failure
 
     has_probe_method = bool(command or api_key_env or agent_config.get("api_key"))
     if not has_probe_method:

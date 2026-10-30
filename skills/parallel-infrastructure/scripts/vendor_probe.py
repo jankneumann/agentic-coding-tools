@@ -72,6 +72,18 @@ _RUNTIME_REASON = {
 
 _cache_lock = threading.Lock()
 
+# Probe-argv denylist, mirroring agent-coordinator/src/agents_config.py
+# _PROBE_DENIED_PATTERN. Applied on the execute path because skills-side
+# readers (vendor_health.load_agents_yaml, _resolve_cli_configs) bypass the
+# coordinator's schema validation.
+_PROBE_DENIED_WORDS = (
+    "print-api-key",
+    "print-bearer-token",
+    "--credentials",
+    "--show-token",
+    "logout",
+)
+
 
 # --------------------------------------------------------------------- helpers
 
@@ -96,6 +108,37 @@ def _parse_ts(value: Any) -> float | None:
 
 def _is_probe_declared(cli: dict[str, Any]) -> bool:
     return cli.get("probe") is not None
+
+
+def _argv_denied(argv: Any) -> bool:
+    for token in argv or []:
+        lowered = str(token).lower()
+        if any(word in lowered for word in _PROBE_DENIED_WORDS):
+            return True
+    return False
+
+
+def probe_argv_unsafe(cli: dict[str, Any]) -> str | None:
+    """Why the cli block's probe argv must not be executed, or None if safe.
+
+    Same rules as the coordinator's cli-probe-block schema: no denylisted
+    substring in any version/help/auth token, and ``auth_status_args`` must
+    not end in ``login`` (would start an interactive login).
+    """
+    probe = cli.get("probe") or {}
+    if not isinstance(probe, dict):
+        return "probe block is not a mapping"
+    if _argv_denied(probe.get("version_args")):
+        return "version_args contains a denylisted token"
+    for mode, argv in (probe.get("help_args") or {}).items():
+        if _argv_denied(argv):
+            return f"help_args[{mode}] contains a denylisted token"
+    auth = list(probe.get("auth_status_args") or [])
+    if _argv_denied(auth):
+        return "auth_status_args contains a denylisted token"
+    if auth and str(auth[-1]).lower() == "login":
+        return "auth_status_args ends in 'login'"
+    return None
 
 
 def _modes(cli: dict[str, Any]) -> dict[str, list[str]]:
@@ -262,10 +305,61 @@ def _first_line(text: str) -> str | None:
     return None
 
 
+def _lane_entry(
+    agent_id: str,
+    cli: dict[str, Any],
+    *,
+    realpath: str | None,
+    version: str | None,
+    l0: dict[str, Any],
+    modes: dict[str, Any],
+    l2: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "agent_id": agent_id,
+        "command": cli.get("command") or "",
+        "cli_realpath": realpath,
+        "cli_version": version,
+        "config_fingerprint": lane_fingerprint(cli),
+        "probed_at": _iso(),
+        "ttl_seconds": DEFAULT_LANE_TTL,
+        "l0": l0,
+        "modes": modes,
+        "l2": l2,
+    }
+
+
+def failed_lane(agent_id: str, cli: dict[str, Any], reason: str = "probe_failed") -> LaneProbe:
+    """A schema-valid lane that executed nothing: L0 per ``shutil.which``,
+    every mode failed with ``reason``, L2 unknown (it never ran)."""
+    command = cli.get("command") or ""
+    found = shutil.which(command) if command else None
+    mode_names = list(_modes(cli)) or [LANE_PSEUDO_MODE]
+    l0 = _tier_ok() if found else _tier_fail("cli_not_found")
+    mode_reason = reason if found else "cli_not_found"
+    method = _l2_method(cli.get("probe") or {})
+    entry = _lane_entry(
+        agent_id,
+        cli,
+        realpath=os.path.realpath(found) if found else None,
+        version=None,
+        l0=l0,
+        modes={m: _tier_fail(mode_reason) for m in mode_names},
+        l2={"status": "auth_unknown", "method": method},
+    )
+    return LaneProbe(agent_id=agent_id, entry=entry)
+
+
 def probe_lane(
     agent_id: str, cli: dict[str, Any], *, lane_deadline: float = LANE_DEADLINE
 ) -> LaneProbe:
     """Run L0, L1 and L2 for one lane. Never executes a dispatch-mode argv."""
+    unsafe = probe_argv_unsafe(cli)
+    if unsafe is not None:
+        # Fail closed before any subprocess: the lane's own probe block would
+        # run a denylisted command (e.g. logout, print-api-key).
+        logger.warning("vendor probe %s: unsafe probe argv (%s); not executed", agent_id, unsafe)
+        return failed_lane(agent_id, cli)
     command = cli.get("command") or ""
     probe = cli.get("probe") or {}
     declared = _is_probe_declared(cli)
@@ -351,18 +445,9 @@ def probe_lane(
     else:
         l2 = {"status": "auth_unknown", "method": "none"}
 
-    entry = {
-        "agent_id": agent_id,
-        "command": command,
-        "cli_realpath": realpath,
-        "cli_version": version,
-        "config_fingerprint": lane_fingerprint(cli),
-        "probed_at": _iso(),
-        "ttl_seconds": DEFAULT_LANE_TTL,
-        "l0": l0,
-        "modes": modes,
-        "l2": l2,
-    }
+    entry = _lane_entry(
+        agent_id, cli, realpath=realpath, version=version, l0=l0, modes=modes, l2=l2
+    )
     return LaneProbe(agent_id=agent_id, entry=entry, auth_started_at=auth_started)
 
 
@@ -542,6 +627,9 @@ def fresh_entry(
         return None
     if entry.get("cli_realpath") != current_realpath(cli.get("command") or ""):
         return None
+    # A hand-edited or shape-drifted entry is stale, not a KeyError for readers.
+    if not all(isinstance(entry.get(k), dict) for k in ("l0", "modes", "l2")):
+        return None
     return entry
 
 
@@ -623,7 +711,13 @@ def probe_lanes(
     if todo:
         with ThreadPoolExecutor(max_workers=min(MAX_WORKERS, len(todo))) as pool:
             futures = {a: pool.submit(probe_lane, a, c) for a, c in todo.items()}
-            fresh = [f.result() for f in futures.values()]
+            fresh = []
+            for agent_id, future in futures.items():
+                try:
+                    fresh.append(future.result())
+                except Exception as exc:  # noqa: BLE001 - one bad lane must not blank the roster
+                    logger.warning("vendor probe %s failed: %s", agent_id, exc)
+                    fresh.append(failed_lane(agent_id, todo[agent_id]))
         store_probes(fresh, path)
         for probe in fresh:
             results[probe.agent_id] = probe
@@ -670,7 +764,8 @@ def format_report(
         if probe.runtime_failure:
             l2 += "+" + _RUNTIME_REASON[probe.runtime_failure["error_class"]]
         hint = ""
-        if not entry["l0"].get("ok"):
+        l0 = entry.get("l0") or {}
+        if not l0.get("ok"):
             hint = _HINTS["cli_not_found"]
         else:
             for tier in modes.values():
@@ -686,7 +781,7 @@ def format_report(
                     hint = _HINTS[_RUNTIME_REASON[probe.runtime_failure["error_class"]]]
         lines.append(
             f"{agent_id:<22} {str(entry.get('cli_version') or '-'):<26} "
-            f"{_tier_cell(entry['l0']):<14} {l1:<22} {l2:<14} {hint}"
+            f"{_tier_cell(l0):<14} {l1:<22} {l2:<14} {hint}"
         )
     if not probes:
         lines.append("(no CLI lanes configured)")
@@ -766,6 +861,7 @@ def cmd_report(argv: list[str]) -> int:
     future = pool.submit(probe_lanes, configs, False)
     try:
         probes = future.result(timeout=args.timeout)
+        report = format_report(probes)
     except TimeoutError:
         print("probe report unavailable: timeout", flush=True)
         # Worker threads are joined at interpreter exit; leave immediately so the
@@ -776,7 +872,7 @@ def cmd_report(argv: list[str]) -> int:
         pool.shutdown(wait=False, cancel_futures=True)
         return 2
     pool.shutdown(wait=False)
-    print(format_report(probes))
+    print(report)
     return 0
 
 

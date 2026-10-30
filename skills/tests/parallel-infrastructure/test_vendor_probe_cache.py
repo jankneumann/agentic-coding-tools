@@ -149,6 +149,44 @@ def test_stale_entry_never_excludes(tmp_path):
     assert vp.cache_exclusion("a", block, "review", doc, now=time.time() + 90000) is None
 
 
+@pytest.mark.parametrize("missing", ["l0", "modes", "l2"])
+def test_entry_missing_tier_is_stale_not_keyerror(tmp_path, missing):
+    vp.probe_lanes({"a": cli()}, reuse_fresh=False)
+    path = tmp_path / "cache.json"
+    doc = json.loads(path.read_text())
+    del doc["lanes"]["a"][missing]
+    path.write_text(json.dumps(doc))
+    doc = vp.read_cache()
+    assert vp.fresh_entry(doc, "a", cli()) is None
+    assert vp.cache_exclusion("a", cli(), "review", doc) is None
+    before = n_calls(tmp_path)
+    result = vp.probe_lanes({"a": cli()}, reuse_fresh=True)
+    assert n_calls(tmp_path) > before  # re-probed
+    assert not result["a"].reused
+    # format_report tolerates the degraded shape, too
+    broken = vp.LaneProbe("a", {k: v for k, v in result["a"].entry.items() if k != missing})
+    assert "a" in vp.format_report({"a": broken})
+
+
+def test_one_raising_lane_does_not_blank_the_roster(tmp_path, monkeypatch, caplog):
+    real = vp.probe_lane
+
+    def flaky(agent_id, cli_block, **kw):
+        if agent_id == "bad":
+            raise RuntimeError("HOME unresolvable")
+        return real(agent_id, cli_block, **kw)
+
+    monkeypatch.setattr(vp, "probe_lane", flaky)
+    result = vp.probe_lanes({"bad": cli(), "good": cli()}, reuse_fresh=False)
+    assert result["good"].entry["l0"] == {"ok": True}
+    assert result["good"].entry["modes"]["review"] == {"ok": True}
+    assert all(t["reason"] == "probe_failed" for t in result["bad"].entry["modes"].values())
+    assert any("bad" in r.message and "failed" in r.message for r in caplog.records)
+    doc = json.loads((tmp_path / "cache.json").read_text())
+    assert set(doc["lanes"]) == {"bad", "good"}
+    assert not list(VALIDATOR.iter_errors(doc))
+
+
 def test_corrupt_cache_is_empty_and_overwritten(tmp_path):
     path = tmp_path / "cache.json"
     path.write_text("{not json")

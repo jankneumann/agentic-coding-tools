@@ -114,6 +114,50 @@ def test_bare_interpreter_without_pyyaml_is_reported_not_fatal(toolkit):
     assert line.startswith("probe report unavailable:")
 
 
+def test_crashing_probe_prints_single_unavailable_line(toolkit):
+    """A traceback on a non-zero exit is reduced to the one-line contract."""
+    src, target, tmp = toolkit
+    fake_bin = src / ".venv" / "bin"
+    fake_bin.mkdir(parents=True)
+    fake_py = fake_bin / "python"
+    fake_py.write_text(
+        "#!/bin/sh\n"
+        "echo 'Traceback (most recent call last):'\n"
+        "echo '  File \"vendor_probe.py\", line 1, in <module>'\n"
+        "echo 'KeyError: l0' >&2\n"
+        "exit 1\n"
+    )
+    fake_py.chmod(0o755)
+    result = check(src, target, tmp, AGENTS_YAML=write_agents(tmp, "python3"))
+    assert result.returncode == 0, result.stderr
+    assert "Traceback" not in result.stdout
+    assert "KeyError" not in result.stdout
+    lines = result.stdout.splitlines()
+    idx = lines.index("Vendor probe report:")
+    assert lines[idx + 1] == "probe report unavailable: probe error"
+
+
+def test_formatting_failure_is_single_line_in_python(tmp_path, monkeypatch):
+    """cmd_report keeps the single-line contract when format_report raises."""
+    import sys
+
+    sys.path.insert(0, str(SKILLS_ROOT / "parallel-infrastructure" / "scripts"))
+    import vendor_probe as vp
+
+    monkeypatch.setenv("AGENTIC_PROBE_CACHE", str(tmp_path / "cache.json"))
+    monkeypatch.setattr(vp, "_resolve_cli_configs", lambda: {"a": {"command": "python3"}})
+    monkeypatch.setattr(vp, "probe_lanes", lambda *a, **k: {"a": vp.LaneProbe("a", {})})
+    monkeypatch.setattr(vp, "format_report", lambda _p: (_ for _ in ()).throw(KeyError("l0")))
+    import io
+    from contextlib import redirect_stdout
+
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        rc = vp.cmd_report([])
+    assert rc == 2
+    assert buf.getvalue().splitlines() == ["probe report unavailable: 'l0'"]
+
+
 def test_hung_probe_is_cut_off_at_the_report_timeout(toolkit):
     src, target, tmp = toolkit
     link_venv(src)
