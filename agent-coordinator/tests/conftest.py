@@ -35,8 +35,13 @@ def setup_api_config_env(monkeypatch: pytest.MonkeyPatch, test_key: str) -> Iter
 
 
 @pytest.fixture(autouse=True)
-def setup_env(monkeypatch):
+def setup_env(monkeypatch, tmp_path_factory):
     """Set up test environment variables."""
+    # Keep vendor-probe cache writes out of the real ~/.cache.
+    monkeypatch.setenv(
+        "AGENTIC_PROBE_CACHE",
+        str(tmp_path_factory.mktemp("probe-cache") / "vendor-probe.json"),
+    )
     monkeypatch.setenv("SUPABASE_URL", "https://test.supabase.co")
     monkeypatch.setenv("SUPABASE_SERVICE_KEY", "test-service-key")
     monkeypatch.setenv("AGENT_ID", "test-agent-1")
