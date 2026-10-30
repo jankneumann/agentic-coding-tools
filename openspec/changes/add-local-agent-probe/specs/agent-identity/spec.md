@@ -6,10 +6,11 @@ An agent's `cli` block in `agents.yaml` MAY declare a `probe` object with option
 `version_args` (string list, default `["--version"]`), `help_args` (map of mode name to string
 list), `auth_status_args` (string list), `credential_files` (string list of paths), and
 `ignore_flags` (string list). `AGENTS_SCHEMA` SHALL accept exactly these keys and reject others. Every declared list SHALL be
-non-empty. It SHALL reject any probe argv — `version_args`, a `help_args` value, or
+non-empty, and it SHALL reject any probe argv — `version_args`, a `help_args` value, or
 `auth_status_args` — in which any token matches `print-api-key`, `print-bearer-token`,
-`--credentials`, `--show-token`, or `logout` (case-insensitive), an `auth_status_args` list whose
-last token is `login`, and a `help_args` value none of whose tokens is exactly `--help`, `-h`, or `help` (whole-token
+`--credentials`, `--show-token`, or `logout` (case-insensitive). Loading SHALL additionally fail — via `agents_config.validate`, because
+these rules are not expressible in JSON Schema — for an `auth_status_args` list whose
+last token is `login`, and for a `help_args` value none of whose tokens is exactly `--help`, `-h`, or `help` (whole-token
 match; `--helpful` does not count). `CliConfig` SHALL carry the block, and `get_dispatch_configs()` SHALL include
 `probe` in a lane's `cli` payload when, and only when, it is declared.
 

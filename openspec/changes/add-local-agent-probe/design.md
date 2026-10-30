@@ -26,7 +26,9 @@ loads `vendor_health.py` by file path inside the coordinator container; the Dock
 and registers the module in `sys.modules["vendor_probe"]` **before** `exec_module` (the #643
 lesson: `@dataclass` resolves postponed annotations through `sys.modules`). A plain
 `import vendor_probe` is not used because the watchdog's by-path load does not put the scripts
-directory on `sys.path`. `vendor_health.check_vendor()` and
+directory on `sys.path`. `review_dispatcher.py` uses the same sibling-path loader (one shared
+helper, registered under the same `sys.modules["vendor_probe"]` key, so a process that loads both
+gets one module instance and one cache lock). `vendor_health.check_vendor()` and
 `review_dispatcher._probe_mode()` both become thin adapters that map a `LaneProbe` onto their
 existing output shapes — existing fields keep their meaning, new tier fields are additive.
 
@@ -63,7 +65,7 @@ A flag is present when it occurs in help output as a whole token
 Rejected: a hand-maintained `required_flags` list — it reproduces the stale-comment problem
 this change exists to remove.
 
-### D3 — Auth is exit-code-only, allowlist-shaped
+### D3 — Auth is exit-code-only; every probe argv is denylist-screened
 
 **Every probe argv is denylisted, not only the auth one.** The version command's stdout *is*
 captured (it becomes `cli_version` in the cache and the report), and help output is captured for
@@ -185,7 +187,10 @@ best-effort: an `OSError` is logged at WARNING and never changes the `ReviewResu
 Clearing differs by class, because the probe can only observe what it can observe token-free:
 
 - `auth_required` is cleared by a later probe whose L2 is `auth_ok` **with method
-  `status_command`**. An `auth_ok` from `credential_files` (existence only) does not clear it,
+  `status_command`**, and only when that auth subprocess *started* after the failure's
+  `observed_at` (the clear is decided inside the locked read-modify-write, against the record
+  re-read there), so a probe that began before a concurrent dispatch observed the failure cannot
+  erase it. An `auth_ok` from `credential_files` (existence only) does not clear it,
   because an expired token file still exists; such a failure clears only when its TTL expires.
 - `vendor_unavailable` is the **billing/credits** class (`_UNAVAILABLE_PATTERNS`, HTTP 402); no
   token-free probe can show credits were restored, so it clears only when its TTL expires.

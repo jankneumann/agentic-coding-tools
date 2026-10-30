@@ -177,7 +177,8 @@ visible in the artefact operators read.
 as `auth_required` or `vendor_unavailable`, the dispatcher SHALL record a runtime failure for
 that lane in the cache with a 1-hour TTL, whether or not a probe entry exists for it; a failure to
 write SHALL be logged and SHALL NOT alter the dispatch result. A later probe with L2 `auth_ok`
-with method `status_command` SHALL clear an `auth_required` failure (an `auth_ok` from
+with method `status_command`, whose auth subprocess started after the failure's `observed_at`,
+SHALL clear an `auth_required` failure (an `auth_ok` from
 `credential_files` SHALL NOT); a `vendor_unavailable` (billing/credits) failure SHALL clear only
 when its TTL expires.
 
