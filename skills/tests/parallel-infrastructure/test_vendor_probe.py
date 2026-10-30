@@ -291,6 +291,41 @@ def test_unlaunchable_auth_command_is_unknown(tmp_path, monkeypatch):
     assert entry["l2"] == {"status": "auth_unknown", "method": "status_command"}
 
 
+# ------------------------------------------------------------ argv safety
+
+
+@pytest.mark.parametrize(
+    "probe",
+    [
+        {"auth_status_args": ["logout"]},
+        {"version_args": ["auth", "print-api-key"]},
+        {"auth_status_args": ["auth", "LOGIN"]},
+        {"help_args": {"review": ["--show-token", "--help"]}},
+        {"version_args": ["--credentials"]},
+    ],
+)
+def test_unsafe_probe_argv_executes_nothing_and_fails_closed(tmp_path, monkeypatch, probe):
+    make_cli(tmp_path, helps={"--help": FULL_HELP})
+
+    def boom(*_a, **_k):
+        raise AssertionError("subprocess must not run for an unsafe probe block")
+
+    monkeypatch.setattr(vp, "_run", boom)
+    monkeypatch.setattr(vp.subprocess, "run", boom)
+    result = vp.probe_lane("a", cli(probe=probe))
+    assert calls(tmp_path) == []
+    assert result.entry["l0"] == {"ok": True}
+    assert all(t == {"ok": False, "reason": "probe_failed"} for t in result.entry["modes"].values())
+    assert result.entry["l2"]["status"] == "auth_unknown"
+    assert vp.mode_verdict(result.entry, None, "review")[0] in vp.EXCLUDING_REASONS
+
+
+def test_safe_probe_argv_passes_gate():
+    assert vp.probe_argv_unsafe(cli(probe={"auth_status_args": ["login", "status"]})) is None
+    assert vp.probe_argv_unsafe(cli(probe={})) is None
+    assert vp.probe_argv_unsafe(cli()) is None
+
+
 def test_stdin_is_devnull(tmp_path):
     make_cli(tmp_path, helps={"--help": FULL_HELP})
     status, rc, _ = vp._run(["sh", "-c", "cat; exit 0"], 5, True)

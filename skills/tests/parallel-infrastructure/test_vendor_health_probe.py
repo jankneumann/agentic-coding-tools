@@ -86,6 +86,7 @@ def test_expired_login_makes_lane_unhealthy(tmp_path):
     h = vendor_health.check_vendor("a", cfg)
     assert h.auth_status == "auth_failed"
     assert h.healthy is False
+    assert h.error == "auth_failed"
 
 
 def test_remembered_billing_failure_unhealthy(tmp_path):
@@ -94,6 +95,26 @@ def test_remembered_billing_failure_unhealthy(tmp_path):
     h = vendor_health.check_vendor("a", lane())
     assert h.runtime_failure == "runtime_vendor_unavailable"
     assert h.healthy is False
+    assert h.error == "runtime_vendor_unavailable"
+
+
+def test_remembered_auth_required_sets_error(tmp_path):
+    make_cli(tmp_path, help_text="-p --model --secret-dispatch-flag")
+    vp.record_runtime_failure("a", "auth_required")
+    h = vendor_health.check_vendor("a", lane())
+    assert h.error == "runtime_auth_required"
+
+
+def test_healthy_lane_has_no_error_and_no_probe_method_wins(tmp_path):
+    make_cli(tmp_path, help_text="-p --model --secret-dispatch-flag")
+    assert vendor_health.check_vendor("a", lane()).error is None
+    assert vendor_health.check_vendor("sdk", {"type": "x"}).error == "no_probe_method"
+
+
+def test_entry_without_l0_does_not_raise(tmp_path):
+    probe = vp.LaneProbe("a", {"modes": {}, "l2": {"status": "auth_unknown", "method": "none"}})
+    h = vendor_health.check_vendor("a", lane(), probe)
+    assert h.cli_installed is False
 
 
 def test_health_and_check_vendors_agree_on_missing_flag(tmp_path):

@@ -257,7 +257,7 @@ print_vendor_probe_report() {
   local probe="$SCRIPT_DIR/parallel-infrastructure/scripts/vendor_probe.py"
   local limit="${AGENTIC_PROBE_REPORT_TIMEOUT:-60}"
   local py="$SCRIPT_DIR/.venv/bin/python"
-  local out
+  local out rc
 
   echo
   echo "Vendor probe report:"
@@ -271,15 +271,19 @@ print_vendor_probe_report() {
       return 0
     fi
   fi
+  rc=0
   if command -v timeout >/dev/null 2>&1; then
-    out="$(cd "$TARGET_ROOT" && timeout "$((limit + 5))" "$py" "$probe" report --timeout "$limit" 2>&1)" || true
+    out="$(cd "$TARGET_ROOT" && timeout "$((limit + 5))" "$py" "$probe" report --timeout "$limit" 2>&1)" || rc=$?
   else
-    out="$(cd "$TARGET_ROOT" && "$py" "$probe" report --timeout "$limit" 2>&1)" || true
+    out="$(cd "$TARGET_ROOT" && "$py" "$probe" report --timeout "$limit" 2>&1)" || rc=$?
   fi
-  if [[ -z "$out" ]]; then
-    echo "probe report unavailable: probe error"
-  elif [[ "$out" == *"probe report unavailable:"* ]]; then
+  # A non-zero exit that already carries the single-line marker (unresolvable
+  # config, timeout) is relayed; anything else (traceback, usage error, empty)
+  # is reduced to the one-line contract rather than printed verbatim.
+  if [[ "$out" == *"probe report unavailable:"* ]]; then
     printf '%s\n' "$out" | grep -m1 'probe report unavailable:'
+  elif [[ $rc -ne 0 || -z "$out" ]]; then
+    echo "probe report unavailable: probe error"
   else
     printf '%s\n' "$out"
   fi
