@@ -250,6 +250,7 @@ def _reconcile_terminal(
     state["outcome"] = outcome
     state["claimed_by"] = None
     state["blocking_reason"] = None
+    state.pop("awaiting_merge_confirmation", None)
     downstream = _mark_downstream(plan, pr_number) if outcome == "merged" else []
     store.save(plan)
     return {
@@ -291,6 +292,14 @@ def execute_node(
         terminal = live_terminal_outcome(recovery_live)
         if terminal is not None:
             return _reconcile_terminal(store, plan, state, pr_number, terminal)
+        if state.get("awaiting_merge_confirmation"):
+            return {
+                "action": "awaiting_merge_confirmation",
+                "outcome": "in_progress",
+                "pr": pr_number,
+                "claimed_by": state.get("claimed_by"),
+                "reason": state.get("blocking_reason"),
+            }
         if state.get("claimed_by") != execution_claim:
             return {
                 "action": "execution_in_progress",
@@ -532,6 +541,25 @@ def execute_node(
             "pr": pr_number,
             "reason": reason,
             "merge": result,
+        }
+
+    # Successful submission is not integration. Preserve the claim, including
+    # across restarts and same-claim retries, until live GitHub state confirms
+    # a terminal outcome. Unknown/missing status is deliberately nonterminal.
+    if result.get("status") != "merged":
+        state["awaiting_merge_confirmation"] = True
+        state["blocking_reason"] = (
+            f"merge request accepted ({result.get('status') or 'unknown'}); "
+            "awaiting remote merge confirmation"
+        )
+        store.save(plan)
+        return {
+            "action": "awaiting_merge_confirmation",
+            "outcome": "in_progress",
+            "pr": pr_number,
+            "reason": state["blocking_reason"],
+            "merge": result,
+            "vendor_review": _review_evidence(review),
         }
 
     state["outcome"] = "merged"
