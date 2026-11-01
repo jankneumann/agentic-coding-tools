@@ -74,3 +74,6 @@ def test_restart_reconciles_actual_remote_outcome(tmp_path, remote_state, outcom
     assert state["claimed_by"] is None
     assert state.get("awaiting_merge_confirmation", False) is False
     assert plan["nodes"][2]["state"]["needs_revalidation"] is (outcome == "merged")
+    assert plan["last_merged_pr"] == (11 if outcome == "merged" else None)
+    assert plan["compact_requested"] is (outcome == "merged")
+    assert result["compact_requested"] is (outcome == "merged")
