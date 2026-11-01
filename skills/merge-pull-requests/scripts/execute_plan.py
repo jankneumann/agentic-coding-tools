@@ -251,12 +251,16 @@ def _reconcile_terminal(
     state["claimed_by"] = None
     state["blocking_reason"] = None
     state.pop("awaiting_merge_confirmation", None)
+    if outcome == "merged":
+        plan["last_merged_pr"] = pr_number
+        plan["compact_requested"] = True
     downstream = _mark_downstream(plan, pr_number) if outcome == "merged" else []
     store.save(plan)
     return {
         "action": "reconciled",
         "outcome": outcome,
         "pr": pr_number,
+        "compact_requested": plan.get("compact_requested", False),
         "downstream_revalidation": downstream,
     }
 
