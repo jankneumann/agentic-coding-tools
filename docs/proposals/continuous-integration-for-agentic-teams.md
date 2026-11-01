@@ -33,7 +33,7 @@ on PRs whose size (p90 14.5k lines) makes human verification impossible.
 
 The plan below keeps the proposal's direction (small slices, AI-primary gates,
 overlap-scoped blocking, a continuous mode) and changes its targets. It adds four things
-the proposal omits: a planning WIP limit, a local review queue as the cloud-to-local
+the proposal omits: an implementation WIP limit, a local review queue as the cloud-to-local
 bridge, an explicit experimentation path, and a measurement baseline.
 
 ---
@@ -128,10 +128,14 @@ move, but two preconditions are not met:
   merge cannot be turned on until a second lane exists for cloud-produced PRs. The
   `openrouter-review-lane` change (in progress) and the local review queue (workstream 3)
   both close this.
-- **Risk classification is judged, not declared.** `_classify_pr_risk` in
-  `vendor_review.py:181-256` is an LLM judgment used only to decide review eligibility.
-  An auto-merge policy needs a deterministic path-based class first, with the judgment
-  as a refinement that can only raise risk, never lower it.
+- **Risk classification is judged, but without a rubric.** `_classify_pr_risk` in
+  `vendor_review.py:181-256` already asks the System One judge (Jev) for a four-level
+  risk score, but only to decide review eligibility, and the levels are labels with no
+  written criteria. The owner's position is that risk is a property of the work (what it
+  touches, how much, how reversible, how much design it contains), not of a file list,
+  and that a list wide enough to feel safe gates nearly everything. An auto-merge policy
+  can be built on the judged path, but it needs a written rubric, a short deterministic
+  floor for surfaces that are never judged down, and calibration against outcomes (WS2a).
 
 The proposal's "optional one-click confirmation" is the `notify_with_timeout`
 disposition that `TRUST_POSTURE.md` already defines. It needs a notification channel, which
@@ -162,9 +166,11 @@ is a posture file plus a few config defaults, documented as a reference profile.
 
 ### 3.6 What the proposal omits
 
-1. **Planning WIP.** Nothing in the proposal slows the inflow. With `proposal_approval:
-   auto`, a cloud agent can mint a change in minutes, and 93 of 120 changes are untouched.
-   Small slices without a WIP limit produce more small things waiting.
+1. **Implementation WIP.** Nothing in the proposal bounds what is in flight. With
+   `proposal_approval: auto`, a cloud agent can mint a change in minutes; 93 of 120 changes
+   are untouched and 16 are in implementation. Plans are cheap and the owner uses planning
+   as a sounding board, so the limit belongs on implementations, not on plans. Small
+   slices without such a limit produce more small things waiting.
 2. **The Dependabot stream.** Twenty of 37 open PRs. Separate it entirely.
 3. **The cloud-to-local bridge.** The proposal does not say where review runs. The user's
    constraint is that subscriptions (Codex, Gemini, Grok, OpenRouter via pi) live on the
@@ -193,8 +199,10 @@ implementing and local agents verifying.
   real vendor diversity runs second, humans see only high-risk surfaces and reviewer
   disagreements. Humans verify *intent* at plan time (is this what we want) and at demo
   time (does it do that), not line-level code at merge time.
-- **WIP is capped at the planning level.** A change that nobody starts within 30 days is
-  archived as abandoned. New changes are refused above the cap.
+- **WIP is capped at the implementation level, not the planning level.** Plans are an
+  unlimited, prioritized backlog, because planning doubles as the owner's sounding board.
+  At most ten changes are in implementation at once. A plan that a newer idea supersedes
+  is archived as superseded, by decision, not by timer.
 - **Cloud implements, local verifies.** Cloud sessions are isolated and parallel, so
   planning and implementation go there. Subscriptions and the GX10 are on the device, so
   review, validation that needs Docker, and the merge pass go there. The local review
@@ -211,7 +219,7 @@ idea
      └─ proposal-lite (cloud, plan-feature --lite)        proposal + spec deltas + slices
          └─ slice PRs (cloud, implement-feature)          one PR per slice, flagged, stacked when needed
              └─ local review queue (device)               subscription lanes, quorum 2, findings to ledger
-                 └─ merge policy (device or scheduled)    low risk auto, medium notify, high human
+                 └─ merge policy (GX10 or scheduled)      low and medium auto, notify on judgement calls, high human
                      └─ demo / validation signals         human verifies intent, not code
 ```
 
@@ -228,18 +236,27 @@ owner review.
   commit to merge, lines per PR, open-PR age, active changes by task state, merges per
   day. Run it now to pin the baseline, and run it weekly.
 - **Archive the done.** Archive the 11 fully checked changes.
-- **Expire the untouched.** Move the 93 changes with no checked task to
-  `openspec/changes/archive/<date>-<id>/` with `status: abandoned` in `proposal.md`
-  unless they are referenced by a roadmap item in `approved` or `in_progress`. This is
-  reversible: an abandoned change can be re-opened by copying it back. Rough target:
-  under 20 active changes.
+- **Triage the in-flight.** For each of the 16 changes with implementation started, the
+  owner decides finish, pause or archive, with one line of reasoning recorded in the
+  change's `proposal.md`. The question is whether the change still makes the system
+  better given what has been learned since it was planned. Target: at most ten in
+  implementation.
+- **Prioritize the plans, archive the superseded.** Run `prioritize-proposals` over the
+  93 untouched changes with a supersession pass: where a newer change or roadmap item
+  covers the same capability, archive the older one to
+  `openspec/changes/archive/<date>-<id>/` with `status: superseded` and
+  `superseded_by: <id>` in `proposal.md`. Plans that are not superseded stay, ranked.
+  There is no time-based expiry of plans; the owner decides, and archival is a move that
+  can be reversed by copying the directory back.
 - **Cap roadmaps.** Mark all but two or three roadmaps `paused`. Thirteen roadmaps in
   `planning` is a backlog of intentions, not a plan.
 - **Drain Dependabot.** Run the merge pass with `--execute` on the 20 Dependabot PRs
   (they are already `auto_executable`), then enable workstream 1b so they never
   accumulate again.
 
-Acceptance: metrics report committed under `docs/reports/`; active changes under 20;
+Acceptance: metrics report committed under `docs/reports/`; at most ten changes in
+implementation, each with a recorded decision; every untouched plan ranked or archived
+as superseded;
 zero Dependabot PRs older than 7 days.
 
 ### WS1. Fix the gate (2-3 days)
@@ -283,21 +300,46 @@ without a human running a pass.
 
 ### WS2. Risk-tiered merge authorization (3-4 days)
 
-**2a. Deterministic risk classes.** Add `openspec/merge-policy.yaml`:
+**2a. A risk rubric, judged, with a short deterministic floor.** Risk is assessed from
+the work: what it touches, how much changes, how reversible it is, and how much design
+it contains. Classification runs through the System One judge (Jev, via
+`system_one_decisions.decide`, the layer `_classify_pr_risk` already calls) against a
+written rubric, so every verdict is a set of scored answers that can be audited and
+calibrated. The rubric lives in `openspec/merge-policy.yaml` next to the floor.
 
-```yaml
-schema_version: 1
-risk_classes:
-  low:
-    paths: ["docs/**", "skills/*/SKILL.md", "**/tests/**", "openspec/changes/**", "*.md"]
-  medium:
-    paths: ["skills/**", "apps/**", "packages/**"]
-  high:
-    paths: ["agent-coordinator/src/**", "agent-coordinator/migrations/**",
-            "TRUST_POSTURE.md", ".github/**", "openspec/specs/**", "skills/shared/**"]
-# A PR's class is the highest class of any file it touches.
-# The judged classification in vendor_review.py may raise the class, never lower it.
-```
+Four dimensions, each a `Score` question with explicit levels from lowest to highest:
+
+| Dimension | Levels | What the judge sees |
+|---|---|---|
+| Impact surface | docs or tests only; internal to one module; cross-module contract or shared skill library; auth, secrets, data path, or shared runtime | file list, slice `write_allow`, spec deltas |
+| Blast radius | one slice within its size budget; several packages or above budget; every caller of a public interface | diff stat, file count, package count, `size_budget_lines` |
+| Reversibility | additive and behind a flag; behaviour change undone by one revert; migration, stored state, or external side effect | `lands_behind`, migration paths, diff stat |
+| Design content | implements a settled design; makes a choice the spec is silent on; changes a design, an interface contract, or a tradeoff | proposal and design deltas, `audit-choices` ledger, PR body |
+
+Class is derived from the scores. High when impact surface or reversibility or design
+content is at its top level. Medium when any dimension is at its second-highest level.
+Low otherwise. The judge sees title, body, file list, diff stat and slice metadata, never
+the diff itself, as the Jev assessment (A4) specifies.
+
+The deterministic floor is the only file list, and it is short by construction: the
+rails the automation runs on (`.github/workflows/**`, `TRUST_POSTURE.md`,
+`openspec/merge-policy.yaml`) and the irreversible (migrations, credential and secret
+handling). Those are high regardless of judgment. Nothing else is listed. If the floor
+grows past ten patterns, the metrics report flags it.
+
+A guard against drifting back to "everything is high": the integration report shows the
+class distribution weekly. The working target is roughly 60 percent low, 30 medium, 10
+high. If high exceeds 20 percent for two consecutive weeks, the rubric is revised, not the
+posture.
+
+Calibration path. Every classification is logged with its four scores, confidences and
+derived class. Outcomes are joined afterwards: a revert within seven days, a blocking
+finding raised after merge, or an owner override at a notification. In the first weeks
+the owner's replies to notifications are the labelled set, which
+`calibrate-llm-judge-against-human-labels` needs anyway. Until agreement per dimension
+reaches its kappa threshold, the judge's class is logged beside a mechanical estimate
+from the same rubric (computed from paths, diff stat, flag and migration signals), and
+disagreements are the review items. After calibration, the judge's class is authoritative.
 
 **2b. Per-class merge disposition.** Extend the trust-posture schema so `merge` can be
 keyed by class:
@@ -305,11 +347,33 @@ keyed by class:
 ```yaml
 merge:
   low:    { disposition: auto }
-  medium: { disposition: notify_with_timeout, timeout_seconds: 7200, default_action: proceed }
-  high:   { disposition: block }
+  medium: { disposition: auto, notify_on: judgement_call,
+            notify: { disposition: notify_with_timeout, timeout_seconds: 43200, default_action: proceed } }
+  high:   { disposition: block, notify: { format: design_summary } }
 ```
 
-`auto` for a class requires all of: required checks green, review quorum met with at
+Medium is the default class for ordinary implementation work and merges without a
+notification when the reviews agree and CI is green. A pro forma sign-off is not a human
+job. A notification goes out only on a judgement call, and it expires: after twelve
+hours unanswered, the merge proceeds. What counts as a judgement call, any one of:
+
+- The vendors disagree on a blocking finding (a contested item in the consensus output).
+- A blocking finding is still open after the author's fix.
+- Design content scored at its middle level: the implementation made a choice the spec is
+  silent on, and the `audit-choices` ledger records it.
+- The slice landed without the flag its plan said it would use, or it changed a
+  `contracts/` file.
+
+The notification carries the question, the options, the judge's scores and the vendors'
+positions, so the reply is one word. Silent medium merges appear in a daily digest.
+
+High blocks until the owner answers, with no expiry. The notification is a design
+summary: what tradeoff the change makes, what it touches that is irreversible or
+security-relevant, and what the reviewers concluded. The diff is linked, not pasted. This
+is the one place the owner reads about code, and the owner's position is that auth and
+security are design questions more than line-level ones.
+
+`auto` for any class requires all of: required checks green, review quorum met with at
 least two distinct vendors, no open blocking ledger item, no overlap with an active
 claim above the sequential threshold, and the PR body carrying a change-id or spike-id.
 Missing any one falls back to `block` and records which one.
@@ -328,10 +392,14 @@ either is live.
 **2e. Notification channel.** `notify_with_timeout` is unusable until something sends the
 notification. The coordinator's notification service (Gmail, Telegram, webhook with
 reply-to-approve) exists; wire the merge gate to it. For the solo owner, Telegram with a
-reply-to-approve token is enough.
+reply-to-approve token is enough. The content rule from 2b applies: a notification is a
+decision to make, never a PR to look at, and merges that needed no decision go to the
+digest.
 
 Acceptance: a docs-only slice with green CI and two-vendor review lands with no human
-action; a coordinator slice waits for a human; the audit trail names the class and the
+action; a medium slice with agreeing reviews lands with no notification; a medium slice
+with a contested finding sends one notification and lands when it expires unanswered; a
+migration slice waits for the owner; the audit trail names the class, the scores and the
 rule that fired.
 
 ### WS3. Local review queue: the cloud-to-local bridge (4-5 days)
@@ -344,8 +412,10 @@ head_sha)`. `required_lanes` comes from `routing.yaml`'s cost ladder: prefer
 `subscription-local`, then `subscription-cloud`, then `metered-api`. The cloud session
 then subscribes to PR activity and ends its turn; it does not poll.
 
-**Consumer side (device).** A `review-worker` process on the GX10 or a laptop runs under
-`/loop` or a cron entry. Each tick it claims the oldest ready review task whose
+**Consumer side (GX10).** A `review-worker` process runs on the GX10 only, as a systemd
+unit beside the CI runner kit in `deploy/gx10-runner/`, which already has the credential
+and lifecycle plumbing. No laptop worker; the GX10 is always on and is the one host that
+can serve every subscription lane. Each tick it claims the oldest ready review task whose
 `required_lanes` it can serve (the work queue already excludes the submitter from
 claiming its own review), checks out the PR head in a managed worktree, runs
 `review_dispatcher.py` with the local lanes, writes findings to the change's review
@@ -362,9 +432,9 @@ GitHub as the floor.
 `head_sha`. The merge pass itself can run on the device (subscription-local) or as a
 scheduled sync window, whichever is on.
 
-**Failure modes to design for.** Worker offline: tasks age, the kanban board shows
-`review: waiting for lane`, and after a configurable delay the task falls through to the
-next tier of the ladder. Head moved mid-review: verdict is bound to `head_sha` and simply
+**Failure modes to design for.** Worker offline: tasks wait, and the kanban board shows
+`review: waiting for gx10`. There is no automatic fall-through to cloud or metered lanes;
+a manual `--fallback metered` on the merge pass exists for an outage longer than a day. Head moved mid-review: verdict is bound to `head_sha` and simply
 does not apply. Self-review: already excluded by the queue.
 
 Acceptance: a PR opened by a cloud session receives a two-vendor review from the device
@@ -436,18 +506,28 @@ a single slice, no `design.md`, no contracts. Lite plans skip multi-vendor plan 
 go straight to implementation; their slice PR gets the full implementation review. This
 replaces most of what people use `quick-task --write` for today.
 
-**5c. WIP limits.** In `openspec/config.yaml`:
+**5c. WIP limit on implementations, not plans.** In `openspec/config.yaml`:
 
 ```yaml
 wip:
-  active_changes_max: 15
-  per_principal_max: 5
-  abandon_after_days_untouched: 30
+  active_implementations_max: 10
+  per_principal_implementations_max: 5
+  implementation_stale_after_days: 30
 ```
 
-`plan-feature` refuses to create a change above the cap unless `--override` is given with
-a reason, and `prioritize-proposals` lists the changes closest to expiry. Expiry runs as a
-scheduled task and archives with `status: abandoned`.
+A change counts as in implementation once any task is checked or an `openspec/<id>`
+branch or slice branch exists. Plans are unlimited: `plan-feature` never refuses on
+count, because planning is also where ideas get sounded out. `implement-feature` and
+`autopilot` refuse to start an eleventh implementation unless `--override` is given with
+a reason that lands in the audit trail.
+
+A stale implementation (no commit in 30 days) is not archived automatically. It goes on
+the triage list that `prioritize-proposals` produces, and the owner decides finish, pause
+or archive. The same pass detects supersession among plans: a newer change covering the
+same capability proposes archiving the older with `superseded_by`. To keep sounding-board
+captures distinguishable from committed plans, `proposal.md` gains
+`status: idea | proposed | ready`; ideas are excluded from priority ranking until
+promoted.
 
 **5d. Decide at plan time what the human verifies.** The `verification-signals` section
 that `add-verification-signals-contract-to-plan-feature` proposes becomes per slice: for
@@ -455,8 +535,8 @@ each slice, what observable signal tells the owner it works (a demo URL, a scena
 output, a metric). That is where human attention goes, instead of the diff.
 
 Acceptance: an idea goes from chat to a spike PR in one command; a surviving spike becomes
-a sliced plan in one command; the change count cannot exceed the cap without an
-explicit override in the audit trail.
+a sliced plan in one command; the implementation count cannot exceed the cap without
+an explicit override in the audit trail; plans are never refused.
 
 ### WS6. Documentation and the reference profile (1-2 days)
 
@@ -484,8 +564,8 @@ by overlap" versus "blocked by the global guard", falls out of this.
 
 | Phase | Workstreams | Exit test |
 |---|---|---|
-| A: unblock (days 1-5) | WS0, WS1a, WS1b, WS1c | Dependabot backlog zero; a non-overlapping PR merges while another change has an active worktree; active changes under 20 |
-| B: route verification (days 6-15) | WS2, WS3, WS7 | A cloud-produced docs slice auto-merges after a two-vendor review that ran on the device; a coordinator slice waits for the owner |
+| A: unblock (days 1-5) | WS0, WS1a, WS1b, WS1c | Dependabot backlog zero; a non-overlapping PR merges while another change has an active worktree; at most ten changes in implementation; superseded plans archived |
+| B: route verification (days 6-15) | WS2, WS3, WS7 | A cloud-produced docs slice auto-merges after a two-vendor review that ran on the GX10; a medium slice merges with no notification; a slice the rubric classes high waits for the owner |
 | C: slice at the source (days 16-30) | WS4, WS5 | A real L change lands as three slice PRs; a spike is promoted into a sliced plan; the WIP cap holds |
 | D: write it down (days 31-35) | WS6, retrospective against the WS0 baseline | A newcomer can enable the profile from the docs alone |
 
@@ -500,8 +580,10 @@ visible in the metrics within a week.
 | Lines per merged PR, median / p90 | 617 / 14,502 | under 400 / under 2,000 |
 | Days with a merge, per 30 | 9 | 20 or more |
 | Open PR median age | 26 d | under 3 d |
-| Active changes | 120 | under 20 |
-| Changes with no task started | 93 | under 5 |
+| Changes in implementation | 27 (16 in progress, 11 done but unarchived) | 10 or fewer |
+| Plans without a priority rank or supersession verdict | 93 | 0 |
+| Merged PRs classed high | not measured | under 15 percent |
+| Human notifications per merged PR | 1 or more (every merge is a human pass) | under 0.3 |
 
 ---
 
@@ -520,7 +602,8 @@ visible in the metrics within a week.
 | Work packages are execution units with locks and scopes | `work-packages.schema.json` | **Keep;** add slices on top rather than replacing packages |
 | `decomposition: stacked` per package | schema, unused | **Repurpose** as the per-slice stacking signal; fix the index mismatch |
 | Full OpenSpec ceremony for every change | `plan-feature` | **Tier it.** Spike, lite, full (WS5) |
-| `proposal_approval: auto` with no inflow limit | posture, config | **Keep auto, add a WIP cap** (WS5c) |
+| `proposal_approval: auto` with no inflow limit | posture, config | **Keep auto; cap implementations, not plans** (WS5c) |
+| Judged risk used only for review eligibility | `vendor_review.py` | **Extend.** The same judge, with a written rubric and a short floor, classifies for merge (WS2a) |
 | Thirteen roadmaps, most in planning | `openspec/roadmaps/` | **Cap at two or three active** (WS0) |
 | Six required checks; drift gate and coverage ratchet advisory | branch protection | **Keep.** Continuous mode wants fewer mandatory gates, not more. Leave the drift-gate promotion unapplied for now |
 | Multi-vendor review with `vendor_diversity` routing and a review ledger | `parallel-infrastructure` | **Keep.** It becomes the primary gate for low risk; the ledger becomes the merge policy's input |
@@ -533,34 +616,53 @@ visible in the metrics within a week.
 
 | Risk | Mitigation |
 |---|---|
-| Auto-merge lands a bad low-risk change | Path-based class caps what "low" can touch; revert is a one-command slice; the audit trail names the rule that fired |
+| Auto-merge lands a bad low-risk change | The deterministic floor keeps the rails, migrations and credentials out of auto; the class distribution is monitored; revert is a one-command slice; the audit trail names the scores and the rule that fired |
+| The judge misclassifies until calibrated | Floor applies regardless; judge and mechanical estimate are logged side by side; owner replies build the labelled set; disagreements are reviewed weekly |
 | Single-vendor review disguised as quorum | Quorum counts distinct vendors, verified by dispatch result not by configuration; cloud exception deleted (WS2d) |
 | Slices multiply PRs and reviewer noise | Reviews are AI-first and routed to a queue; humans see only high-risk and disagreement; size budget keeps each slice readable |
 | Flags accumulate | Flag removal is a task of the final slice; `flags.yaml` is checked in CI for flags older than 30 days |
 | Scoped guard races a local agent on the same branch | The on-branch check stays, as does the coordinator convergence lock and the compare-and-swap push |
-| WIP cap frustrates exploration | Spikes do not count toward the cap; the cap applies to OpenSpec changes only |
-| Abandoned-change archival loses good ideas | Archival is a move, not a delete, and `prioritize-proposals` can list abandoned changes on request |
+| WIP cap frustrates exploration | Spikes and plans do not count; the cap applies to implementations only |
+| Superseded-plan archival loses good ideas | Archival is an owner decision with `superseded_by` recorded; a move, not a delete; `prioritize-proposals` can list archived plans on request |
 | Device review worker is offline for days | Review tasks fall through the cost ladder to the OpenRouter lane after a delay; readiness shows `review_quorum` as the blocker |
 
 ---
 
-## 9. Decisions for the owner
+## 9. Owner decisions (recorded 2026-11-01)
 
-These change the shape of the work and are not resolvable from the code.
+The five open questions were put to the owner. The decisions below are now inputs to the
+workstreams, and the sections above have been revised to match.
 
-1. **The high-risk path list.** The draft in WS2a treats `agent-coordinator/src/**`,
-   migrations, `skills/shared/**`, `openspec/specs/**`, `.github/**` and
-   `TRUST_POSTURE.md` as human-gated. Is that the right set for greenfield work, or
-   should the coordinator core be medium?
-2. **WIP numbers.** Fifteen active changes and 30 days to abandonment are starting
-   values. Lower is better for one person; a team of ten might want per-principal five.
-3. **Where the review worker lives.** The GX10 is the obvious host. If it is not always
-   on, a laptop under `/loop` works but makes the fall-through delay matter more.
-4. **Medium-risk default.** `notify_with_timeout` with `default_action: proceed` after
-   two hours is the aggressive choice. `default_action: block` is the conservative one
-   and keeps today's behavior for anything the owner does not answer.
-5. **Whether to archive the 93 untouched changes now** or run the expiry task once with
-   a 60-day threshold first and see what survives.
+1. **Risk is assessed from the work, not from a file list.** A fixed path list wide
+   enough to feel safe covered most of the repo and so gated nearly everything. Risk is
+   classified by the System One judge (Jev) against a written four-dimension rubric
+   (impact surface, blast radius, reversibility, design content), with a deterministic
+   floor limited to the rails and the irreversible, and a calibration path. See WS2a.
+2. **The WIP limit applies to implementations, not plans.** Planning doubles as a
+   sounding board, so plans are unlimited and prioritized. Ten active implementations is
+   the cap. See WS5c and WS0.
+3. **Reviews run on the GX10 only.** No laptop worker and no automatic fall-through to
+   cloud or metered lanes. See WS3.
+4. **Medium is the default, and it merges without a human when reviews and CI are
+   clean.** Expiring notifications go out for judgement calls only: contested or
+   unresolved blocking findings, design decisions the spec left open, a missing flag or
+   a contract change. Pro forma sign-off is not a human job. The owner's attention goes
+   to tradeoffs and design, including auth and security, which are treated as design
+   questions. See WS2b.
+5. **The backlog is triaged by judgement, not expired by timer.** Each in-flight
+   implementation gets a finish, pause or archive decision on whether it still makes the
+   system better. Plans are prioritized, and the ones a newer idea supersedes are
+   archived with the superseding change recorded. See WS0.
+
+What follows from these, beyond the sections already revised:
+
+- The rubric and its calibration add a dependency on
+  `calibrate-llm-judge-against-human-labels`. It does not block WS2: the floor and the
+  side-by-side logging work before calibration completes.
+- The notification channel (WS2e) moves earlier in the sequence, because decision 4 makes
+  it the only way the owner hears about medium-class judgement calls.
+- The `status: idea` marker in WS5c is new and small; it keeps the unlimited plan backlog
+  readable.
 
 ---
 
@@ -572,18 +674,19 @@ Each is one change, sized so it can itself land as one or two slices.
    requirement rewrite. Unblocks everything.
 2. `declare-dependabot-sync-window-and-merge-queue` (WS1b, WS1c)
 3. `add-integration-metrics-report` (WS0, WS7)
-4. `add-merge-policy-risk-classes` (WS2a, WS2b, WS2c)
+4. `define-merge-risk-rubric-and-dispositions` (WS2a, WS2b, WS2c)
 5. `wire-merge-gate-notifications` (WS2e)
 6. `add-local-review-queue-worker` (WS3)
 7. `add-slices-to-work-packages` (WS4a, WS4b)
 8. `emit-slices-from-plan-feature` (WS4c)
 9. `open-one-pr-per-slice` (WS4d, WS4e)
 10. `add-spike-path-to-quick-task` (WS5a)
-11. `add-plan-feature-lite-and-wip-limits` (WS5b, WS5c, WS5d)
+11. `add-plan-feature-lite-and-implementation-wip-limit` (WS5b, WS5c, WS5d)
 12. `document-continuous-integration-profile` (WS6)
 
 Existing changes this plan absorbs or depends on: `openrouter-review-lane` (depends),
 `judge-multi-vendor-review-eligibility-for-pull-requests` (depends, nearly done),
+`calibrate-llm-judge-against-human-labels` (depends, for the rubric's calibration path),
 `reviewer-shaped-prs` (absorbed into WS4c), `declare-early-draft-pr` (absorbed: the
 contracts slice is the early draft PR), `add-verification-signals-contract-to-plan-feature`
 (absorbed into WS5d), `ambient-review-ledger` (complementary; the review worker can
