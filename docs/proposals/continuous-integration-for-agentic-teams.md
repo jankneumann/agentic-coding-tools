@@ -1,6 +1,6 @@
 # Continuous Integration for Agentic Teams: Proposal Review and Plan
 
-**Status**: Draft for discussion, 2026-11-01
+**Status**: Reviewed; owner decisions recorded 2026-11-01 (section 9). Ready to be broken into the OpenSpec changes in section 10.
 **Reviews**: [handoff-continuous-integration-for-agentic-workflows.md](handoff-continuous-integration-for-agentic-workflows.md) (Jan Neumann with Grok)
 **Audience**: Jan as repository owner; later, a 5-10 person team using this toolkit on greenfield work
 **Operating constraint**: cloud agents plan and implement; on-device agents (multi-vendor subscriptions, the GX10) review and merge
@@ -256,8 +256,7 @@ owner review.
 
 Acceptance: metrics report committed under `docs/reports/`; at most ten changes in
 implementation, each with a recorded decision; every untouched plan ranked or archived
-as superseded;
-zero Dependabot PRs older than 7 days.
+as superseded; zero Dependabot PRs older than 7 days.
 
 ### WS1. Fix the gate (2-3 days)
 
@@ -434,8 +433,9 @@ scheduled sync window, whichever is on.
 
 **Failure modes to design for.** Worker offline: tasks wait, and the kanban board shows
 `review: waiting for gx10`. There is no automatic fall-through to cloud or metered lanes;
-a manual `--fallback metered` on the merge pass exists for an outage longer than a day. Head moved mid-review: verdict is bound to `head_sha` and simply
-does not apply. Self-review: already excluded by the queue.
+a manual `--fallback metered` on the merge pass exists for an outage longer than a day.
+Head moved mid-review: verdict is bound to `head_sha` and simply does not apply.
+Self-review: already excluded by the queue.
 
 Acceptance: a PR opened by a cloud session receives a two-vendor review from the device
 within 30 minutes of the worker's next tick, with no human involvement, and the merge
@@ -452,7 +452,7 @@ slices:
     packages: [wp-contracts]
     lands_behind: none            # none | flag:<name>
     depends_on_slices: []
-    risk_class: medium            # defaults to the highest class of its packages' write_allow
+    risk_hint: medium             # optional; the judged rubric (WS2a) classifies the PR and a hint can only raise the class
     acceptance:                   # scenario IDs from this change's spec deltas
       - skill-workflow.slice-contract-published
     size_budget_lines: 800
@@ -554,7 +554,7 @@ an explicit override in the audit trail; plans are never refused.
 
 A per-PR merge-readiness record with a single `blocked_by` reason from a closed set:
 `ci`, `review_quorum`, `blocking_finding`, `overlap`, `risk_gate`, `active_worktree`,
-`stale`, `human_gate`. Surface it in the kanban board's sync-point banner and in the
+`stale`, `awaiting_decision` (a medium judgement-call notification is out), `human_gate`. Surface it in the kanban board's sync-point banner and in the
 `agent-metrics` integration report. The distinction the proposal asks for, "blocked only
 by overlap" versus "blocked by the global guard", falls out of this.
 
@@ -659,8 +659,9 @@ What follows from these, beyond the sections already revised:
 - The rubric and its calibration add a dependency on
   `calibrate-llm-judge-against-human-labels`. It does not block WS2: the floor and the
   side-by-side logging work before calibration completes.
-- The notification channel (WS2e) moves earlier in the sequence, because decision 4 makes
-  it the only way the owner hears about medium-class judgement calls.
+- The notification channel (WS2e) moves to the start of phase B, before the per-class
+  dispositions go live, because decision 4 makes it the only way the owner hears about
+  medium-class judgement calls.
 - The `status: idea` marker in WS5c is new and small; it keeps the unlimited plan backlog
   readable.
 
