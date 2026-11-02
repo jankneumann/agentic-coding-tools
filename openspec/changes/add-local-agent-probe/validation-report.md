@@ -52,9 +52,26 @@ Finding: `claude-remote`'s `review` mode passes `--remote`, which `claude --help
 - claude-remote `--remote`: resolved in VAL_REVIEW (alias of `--cloud`, which cannot be combined with `--print`; exclusion is correct).
 - Degraded: IMPL_REVIEW recorded `converged` with a `review_skipped` degradation — 7 fixes (`9156a358`, `a9c671d3`, `42405489`) were adjudicated and test-verified but not re-reviewed by a vendor; only claude_code and grok counted (codex/pi/antigravity failed with `Errno 7` argv too long).
 
+## Spec Compliance
+
+**Status**: pass
+
+- `openspec validate add-local-agent-probe --strict`: valid.
+- Scenario coverage: all 70 WHEN/THEN scenarios across the 4 spec deltas map to a test task. parallel-infrastructure has 48, vendor-ux 9, agent-identity 8 and toolkit-distribution 5. 66 are named in `tasks.md`. The other 4 are agent-identity scenarios that task 4.1 covers as "every scenario of Declarative CLI Probe Block", and each has its own test in `agent-coordinator/tests/test_agents_config_probe.py`:
+  - `test_help_override_must_contain_help_token`
+  - the empty-list cases of `test_schema_rejects`
+  - `test_login_status_accepted_bare_login_rejected`
+  - `test_probe_round_trips_through_dispatch_configs`
+- Suites at `f0e42c8e`, run by the orchestrator on 2026-11-02:
+  - `skills/tests/parallel-infrastructure` plus `skills/parallel-infrastructure/tests`: 486 passed, 2 skipped.
+  - Coordinator probe, config, watchdog, Dockerfile and fingerprint suites: 131 passed.
+  - ruff: clean.
+
 ## Validation Review
 
-**Status**: fail
+**Status**: pass
+
+**Disposition (operator, 2026-11-02):** recorded as converged with a `review_skipped` degradation. Under the convergence-loop result alone this would be fail (`max_iter`). The operator accepted it because every run ended with 0 blocking and 0 confirmed findings. The two findings that both lanes raised were fixed in `b37951ef` and re-verified. Every remaining item is parked with an adjudication note in the list below.
 
 `convergence_loop.converge()` was run 3 times (review_type=implementation, fix_mode=targeted, base `origin/main`, min_quorum 2). VAL_FIX was wired as an operator-served fix_callback. None of the runs converged on its own: each stopped in round 1 at `adjudication_required` with 0 blocking and 0 confirmed findings.
 
