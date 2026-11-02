@@ -40,3 +40,13 @@ ocr-local              Python 3.12.12             ok   ok                    aut
 ```
 
 Finding: `claude-remote`'s `review` mode passes `--remote`, which `claude --help` (2.1.314) does not list. The probe correctly reports `missing_flags`; once that lane is probed it is excluded from dispatch. No `ignore_flags` entry was added because it would hide a real discrepancy; whether `--remote` is a hidden flag is an open question for the owner.
+
+## Validate Phase (2026-11-01)
+
+**Status**: pass
+
+- Spec: `openspec validate add-local-agent-probe --strict` valid.
+- Tests (post review fixes): parallel-infrastructure 420 passed, 2 skipped; coordinator probe/watchdog/config 131 passed.
+- Lint: ruff clean on parallel-infrastructure scripts. Install check: exit 0.
+- Deploy/smoke/e2e/security: skipped (no deployable service; CLI-tooling change). Real-CLI probe evidence recorded above.
+- Open item: claude-remote `--remote` flag reported missing_flags (owner question).
