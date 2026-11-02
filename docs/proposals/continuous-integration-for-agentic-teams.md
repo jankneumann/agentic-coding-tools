@@ -125,9 +125,10 @@ move, but two preconditions are not met:
 - **Quorum is one vendor in cloud containers** (`TRUST_POSTURE.md`, "Review quorum in
   cloud containers"). A single-vendor Claude review of Claude-written code is not an
   independent signal. The human merge gate is explicitly the compensating control. Auto-
-  merge cannot be turned on until a second lane exists for cloud-produced PRs. The
-  `openrouter-review-lane` change (in progress) and the local review queue (workstream 3)
-  both close this.
+  merge cannot be turned on until a second vendor reviews cloud-produced PRs. The local
+  review queue (workstream 3) closes this: it runs on the GX10, where every vendor
+  subscription lives. The `openrouter-review-lane` change (in progress) only matters here
+  as a lane that the GX10 worker can run; it does not give cloud containers a second vendor.
 - **Risk classification is judged, but without a rubric.** `_classify_pr_risk` in
   `vendor_review.py:181-256` already asks the System One judge (Jev) for a four-level
   risk score, but only to decide review eligibility, and the levels are labels with no
@@ -289,8 +290,18 @@ the worktree.
 Grouped Dependabot updates (one PR per ecosystem per week) cut the count further.
 
 **1c. Use GitHub's merge queue for landing.** Enable the merge queue on `main` with the
-six required checks. `execute_plan.py` enqueues instead of merging directly (the
-`--merge-queue` path in `merge_pr.py:461-466` exists). Freeze the coordinator train-
+six required checks. `execute_plan.py` enqueues instead of merging directly. The
+enqueue path that exists today is broken and has to be repaired first: `merge_pr.py`'s
+`_has_merge_queue` optimistically returns true and `_try_merge_queue` runs
+`gh pr merge --<strategy> --merge-queue`, but `gh pr merge` has no `--merge-queue` flag
+(checked against gh 2.89 and the current reference), so every call fails on the unknown
+flag and the code falls back to a direct merge. The documented behaviour is that
+`gh pr merge <pr>` with no strategy flag enqueues automatically when the base branch
+requires a merge queue. The repair: drop the flag and the strategy when the queue is
+required, detect the "added to the merge queue" result, and poll the PR's merge state
+until it lands or is removed from the queue. `merge_backend.py` shares `_try_merge_queue`,
+so one fix covers both callers. This repair is in scope for the
+`declare-dependabot-sync-window-and-merge-queue` change. Freeze the coordinator train-
 landing code behind a comment and a decision record; keep `compute_partitions` as a
 read-only overlap report.
 
@@ -353,8 +364,15 @@ merge:
 
 Medium is the default class for ordinary implementation work and merges without a
 notification when the reviews agree and CI is green. A pro forma sign-off is not a human
-job. A notification goes out only on a judgement call, and it expires: after twelve
-hours unanswered, the merge proceeds. What counts as a judgement call, any one of:
+job. A notification goes out only on a judgement call. The timeout's `default_action`
+applies only when the ledger is clean: a notification raised for a design choice, a
+missing flag or a contract change expires to `proceed` after twelve hours unanswered.
+A notification raised for a contested or still-open blocking finding is different. It is
+a notification about a prerequisite the `auto` rule below requires, so when it expires
+unanswered the disposition is `block`, the item stays in the daily digest, and the PR
+lands only when an owner reply closes the ledger item (a fix, or an explicit downgrade
+of the finding) or a re-run of the review clears it. The timer never lands a PR over an
+open blocking finding. What counts as a judgement call, any one of:
 
 - The vendors disagree on a blocking finding (a contested item in the consensus output).
 - A blocking finding is still open after the author's fix.
@@ -383,10 +401,12 @@ slice PR whose plan review converged and whose slice acceptance scenarios pass, 
 `proposal_acceptance` automatically. Keep it for PRs that change `openspec/specs/`
 (those are high-risk anyway).
 
-**2d. Get to quorum two everywhere.** Land `openrouter-review-lane` (already in progress)
-so cloud containers have a second vendor, and route cloud-produced PRs to the local
-review queue (WS3). Delete the cloud quorum-one exception from `TRUST_POSTURE.md` when
-either is live.
+**2d. Get to quorum two everywhere.** The second vendor for every PR, including cloud-
+produced ones, comes from the GX10 review queue (WS3). Cloud containers never run a
+second lane themselves: the subscriptions, including OpenRouter via pi, live on the
+device (decision 3 in section 9). The `openrouter-review-lane` change, if it lands, is a
+lane the GX10 worker can dispatch, not a cloud fallback. Delete the cloud quorum-one
+exception from `TRUST_POSTURE.md` when the review queue is live.
 
 **2e. Notification channel.** `notify_with_timeout` is unusable until something sends the
 notification. The coordinator's notification service (Gmail, Telegram, webhook with
@@ -397,9 +417,12 @@ digest.
 
 Acceptance: a docs-only slice with green CI and two-vendor review lands with no human
 action; a medium slice with agreeing reviews lands with no notification; a medium slice
-with a contested finding sends one notification and lands when it expires unanswered; a
-migration slice waits for the owner; the audit trail names the class, the scores and the
-rule that fired.
+with a spec-silent design choice and a clean ledger sends one notification and lands
+when it expires unanswered; a medium slice with a contested blocking finding sends one
+notification, stays blocked when it expires, appears in the digest until the owner
+replies or a re-review clears the finding, and the audit trail names the ledger item;
+a migration slice waits for the owner; the audit trail names the class, the scores and
+the rule that fired.
 
 ### WS3. Local review queue: the cloud-to-local bridge (4-5 days)
 
@@ -597,7 +620,7 @@ visible in the metrics within a week.
 | Coordinator speculative merge train lands waves | `merge_train.py`, never wired | **Freeze.** Use GitHub merge queue; keep partitioning as a report (WS1c) |
 | File-tier merge plan is authoritative, coordinator is projection | `merge-infrastructure` decisions | **Keep.** The merge policy reads and writes the plan |
 | Trust posture as typed gate dispositions | `TRUST_POSTURE.md` | **Keep and extend** with per-class merge dispositions and a guard knob (WS2b, WS1a) |
-| Cloud containers accept quorum one | `TRUST_POSTURE.md` temporary section | **Retire** once the local review queue or OpenRouter lane is live (WS2d) |
+| Cloud containers accept quorum one | `TRUST_POSTURE.md` temporary section | **Retire** once the local review queue is live (WS2d) |
 | Every OpenSpec PR needs `--proposal-accepted` at merge | `build_plan.py` | **Retire for slices** whose plan review converged; keep for spec changes (WS2c) |
 | Work packages are execution units with locks and scopes | `work-packages.schema.json` | **Keep;** add slices on top rather than replacing packages |
 | `decomposition: stacked` per package | schema, unused | **Repurpose** as the per-slice stacking signal; fix the index mismatch |
@@ -624,7 +647,7 @@ visible in the metrics within a week.
 | Scoped guard races a local agent on the same branch | The on-branch check stays, as does the coordinator convergence lock and the compare-and-swap push |
 | WIP cap frustrates exploration | Spikes and plans do not count; the cap applies to implementations only |
 | Superseded-plan archival loses good ideas | Archival is an owner decision with `superseded_by` recorded; a move, not a delete; `prioritize-proposals` can list archived plans on request |
-| Device review worker is offline for days | Review tasks fall through the cost ladder to the OpenRouter lane after a delay; readiness shows `review_quorum` as the blocker |
+| Device review worker is offline for days | Tasks wait; the board shows `review: waiting for gx10`, readiness shows `review_quorum` as the blocker, and the daily digest reports queue age; the only fall-through is a manual `--fallback metered` on the merge pass (WS3) |
 
 ---
 
@@ -685,7 +708,8 @@ Each is one change, sized so it can itself land as one or two slices.
 11. `add-plan-feature-lite-and-implementation-wip-limit` (WS5b, WS5c, WS5d)
 12. `document-continuous-integration-profile` (WS6)
 
-Existing changes this plan absorbs or depends on: `openrouter-review-lane` (depends),
+Existing changes this plan absorbs or depends on: `openrouter-review-lane` (optional:
+a lane the GX10 worker can run, not a prerequisite for quorum two),
 `judge-multi-vendor-review-eligibility-for-pull-requests` (depends, nearly done),
 `calibrate-llm-judge-against-human-labels` (depends, for the rubric's calibration path),
 `reviewer-shaped-prs` (absorbed into WS4c), `declare-early-draft-pr` (absorbed: the
