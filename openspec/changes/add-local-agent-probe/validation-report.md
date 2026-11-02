@@ -16,7 +16,7 @@ Evidence recorded during IMPLEMENT (tasks 6.2 and 6.3). Full `/validate-feature`
 | Cross-source fingerprint | `pytest agent-coordinator/tests/test_probe_fingerprint_sources.py` | 3 passed |
 | Install | `pytest skills/tests/install_sh` | 73 passed |
 | Coordinator regression | `pytest agent-coordinator/tests -m 'not e2e and not integration'` | exit 0 |
-| Skills regression | `pytest skills/tests -m 'not e2e and not integration' --continue-on-collection-errors --ignore=skills/tests/install_sh` | 8068 passed, 13 failed, 1 collection error; all failures are in `multiplayer-simulation`, `roadmap-runtime`, `autopilot/test_relayed_gate_answer.py` and pass (285) when those directories run on their own, so they come from cross-directory module collisions in a single-process run, not from this change |
+| Skills regression | `pytest skills/tests -m 'not e2e and not integration' --continue-on-collection-errors --ignore=skills/tests/install_sh` | Pre-existing, not introduced by this change. With `AGENTIC_PROBE_CACHE` pointed at a scratch file, `origin/main` (`c2ed6982`) gives 12 failed, 7945 passed, 1 error, and the branch at `d833ce6a` gives 12 failed, 8062 passed, 1 error. The failing test IDs are identical (compared by name with `comm`): 10 in `multiplayer-simulation`, 2 in `roadmap-runtime`, and a collection error in `roadmap-runtime/test_cross_host_reconcile.py`. They fail on main, so they are not order-dependent. IMPLEMENT's earlier 13th failure, `autopilot/test_relayed_gate_answer.py`, did not reproduce. That run used the real `~/.cache` probe file, which was isolated in `7be0918a`. |
 | OpenSpec | `openspec validate add-local-agent-probe --strict` | valid |
 | Install check | `bash skills/install.sh --check` | exit 0 after syncing the gitignored runtime mirrors |
 | Ruff | `ruff check` on agents_config, watchdog, vendor_probe, vendor_health, review_dispatcher | pass |
@@ -50,3 +50,4 @@ Finding: `claude-remote`'s `review` mode passes `--remote`, which `claude --help
 - Lint: ruff clean on parallel-infrastructure scripts. Install check: exit 0.
 - Deploy/smoke/e2e/security: skipped (no deployable service; CLI-tooling change). Real-CLI probe evidence recorded above.
 - Open item: claude-remote `--remote` flag reported missing_flags (owner question).
+- Degraded: IMPL_REVIEW recorded `converged` with a `review_skipped` degradation — 7 fixes (`9156a358`, `a9c671d3`, `42405489`) were adjudicated and test-verified but not re-reviewed by a vendor; only claude_code and grok counted (codex/pi/antigravity failed with `Errno 7` argv too long).
