@@ -73,3 +73,33 @@ Plan a tiered, token-free local probe of vendor CLIs (presence, flag capability 
 ### Context
 Two iterations. Fixed 4 high and 6 medium findings: the fingerprint depended on which config source loaded the lane, the dispatcher's mirror CliConfig dropped the probe block, runtime failures needed a probe entry, concurrent cache writes lost updates, the billing-class clear rule was wrong, the NFR timing was infeasible, and the watchdog blocked its event loop. Iteration 2 found only stale wording, which was fixed. Validation is strict-clean.
 
+---
+
+## Phase: Cleanup (2026-11-02)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Rebase-merge PR #714** — Agent-authored conventional commits keep their design history; merge authorization was recorded at the autopilot merge gate.
+2. **Merge past the dependency-audit failures** — Neither audit is a required check, both fail on main, and the branch changes no dependency manifest or lockfile.
+3. **Allowlist the sk-test-SENTINEL pattern rather than commit SHAs** — The fake keys sit in a spec scenario that is copied between deltas, so a commit-SHA allowlist would need an update every time it is copied.
+4. **Staged rollout and pre-launch checklist: not applicable** — This change is local CLI tooling and an agents.yaml schema extension. It has no deployable surface (deployable_surface=false) and no feature flag, so there is no traffic to stage.
+
+### Completed Work
+- ci-fixes
+- merge
+- archive
+- spec-merge
+- decision-index
+
+### Next Steps
+- #715 review packet via stdin
+- #716 classify_error 402 on zero exit
+- #717 claude-remote --remote/--print
+- #718 apply-outcome replay drop
+- #719 probe view *_flag derivation
+- #720 flaky relayed-gate-answer test
+
+### Context
+PR #714 was rebase-merged as 8a897cb3 after two pre-merge CI fixes. f4f992e6 allowlisted the fake sk-test-SENTINEL keys for gitleaks. 5c848578 isolated the probe cache in skills/parallel-infrastructure/scripts/tests, which caused 10 order-dependent test-infra-skills failures. All 22 tasks were complete, so nothing was migrated. The change is archived, with its spec deltas merged into four specs.
+
