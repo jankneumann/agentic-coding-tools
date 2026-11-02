@@ -302,6 +302,8 @@ def test_unlaunchable_auth_command_is_unknown(tmp_path, monkeypatch):
         {"auth_status_args": ["auth", "LOGIN"]},
         {"help_args": {"review": ["--show-token", "--help"]}},
         {"version_args": ["--credentials"]},
+        {"help_args": {"review": ["-p", "summarise the repo"]}},
+        {"help_args": {"review": []}},
     ],
 )
 def test_unsafe_probe_argv_executes_nothing_and_fails_closed(tmp_path, monkeypatch, probe):
@@ -324,6 +326,8 @@ def test_safe_probe_argv_passes_gate():
     assert vp.probe_argv_unsafe(cli(probe={"auth_status_args": ["login", "status"]})) is None
     assert vp.probe_argv_unsafe(cli(probe={})) is None
     assert vp.probe_argv_unsafe(cli()) is None
+    assert vp.probe_argv_unsafe(cli(probe={"help_args": {"review": ["review", "--help"]}})) is None
+    assert vp.probe_argv_unsafe(cli(probe={"help_args": {"review": ["help", "exec"]}})) is None
 
 
 def test_stdin_is_devnull(tmp_path):

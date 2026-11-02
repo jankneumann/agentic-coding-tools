@@ -84,6 +84,9 @@ _PROBE_DENIED_WORDS = (
     "--show-token",
     "logout",
 )
+# Mirrors agents_config._PROBE_HELP_TOKENS: a help_args value must carry one of
+# these as an exact token, so an override cannot run a real subcommand.
+_PROBE_HELP_TOKENS = frozenset({"--help", "-h", "help"})
 
 
 # --------------------------------------------------------------------- helpers
@@ -124,7 +127,8 @@ def probe_argv_unsafe(cli: dict[str, Any]) -> str | None:
 
     Same rules as the coordinator's cli-probe-block schema: no denylisted
     substring in any version/help/auth token, and ``auth_status_args`` must
-    not end in ``login`` (would start an interactive login).
+    not end in ``login`` (would start an interactive login), and every
+    ``help_args`` value must contain an exact ``--help``/``-h``/``help`` token.
     """
     probe = cli.get("probe") or {}
     if not isinstance(probe, dict):
@@ -134,6 +138,8 @@ def probe_argv_unsafe(cli: dict[str, Any]) -> str | None:
     for mode, argv in (probe.get("help_args") or {}).items():
         if _argv_denied(argv):
             return f"help_args[{mode}] contains a denylisted token"
+        if not _PROBE_HELP_TOKENS.intersection(str(t) for t in (argv or [])):
+            return f"help_args[{mode}] has no --help/-h/help token"
     auth = list(probe.get("auth_status_args") or [])
     if _argv_denied(auth):
         return "auth_status_args contains a denylisted token"
