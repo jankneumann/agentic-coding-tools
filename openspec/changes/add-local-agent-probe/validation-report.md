@@ -39,7 +39,7 @@ pi-local               0.85.1                     ok   ok                    aut
 ocr-local              Python 3.12.12             ok   ok                    auth_unknown
 ```
 
-Finding: `claude-remote`'s `review` mode passes `--remote`, which `claude --help` (2.1.314) does not list. The probe correctly reports `missing_flags`; once that lane is probed it is excluded from dispatch. No `ignore_flags` entry was added because it would hide a real discrepancy; whether `--remote` is a hidden flag is an open question for the owner.
+Finding: `claude-remote`'s `review` mode passes `--remote`, which `claude --help` (2.1.314) does not list. The probe correctly reports `missing_flags`; once that lane is probed it is excluded from dispatch. No `ignore_flags` entry was added because it would hide a real discrepancy. Resolved during VAL_REVIEW (2026-11-01): `--remote` is a hidden alias of `--cloud`, and `claude --print --remote ...` exits with "--cloud cannot be combined with --print". So `claude-remote`'s `review` mode cannot dispatch on 2.1.314 at all, and the probe is right to exclude it. That is a defect in the `claude-remote` config that predates this change and is out of scope here.
 
 ## Validate Phase (2026-11-01)
 
@@ -49,5 +49,23 @@ Finding: `claude-remote`'s `review` mode passes `--remote`, which `claude --help
 - Tests (post review fixes): parallel-infrastructure 420 passed, 2 skipped; coordinator probe/watchdog/config 131 passed.
 - Lint: ruff clean on parallel-infrastructure scripts. Install check: exit 0.
 - Deploy/smoke/e2e/security: skipped (no deployable service; CLI-tooling change). Real-CLI probe evidence recorded above.
-- Open item: claude-remote `--remote` flag reported missing_flags (owner question).
+- claude-remote `--remote`: resolved in VAL_REVIEW (alias of `--cloud`, which cannot be combined with `--print`; exclusion is correct).
 - Degraded: IMPL_REVIEW recorded `converged` with a `review_skipped` degradation — 7 fixes (`9156a358`, `a9c671d3`, `42405489`) were adjudicated and test-verified but not re-reviewed by a vendor; only claude_code and grok counted (codex/pi/antigravity failed with `Errno 7` argv too long).
+
+## Validation Review
+
+**Status**: fail
+
+`convergence_loop.converge()` was run 3 times (review_type=implementation, fix_mode=targeted, base `origin/main`, min_quorum 2). VAL_FIX was wired as an operator-served fix_callback. None of the runs converged on its own: each stopped in round 1 at `adjudication_required` with 0 blocking and 0 confirmed findings.
+
+- Counting lanes: `claude_code` and `grok`. `codex`, `pi` and `antigravity` failed every run with `[Errno 7] Argument list too long`, the same review-packet-as-argv defect seen in IMPL_REVIEW.
+- Run 1 (29 findings) raised two high findings, each reported independently by both lanes. The synthesizer did not match the pairs because their anchors differed.
+  - 67/85, the skills-side `probe_argv_unsafe` lacked the help-token rule: fixed in `b37951ef` (VAL_FIX), with tests (parallel-infrastructure 422 passed, 2 skipped).
+  - 66/90, the `claude-remote` review lane is excluded: adjudicated as not a regression. `--remote` is an alias of `--cloud` and cannot be combined with `--print`.
+- Run 2 (15 findings) raised one lone-grok high, 103: `_cli_probe_view` is a hand-maintained `*_flag` allowlist. Adjudicated as latent. The coordinator schema rejects any `*_flag` other than `model_flag` and `prompt_via_flag` (`thinking_flag` was checked and is rejected), and both are projected.
+- Run 3 (13 findings) raised one lone-grok high, 101: the coordinator and the probe-side `login` check differ on case. Downgraded to low because the stricter rule is on the execute path, so it fails closed. Same issue as plan ledger [52].
+- Follow-ups:
+  - fix the vendor dispatch argv limit (pass the packet via stdin or a file)
+  - fix the `claude-remote` review mode
+  - derive `_cli_probe_view` from all `*_flag` keys
+  - unify probe-argv case-folding
