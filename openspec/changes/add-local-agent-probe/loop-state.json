@@ -1,42 +1,226 @@
 {
-  "blocking_findings": [],
+  "schema_version": 6,
   "change_id": "add-local-agent-probe",
-  "cli_review_enabled": true,
-  "current_phase": "PLAN",
-  "degradations": [],
-  "error": null,
-  "escalation_reason": null,
-  "findings_trend": [],
-  "force": false,
-  "gate_decisions": [],
-  "gate_signals": {},
-  "gate_verdict": "proceed_with_review",
-  "goal_gate": null,
-  "handoff_ids": [
-    "none"
-  ],
-  "implementation_strategy": {},
+  "current_phase": "DONE",
   "iteration": 0,
-  "last_handoff_id": "none",
+  "total_iterations": 11,
   "max_phase_iterations": 3,
-  "memory_ids": [],
-  "package_authors": {},
+  "findings_trend": [],
+  "blocking_findings": [],
+  "vendor_availability": {},
   "packages_status": {},
-  "park": null,
-  "pending_gate": null,
-  "phase_archetype": "architect",
+  "package_authors": {},
+  "implementation_strategy": {},
+  "memory_ids": [],
+  "handoff_ids": [
+    "none",
+    "04583030-a2c6-4d93-a7f4-d6a8ebe62bcf",
+    "orchestrator-backfill:IMPLEMENT",
+    "orchestrator-backfill:IMPL_ITERATE",
+    "orchestrator-backfill:IMPL_REVIEW",
+    "validate-51a8c8a4",
+    "val-review-f0e42c8e"
+  ],
   "phase_history": [
     {
       "at": "2026-10-28T22:34:49.950521+00:00",
       "outcome": "proceed_with_review",
       "phase": "GATEKEEPER"
+    },
+    {
+      "at": "2026-10-30T02:21:05.852350+00:00",
+      "outcome": "complete",
+      "phase": "PLAN_ITERATE"
+    },
+    {
+      "at": "2026-10-30T02:49:37.309803+00:00",
+      "outcome": "converged",
+      "phase": "PLAN_REVIEW"
+    },
+    {
+      "at": "2026-11-02T03:34:48.817453+00:00",
+      "outcome": "complete",
+      "phase": "IMPLEMENT"
+    },
+    {
+      "at": "2026-11-02T03:34:49.213338+00:00",
+      "outcome": "complete",
+      "phase": "IMPL_ITERATE"
+    },
+    {
+      "at": "2026-11-02T03:34:49.550771+00:00",
+      "outcome": "converged",
+      "phase": "IMPL_REVIEW"
+    },
+    {
+      "at": "2026-11-02T03:35:30.137455+00:00",
+      "outcome": "passed",
+      "phase": "VALIDATE"
+    },
+    {
+      "at": "2026-11-02T15:27:30.445391+00:00",
+      "outcome": "converged",
+      "phase": "VAL_REVIEW"
     }
   ],
-  "phase_started_at": "2026-10-28T22:34:58.993126+00:00",
-  "previous_phase": null,
-  "schema_version": 6,
+  "last_handoff_id": "val-review-f0e42c8e",
   "started_at": "2026-10-28T22:33:13.375284+00:00",
-  "total_iterations": 2,
+  "phase_started_at": "2026-11-02T21:05:03.861899+00:00",
+  "previous_phase": null,
+  "escalation_reason": null,
   "val_review_enabled": true,
-  "vendor_availability": {}
+  "cli_review_enabled": true,
+  "error": null,
+  "phase_archetype": "runner",
+  "force": false,
+  "gate_signals": {},
+  "gate_verdict": "proceed_with_review",
+  "gate_decisions": [
+    {
+      "approval_id": null,
+      "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
+      "gate": "proposal_approval",
+      "notified": null,
+      "outcome": "blocked",
+      "phase": "PLAN",
+      "posture_present": true,
+      "provenance": {
+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24",
+        "source": "posture"
+      },
+      "reason": "gate 'proposal_approval' parked: trust posture disposition is block (unscoped fallback: auto requires a launch marker carrying a roadmap_approval_ref)",
+      "recorded_at": "2026-10-29T05:07:41.633652+00:00",
+      "resolution": "posture_block",
+      "scope": "unscoped",
+      "timeout_seconds": null
+    },
+    {
+      "approval_id": null,
+      "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
+      "gate": "proposal_approval",
+      "note": "Approved at plan-feature Gate 2 (2026-10-29)",
+      "notified": null,
+      "outcome": "proceed",
+      "phase": "PLAN",
+      "posture_present": true,
+      "provenance": {
+        "approval_ref": null,
+        "source": "human"
+      },
+      "reason": "gate 'proposal_approval' approved by the operator \u2014 Approved at plan-feature Gate 2 (2026-10-29)",
+      "recorded_at": "2026-10-30T02:14:26.618497+00:00",
+      "resolution": "console_approved",
+      "timeout_seconds": null
+    },
+    {
+      "gate": "pr_creation",
+      "outcome": "proceed",
+      "resolution": "auto",
+      "authorizing_disposition": "auto",
+      "reason": "gate 'pr_creation' auto-approved by trust posture",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "posture",
+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
+      },
+      "disposition": "auto",
+      "phase": "SUBMIT_PR",
+      "recorded_at": "2026-11-02T15:27:58.127555+00:00"
+    },
+    {
+      "gate": "merge",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'merge' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "posture",
+        "posture_digest": "e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24"
+      },
+      "disposition": "block",
+      "phase": "SUBMIT_PR",
+      "recorded_at": "2026-11-02T15:28:33.408172+00:00"
+    },
+    {
+      "gate": "merge",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'merge' approved by the operator \u2014 Operator approved PR #714 merge authorization 2026-11-02",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": true,
+      "notified": null,
+      "timeout_seconds": null,
+      "provenance": {
+        "source": "human",
+        "approval_ref": null
+      },
+      "disposition": "block",
+      "phase": "SUBMIT_PR",
+      "recorded_at": "2026-11-02T21:04:56.810459+00:00",
+      "note": "Operator approved PR #714 merge authorization 2026-11-02"
+    }
+  ],
+  "pending_gate": null,
+  "goal_gate": {
+    "verdict": "passed",
+    "reason": "all required evidence present",
+    "evidence": {
+      "merge_authorized": true,
+      "pr_url": "https://github.com/jankneumann/agentic-coding-tools/pull/714",
+      "report_path": "openspec/changes/add-local-agent-probe/validation-report.md",
+      "checked_at": "2026-11-02T21:05:03.683568+00:00",
+      "validate_outcome": "passed",
+      "validate_at": "2026-11-02T03:35:30.137455+00:00",
+      "report_time": "2026-11-02T10:27:28-05:00",
+      "report_time_source": "commit",
+      "bound_by": "VAL_REVIEW",
+      "val_review_at": "2026-11-02T15:27:30.445391+00:00",
+      "required_sections": [
+        "Spec Compliance",
+        "Validation Review"
+      ],
+      "phase_statuses": {
+        "Spec Compliance": "pass",
+        "Validation Review": "pass"
+      }
+    }
+  },
+  "park": null,
+  "degradations": [
+    {
+      "code": "review_skipped",
+      "detail": "converge() did not self-converge (3 runs halted at adjudication_required on lone-vendor high findings); 7 fixes (9156a358,a9c671d3,42405489) adjudicated and test-verified but not vendor re-reviewed; only claude_code+grok counted - codex/pi/antigravity failed with Errno 7 argv too long. Operator chose converged+degraded 2026-11-01.",
+      "phase": "IMPL_REVIEW"
+    },
+    {
+      "code": "coordinator_projection_forbidden",
+      "detail": "project-state submit returns forbidden for every mutation since INIT",
+      "phase": "INIT"
+    },
+    {
+      "code": "audit_sink_failed",
+      "detail": "gate decision audit sink failed for proposal_approval",
+      "phase": "PLAN"
+    },
+    {
+      "code": "review_skipped",
+      "detail": "3 converge() runs halted at adjudication_required (blocking=0, confirmed=0); 2 dual-lane highs fixed in b37951ef; claude-remote exclusion confirmed correct (--remote aliases --cloud, incompatible with --print); 2 lone-grok latent items parked; only claude_code+grok counted (Errno 7 argv). Operator chose converged+degraded 2026-11-02.",
+      "phase": "VAL_REVIEW"
+    }
+  ]
 }
