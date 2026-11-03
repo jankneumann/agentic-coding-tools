@@ -4020,6 +4020,10 @@ def create_coordination_api() -> FastAPI:
 
     install_routing_routes(app, verify_api_key)
 
+    from .review_routes import install_review_routes
+
+    install_review_routes(app, verify_api_key, authorize_operation, resolve_identity)
+
     return app
 
 

@@ -399,6 +399,63 @@ class PortAllocatorConfig:
 
 
 @dataclass
+class ReviewQueueConfig:
+    """Cross-host PR review queue (factory Phase 1).
+
+    Environment variables:
+        REVIEW_PRODUCER_TOKEN: Submit-only credential for the GitHub Action
+            producer. It authorizes ``POST /reviews/jobs`` and nothing else,
+            which is why it is not an entry in COORDINATION_API_KEYS.
+        REVIEW_ALLOWED_REPOS: Comma-separated ``owner/name`` allowlist. The
+            producer token reaches only listed repos (empty = none); API-key
+            callers are limited by it only when it is non-empty.
+        REVIEW_MAX_PASSES: Claim passes per job before it is published as
+            unreachable (default 3).
+        REVIEW_GITHUB_APP_ID / REVIEW_GITHUB_APP_INSTALLATION_ID /
+        REVIEW_GITHUB_APP_PRIVATE_KEY: GitHub App used to post the
+            consolidated review. Publishing is disabled unless all three are set.
+        REVIEW_GITHUB_API_URL: GitHub REST base (default https://api.github.com).
+    """
+
+    producer_token: str = ""
+    allowed_repos: frozenset[str] = frozenset()
+    max_passes: int = 3
+    github_app_id: str = ""
+    github_app_installation_id: str = ""
+    github_app_private_key: str = ""
+    github_api_url: str = "https://api.github.com"
+
+    @classmethod
+    def from_env(cls) -> ReviewQueueConfig:
+        raw_repos = os.environ.get("REVIEW_ALLOWED_REPOS", "")
+        return cls(
+            producer_token=os.environ.get("REVIEW_PRODUCER_TOKEN", "").strip(),
+            allowed_repos=frozenset(
+                r.strip() for r in raw_repos.split(",") if r.strip()
+            ),
+            max_passes=max(1, int(os.environ.get("REVIEW_MAX_PASSES", "3"))),
+            github_app_id=os.environ.get("REVIEW_GITHUB_APP_ID", "").strip(),
+            github_app_installation_id=os.environ.get(
+                "REVIEW_GITHUB_APP_INSTALLATION_ID", ""
+            ).strip(),
+            # Env files commonly carry PEMs with literal "\n" escapes.
+            github_app_private_key=os.environ.get(
+                "REVIEW_GITHUB_APP_PRIVATE_KEY", ""
+            ).replace("\\n", "\n"),
+            github_api_url=os.environ.get(
+                "REVIEW_GITHUB_API_URL", "https://api.github.com"
+            ).rstrip("/"),
+        )
+
+    def publisher_enabled(self) -> bool:
+        return bool(
+            self.github_app_id
+            and self.github_app_installation_id
+            and self.github_app_private_key
+        )
+
+
+@dataclass
 class ApiConfig:
     """HTTP API configuration."""
 
@@ -663,6 +720,9 @@ class Config:
         default_factory=PolicyEngineConfig.from_env
     )
     api: ApiConfig = field(default_factory=ApiConfig.from_env)
+    review_queue: ReviewQueueConfig = field(
+        default_factory=ReviewQueueConfig.from_env
+    )
     cloudflare_access: CloudflareAccessConfig = field(
         default_factory=CloudflareAccessConfig.from_env
     )
@@ -728,6 +788,7 @@ class Config:
             network_policy=NetworkPolicyConfig.from_env(),
             policy_engine=PolicyEngineConfig.from_env(),
             api=ApiConfig.from_env(),
+            review_queue=ReviewQueueConfig.from_env(),
             cloudflare_access=CloudflareAccessConfig.from_env(),
             port_allocator=PortAllocatorConfig.from_env(),
             openbao=OpenBaoConfig.from_env(),

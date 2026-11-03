@@ -124,7 +124,9 @@ def _json_body_schema(document: dict[str, Any], operation: Any) -> dict[str, Any
 #: rather than through ``Depends``, so the dependency tree alone cannot see it.
 #: They are closures inside ``create_coordination_api`` and are matched by name;
 #: ``test_key_enforcing_wrappers_are_still_in_use`` keeps this set honest.
-_KEY_ENFORCING_WRAPPERS = frozenset({"verify_code_search_principal"})
+_KEY_ENFORCING_WRAPPERS = frozenset(
+    {"verify_code_search_principal", "verify_review_submitter"}
+)
 
 
 def _dependency_calls(route: APIRoute) -> Iterator[Any]:

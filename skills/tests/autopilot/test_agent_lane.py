@@ -8,6 +8,7 @@ answers the file handshake.
 from __future__ import annotations
 
 import json
+import subprocess
 import sys
 import threading
 from pathlib import Path
@@ -70,6 +71,8 @@ def _fake_converge(*, review_rounds: int, fix_round: int | None = None, converge
                 kwargs["review_type"], "review", "prompt", kwargs["worktree_path"],
                 packet_path=Path(f"/packets/round-{n}.md"),
             )
+            if "remote_results" in kwargs:
+                kwargs["remote_results"](n)
             if fix_round == n:
                 kwargs["fix_callback"]([{"id": "F1"}], kwargs["worktree_path"])
         return SimpleNamespace(
@@ -231,3 +234,105 @@ def test_a_reused_proto_dir_does_not_answer_with_a_previous_runs_findings(tmp_pa
 def test_cli_rejects_an_unknown_phase() -> None:
     with pytest.raises(SystemExit):
         agent_lane.main(["converge", "--change-id", "d", "--phase", "VALIDATE", "--proto-dir", "p", "--model", "m"])
+
+
+class _FakeCoordinator:
+    """Answers ``GET /reviews/rounds`` with one finished job."""
+
+    def __init__(self, lanes: list[dict[str, Any]]) -> None:
+        self.lanes = lanes
+        self.paths: list[str] = []
+
+    def request(self, method: str, path: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+        self.paths.append(path)
+        job = {"status": "completed", "lanes": self.lanes}
+        return {"status_code": 200, "data": {"found": True, "job": job}, "error": None}
+
+
+def _git_worktree(worktree: Path) -> str:
+    subprocess.run(["git", "init", "-q", str(worktree)], check=True)
+    subprocess.run(
+        ["git", "-C", str(worktree), "-c", "user.name=t", "-c", "user.email=t@example.com",
+         "commit", "-q", "--allow-empty", "-m", "init"],
+        check=True,
+    )
+    return subprocess.run(
+        ["git", "-C", str(worktree), "rev-parse", "HEAD"], check=True, capture_output=True, text=True,
+    ).stdout.strip()
+
+
+def test_remote_lanes_for_the_worktree_head_join_each_round(tmp_path: Path) -> None:
+    worktree, proto = tmp_path / "wt", tmp_path / "proto"
+    change_dir = _change_dir(worktree)
+    head = _git_worktree(worktree)
+    server = _serve(proto, rounds=1)
+    converge, calls = _fake_converge(review_rounds=1)
+    coordinator = _FakeCoordinator([
+        {"vendor": "codex", "verified": True, "findings": [], "model": "m-codex"},
+        {"vendor": "gemini", "verified": False, "findings": []},
+    ])
+
+    out = agent_lane.run_converge(
+        change_id="demo", phase="VAL_REVIEW", worktree=worktree, proto_dir=proto, base_ref=None,
+        model="m", timeout_seconds=10, poll_seconds=0.01, converge_fn=converge, policy_fn=_policy,
+        remote_repo="o/r", remote_pr=7, remote_client=coordinator,
+    )
+    server.join(timeout=5)
+
+    assert "remote_results" in calls
+    assert calls["verified_lanes"] == ["claude_code"]
+    assert coordinator.paths == [f"/reviews/rounds?repo=o%2Fr&pr=7&head_sha={head}"]
+    assert out["remote_vendors"] == {1: ["codex"]}
+    events = [json.loads(line) for line in (proto / "events.jsonl").read_text().splitlines()]
+    assert {"round": 1, "vendors": ["codex"]}.items() <= next(
+        e for e in events if e["event"] == "remote_round"
+    ).items()
+    report = (change_dir / "validation-report.md").read_text()
+    assert "- Lanes: `claude_code`, `codex` (min_quorum=1)." in report
+    assert "single_vendor_review" in report  # the policy exception is still recorded
+
+
+def test_without_a_remote_pr_converge_gets_no_remote_source(tmp_path: Path) -> None:
+    worktree, proto = tmp_path / "wt", tmp_path / "proto"
+    change_dir = _change_dir(worktree)
+    server = _serve(proto, rounds=1)
+    converge, calls = _fake_converge(review_rounds=1)
+
+    out = agent_lane.run_converge(
+        change_id="demo", phase="VAL_REVIEW", worktree=worktree, proto_dir=proto, base_ref=None,
+        model="m", timeout_seconds=10, poll_seconds=0.01, converge_fn=converge, policy_fn=_policy,
+    )
+    server.join(timeout=5)
+
+    assert "remote_results" not in calls and "remote_vendors" not in out
+    assert "- Lanes: `claude_code` (min_quorum=1)." in (change_dir / "validation-report.md").read_text()
+
+
+def test_a_failed_remote_read_is_logged_and_re_raised_for_converge(tmp_path: Path) -> None:
+    hs = agent_lane.Handshake(tmp_path)
+    vendors: dict[int, list[str]] = {}
+
+    def broken(_round: int) -> list[Any]:
+        raise ConnectionError("coordinator down")
+
+    with pytest.raises(ConnectionError):
+        agent_lane.make_remote_source(hs, broken, vendors)(2)
+
+    [event] = [json.loads(line) for line in (tmp_path / "events.jsonl").read_text().splitlines()]
+    assert (event["event"], event["round"], event["error"]) == (
+        "remote_round", 2, "ConnectionError: coordinator down",
+    )
+    assert vendors == {}
+
+
+def test_remote_repo_and_pr_go_together(tmp_path: Path) -> None:
+    with pytest.raises(ValueError):
+        agent_lane.run_converge(
+            change_id="demo", phase="IMPL_REVIEW", worktree=tmp_path, proto_dir=tmp_path / "p",
+            base_ref=None, model="m", remote_repo="o/r", converge_fn=lambda **_: None, policy_fn=_policy,
+        )
+    with pytest.raises(SystemExit):
+        agent_lane.main([
+            "converge", "--change-id", "d", "--phase", "IMPL_REVIEW", "--proto-dir", "p",
+            "--model", "m", "--remote-pr", "7",
+        ])

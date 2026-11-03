@@ -43,6 +43,7 @@ On a resumed session, `bootstrap-cloud.sh` takes <1 second — it only checks th
 | `scripts/hooks/register_agent.py` | Register session, load handoff (SessionStart) |
 | `scripts/hooks/report_status.py` | Report phase completion (Stop/SubagentStop) |
 | `scripts/hooks/deregister_agent.py` | Deregister session, write handoff (SessionEnd) |
+| `scripts/hooks/irreversible_guard.py` | Deny or ask on irreversible Bash commands (PreToolUse) |
 
 ## Wiring for Target Repos
 
@@ -182,6 +183,27 @@ Setup Script in §1, which runs before it is injected.
 }
 ```
 
+**Irreversible-action guard (PreToolUse).** Register it on the `Bash` matcher
+with `"onFailure": "block"` so a hook that cannot start fails closed:
+
+```json
+"PreToolUse": [{
+  "matcher": "Bash",
+  "hooks": [
+    { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/skills/session-bootstrap/scripts/hooks/irreversible_guard.py", "timeout": 10, "onFailure": "block" }
+  ]
+}]
+```
+
+It denies history rewrites, remote deletion, `rm -rf`, `find -delete` and
+`curl | sh` (exit 2, in every permission mode including Auto), asks on merges,
+`DROP`/`TRUNCATE`, deploys and secret writes, and says nothing otherwise, so
+Auto mode can run the rest without prompts. It sees through `git -C`, `env`,
+`sudo`, `sh -c`, `$(…)` and compound commands, but not through scripts that
+shell out: it is a second layer behind the sandbox and credential scoping. Its
+classes track the coordinator's `guardrails.FALLBACK_PATTERNS`; the test suite
+fails when the two drift.
+
 ### 3. Environment Variables (cloud UI)
 
 ```
@@ -200,7 +222,7 @@ COORDINATION_API_KEY=<your-api-key>
 | `CLAUDE_CODE_REMOTE` | Auto | Set to `true` by Claude Code web — can be used to skip local execution |
 | `CLAUDE_ENV_FILE` | Auto | File path for persisting env vars across Bash calls |
 
-All hook scripts are **stdlib-only** (no third-party dependencies) and **never block sessions** (all exceptions swallowed, always exit 0).
+All hook scripts are **stdlib-only** (no third-party dependencies). The lifecycle hooks **never block sessions** (all exceptions swallowed, always exit 0). `irreversible_guard.py` is the exception by design: it exits 2 to deny, and on an internal error it asks instead of passing silently.
 
 ## Canonical Source
 

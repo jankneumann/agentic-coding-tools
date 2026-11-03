@@ -16,11 +16,19 @@ On a converged VAL_REVIEW the ``## Validation Review`` section of
 ``validation-report.md`` is written with a ``**Status**`` line, which the goal
 gate requires when VAL_REVIEW is enabled.
 
+Cross-host rounds (factory Phase 1, 1.5) are opt-in: with ``--remote-repo``
+and ``--remote-pr`` each round also reads the lanes other hosts verified for
+the worktree's HEAD from the coordinator (``remote_rounds``), waiting up to
+``--remote-wait-seconds`` for passes still in flight. Each read is logged as
+a ``remote_round`` event. The quorum policy is still resolved for this one
+local lane, so the cloud exception applies until an operator removes it.
+
 This is a committed replacement for per-session driver scripts::
 
     python3 skills/autopilot/scripts/agent_lane.py converge \\
         --change-id <id> --phase VAL_REVIEW --proto-dir <dir> \\
-        --base-ref origin/<pr-base> --model <model id>
+        --base-ref origin/<pr-base> --model <model id> \\
+        [--remote-repo <owner/name> --remote-pr <number>]
 """
 
 from __future__ import annotations
@@ -37,13 +45,16 @@ from typing import Any, Callable
 
 _SCRIPTS = Path(__file__).resolve().parent
 _PARALLEL_INFRA = _SCRIPTS.parent.parent / "parallel-infrastructure" / "scripts"
-for _path in (_SCRIPTS, _PARALLEL_INFRA):
+_BRIDGE = _SCRIPTS.parent.parent / "coordination-bridge" / "scripts"
+for _path in (_SCRIPTS, _PARALLEL_INFRA, _BRIDGE):
     if str(_path) not in sys.path:
         sys.path.insert(0, str(_path))
 
 LANE = "claude_code"
 DEFAULT_TIMEOUT_SECONDS = 5400.0
 POLL_SECONDS = 2.0
+DEFAULT_REMOTE_WAIT_SECONDS = 300.0
+REMOTE_HTTP_TIMEOUT_SECONDS = 30.0
 
 #: review phase -> (converge review_type, fix sub-step name)
 PHASES: dict[str, tuple[str, str]] = {
@@ -182,6 +193,28 @@ def make_fix_callback(
     return fix_callback
 
 
+def make_remote_source(
+    handshake: Handshake,
+    source: Callable[[int], list[Any]],
+    rounds: dict[int, list[str]],
+) -> Callable[[int], list[Any]]:
+    """Wrap a ``remote_results`` source so each read is logged and its
+    vendors are kept in ``rounds`` (round number -> vendors)."""
+
+    def remote_results(round_num: int) -> list[Any]:
+        try:
+            results = source(round_num)
+        except Exception as exc:
+            # converge() logs the failure and continues with local lanes only.
+            handshake.event("remote_round", round=round_num, error=f"{type(exc).__name__}: {exc}")
+            raise
+        rounds[round_num] = [r.vendor for r in results]
+        handshake.event("remote_round", round=round_num, vendors=rounds[round_num])
+        return results
+
+    return remote_results
+
+
 def write_validation_review_section(report_path: Path, *, status: str, body: str) -> None:
     """Replace (or append) the report's ``## Validation Review`` section."""
     text = report_path.read_text(encoding="utf-8") if report_path.exists() else "# Validation Report\n"
@@ -195,9 +228,12 @@ def write_validation_review_section(report_path: Path, *, status: str, body: str
 
 
 def _review_body(result: dict[str, Any], *, min_quorum: int, policy: dict[str, Any]) -> str:
+    remote = result.get("remote_vendors") or {}
+    last_remote = remote[max(remote)] if remote else []
+    lanes = ", ".join(f"`{lane}`" for lane in sorted({LANE, *last_remote}))
     lines = [
         f"- Result: converged in {result['rounds']} round(s) via `agent_lane.py converge`.",
-        f"- Lanes: `{LANE}` only (min_quorum={min_quorum}).",
+        f"- Lanes: {lanes} (min_quorum={min_quorum}).",
     ]
     if policy.get("policy_id"):
         lines.append(
@@ -221,11 +257,23 @@ def run_converge(
     fix_mode: str = "targeted",
     timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
     poll_seconds: float = POLL_SECONDS,
+    remote_repo: str | None = None,
+    remote_pr: int | None = None,
+    remote_wait_seconds: float = DEFAULT_REMOTE_WAIT_SECONDS,
+    remote_client: Any = None,
     converge_fn: Callable[..., Any] | None = None,
     policy_fn: Callable[..., dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
+    """Run ``converge()`` for ``phase`` with this agent as the local lane.
+
+    ``remote_repo`` and ``remote_pr`` together opt into cross-host rounds;
+    ``remote_client`` (a ``remote_rounds.CoordinatorClient``) defaults to the
+    coordination bridge's HTTP client.
+    """
     if phase not in PHASES:
         raise ValueError(f"phase must be one of {sorted(PHASES)}")
+    if (remote_repo is None) != (remote_pr is None):
+        raise ValueError("remote_repo and remote_pr must be given together")
     review_type, fix_phase = PHASES[phase]
     if converge_fn is None:
         import convergence_loop
@@ -249,8 +297,18 @@ def run_converge(
     policy = policy_fn(environment=environment, verified_review_lanes=1)
     min_quorum = int(policy["min_quorum"][phase])
     orchestrator = AgentLaneOrchestrator(handshake, model=model)
-    handshake.event("converge_started", phase=phase, min_quorum=min_quorum, policy=policy)
+    handshake.event(
+        "converge_started", phase=phase, min_quorum=min_quorum, policy=policy,
+        remote=f"{remote_repo}#{remote_pr}" if remote_repo else None,
+    )
+    remote_vendors: dict[int, list[str]] = {}
     try:
+        extra: dict[str, Any] = {}
+        if remote_repo is not None and remote_pr is not None:
+            extra["remote_results"] = _remote_results(
+                handshake, remote_vendors, repo=remote_repo, pr=remote_pr, worktree=worktree,
+                wait_seconds=remote_wait_seconds, client=remote_client,
+            )
         res = converge_fn(
             change_id=change_id,
             review_type=review_type,
@@ -266,6 +324,7 @@ def run_converge(
             memory_callback=lambda text: handshake.event("memory", text=text),
             orchestrator=orchestrator,
             escalation_callback=lambda summary: handshake.event("escalation", summary=summary),
+            **extra,
         )
         out: dict[str, Any] = {
             "phase": phase,
@@ -279,6 +338,8 @@ def run_converge(
             "checkpoint_dir": str(res.checkpoint_dir) if res.checkpoint_dir else None,
             "summary": (res.consensus or {}).get("summary"),
         }
+        if extra:
+            out["remote_vendors"] = remote_vendors
     except Exception as exc:  # noqa: BLE001 - recorded for the agent, not swallowed silently
         out = {"phase": phase, "converged": False, "error": f"{type(exc).__name__}: {exc}"}
 
@@ -296,6 +357,26 @@ def run_converge(
     return out
 
 
+def _remote_results(
+    handshake: Handshake,
+    rounds: dict[int, list[str]],
+    *,
+    repo: str,
+    pr: int,
+    worktree: Path,
+    wait_seconds: float,
+    client: Any,
+) -> Callable[[int], list[Any]]:
+    import remote_rounds
+
+    if client is None:
+        from coordination_bridge import CoordinatorHttpClient
+
+        client = CoordinatorHttpClient(timeout=REMOTE_HTTP_TIMEOUT_SECONDS)
+    source = remote_rounds.coordinator_round_source(client, repo, pr, worktree, wait_seconds=wait_seconds)
+    return make_remote_source(handshake, source, rounds)
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     sub = parser.add_subparsers(dest="command", required=True)
@@ -310,11 +391,20 @@ def _build_parser() -> argparse.ArgumentParser:
     cv.add_argument("--max-rounds", type=int, default=3)
     cv.add_argument("--fix-mode", default="targeted", choices=["inline", "targeted"])
     cv.add_argument("--timeout-seconds", type=float, default=DEFAULT_TIMEOUT_SECONDS)
+    cv.add_argument("--remote-repo", default=None, help="owner/name: also count lanes other hosts verified.")
+    cv.add_argument("--remote-pr", type=int, default=None, help="PR number for --remote-repo.")
+    cv.add_argument(
+        "--remote-wait-seconds", type=float, default=DEFAULT_REMOTE_WAIT_SECONDS,
+        help="Per round, how long to wait for remote passes still in flight.",
+    )
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
-    args = _build_parser().parse_args(argv)
+    parser = _build_parser()
+    args = parser.parse_args(argv)
+    if (args.remote_repo is None) != (args.remote_pr is None):
+        parser.error("--remote-repo and --remote-pr must be given together")
     out = run_converge(
         change_id=args.change_id,
         phase=args.phase,
@@ -326,6 +416,9 @@ def main(argv: list[str] | None = None) -> int:
         max_rounds=args.max_rounds,
         fix_mode=args.fix_mode,
         timeout_seconds=args.timeout_seconds,
+        remote_repo=args.remote_repo,
+        remote_pr=args.remote_pr,
+        remote_wait_seconds=args.remote_wait_seconds,
     )
     print(json.dumps({k: out.get(k) for k in ("phase", "converged", "rounds", "reason", "error")}))
     return 0 if out.get("converged") else 1
