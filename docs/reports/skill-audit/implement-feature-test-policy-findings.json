@@ -1,0 +1,345 @@
+{
+  "convention": "rightsizing",
+  "dispatch_profile": [],
+  "evidence": {
+    "reason": "not_applicable_test_policy_lens",
+    "status": "unavailable",
+    "tier_rows": []
+  },
+  "findings": [],
+  "freshness": {
+    "archetypes_sha256": "5cfdd2f5e34d7ae83201695604a0382adcd9e2a2fe003b854959112e4800ed7a",
+    "evidence_window_days": 30,
+    "reviewed_dates": [
+      "2026-08-16"
+    ]
+  },
+  "generated_at": "2026-10-13T00:00:00+00:00",
+  "layers": [
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "frontmatter",
+      "layer": "contract",
+      "rule": "frontmatter",
+      "section_id": "SKILL.md#00-frontmatter"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Durable state artifact authority",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#01-durable-state-artifact-authority"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Arguments",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#02-arguments"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Prerequisites",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#03-prerequisites"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Provider-Neutral Dispatch",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#04-provider-neutral-dispatch"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Sub-Agent Dispatch Authorization",
+      "layer": "constraint",
+      "rule": "prohibition_without_reason",
+      "section_id": "SKILL.md#05-sub-agent-dispatch-authorization"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "OpenSpec Execution Preference",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#06-openspec-execution-preference"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "0. Detect Coordinator and Select Tier [all tiers]",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#07-0-detect-coordinator-and-select-tier-all"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "0a. Seeding Retry on Empty Change-Id [all tiers]",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#08-0a-seeding-retry-on-empty-change-id-all"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "1. Verify Proposal Exists [all tiers]",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#09-1-verify-proposal-exists-all-tiers"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "2. Setup Worktree for Feature Isolation [all tiers]",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#10-2-setup-worktree-for-feature-isolation-a"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "3. Verify Feature Branch [all tiers]",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#11-3-verify-feature-branch-all-tiers"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Implementation Rules (0–5)",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#12-implementation-rules-0-5"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Scope discipline template",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#13-scope-discipline-template"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "3z. Record Worker Vendor for Vendor-Diversity Policy [all tiers]",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#14-3z-record-worker-vendor-for-vendor-diver"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "3a. Generate Change Context & Test Plan (Phase 1 -- TDD RED) [all tiers]",
+      "layer": "procedure",
+      "rule": "procedure",
+      "section_id": "SKILL.md#15-3a-generate-change-context-test-plan-pha"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "3b. Implement Tasks (Phase 2 -- TDD GREEN)",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#16-3b-implement-tasks-phase-2-tdd-green"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Sequential Tier [sequential]",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#17-sequential-tier-sequential"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Archetype Resolution (Phase 2)",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#18-archetype-resolution-phase-2"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Parallel Implementation (for independent tasks)",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#19-parallel-implementation-for-independent"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Local Parallel Tier [local-parallel]",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#20-local-parallel-tier-local-parallel"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Coordinated Tier [coordinated]",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#21-coordinated-tier-coordinated"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Phase A: Feature-Level Preflight (Orchestrator)",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#22-phase-a-feature-level-preflight-orchestr"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Phase B: Package Execution Protocol (Every Worker Agent)",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#23-phase-b-package-execution-protocol-every"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Phase C: Review + Integration Sequencing",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#24-phase-c-review-integration-sequencing"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Per-Package Context Checkpoint [local-parallel, coordinated]",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#25-per-package-context-checkpoint-local-par"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "4. Track Progress [all tiers]",
+      "layer": "constraint",
+      "rule": "prohibition_without_reason",
+      "section_id": "SKILL.md#26-4-track-progress-all-tiers"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "5. Verify All Tasks Complete [all tiers]",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#27-5-verify-all-tasks-complete-all-tiers"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "6. Quality Checks (Parallel Execution) [all tiers]",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#28-6-quality-checks-parallel-execution-all"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "6.4. Live Service Smoke Tests (Soft Gate) [all tiers]",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#29-6-4-live-service-smoke-tests-soft-gate-a"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "6.5. Artifact Validation [local-parallel+]",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#30-6-5-artifact-validation-local-parallel"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "7. Document Lessons Learned [all tiers]",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#31-7-document-lessons-learned-all-tiers"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "7.5. Append Session Log [all tiers]",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#32-7-5-append-session-log-all-tiers"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "8. Commit Changes [all tiers]",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#33-8-commit-changes-all-tiers"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "9. Push and Create PR [all tiers]",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#34-9-push-and-create-pr-all-tiers"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Context Slicing for Implementation",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#35-context-slicing-for-implementation"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Semantic Code Context",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#36-semantic-code-context"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Output",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#37-output"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Next Step",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#38-next-step"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Common Rationalizations",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#39-common-rationalizations"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Red Flags",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#40-red-flags"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Verification",
+      "layer": "procedure",
+      "rule": "procedure",
+      "section_id": "SKILL.md#41-verification"
+    }
+  ],
+  "schema_version": 1,
+  "skill": "implement-feature"
+}

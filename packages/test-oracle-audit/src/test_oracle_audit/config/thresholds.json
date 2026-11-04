@@ -1,0 +1,6 @@
+{
+  "schema_version": 1,
+  "description": "Display thresholds only (design D1, D7). Analysis (D10) derives decision thresholds from labelled data; nothing here gates anything.",
+  "judged_impl_derived_p": 0.5,
+  "co_change_high": 0.5
+}

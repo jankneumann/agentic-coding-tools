@@ -34,6 +34,10 @@ DEPENDABOT = REPO_ROOT / ".github" / "dependabot.yml"
 SKIP_PARTS = frozenset({
     ".git", ".git-worktrees", ".claude", ".agents", "node_modules",
     ".venv", ".uv-cache", "__pycache__", "site-packages", "archive",
+    # Test-data projects (e.g. packages/test-oracle-audit/tests/fixtures/*): their
+    # manifests describe throwaway mini-projects the tests audit, not dependencies
+    # anything installs, so Dependabot has nothing to watch there.
+    "fixtures",
 })
 
 #: manifest filename -> the Dependabot ecosystem that claims it.

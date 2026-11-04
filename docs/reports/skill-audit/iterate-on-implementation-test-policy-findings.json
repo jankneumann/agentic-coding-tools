@@ -1,0 +1,286 @@
+{
+  "convention": "rightsizing",
+  "dispatch_profile": [],
+  "evidence": {
+    "reason": "not_applicable_test_policy_lens",
+    "status": "unavailable",
+    "tier_rows": []
+  },
+  "findings": [
+    {
+      "evidence": {},
+      "id": "F001",
+      "kind": "test_coverage_target",
+      "layer": "contract",
+      "rationale": "line coverage is used as a goal or gate (1 instruction(s)): \"**Optional polish (manual):** After iterations converge and the suite is green, operators may run `/simplify` on the changed surface for behavior-preserving...\"",
+      "remediation": "add_reason",
+      "section_id": "SKILL.md#32-next-step"
+    }
+  ],
+  "freshness": {
+    "archetypes_sha256": "5cfdd2f5e34d7ae83201695604a0382adcd9e2a2fe003b854959112e4800ed7a",
+    "evidence_window_days": 30,
+    "reviewed_dates": [
+      "2026-08-16"
+    ]
+  },
+  "generated_at": "2026-10-13T00:00:00+00:00",
+  "layers": [
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "frontmatter",
+      "layer": "contract",
+      "rule": "frontmatter",
+      "section_id": "SKILL.md#00-frontmatter"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Iterate on Implementation",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#01-iterate-on-implementation"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Arguments",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#02-arguments"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Prerequisites",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#03-prerequisites"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Provider-Neutral Dispatch",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#04-provider-neutral-dispatch"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Sub-Agent Dispatch Authorization",
+      "layer": "constraint",
+      "rule": "prohibition_without_reason",
+      "section_id": "SKILL.md#05-sub-agent-dispatch-authorization"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "OpenSpec Execution Preference",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#06-openspec-execution-preference"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Coordinator Integration (Optional)",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#07-coordinator-integration-optional"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "0. Detect Coordinator, Read Handoff, Recall Memory",
+      "layer": "contract",
+      "rule": "skill_base_dir",
+      "section_id": "SKILL.md#08-0-detect-coordinator-read-handoff-recall"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "1. Determine Change ID and Configuration",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#09-1-determine-change-id-and-configuration"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "2. Verify Implementation Exists",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#10-2-verify-implementation-exists"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "2.5. Prepare Findings Artifact",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#11-2-5-prepare-findings-artifact"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "2.6. Consume Rework Report (If Available)",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#12-2-6-consume-rework-report-if-available"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "3. Begin Iteration Loop",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#13-3-begin-iteration-loop"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "4. Review and Analyze",
+      "layer": "contract",
+      "rule": "contract_table",
+      "section_id": "SKILL.md#14-4-review-and-analyze"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "5. Check Termination Conditions",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#15-5-check-termination-conditions"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "6. Implement Improvements",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#16-6-implement-improvements"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Archetype Resolution (Phase 2)",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#17-archetype-resolution-phase-2"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Parallel Fixes (for independent findings)",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#18-parallel-fixes-for-independent-findings"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "7. Run Quality Checks (Parallel Execution)",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#19-7-run-quality-checks-parallel-execution"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "8. Update Documentation",
+      "layer": "constraint",
+      "rule": "prohibition_without_reason",
+      "section_id": "SKILL.md#20-8-update-documentation"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "9. Update OpenSpec Documents",
+      "layer": "constraint",
+      "rule": "prohibition_without_reason",
+      "section_id": "SKILL.md#21-9-update-openspec-documents"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "9.5. Append Session Log",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#22-9-5-append-session-log"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "10. Commit Iteration",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#23-10-commit-iteration"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "11. Multi-Vendor Review (Conditional)",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#24-11-multi-vendor-review-conditional"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "11a. Dispatch Reviews",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#25-11a-dispatch-reviews"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "11b. Synthesize Consensus",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#26-11b-synthesize-consensus"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "11c. Feed Back Findings Above Remediation Threshold",
+      "layer": "procedure",
+      "rule": "procedure",
+      "section_id": "SKILL.md#27-11c-feed-back-findings-above-remediation"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "11.5. Audit Choices (non-blocking)",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#28-11-5-audit-choices-non-blocking"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "12. Present Summary",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#29-12-present-summary"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Semantic Code Context",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#30-semantic-code-context"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Output",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#31-output"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Next Step",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#32-next-step"
+    }
+  ],
+  "schema_version": 1,
+  "skill": "iterate-on-implementation"
+}

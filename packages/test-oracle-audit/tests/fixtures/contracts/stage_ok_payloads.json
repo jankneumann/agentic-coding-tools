@@ -1,0 +1,24 @@
+{
+  "inventory": {
+    "path": "tests/test_x.py",
+    "line_start": 3,
+    "line_end": 9,
+    "fixtures": ["tmp_path"],
+    "covered_modules": ["evaluation.metrics"]
+  },
+  "static": {"rules": ["assertion_free", "unscoped_patch"]},
+  "judged": {
+    "oracle_source": {"spec": 0.7, "none": 0.3},
+    "survives_refactor": 0.8,
+    "boundary": {"unit": 0.9, "integration": 0.1},
+    "truncated": false
+  },
+  "mutation": {"backend": "ast", "covering_mutants": 5, "killed_mutants": 4, "kill_rate": 0.8},
+  "rename": {"survives": true, "renamed_symbols": 4, "unrenamable_symbols": 1, "low_confidence": false},
+  "history": {"co_change_ratio": 0.25, "co_change_denominator": 8, "added_with_fix": false},
+  "explain": {
+    "prose": "Asserts only truthiness of the result.",
+    "action": "strengthen_assertions",
+    "flagged_by": ["static", "mutation"]
+  }
+}

@@ -1,0 +1,7 @@
+[project]
+name = "inv-basic"
+version = "0.0.0"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

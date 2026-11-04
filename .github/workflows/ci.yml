@@ -1167,6 +1167,45 @@ jobs:
       - name: Run pytest
         run: uv run pytest
 
+  # Package tests for packages/test-oracle-audit/ (OpenSpec pilot-test-quality-audit).
+  # Runs every stage in dry-run against committed fixture projects: no API keys,
+  # no network, and audited pytest runs use the current interpreter (--python).
+  test-oracle-audit-tests:
+    runs-on: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && ((github.event_name == 'workflow_dispatch' && inputs.runner_lane != 'auto') && inputs.runner_lane || vars.CI_RUNNER_LANE) == 'self-hosted' && fromJSON('["self-hosted","linux","ARM64","gx10"]') || 'ubuntu-latest' }}
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: packages/test-oracle-audit
+
+    steps:
+      - name: Refuse ineligible events on self-hosted runner
+        if: runner.environment == 'self-hosted' && !(github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        run: |
+          echo "::error::Only push, workflow_dispatch and same-repository pull_request runs may execute on self-hosted runners (fork PRs and merge_group never); routing expression bypassed."
+          exit 1
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          # D6: the runner image sets UV_CACHE_DIR to this path; without it setup-uv would
+          # redirect the cache to $RUNNER_TEMP and an opted-in shared cache would go unused.
+          cache-local-path: /home/runner/.cache/uv
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install test-oracle-audit with dev extras
+        run: uv sync --extra dev
+
+      - name: Run pytest
+        run: uv run pytest -q
+
+      - name: Lint
+        run: uv run ruff check .
+
   # Package-level unit tests, lint and types for packages/agent-scenarios/.
   #
   # Added 2026-09-08 alongside code-search-tests, for the same reason: this tree

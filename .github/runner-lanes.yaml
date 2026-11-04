@@ -39,6 +39,7 @@ workflows:
       gen-eval-tests: { lane: routed }
       code-search-tests: { lane: routed }
       system-one-decisions-tests: { lane: routed }
+      test-oracle-audit-tests: { lane: routed }
       agent-scenarios-tests: { lane: routed }
       requirement-traceability-sweep: { lane: routed }
       context-eval: { lane: routed }
