@@ -11,6 +11,7 @@ Design decisions: D1 (MergeBackend protocol)
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -104,6 +105,12 @@ class CoordinatorTrainBackend:
         headers: dict[str, str] = {"Content-Type": "application/json"}
         if self._api_key:
             headers["X-API-Key"] = self._api_key
+        # Behind Cloudflare Access the edge refuses requests without the service token.
+        cf_id = os.environ.get("CF_ACCESS_CLIENT_ID", "").strip()
+        cf_secret = os.environ.get("CF_ACCESS_CLIENT_SECRET", "").strip()
+        if cf_id and cf_secret:
+            headers["CF-Access-Client-Id"] = cf_id
+            headers["CF-Access-Client-Secret"] = cf_secret
         return headers
 
     def merge(self, *, pr_number: int, strategy: str, **kwargs: Any) -> MergeResult:
@@ -240,7 +247,6 @@ def detect_merge_backend() -> MergeBackend:
     status = _get_coordinator_status()
 
     if status.get("COORDINATOR_AVAILABLE") and status.get("CAN_QUEUE_WORK"):
-        import os
         api_url = status.get(
             "coordinator_url",
             os.environ.get("COORDINATION_API_URL", "http://localhost:8081"),
