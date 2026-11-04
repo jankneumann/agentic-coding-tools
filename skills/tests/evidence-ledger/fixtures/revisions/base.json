@@ -1,0 +1,132 @@
+{
+  "schema_version": 1,
+  "ledger_id": "bug-1234",
+  "subject": "TLS handshake failures after deploy",
+  "created_at": "2026-10-12T02:10:00Z",
+  "facts": [
+    {
+      "id": "F1",
+      "kind": "log",
+      "source": "journalctl -u api",
+      "gathered_by": "claude_code",
+      "host": "api-1",
+      "time_window": {
+        "start": "2026-10-12T02:00:00Z",
+        "end": "2026-10-12T02:05:00Z"
+      },
+      "tool_version": "systemd 255",
+      "role": "variable",
+      "observation": "42 handshake failures/min with feature flag on",
+      "trace_id": "trace-abc",
+      "data": {
+        "failures_per_min": 42
+      }
+    },
+    {
+      "id": "F2",
+      "kind": "log",
+      "source": "journalctl -u api",
+      "gathered_by": "claude_code",
+      "host": "api-1",
+      "time_window": {
+        "start": "2026-10-12T02:00:00Z",
+        "end": "2026-10-12T02:05:00Z"
+      },
+      "tool_version": "systemd 255",
+      "role": "control",
+      "observation": "0 handshake failures/min with feature flag off"
+    },
+    {
+      "id": "F3",
+      "kind": "config",
+      "source": "journalctl -u api",
+      "gathered_by": "claude_code",
+      "host": "api-1",
+      "time_window": {
+        "start": "2026-10-12T02:00:00Z",
+        "end": "2026-10-12T02:05:00Z"
+      },
+      "tool_version": "systemd 255",
+      "role": "variable",
+      "observation": "cert served has expected serial 0x1f"
+    },
+    {
+      "id": "F4",
+      "kind": "config",
+      "source": "journalctl -u api",
+      "gathered_by": "claude_code",
+      "host": "api-1",
+      "time_window": {
+        "start": "2026-10-12T02:00:00Z",
+        "end": "2026-10-12T02:05:00Z"
+      },
+      "tool_version": "systemd 255",
+      "role": "control",
+      "observation": "cert served on control has serial 0x1f"
+    }
+  ],
+  "signals": [
+    {
+      "id": "S1",
+      "variable_fact": "F1",
+      "control_fact": "F2",
+      "classification": "signal",
+      "metric": "handshake_failures_per_min"
+    },
+    {
+      "id": "S2",
+      "variable_fact": "F3",
+      "control_fact": "F4",
+      "classification": "noise"
+    }
+  ],
+  "hypotheses": [
+    {
+      "id": "H1",
+      "statement": "Flag enables a cipher the LB does not offer",
+      "cites": [
+        "F1",
+        "F2"
+      ],
+      "status": "supported"
+    },
+    {
+      "id": "H2",
+      "statement": "Cert reload served a stale cert",
+      "cites": [
+        "F3",
+        "F4"
+      ],
+      "status": "rejected"
+    },
+    {
+      "id": "H3",
+      "statement": "Pool exhaustion amplifies the cipher mismatch",
+      "cites": [
+        "F1"
+      ],
+      "status": "open"
+    },
+    {
+      "id": "H4",
+      "statement": "Cipher mismatch plus pool exhaustion",
+      "cites": [
+        "F1",
+        "F2"
+      ],
+      "components": [
+        "H1",
+        "H3"
+      ],
+      "status": "open"
+    }
+  ],
+  "reverify_requests": [
+    {
+      "id": "R1",
+      "fact_id": "F3",
+      "reason": "serial read from cached response",
+      "requested_by": "reviewer"
+    }
+  ]
+}

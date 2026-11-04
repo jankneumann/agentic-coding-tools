@@ -167,6 +167,10 @@ testpaths = [
     # run_audit) are flat-name-unique across every skill, so the shared session
     # resolves them unambiguously and this directory is safe to list here.
     "tests/audit-choices",
+    # evidence-ledger (ri-01 of evidence-grounded-debugging). Its one script
+    # module, evidence_ledger, is flat-name-unique across every skill, so the
+    # shared session resolves it unambiguously.
+    "tests/evidence-ledger",
     # NOTE: validate-feature/scripts/tests, autopilot/scripts/tests,
     # security-review/tests, parallel-infrastructure/tests and most dirs under
     # skills/tests/ are deliberately absent. Skills import siblings by flat

@@ -1,0 +1,70 @@
+{
+  "attempt": 1,
+  "branch": "openspec/define-evidence-ledger-schema-with-immutable-facts",
+  "change_id": "define-evidence-ledger-schema-with-immutable-facts",
+  "degradations": [
+    {
+      "code": "phase_fallback_inline",
+      "detail": "no sub-agent dispatch adapter in this session (dispatched child has no Agent tool); build-dispatch resolved archetype=gatekeeper but phase run inline by orchestrator",
+      "phase": "GATEKEEPER"
+    },
+    {
+      "code": "phase_fallback_inline",
+      "detail": "no sub-agent dispatch adapter in this session (dispatched child has no Agent tool); build-dispatch resolved archetype=architect but phase run inline by orchestrator",
+      "phase": "PLAN_ITERATE"
+    },
+    {
+      "code": "single_vendor_review",
+      "detail": "vendor=claude_code",
+      "phase": "PLAN_REVIEW"
+    },
+    {
+      "code": "phase_fallback_inline",
+      "detail": "no sub-agent dispatch adapter in this session (dispatched child has no Agent tool); build-dispatch resolved archetype=reviewer but review run inline by orchestrator",
+      "phase": "PLAN_REVIEW"
+    },
+    {
+      "code": "phase_fallback_inline",
+      "detail": "no sub-agent dispatch adapter in this session (dispatched child has no Agent tool); build-dispatch resolved archetype=implementer but work packages wp-schema, wp-validator, wp-packaging, wp-integration implemented sequentially inline",
+      "phase": "IMPLEMENT"
+    },
+    {
+      "code": "phase_fallback_inline",
+      "detail": "no sub-agent dispatch adapter in this session (dispatched child has no Agent tool); build-dispatch resolved archetype=implementer but iteration run inline by orchestrator",
+      "phase": "IMPL_ITERATE"
+    },
+    {
+      "code": "single_vendor_review",
+      "detail": "vendor=claude_code",
+      "phase": "IMPL_REVIEW"
+    },
+    {
+      "code": "phase_fallback_inline",
+      "detail": "no sub-agent dispatch adapter in this session (dispatched child has no Agent tool); build-dispatch resolved archetype=reviewer but review run inline by orchestrator",
+      "phase": "IMPL_REVIEW"
+    },
+    {
+      "code": "phase_fallback_inline",
+      "detail": "no sub-agent dispatch adapter in this session (dispatched child has no Agent tool); build-dispatch resolved archetype=validator but validation run inline by orchestrator",
+      "phase": "VALIDATE"
+    }
+  ],
+  "dispatch_id": "batch-f11e7104403a1137d67e1c67:ri-01:attempt-1",
+  "evidence": {
+    "commit": "fdb0cfdf90afb8304b56cf5aa9989ac702cd2130",
+    "loop_state_digest": "978fe58b4a3dd1c99ddf3b14244130225dfc6b0d0f481b9913ef1e2e70113de3",
+    "loop_state_path": "openspec/changes/define-evidence-ledger-schema-with-immutable-facts/loop-state.json"
+  },
+  "host_id": "machine-801452e4fd3b9a26",
+  "lease_generation": 1,
+  "outcome": "parked",
+  "parked": {
+    "deadline": null,
+    "gate": "merge",
+    "kind": "pending_gate",
+    "reason": "Authorize merging this pull request? (autopilot records the authorization only; /cleanup-feature merges)",
+    "resume_hint": "answer gate merge through the resume request's gate_answer"
+  },
+  "schema_version": 2,
+  "worktree_ref": "define-evidence-ledger-schema-with-immutable-facts"
+}
