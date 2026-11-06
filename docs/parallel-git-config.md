@@ -47,14 +47,14 @@ The merge queue prevents broken `main` when multiple agent PRs merge concurrentl
 ### How It Works
 
 1. A PR passes CI and is approved
-2. Author clicks "Merge when ready" (or `gh pr merge --merge-queue`)
+2. Author clicks "Merge when ready" (or `gh pr merge <number>`, which enqueues when the branch requires a queue)
 3. GitHub creates a temporary branch combining `main` + all queued PRs + this PR
 4. CI runs against this combined state
 5. If CI passes, the PR merges; if it fails, the PR is ejected
 
 ### Enabling Merge Queue
 
-1. Go to **Settings > Branches > Branch protection rules** for `main`
+1. Go to **Settings > Rules > Rulesets** and add a rule for `main` (the merge-pull-requests skill detects queues configured as a ruleset `merge_queue` rule)
 2. Enable **Require merge queue**
 3. Set build concurrency to match your typical parallel agent count (3-5)
 4. Set min group size = 1 (don't batch — agent PRs are independent)
@@ -68,7 +68,7 @@ The CI workflow already includes the `merge_group` trigger, so CI will run on me
 grep -A 5 '^on:' .github/workflows/ci.yml
 
 # Merge a PR via the queue
-gh pr merge <number> --squash --merge-queue
+gh pr merge <number>   # no strategy flag; the queue's settings choose the method
 ```
 
 ## .gitattributes
