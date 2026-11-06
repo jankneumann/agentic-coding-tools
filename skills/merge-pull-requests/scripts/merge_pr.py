@@ -27,6 +27,7 @@ Output: JSON result to stdout.
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 import time
@@ -44,6 +45,12 @@ from _helpers import (
 
 # Use a longer timeout for merge operations which can be slow
 MERGE_TIMEOUT = 60
+
+# How long to watch an enqueued PR for the queue's verdict before reporting it
+# as still pending. Callers treat a pending result as non-terminal and confirm
+# later; 0 skips the wait entirely.
+MERGE_QUEUE_POLL_SECONDS = int(os.environ.get("MERGE_QUEUE_POLL_SECONDS", "300"))
+MERGE_QUEUE_POLL_INTERVAL = 10
 
 # Origin-to-strategy mapping: agent-authored PRs use rebase to preserve
 # granular commit history; everything else uses squash.
@@ -316,19 +323,45 @@ def validate_pr(pr_number: int) -> dict:
     }
 
 
-def _has_merge_queue() -> bool:
-    """Check if the repository has a merge queue enabled."""
+def merge_queue_required(base_branch: str) -> bool:
+    """Return True when ``base_branch`` is governed by a merge-queue rule.
+
+    ``gh`` has no merge-queue switch to probe, so read the branch's effective
+    rules from the REST API and look for a ``merge_queue`` rule. This sees
+    rulesets, which is where GitHub configures queues today; a queue set only
+    through a legacy branch-protection rule is not reported here and falls
+    back to the direct-merge path. Any lookup failure answers False so a
+    transient API error never turns into a merge that waits on a queue.
+    """
+    if not base_branch:
+        return False
     try:
-        _raw = run_gh([
-            "repo", "view", "--json", "mergeCommitAllowed",
-        ], timeout=GH_TIMEOUT)
-        # If the repo has branch protection with merge queue, gh pr merge
-        # without --merge-queue will fail. Proactively use --merge-queue.
-        # Unfortunately gh doesn't expose merge queue config directly,
-        # so we try with --merge-queue first and fall back if it fails.
-        return True  # Optimistically try merge queue; fallback handles errors
+        raw = run_gh(
+            ["api", f"repos/:owner/:repo/rules/branches/{base_branch}"],
+            timeout=GH_TIMEOUT,
+        )
+        rules = json.loads(raw)
+    except (RuntimeError, subprocess.TimeoutExpired, json.JSONDecodeError):
+        return False
+    if not isinstance(rules, list):
+        return False
+    return any(
+        isinstance(rule, dict) and rule.get("type") == "merge_queue"
+        for rule in rules
+    )
+
+
+def _has_merge_queue(pr_number: int) -> bool:
+    """Check whether the PR's base branch requires a merge queue."""
+    try:
+        base = run_gh(
+            ["pr", "view", str(pr_number), "--json", "baseRefName",
+             "--jq", ".baseRefName"],
+            timeout=GH_TIMEOUT,
+        ).strip()
     except (RuntimeError, subprocess.TimeoutExpired):
         return False
+    return merge_queue_required(base)
 
 
 def _delete_remote_branch_via_api(branch: str) -> dict:
@@ -370,13 +403,10 @@ def _try_merge(
     pr_number: int, strategy: str, is_fork: bool, branch: str = "",
 ) -> dict:
     """Attempt the actual gh pr merge command, handling edge cases."""
-    # Try merge queue first if available
-    if _has_merge_queue():
-        result = _try_merge_queue(pr_number, strategy, is_fork, branch=branch)
-        if result.get("success"):
-            return result
-        # If merge queue attempt failed (e.g., queue not actually enabled),
-        # fall through to direct merge
+    # A required queue owns the outcome: if it drops or rejects the PR, a
+    # direct merge would only bypass the queue's checks, so return its answer.
+    if _has_merge_queue(pr_number):
+        return _try_merge_queue(pr_number, strategy, is_fork, branch=branch)
 
     strategy_flag = f"--{strategy}"
     merge_args = ["pr", "merge", str(pr_number), strategy_flag]
@@ -458,17 +488,94 @@ def _try_merge(
     return resp
 
 
-def _try_merge_queue(
-    pr_number: int, strategy: str, is_fork: bool, branch: str = "",
-) -> dict:
-    """Retry merge using --merge-queue for repos that require it."""
-    strategy_flag = f"--{strategy}"
-    merge_args = ["pr", "merge", str(pr_number), strategy_flag, "--merge-queue"]
-    if not is_fork:
-        merge_args.append("--delete-branch")
+def _in_merge_queue(pr_number: int) -> bool | None:
+    """Ask GitHub whether the PR currently has a merge-queue entry.
 
+    ``gh pr view`` does not expose queue membership, so this uses GraphQL.
+    Returns None when the answer is unavailable, so callers never infer
+    removal from a failed lookup.
+    """
+    query = (
+        "query($owner:String!,$name:String!,$number:Int!){"
+        "repository(owner:$owner,name:$name){"
+        "pullRequest(number:$number){isInMergeQueue}}}"
+    )
     try:
-        result = run_gh_unchecked(merge_args, timeout=MERGE_TIMEOUT)
+        raw = run_gh([
+            "api", "graphql", "-f", f"query={query}",
+            "-F", "owner={owner}", "-F", "name={repo}",
+            "-F", f"number={pr_number}",
+        ], timeout=GH_TIMEOUT)
+        pr = json.loads(raw)["data"]["repository"]["pullRequest"]
+        return bool(pr["isInMergeQueue"])
+    except (RuntimeError, subprocess.TimeoutExpired, KeyError, TypeError,
+            json.JSONDecodeError):
+        return None
+
+
+def _await_queue_outcome(
+    pr_number: int,
+    poll_seconds: int,
+    *,
+    watch_removal: bool = True,
+    sleep=time.sleep,
+    interval: int = MERGE_QUEUE_POLL_INTERVAL,
+) -> str:
+    """Poll an enqueued PR until it lands, is dropped, or the window ends.
+
+    Returns ``merged``, ``closed``, ``removed`` or ``pending``. Removal needs
+    two consecutive "not in queue" answers while the PR is still open, because
+    queue membership lags the enqueue call by a moment; an unavailable answer
+    is never treated as removal. Pass ``watch_removal=False`` while only
+    auto-merge is armed, since the PR is not in the queue until checks pass.
+    """
+    waited = 0
+    misses = 0
+    while waited < poll_seconds:
+        sleep(interval)
+        waited += interval
+        try:
+            state = json.loads(run_gh(
+                ["pr", "view", str(pr_number), "--json", "state"],
+                timeout=GH_TIMEOUT,
+            )).get("state")
+        except (RuntimeError, subprocess.TimeoutExpired, json.JSONDecodeError):
+            continue
+        if state == "MERGED":
+            return "merged"
+        if state == "CLOSED":
+            return "closed"
+        if not watch_removal:
+            continue
+        misses = misses + 1 if _in_merge_queue(pr_number) is False else 0
+        if misses >= 2:
+            return "removed"
+    return "pending"
+
+
+def _try_merge_queue(
+    pr_number: int,
+    strategy: str,
+    is_fork: bool,
+    branch: str = "",
+    *,
+    poll_seconds: int | None = None,
+    sleep=time.sleep,
+) -> dict:
+    """Hand the PR to the merge queue, then wait for the queue's verdict.
+
+    ``gh pr merge`` has no queue switch: when the base branch requires a queue
+    it enqueues the PR, and it takes no merge strategy because the queue's own
+    configuration chooses the method. If required checks are still running,
+    gh enables auto-merge instead and the queue picks the PR up later. The
+    remote branch is left for the repository's delete-on-merge setting, or for
+    the API cleanup below once the PR is seen merged.
+    """
+    window = MERGE_QUEUE_POLL_SECONDS if poll_seconds is None else poll_seconds
+    try:
+        result = run_gh_unchecked(
+            ["pr", "merge", str(pr_number)], timeout=MERGE_TIMEOUT,
+        )
     except subprocess.TimeoutExpired:
         return {
             "action": "merge",
@@ -477,52 +584,65 @@ def _try_merge_queue(
             "error": "Merge queue command timed out",
         }
 
-    if result.returncode == 0:
-        resp = {
-            "action": "merge",
-            "success": True,
-            "status": "enqueued",
-            "pr_number": pr_number,
-            "strategy": strategy,
-            "merge_queue": True,
-            "note": "PR added to merge queue — will merge automatically when ready",
-        }
-        if is_fork:
-            resp["note"] += "; fork PR — remote branch not deleted"
-        return resp
-
-    # Some merge-queue failures still result in successful integration; the
-    # branch wasn't deleted then either. Mirror the same fallback path.
-    stderr = result.stderr.strip()
-    post_status = get_pr_status(pr_number)
-    if post_status.get("state") == "MERGED":
-        delete_result: dict | None = None
-        if not is_fork and branch:
-            delete_result = _delete_remote_branch_via_api(branch)
-        resp = {
-            "action": "merge",
-            "success": True,
-            "status": "merged",
-            "pr_number": pr_number,
-            "strategy": strategy,
-            "merge_queue": True,
-            "warning": (
-                "PR merged via queue but branch deletion may have failed"
-            ),
-            "stderr": stderr,
-        }
-        if delete_result:
-            resp["remote_branch_delete"] = delete_result
-        if is_fork:
-            resp["note"] = "Fork PR — remote branch not deleted"
-        return resp
-
-    return {
+    stderr = (result.stderr or "").strip()
+    output = f"{result.stdout or ''}\n{stderr}".lower()
+    base = {
         "action": "merge",
-        "success": False,
         "pr_number": pr_number,
-        "error": stderr or "Merge queue command failed",
+        "strategy": strategy,
+        "merge_queue": True,
     }
+
+    if result.returncode != 0:
+        # The queue can finish the merge even when gh reports an error.
+        if get_pr_status(pr_number).get("state") == "MERGED":
+            return _queue_merged(base, is_fork, branch, stderr=stderr)
+        return {
+            "action": "merge",
+            "success": False,
+            "pr_number": pr_number,
+            "error": stderr or "Merge queue command failed",
+        }
+
+    armed_auto_merge = "auto-merge" in output or "automatically merged" in output
+    if armed_auto_merge and "merge queue" not in output:
+        status, note = "auto_merge_pending", (
+            "Auto-merge enabled — the PR enters the merge queue once required "
+            "checks pass"
+        )
+    else:
+        status, note = "enqueued", (
+            "PR added to merge queue — will merge automatically when ready"
+        )
+    if is_fork:
+        note += "; fork PR — remote branch not deleted"
+
+    outcome = _await_queue_outcome(
+        pr_number, window, watch_removal=status == "enqueued", sleep=sleep,
+    )
+    if outcome == "merged":
+        return _queue_merged(base, is_fork, branch)
+    if outcome in ("removed", "closed"):
+        reason = ("removed from the merge queue without merging"
+                  if outcome == "removed" else "closed without merging")
+        return {**base, "success": False, "status": outcome,
+                "error": f"PR #{pr_number} was {reason}"}
+    return {**base, "success": True, "status": status, "note": note}
+
+
+def _queue_merged(
+    base: dict, is_fork: bool, branch: str, *, stderr: str = "",
+) -> dict:
+    """Build the success response for a PR the queue merged."""
+    resp = {**base, "success": True, "status": "merged"}
+    if stderr:
+        resp["warning"] = "PR merged via queue but gh reported an error"
+        resp["stderr"] = stderr
+    if not is_fork and branch:
+        resp["remote_branch_delete"] = _delete_remote_branch_via_api(branch)
+    if is_fork:
+        resp["note"] = "Fork PR — remote branch not deleted"
+    return resp
 
 
 def _check_pre_merge_gate(
