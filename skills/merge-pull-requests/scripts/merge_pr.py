@@ -517,40 +517,53 @@ def _await_queue_outcome(
     pr_number: int,
     poll_seconds: int,
     *,
-    watch_removal: bool = True,
     sleep=time.sleep,
     interval: int = MERGE_QUEUE_POLL_INTERVAL,
-) -> str:
+) -> tuple[str, str]:
     """Poll an enqueued PR until it lands, is dropped, or the window ends.
 
-    Returns ``merged``, ``closed``, ``removed`` or ``pending``. Removal needs
-    two consecutive "not in queue" answers while the PR is still open, because
-    queue membership lags the enqueue call by a moment; an unavailable answer
-    is never treated as removal. Pass ``watch_removal=False`` while only
-    auto-merge is armed, since the PR is not in the queue until checks pass.
+    Returns ``(outcome, status)``. ``outcome`` is ``merged``, ``closed``,
+    ``removed`` or ``pending``. ``status`` labels a ``pending`` PR:
+    ``enqueued`` once queue membership was seen, ``auto_merge_pending`` while
+    only auto-merge is armed and the PR has not reached the queue.
+
+    ``gh pr merge`` prints nothing parseable outside a terminal, so the state
+    comes from the API instead. Removal needs membership to have been
+    confirmed first, then two consecutive "not in queue" answers while the PR
+    is still open. An unavailable lookup is never read as removal.
     """
     waited = 0
     misses = 0
+    seen_in_queue = False
+    armed = False
     while waited < poll_seconds:
         sleep(interval)
         waited += interval
         try:
-            state = json.loads(run_gh(
-                ["pr", "view", str(pr_number), "--json", "state"],
+            pr = json.loads(run_gh(
+                ["pr", "view", str(pr_number),
+                 "--json", "state,autoMergeRequest"],
                 timeout=GH_TIMEOUT,
-            )).get("state")
+            ))
         except (RuntimeError, subprocess.TimeoutExpired, json.JSONDecodeError):
             continue
+        state = pr.get("state")
         if state == "MERGED":
-            return "merged"
+            return "merged", "merged"
         if state == "CLOSED":
-            return "closed"
-        if not watch_removal:
-            continue
-        misses = misses + 1 if _in_merge_queue(pr_number) is False else 0
-        if misses >= 2:
-            return "removed"
-    return "pending"
+            return "closed", "closed"
+        armed = bool(pr.get("autoMergeRequest"))
+        member = _in_merge_queue(pr_number)
+        if member:
+            seen_in_queue, misses = True, 0
+        elif member is False and seen_in_queue:
+            misses += 1
+            if misses >= 2:
+                return "removed", "removed"
+        else:
+            misses = 0
+    pending = "auto_merge_pending" if armed and not seen_in_queue else "enqueued"
+    return "pending", pending
 
 
 def _try_merge_queue(
@@ -567,7 +580,7 @@ def _try_merge_queue(
     ``gh pr merge`` has no queue switch: when the base branch requires a queue
     it enqueues the PR, and it takes no merge strategy because the queue's own
     configuration chooses the method. If required checks are still running,
-    gh enables auto-merge instead and the queue picks the PR up later. The
+    gh arms auto-merge instead and the queue picks the PR up later. The
     remote branch is left for the repository's delete-on-merge setting, or for
     the API cleanup below once the PR is seen merged.
     """
@@ -585,7 +598,6 @@ def _try_merge_queue(
         }
 
     stderr = (result.stderr or "").strip()
-    output = f"{result.stdout or ''}\n{stderr}".lower()
     base = {
         "action": "merge",
         "pr_number": pr_number,
@@ -604,22 +616,7 @@ def _try_merge_queue(
             "error": stderr or "Merge queue command failed",
         }
 
-    armed_auto_merge = "auto-merge" in output or "automatically merged" in output
-    if armed_auto_merge and "merge queue" not in output:
-        status, note = "auto_merge_pending", (
-            "Auto-merge enabled — the PR enters the merge queue once required "
-            "checks pass"
-        )
-    else:
-        status, note = "enqueued", (
-            "PR added to merge queue — will merge automatically when ready"
-        )
-    if is_fork:
-        note += "; fork PR — remote branch not deleted"
-
-    outcome = _await_queue_outcome(
-        pr_number, window, watch_removal=status == "enqueued", sleep=sleep,
-    )
+    outcome, status = _await_queue_outcome(pr_number, window, sleep=sleep)
     if outcome == "merged":
         return _queue_merged(base, is_fork, branch)
     if outcome in ("removed", "closed"):
@@ -627,6 +624,15 @@ def _try_merge_queue(
                   if outcome == "removed" else "closed without merging")
         return {**base, "success": False, "status": outcome,
                 "error": f"PR #{pr_number} was {reason}"}
+
+    note = (
+        "Auto-merge enabled — the PR enters the merge queue once required "
+        "checks pass"
+        if status == "auto_merge_pending"
+        else "PR added to merge queue — will merge automatically when ready"
+    )
+    if is_fork:
+        note += "; fork PR — remote branch not deleted"
     return {**base, "success": True, "status": status, "note": note}
 
 

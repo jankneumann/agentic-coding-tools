@@ -15,7 +15,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
+SCRIPTS_DIR = Path(__file__).resolve().parents[2] / "merge-pull-requests" / "scripts"
+if str(SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_DIR))
 
 import merge_backend as mb
 import merge_pr as mp
@@ -70,54 +72,67 @@ class TestMergeQueueRequired:
 
 class TestAwaitQueueOutcome:
     @staticmethod
-    def _states(states: list[str]):
-        it = iter(states)
-        return lambda *_a, **_k: json.dumps({"state": next(it)})
+    def _views(*views: dict):
+        """Successive ``gh pr view`` payloads, the last one repeating."""
+        it = iter(views)
+        last: list[dict] = []
+
+        def fake(*_a, **_k):
+            try:
+                last[:] = [next(it)]
+            except StopIteration:
+                pass
+            return json.dumps(last[0])
+
+        return fake
+
+    OPEN = {"state": "OPEN", "autoMergeRequest": None}
+    ARMED = {"state": "OPEN", "autoMergeRequest": {"enabledAt": "t"}}
+
+    def _wait(self, views, membership, **kw):
+        answers = iter(membership)
+        with patch.object(mp, "run_gh", self._views(*views)), \
+                patch.object(mp, "_in_merge_queue", lambda _n: next(answers)):
+            return mp._await_queue_outcome(1, kw.pop("poll", 60), sleep=_no_sleep, **kw)
 
     def test_merged(self) -> None:
-        with patch.object(mp, "run_gh", self._states(["OPEN", "MERGED"])), \
-                patch.object(mp, "_in_merge_queue", return_value=True):
-            out = mp._await_queue_outcome(1, 60, sleep=_no_sleep)
-        assert out == "merged"
+        out = self._wait([self.OPEN, {"state": "MERGED"}], [True])
+        assert out == ("merged", "merged")
 
     def test_closed(self) -> None:
-        with patch.object(mp, "run_gh", self._states(["CLOSED"])):
-            assert mp._await_queue_outcome(1, 60, sleep=_no_sleep) == "closed"
+        assert self._wait([{"state": "CLOSED"}], [])[0] == "closed"
 
-    def test_removed_after_two_consecutive_misses(self) -> None:
-        with patch.object(mp, "run_gh", self._states(["OPEN"] * 5)), \
-                patch.object(mp, "_in_merge_queue", return_value=False):
-            assert mp._await_queue_outcome(1, 60, sleep=_no_sleep) == "removed"
+    def test_removed_after_membership_then_two_misses(self) -> None:
+        out = self._wait([self.OPEN], [True, False, False])
+        assert out == ("removed", "removed")
 
     def test_single_miss_is_not_removal(self) -> None:
-        answers = iter([False, True, False, True, True, True])
-        with patch.object(mp, "run_gh", self._states(["OPEN"] * 6)), \
-                patch.object(mp, "_in_merge_queue", lambda _n: next(answers)):
-            out = mp._await_queue_outcome(1, 60, sleep=_no_sleep, interval=10)
-        assert out == "pending"
+        out = self._wait([self.OPEN], [True, False, True, False, True, True])
+        assert out == ("pending", "enqueued")
+
+    def test_never_seen_in_queue_is_never_removal(self) -> None:
+        """Auto-merge armed, checks pending: the PR is not queued yet."""
+        out = self._wait([self.ARMED], [False] * 6)
+        assert out == ("pending", "auto_merge_pending")
+
+    def test_armed_then_queued_then_merged(self) -> None:
+        out = self._wait(
+            [self.ARMED, self.ARMED, {"state": "MERGED"}], [False, True],
+        )
+        assert out == ("merged", "merged")
 
     def test_unavailable_membership_never_means_removal(self) -> None:
-        with patch.object(mp, "run_gh", self._states(["OPEN"] * 6)), \
-                patch.object(mp, "_in_merge_queue", return_value=None):
-            out = mp._await_queue_outcome(1, 60, sleep=_no_sleep)
-        assert out == "pending"
-
-    def test_removal_not_watched_while_only_auto_merge_armed(self) -> None:
-        with patch.object(mp, "run_gh", self._states(["OPEN"] * 6)), \
-                patch.object(mp, "_in_merge_queue", return_value=False) as probe:
-            out = mp._await_queue_outcome(
-                1, 60, watch_removal=False, sleep=_no_sleep,
-            )
-        assert out == "pending"
-        probe.assert_not_called()
+        out = self._wait([self.OPEN], [None] * 6)
+        assert out == ("pending", "enqueued")
 
     def test_state_lookup_errors_are_skipped(self) -> None:
         with patch.object(mp, "run_gh", side_effect=RuntimeError("flaky")):
-            assert mp._await_queue_outcome(1, 30, sleep=_no_sleep) == "pending"
+            out = mp._await_queue_outcome(1, 30, sleep=_no_sleep)
+        assert out == ("pending", "enqueued")
 
     def test_sleeps_between_polls_and_stops_at_deadline(self) -> None:
         sleeps: list[float] = []
-        with patch.object(mp, "run_gh", self._states(["OPEN"] * 3)), \
+        with patch.object(mp, "run_gh", self._views(self.OPEN)), \
                 patch.object(mp, "_in_merge_queue", return_value=True):
             mp._await_queue_outcome(1, 30, sleep=sleeps.append, interval=10)
         assert sleeps == [10, 10, 10]
@@ -145,7 +160,7 @@ class TestInMergeQueue:
 
 
 class TestTryMergeQueue:
-    def _run(self, proc: MagicMock, outcome: str = "pending", **kw):
+    def _run(self, proc: MagicMock, outcome=("pending", "enqueued"), **kw):
         with patch.object(mp, "run_gh_unchecked", return_value=proc) as gh, \
                 patch.object(mp, "_await_queue_outcome", return_value=outcome) as wait, \
                 patch.object(mp, "_delete_remote_branch_via_api",
@@ -154,35 +169,30 @@ class TestTryMergeQueue:
         return result, gh, wait, delete
 
     def test_enqueues_without_strategy_or_delete_flags(self) -> None:
-        result, gh, _wait, _del = self._run(
-            _proc(stdout="✓ Pull request #9 added to the merge queue"),
-        )
+        """gh prints nothing when piped, so stdout is deliberately empty."""
+        result, gh, _wait, _del = self._run(_proc())
         assert gh.call_args.args[0] == ["pr", "merge", "9"]
         assert result["success"] is True
         assert result["status"] == "enqueued"
         assert result["merge_queue"] is True
 
-    def test_auto_merge_when_checks_pending(self) -> None:
-        result, _gh, wait, _del = self._run(
-            _proc(stdout="✓ Pull request #9 will be automatically merged"
-                         " via squash when all requirements are met"),
+    def test_status_comes_from_polled_state_not_cli_output(self) -> None:
+        result, *_ = self._run(
+            _proc(stdout="added to the merge queue"),
+            ("pending", "auto_merge_pending"),
         )
         assert result["status"] == "auto_merge_pending"
-        assert wait.call_args.kwargs["watch_removal"] is False
-
-    def test_enqueued_watches_for_removal(self) -> None:
-        _r, _gh, wait, _del = self._run(_proc(stdout="added to the merge queue"))
-        assert wait.call_args.kwargs["watch_removal"] is True
+        assert "Auto-merge enabled" in result["note"]
 
     def test_merged_during_wait_deletes_branch(self) -> None:
-        result, _gh, _wait, delete = self._run(_proc(stdout="queue"), "merged")
+        result, _gh, _wait, delete = self._run(_proc(), ("merged", "merged"))
         assert result["status"] == "merged"
         assert result["success"] is True
         delete.assert_called_once_with("feat")
 
     def test_fork_pr_keeps_remote_branch(self) -> None:
-        with patch.object(mp, "run_gh_unchecked", return_value=_proc(stdout="queue")), \
-                patch.object(mp, "_await_queue_outcome", return_value="merged"), \
+        with patch.object(mp, "run_gh_unchecked", return_value=_proc()), \
+                patch.object(mp, "_await_queue_outcome", return_value=("merged", "merged")), \
                 patch.object(mp, "_delete_remote_branch_via_api") as delete:
             result = mp._try_merge_queue(9, "squash", True, branch="feat")
         delete.assert_not_called()
@@ -190,13 +200,13 @@ class TestTryMergeQueue:
 
     @pytest.mark.parametrize("outcome", ["removed", "closed"])
     def test_dropped_pr_is_failure_not_direct_merge(self, outcome: str) -> None:
-        result, gh, _wait, _del = self._run(_proc(stdout="queue"), outcome)
+        result, gh, _wait, _del = self._run(_proc(), (outcome, outcome))
         assert result["success"] is False
         assert result["status"] == outcome
         assert gh.call_count == 1
 
     def test_still_queued_at_deadline_is_nonterminal(self) -> None:
-        result, *_ = self._run(_proc(stdout="queue"), "pending")
+        result, *_ = self._run(_proc())
         assert result["success"] is True
         assert result["status"] == "enqueued"
 
@@ -226,11 +236,11 @@ class TestTryMergeQueue:
         assert result["success"] is False
 
     def test_poll_window_defaults_to_module_setting(self) -> None:
-        _r, _gh, wait, _del = self._run(_proc(stdout="queue"))
+        _r, _gh, wait, _del = self._run(_proc())
         assert wait.call_args.args[1] == mp.MERGE_QUEUE_POLL_SECONDS
 
     def test_poll_window_override(self) -> None:
-        _r, _gh, wait, _del = self._run(_proc(stdout="queue"), poll_seconds=20)
+        _r, _gh, wait, _del = self._run(_proc(), poll_seconds=20)
         assert wait.call_args.args[1] == 20
 
 
