@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-16T14:31:58.136095+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "autopilot-runner",
+    "session_id": null,
+    "summary": "Reproduced and fixed PR #557 infrastructure CI failures caused by the flat-module isolation hook loading below sibling scripts/tests trees. Final vendor review reached 3/5 quorum with zero blocking findings.",
+    "completed_work": [
+      "Added two minimal red reproducers and a root-hook ownership guard.",
+      "Passed the exact infrastructure suite: 4775 passed, 13 skipped.",
+      "Passed Ruff, work-package validation, strict change validation, and strict OpenSpec 90/90.",
+      "Completed three-vendor consensus with zero blocking findings and applied both requested hardenings."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Move pytest isolation ownership to the skills root",
+        "rationale": "Only a root conftest loads before both central tests/<skill> and sibling <skill>/scripts/tests collection, preventing stale flat modules from crossing suite boundaries.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Commit and push the CI repair, then require PR #557 checks to pass before roadmap reconciliation."
+    ],
+    "relevant_files": [
+      {
+        "path": "skills/conftest.py",
+        "description": "Skills-root flat-module isolation hook"
+      },
+      {
+        "path": "skills/tests/_shared/test_flat_module_isolation.py",
+        "description": "Cross-tree regression coverage"
+      },
+      {
+        "path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/reviews/post-ci-isolation/consensus-implementation.json",
+        "description": "Three-vendor zero-blocker consensus"
+      }
+    ]
+  }
+}

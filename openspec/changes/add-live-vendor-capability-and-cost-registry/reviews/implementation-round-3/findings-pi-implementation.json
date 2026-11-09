@@ -1,0 +1,72 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "pi",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "critical",
+      "description": "Critical: Roadmap WAIT policy correctly persists checkpoint pause_state with reason, blocked vendor, and exact expected resume when known",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "none",
+      "package_id": "autopilot-roadmap",
+      "file_path": "skills/autopilot-roadmap/scripts/orchestrator.py",
+      "line_range": "895-915",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "critical",
+      "description": "Critical: Roadmap WAIT policy correctly refuses redispatch before reset and clears pause after reset",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "none",
+      "package_id": "autopilot-roadmap",
+      "file_path": "skills/autopilot-roadmap/scripts/orchestrator.py",
+      "line_range": "975-977",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "critical",
+      "description": "Critical: Roadmap WAIT policy correctly handles SWITCH retry on exact selected lane with bounded attempts",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "none",
+      "package_id": "autopilot-roadmap",
+      "file_path": "skills/autopilot-roadmap/scripts/orchestrator.py",
+      "line_range": "1155-1162",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "critical",
+      "description": "Critical: Snapshot persistence failure correctly retains structured lane error log and emits durable coordinator audit",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "none",
+      "package_id": "agent-coordinator",
+      "file_path": "agent-coordinator/src/watchdog.py",
+      "line_range": "482-494",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "critical",
+      "description": "Critical: Audit-backend failure is caught/logged and does not stop sibling snapshots or legacy transition events",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "none",
+      "package_id": "agent-coordinator",
+      "file_path": "agent-coordinator/src/watchdog.py",
+      "line_range": "487-494",
+      "evidence_class": "judgment"
+    }
+  ]
+}

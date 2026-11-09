@@ -389,3 +389,83 @@ class TestEnsureMode:
         assert _tree_digest(arch) == good
         assert (arch / "architecture.provenance.json").read_bytes() == good_prov
         assert not (tmp_path / ".architecture-staging").exists()
+
+
+# --------------------------------------------------------------------------- #
+# Source directories from architecture.config.yaml (#635)
+# --------------------------------------------------------------------------- #
+# Every consumer skill calls `run_architecture.py --ensure` with no source-dir
+# flags, so in a repo whose sources are not at the script defaults (src/, web/,
+# database/migrations) the analyzer failed and every architecture finding was
+# stale or vacuous. The repo now declares its layout once, in its config.
+
+_CONFIG = """\
+analysis:
+  python_src_dir: agent-coordinator/src
+  ts_src_dir: apps
+  migrations_dir: agent-coordinator/database/migrations
+"""
+
+
+def _env_for(target: Path, *extra: str) -> dict[str, str]:
+    with patch("run_architecture.subprocess.run") as mock_run:
+        mock_run.return_value = Mock(returncode=0)
+        assert run_architecture.main(["--target-dir", str(target), *extra]) == 0
+    return mock_run.call_args.kwargs["env"]
+
+
+def test_source_dirs_come_from_the_repo_config(tmp_path: Path, monkeypatch) -> None:
+    for key in ("PYTHON_SRC_DIR", "TS_SRC_DIR", "MIGRATIONS_DIR"):
+        monkeypatch.delenv(key, raising=False)
+    (tmp_path / "architecture.config.yaml").write_text(_CONFIG)
+
+    env = _env_for(tmp_path)
+
+    assert env["PYTHON_SRC_DIR"] == "agent-coordinator/src"
+    assert env["TS_SRC_DIR"] == "apps"
+    assert env["MIGRATIONS_DIR"] == "agent-coordinator/database/migrations"
+
+
+def test_cli_flag_beats_config(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.delenv("PYTHON_SRC_DIR", raising=False)
+    (tmp_path / "architecture.config.yaml").write_text(_CONFIG)
+
+    env = _env_for(tmp_path, "--python-src-dir", "elsewhere")
+
+    assert env["PYTHON_SRC_DIR"] == "elsewhere"
+
+
+def test_environment_beats_config(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("PYTHON_SRC_DIR", "from-env")
+    (tmp_path / "architecture.config.yaml").write_text(_CONFIG)
+
+    env = _env_for(tmp_path)
+
+    assert env["PYTHON_SRC_DIR"] == "from-env"
+
+
+def test_no_config_leaves_the_script_defaults(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.delenv("PYTHON_SRC_DIR", raising=False)
+
+    env = _env_for(tmp_path)
+
+    assert "PYTHON_SRC_DIR" not in env  # refresh_architecture.sh applies its own default
+
+
+def test_repo_config_matches_the_makefile_defaults() -> None:
+    """The Makefile and the config must not disagree about where sources live."""
+    import re
+
+    import yaml
+
+    repo = Path(__file__).resolve().parents[4]
+    makefile = (repo / "Makefile").read_text()
+    config = yaml.safe_load((repo / "architecture.config.yaml").read_text())["analysis"]
+    for make_var, key in (
+        ("PYTHON_SRC_DIR", "python_src_dir"),
+        ("TS_SRC_DIR", "ts_src_dir"),
+        ("MIGRATIONS_DIR", "migrations_dir"),
+    ):
+        match = re.search(rf"^{make_var}\s*\?=\s*(\S+)", makefile, re.MULTILINE)
+        assert match, make_var
+        assert config[key] == match.group(1), make_var

@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "vendor": "claude_code",
+  "review_type": "plan",
+  "stdout_path": "raw-claude_code-plan.txt",
+  "byte_length": 15550,
+  "truncated": false,
+  "sha256": "50e32efb552500c365d9f7542fd4f0ac2a0c71f8746eb77486cab11bb050e6ca",
+  "repair_attempted": false,
+  "coercions": []
+}

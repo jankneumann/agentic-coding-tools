@@ -1,0 +1,2044 @@
+{
+  "schema_version": 1,
+  "change_id": "add-local-agent-probe",
+  "items": [
+    {
+      "id": 1,
+      "status": "addressed",
+      "axis": "security",
+      "type": "security",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/contracts/cli-probe-block.schema.json",
+      "fingerprint": "0ac9cafc7cbc45dc",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The auth-arg denylist (D3, agent-identity spec, cli-probe-block.schema.json) applies only to `auth_status_args`, yet `version_args` and `help_args` are executed subprocesses from the same config, and the version command's stdout IS captured and persisted as `cli_version` in the cache and printed in the report. `probe: {version_args: [\"auth\", \"print-api-key\"]}` or `help_args: {review: [\"auth\", \"print-api-key\"]}` bypasses the rule entirely and routes credential material into the cache file / install.sh output, defeating the D3/D4 'never credential material' guarantee that the NFR security row claims to test. Apply the same token denylist (and trailing-`login` rule) to all three executed arg lists, and bound/scan `cli_version` capture (e.g. first line only, maxLength already 200).",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 2,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/design.md",
+      "fingerprint": "23d4618b126f85a0",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "D6 clears an `auth_required` runtime failure on any later probe whose L2 is `auth_ok`, but for lanes declared via `credential_files` (grok per D3's table) L2 is `auth_ok` whenever the file merely exists. An expired grok token therefore produces: dispatch \u2192 `auth_required` recorded \u2192 next autopilot INIT `--check-vendors` (reuse_fresh=False) sees `~/.grok/auth.json` exists \u2192 `auth_ok` \u2192 clears the record \u2192 lane dispatched again \u2192 fails again. The cross-run memory the proposal is built around is defeated for exactly the lane class that most needs it. Clear `auth_required` only when `l2.method == \"status_command\"` (the schema already carries `method`), otherwise let it expire by TTL like `vendor_unavailable`.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 3,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/design.md",
+      "fingerprint": "6308d490f3341e16",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "D9 and the scenario 'A lane without a probe block keeps today's behaviour' gate the entire L1 flag check on the *presence* of a `probe:` key (absent \u2192 `--version` only, no help check), while D4 and the cache spec fingerprint `probe` with 'absent treated as empty `{}`'. Consequently adding `probe: {}` to a lane to turn flag checking on does not change the fingerprint, so a cached 24 h 'ok' entry stays fresh and `discover_reviewers` keeps dispatching a mode the new check would reject. Additionally the 'Tiered Local Vendor Probe' requirement text states the help-output check unconditionally, contradicting its own scenario. Either make the flag check unconditional (derive-from-dispatch_modes needs no declaration, which is D2's whole argument) or fingerprint `probe` as absent vs `{}` distinctly and state the gating in the requirement text.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 4,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/design.md",
+      "fingerprint": "a3c61445ba4c6806",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The timing arithmetic in D10 / the proposal NFR / task 2.1 is inconsistent. D10 only forbids *starting* a subprocess after the 25 s per-lane deadline; a subprocess started at t=24 s with its own 10 s timeout runs to t=34 s, so the real per-lane bound is 35 s, not '~25 s'. The NFR says total \u2264 30 s, and task 2.1 asserts 'finishes within the 25 s per-lane deadline' \u2014 the test as written will fail against the design as written. Also with >8 lanes the ThreadPoolExecutor queues, so 'total' is not lane-independent. Fix by capping each subprocess timeout at `min(10, deadline - now)` (making 25 s a hard bound) and restating the NFR and task 2.1 to the same number.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 5,
+      "status": "addressed",
+      "axis": "architecture",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/design.md",
+      "fingerprint": "f8ac776d6ae9f2fe",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "`vendor_probe.py report` (D8, toolkit-distribution spec) must resolve an agents configuration from `AGENTS_YAML` / `COORDINATION_API_URL` / local `agent-coordinator/agents.yaml`, i.e. parse YAML and/or call HTTP, but D1 mandates the module be stdlib-only (no PyYAML) and take an already-parsed dict. Nothing in the design or tasks says which component resolves and parses the config for the `report` subcommand, nor what happens when it is invoked by a consumer repo's system `python3` with no PyYAML installed \u2014 which is the common case for `install.sh --check` and would make the report print 'unavailable' almost everywhere, leaving D8 effectively dead. Specify the resolution path (e.g. `report` imports PyYAML lazily and reports 'unavailable: PyYAML missing', or `install.sh` prefers `skills/.venv/bin/python`), and add a scenario for it.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 6,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/specs/parallel-infrastructure/spec.md",
+      "spec_file": "openspec/changes/add-local-agent-probe/specs/parallel-infrastructure/spec.md",
+      "fingerprint": "7c97b1390f0b1083",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "'Check-Vendors Uses the Tiered Probe' counts a lane as verified when L0/L1 pass and L2 \u2260 `auth_failed`, but ignores a fresh `runtime_failures` record. D5 then makes `discover_reviewers` exclude that same lane. So autopilot INIT can report N verified vendors and pass `--min-vendors`, and the very next review round dispatches N\u2212k lanes with no quorum re-check \u2014 the exact silent narrowing D5 promises to avoid. `--check-vendors` should treat a fresh runtime failure as unverified (reasons `runtime_auth_required` / `runtime_vendor_unavailable` are already defined in D7) and not count it toward `--min-vendors`; add a scenario.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 7,
+      "status": "addressed",
+      "axis": "compatibility",
+      "type": "compatibility",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/contracts/cli-probe-block.schema.json",
+      "fingerprint": "472b42b812066faf",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "`cli-probe-block.schema.json` uses the inline flag `(?i)` inside a JSON Schema `pattern`. JSON Schema patterns are ECMA-262 regexes, which do not accept a bare `(?i)` inline modifier; Python's `jsonschema` tolerates it because it delegates to `re`, but any other validator (ajv, the openspec tooling, IDE schema support) will reject the schema or the pattern. Replace with explicit case classes (`[Pp][Rr][Ii]...`) or drop the case-insensitivity claim and lower-case tokens before validating in `agents_config.validate` where the last-token rule already lives.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 8,
+      "status": "addressed",
+      "axis": "observability",
+      "type": "observability",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/design.md",
+      "fingerprint": "ccc3a69074ac98cb",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "D5 records every cache-driven exclusion only as an INFO log line. In CLI-reviewer runs the dispatcher's logs are rarely surfaced; the artefact operators actually consult is the dispatch manifest / `--check-vendors --json`. A review round that was narrowed by a stale-but-fresh `auth_failed` entry (which lingers up to 24 h after the user has re-logged in unless something re-probes) would be invisible there. Add the exclusions (lane, mode, reason, probed_at) to the review manifest and the `--check-vendors` JSON, and make the report's remediation hint tell the operator to run `/vendor-status` to refresh.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 9,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/design.md",
+      "fingerprint": "348cc7732ad00387",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The normalized fingerprint projection (D4 / cache spec) only states a default for `model_flag`. The coordinator `CliConfig` serializes every other `*_flag` field too (e.g. `thinking_flag: null`) while a raw local `agents.yaml` omits them. Unless the projection explicitly maps `null` and absent to the same value for *every* `_flag` key, the cross-source scenario fails for lanes that leave those keys unset. Task 6.1 would catch it end-to-end, but the rule should be stated so the unit test in 2.5 is written correctly the first time.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 10,
+      "status": "addressed",
+      "axis": "readability",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/contracts/vendor-probe-cache.schema.json",
+      "spec_file": "/home/jankneumann/Coding/agentic-coding-tools/.git-worktrees/add-local-agent-probe/openspec/changes/add-local-agent-probe/specs/parallel-infrastructure/spec.md",
+      "fingerprint": "b50c334f1af6817f",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Precedence when a lane declares both `auth_status_args` and `credential_files` is unspecified (status command wins? files checked first? both must pass?). The cache schema's `l2.method` enum implies exactly one method is used, so the choice is observable and must be stated in D3 and the parallel-infrastructure requirement. Also unstated: what L2 reports when the status command cannot be launched at all (OSError / permission denied) \u2014 `auth_failed` would wrongly exclude the lane; `probe_failed` is not in the `l2.status` enum.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 11,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/specs/vendor-ux/spec.md",
+      "spec_file": "openspec/changes/add-local-agent-probe/specs/vendor-ux/spec.md",
+      "fingerprint": "a77419fdb0da14fb",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code",
+        "grok"
+      ],
+      "description": "Several SHALLs have no WHEN/THEN scenario: toolkit-distribution's 60 s timeout and missing-`python3` paths ('probe report unavailable' is only exercised for unresolvable config); vendor-ux's 'A lane SHALL NOT be healthy when auth_status is auth_failed' and the new `cli_version` field; parallel-infrastructure's 0600 file mode, 10 s subprocess timeout and 25 s per-lane deadline (tasks 2.1/2.5 list them under 'also asserts' rather than as scenarios). Add one scenario each so the spec, not the task list, is the source of truth.",
+      "consensus_status": "confirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 12,
+      "status": "addressed",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/work-packages.yaml",
+      "fingerprint": "46b1bdc7e5499e51",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Minor drift: session-log 'Relevant Files' says design.md holds 'decisions D1-D10' but D11 exists; work-packages.yaml files the two JSON Schemas under `contracts.openapi.primary` although README states no OpenAPI endpoint changes (they are config/file-format contracts); the proposal's 'No BREAKING changes ... all existing JSON fields remain' overstates \u2014 vendor-ux explicitly narrows `dispatch_modes` and changes when `healthy` is false, which the proposal should call out as a semantic change.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 13,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "high",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/specs/parallel-infrastructure/spec.md",
+      "fingerprint": "efc2f00df1d457d0",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Critical: Cache-filtered discovery (D5 / Cache-Filtered Reviewer Discovery) excludes only cli_not_found, missing_flags, auth_failed, and runtime_failures. A fresh L1 probe_failed (version or help non-zero exit) is written into the cache and makes --check-vendors unverified, but discover_reviewers still returns that lane/mode, so known-broken CLIs keep being dispatched.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 14,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/tasks.md",
+      "fingerprint": "6de60e483b2853ba",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Critical: Task 1.1 requires schema contract fixtures to reject auth_status_args [\"login\"], but cli-probe-block.schema.json cannot express the last-token login rule (README and schema description correctly defer it to agents_config.validate). Schema-only tests will accept [\"login\"] and fail the task's stated accept/reject matrix.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 15,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/proposal.md",
+      "fingerprint": "c118d72537cee8e6",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Nit: proposal What Changes still says the cache is invalidated when the CLI path or version changes, while D4 and Per-Machine Probe Cache freshen only on TTL + cli_realpath + config_fingerprint (cli_version is re-read only on re-probe). Implementers following the proposal will add a version invalidation the design rejected.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 16,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/specs/parallel-infrastructure/spec.md",
+      "spec_file": "openspec/changes/add-local-agent-probe/specs/parallel-infrastructure/spec.md",
+      "fingerprint": "14c72db5e430d2e2",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Nit: Tiered Local Vendor Probe states a 25-second per-lane deadline SHALL (unstarted subprocesses \u2192 probe_timeout) and that modes sharing a help argv SHALL run it once, but neither SHALL has a WHEN/THEN scenario; coverage lives only in tasks.md Also asserts.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 17,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/specs/parallel-infrastructure/spec.md",
+      "spec_file": "openspec/changes/add-local-agent-probe/specs/parallel-infrastructure/spec.md",
+      "fingerprint": "cd804be8b22b1d4a",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Nit: Per-Machine Probe Cache SHALLs the $AGENTIC_PROBE_CACHE \u2192 $XDG_CACHE_HOME \u2192 ~/.cache path precedence, but there is no scenario pinning that order (task 2.5 tests it without a spec anchor).",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 18,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/specs/parallel-infrastructure/spec.md",
+      "spec_file": "openspec/changes/add-local-agent-probe/specs/parallel-infrastructure/spec.md",
+      "fingerprint": "e716ce246a5e5dbc",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Nit: L2 is specified as auth-status exit 0 or every credential_files path exists, but the plan never pins (a) outcome when a declared credential file is missing, or (b) precedence when both auth_status_args and credential_files are set and disagree.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 19,
+      "status": "addressed",
+      "axis": "architecture",
+      "type": "correctness",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/tasks.md",
+      "fingerprint": "64bb6a51b525a3d1",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Nit: Task 3.1 must prove check_all_vendors() reuses fresh cache entries (D11) but lists dependencies only on 2.2 and 2.4. reuse_fresh and the cache API land in 2.5/2.6; the task graph allows writing those tests before the API exists.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 20,
+      "status": "addressed",
+      "axis": "readability",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/design.md",
+      "fingerprint": "3f4107eedd07628c",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Nit: D3's pi row shows auth_status_args: [auth, check, --provider, <lane provider>, --no-refresh]. The probe block is a literal string list with no templating in the schema or agent-identity spec, so implementers may invent substitution. agents.yaml needs a concrete provider token per lane.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 21,
+      "status": "addressed",
+      "axis": "security",
+      "type": "security",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/design.md",
+      "fingerprint": "3cf0d019756d5b7a",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Nit: probe.help_args fully replaces the default [command, *subcommand_path, \"--help\"] construction with no constraint that the override is a help/dry invocation. A mis-declared override (e.g. [\"exec\", \"-s\", \"read-only\"]) would run a real subcommand during L1 despite the token-free probe goal.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 22,
+      "status": "addressed",
+      "axis": "compatibility",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/specs/parallel-infrastructure/spec.md",
+      "fingerprint": "beb7503465166d73",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Optional: Tiered Local Vendor Probe says every probe subprocess SHALL run with stdin closed, while D3/D10 bind stdin to DEVNULL. Closed vs DEVNULL both avoid interactive reads but are different APIs; pick one in the spec to match the design.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 23,
+      "status": "addressed",
+      "axis": "architecture",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/contracts/vendor-probe-cache.schema.json",
+      "fingerprint": "ac00b84f9632105c",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "FYI: vendor-probe-cache $defs.reason includes auth_failed and auth_unknown, which are L2 statuses, while tier (l0/modes) is the only $ref consumer. The schema therefore accepts impossible L0/L1 documents (ok:false, reason:auth_failed) that the probe should never write.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 24,
+      "status": "open",
+      "axis": "architecture",
+      "type": "architecture",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/design.md",
+      "fingerprint": "2cd1818991c78aee",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Normalized fingerprint projection, top-level `runtime_failures` map, locked read-modify-write, and D11 `reuse_fresh` for the watchdog correctly close the cross-source stale-cache, account-scoped write-back, concurrent-loss, and event-loop blocking gaps found in plan iteration 1 (ledger item [24] re-verified).",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 25,
+      "status": "open",
+      "axis": "security",
+      "type": "security",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/design.md",
+      "fingerprint": "0d353461c1a677dc",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Auth probing is exit-code-only with DEVNULL, credential_files use exists-only, cache mode 0600, and the deny-lists for credential-printing tokens plus trailing `login` are coherent across design D3, agent-identity scenarios, and the schema/validate split (ledger item [25] re-verified).",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 26,
+      "status": "addressed",
+      "axis": "architecture",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/specs/parallel-infrastructure/spec.md",
+      "spec_file": "openspec/changes/add-local-agent-probe/specs/parallel-infrastructure/spec.md",
+      "fingerprint": "a012480787ee2359",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The deltas use only `## ADDED Requirements`, yet the proposal's Impact names existing requirements as the ones changed, and the new text contradicts them. The live `parallel-infrastructure` spec (`openspec/specs/parallel-infrastructure/spec.md:71`, 'Dispatchable Vendor Verification') says `--check-vendors` counts a lane available 'only after a dry invocation for that mode succeeds ... `<cli> --version`' and that `--json` carries a single `probe_command: \"<argv>\"`; the new 'Check-Vendors Uses the Tiered Probe' requirement redefines the verified predicate (L0+L1+L2+runtime failures) and the lane now runs several argv. Likewise `vendor-ux` 'Health Check Dimensions' (`openspec/specs/vendor-ux/spec.md:141`) pins CLI availability to `shutil.which(command)`, which the new 'Health Check Delegates to the Tiered Probe' text explicitly replaces ('instead of its own `shutil.which` check'). After archive both definitions would coexist. Convert these (and the `agent-identity` wire-contract / `toolkit-distribution` 'Drift check' touches, if their text changes) to `## MODIFIED Requirements` entries that carry the full updated requirement with the preserved existing scenarios (`A hanging dry invocation is unverified`, `The probe never discloses credentials`, \u2026), so the old scenarios are visibly kept rather than silently superseded.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 27,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/tasks.md",
+      "fingerprint": "c79ae4b1989a12d4",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The cross-source fingerprint test (task 6.1, `test_probe_fingerprint_sources.py`) compares raw `agents.yaml` against `get_dispatch_configs()`, but the actual cache *reader* is `discover_reviewers`, which fingerprints the dispatcher's mirror `CliConfig` (`review_dispatcher.py:558`), and one of the *writers* is `vendor_health.py` operating on whatever dicts it loads. D1 notes the mirror 'drops every key it does not name'. If the mirror carries a different set of `*_flag` keys (or fills a default the coordinator does not) the projection differs, every entry looks stale, and the filter silently never fires \u2014 exactly the failure mode plan-iteration finding #1 fixed. Extend 6.1 (or 3.3) to assert that a lane loaded through the dispatcher's own loader into the mirror `CliConfig` fingerprints identically to the raw and coordinator-serialized forms, and add the dispatcher-mirror path to the spec scenario 'The same lane fingerprints identically across config sources'.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 28,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/specs/vendor-ux/spec.md",
+      "fingerprint": "a0974e84b13dcccc",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "`/vendor-status` and `--check-vendors` can still disagree, contrary to the vendor-ux requirement's stated purpose ('report the same verdict for the same lane'). 'Check-Vendors Uses the Tiered Probe' makes a lane unverified on a fresh `runtime_failures` record (`runtime_auth_required`, `runtime_vendor_unavailable`), and `discover_reviewers` excludes on it, but 'Health Check Delegates to the Tiered Probe' only lowers `healthy` on `auth_status == auth_failed` and says nothing about runtime failures. A lane with a fresh `vendor_unavailable` record reports `healthy: true` in `vendor_health --json` while INIT quorum and dispatch both skip it. Specify that `vendor_health` surfaces runtime failures (e.g. `runtime_failure: {error_class, observed_at}` and `healthy: false`) and add a scenario mirroring 'Check-vendors does not count a lane dispatch will skip'.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 29,
+      "status": "addressed",
+      "axis": "resilience",
+      "type": "resilience",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/design.md",
+      "fingerprint": "52178a03bbb0660b",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Cache-write failure is only made non-fatal for the dispatcher's runtime-failure write-back ('An unwritable cache does not fail the review', D6). Nothing says what `probe_lanes()` does when the probe-result write fails. The coordinator watchdog calls `check_all_vendors()` every 5 minutes inside the container, where `~/.cache` may be read-only or absent; with `reuse_fresh=True` and no fresh entry it probes and then writes. If that `OSError` propagates, the watchdog's vendor-health report fails every cycle, and `install.sh --check` / `--check-vendors` would likewise fail on a read-only HOME. Specify that probe-result persistence is best-effort (log WARNING, still return the in-memory `LaneProbe`s) and add a scenario for the watchdog / `--check-vendors` with an unwritable cache directory.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 30,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/specs/parallel-infrastructure/spec.md",
+      "spec_file": "openspec/changes/add-local-agent-probe/specs/parallel-infrastructure/spec.md",
+      "fingerprint": "cc98eae5e79c2090",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Several SHALL clauses have no WHEN/THEN scenario; the only pins are 'Also asserts' lines in tasks.md, which are not spec. In parallel-infrastructure: (a) every probe subprocess runs with `stdin=DEVNULL`; (b) only the first line of version output, truncated to 200 chars, is retained; (c) a status command that cannot be launched yields `auth_unknown`; (d) required flags minus `probe.ignore_flags` (no ignore_flags scenario at all); (e) entry stale after TTL (24 h) elapses; (f) runtime failure expiring after its 1 h TTL \u2014 'A remembered auth failure skips the lane' only covers the within-TTL half; (g) `--check-vendors` SHALL write results to the cache. In vendor-ux: `cli_version` added to `--json`. In toolkit-distribution: remediation hint per failing tier, and the 'no `python3`' / 'probe error' branches of `probe report unavailable:`. Add one scenario per clause (or fold into existing ones with an explicit THEN), per Group 2's rule that every SHALL has a scenario.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 31,
+      "status": "addressed",
+      "axis": "compatibility",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/tasks.md",
+      "fingerprint": "404562bb6c6942a8",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Both contract tests (task 1.1, `skills/tests/parallel-infrastructure/test_vendor_probe_contracts.py`) and the cache tests (2.5, 'SHALL validate against the schema') must locate `contracts/vendor-probe-cache.schema.json` and `cli-probe-block.schema.json`, which live under `openspec/changes/add-local-agent-probe/contracts/`. AGENTS.md forbids pinning that path in a test because archival moves it to `openspec/changes/archive/<date>-<id>/`; the repo's guard test will fail the PR. The plan does not say how the tests resolve the schemas. State in tasks 1.1/2.5 (and in the work-package descriptions) that schema paths are resolved at read time via `change_dir(\"add-local-agent-probe\")` from `openspec_paths`, or, since the cache schema is a durable runtime file format rather than a one-off change artifact, move it to a permanent location (e.g. next to `vendor_probe.py` or under `docs/contracts/`) and have the change's contracts dir reference it.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 32,
+      "status": "addressed",
+      "axis": "security",
+      "type": "security",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/design.md",
+      "fingerprint": "ac6b41a1d37df8d4",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "D3's heading says auth is 'allowlist-shaped', but the argv rule is a denylist of five tokens, and version output *is* captured and persisted (first line, 200 chars) in a `0600` cache and printed in the report. A `version_args` such as `[\"config\", \"get\", \"api_key\"]` or `[\"auth\", \"token\"]` passes the denylist and would persist a key (most keys are < 200 chars, so truncation is not a defence). The plan already applies a positive-shape rule to `help_args` (must contain a help token); apply the symmetric rule to `version_args` (must contain a token matching `--version`, `-V`, `-v`, or `version`) in `agents_config.validate`, and retitle D3 so it does not claim an allowlist it does not have. Trust boundary is the same as `agents.yaml` itself, hence low criticality.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 33,
+      "status": "addressed",
+      "axis": "resilience",
+      "type": "resilience",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/design.md",
+      "fingerprint": "248b4549aab6c586",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "D6's clearing rule has no ordering guard. Lanes dispatch concurrently with `--check-vendors`/`/vendor-status` runs: a probe that *started* before a dispatch observed `auth_required` can *finish writing* after it and, with `l2.status: auth_ok` + `method: status_command`, delete a failure that post-dates its own observation. Both records carry timestamps (`probed_at`, `observed_at`); specify that a probe clears a runtime failure only when `probed_at >= observed_at` (the merge happens under the lock, so the comparison is cheap), and add it to task 2.5's clearing tests.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 34,
+      "status": "addressed",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/specs/agent-identity/spec.md",
+      "fingerprint": "6d8308e8deff6e12",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The agent-identity requirement attributes every rule to `AGENTS_SCHEMA` ('`AGENTS_SCHEMA` SHALL accept exactly these keys ... It SHALL reject ... an `auth_status_args` list whose last token is `login`, and a `help_args` value that contains none of ...'), and scenario 1 demands 'fail schema validation naming the offending token', while `contracts/README.md` and D3 place the last-token and help-token rules in `agents_config.validate`, explicitly because they are 'not expressible in JSON Schema'. Reword the requirement so the subject of the semantic rules is `agents_config.validate` (or 'loading `agents.yaml`'), matching the README's two-layer split and the task 1.1 / 4.1 division.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 35,
+      "status": "addressed",
+      "axis": "architecture",
+      "type": "architecture",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/design.md",
+      "fingerprint": "9b98a124618210a6",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "D1 specifies how `vendor_health.py` loads `vendor_probe.py` (by-path, `sys.modules` registration) but not how `review_dispatcher.py` imports it. The `report` entry point lazily imports `review_dispatcher`, which in turn must import `vendor_probe` for `discover_reviewers`; when `vendor_probe.py` runs as `__main__`, a plain `import vendor_probe` loads a second module copy (second `threading.Lock`, second dataclass identities). The flock still serialises writes, so this is not a correctness bug, but D1 should state the dispatcher's import mechanism (same sibling-import pattern it uses for `vendor_limit_reporter`) and that the `report` path tolerates the double load.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 36,
+      "status": "addressed",
+      "axis": "observability",
+      "type": "observability",
+      "criticality": "high",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/design.md",
+      "fingerprint": "426acdb04fcbae67",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code",
+        "grok"
+      ],
+      "description": "Re-verification of ledger item [8]: still open. D5 and the 'Cache-Filtered Reviewer Discovery' requirement unchanged in this round \u2014 each exclusion is only an INFO log line; neither the review manifest nor `--check-vendors --json` carries lane/mode/reason/`probed_at` for cache-driven exclusions, and the report's remediation hint does not point at `/vendor-status` to refresh a lingering `auth_failed`. The round-1 fixes (argv denylist, probe_failed exclusion, lane deadline, L2 precedence) did not touch this.",
+      "consensus_status": "confirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 37,
+      "status": "addressed",
+      "axis": "architecture",
+      "type": "architecture",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/design.md",
+      "fingerprint": "c220daf63221e447",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verification of ledger item [24]: confirmed. The normalized projection (D4 and the cache requirement), top-level `runtime_failures` map (schema `$defs.runtime_failure`, independent of `lanes`), locked read-modify-write with `0600` tempfile + `os.replace`, and D11's `reuse_fresh=True` for `check_all_vendors()` with `asyncio.to_thread` are all present and mutually consistent. Finding 2 above notes the one source (the dispatcher's mirror `CliConfig`) the projection test does not yet cover.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 38,
+      "status": "addressed",
+      "axis": "security",
+      "type": "security",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/contracts/cli-probe-block.schema.json",
+      "fingerprint": "855d10cb52b62288",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verification of ledger item [25]: confirmed with one wording nit (finding 9). Exit-code-only L2 with all three streams to `DEVNULL`, exists-only `credential_files`, `0600` cache, the five-token case-insensitive denylist applied to `version_args`/`help_args`/`auth_status_args` (schema `$defs.probe_token` via ECMA-262 character classes), the last-token `login` rule, and the help-token rule are coherent across D3, the agent-identity scenarios, `contracts/README.md`, and the 1.1/4.1 task split. Finding 7 notes a residual gap in the denylist's coverage of `version_args`.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 39,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "high",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/design.md",
+      "fingerprint": "8d3009893b661da8",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Critical: Design D4's fingerprint projection always defaults absent `model_flag` to `\"-m\"`, but design D2's L1 flag derivation only adds flags from `cli` keys that are actually present and end in `_flag`. A lane loaded from raw `agents.yaml` (no `model_flag` key) would therefore fingerprint as if `-m` were probe-relevant while L1 might never require `-m`, so capability results and cache freshness disagree across the three config sources that D4 exists to unify. The only Injected flags scenario assumes `model_flag: \"-m\"` is already declared.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 40,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/specs/parallel-infrastructure/spec.md",
+      "spec_file": "openspec/changes/add-local-agent-probe/specs/parallel-infrastructure/spec.md",
+      "fingerprint": "0bcfdd1aef5a7458",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Nit: Design D2 specifies that `--flag=value` normalizes to `--flag` and that placeholder tokens such as `@review-findings-schema` (and bare values) are skipped when deriving required flags, but the Tiered Local Vendor Probe requirement only says flags come from `dispatch_modes.<mode>.args` and `*_flag` keys. Without those rules in the spec, an implementer can treat `@review-findings-schema` or the value side of `--flag=value` as required flags and produce false `missing_flags` failures.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 41,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/specs/parallel-infrastructure/spec.md",
+      "spec_file": "openspec/changes/add-local-agent-probe/specs/parallel-infrastructure/spec.md",
+      "fingerprint": "0489f32a7e9bd897",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Nit: Cache-Filtered Reviewer Discovery states that L2 `auth_ok` with method `status_command` SHALL clear a runtime `auth_required` failure, but every written scenario covers only the negative cases (credential_files must not clear; billing/credits must not clear). There is no WHEN/THEN that proves the positive clear path, so the main recovery behaviour for remembered auth failures is unpinned by a scenario.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 42,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/specs/parallel-infrastructure/spec.md",
+      "spec_file": "openspec/changes/add-local-agent-probe/specs/parallel-infrastructure/spec.md",
+      "fingerprint": "771421e7b8040f5f",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Nit: The Tiered Local Vendor Probe requirement SHALLs that a status command that cannot be launched (`FileNotFoundError` / `PermissionError` per design D3) yields `auth_unknown`, and task 2.3 asserts it, but no Scenario with WHEN/THEN pins that behaviour. Group-2 review rules require every SHALL to have at least one scenario.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 43,
+      "status": "addressed",
+      "axis": "compatibility",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/contracts/vendor-probe-cache.schema.json",
+      "fingerprint": "9fbd69cd4ecb9246",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Nit: Design D3 and the clearing rules require `l2.method` to record exactly which L2 method ran (`status_command` | `credential_files` | `none`), and runtime `auth_required` clearing depends on distinguishing `status_command` from `credential_files`. In `vendor-probe-cache.schema.json`, `l2.method` is optional (only `status` is required), so a schema-valid cache entry can omit `method` and break the D6 clear predicate or force ad-hoc defaults in readers.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 44,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/specs/agent-identity/spec.md",
+      "fingerprint": "f70e3d21f14d9f48",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Nit: The help-override rule in agent-identity and design D3 says each `help_args` value must contain `--help`, `-h`, or `help`, without saying these must be whole argv tokens. A substring check would accept overrides such as `[\"--helpful\"]` or `[\"rehelp\"]` that are not help commands, weakening the D2 guard that `help_args` cannot run a real subcommand.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 45,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/specs/agent-identity/spec.md",
+      "spec_file": "openspec/changes/add-local-agent-probe/specs/agent-identity/spec.md",
+      "fingerprint": "dc52cd16c9031395",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The fingerprint (D4, Per-Machine Probe Cache) deliberately keeps a declared `probe: {}` distinct from an absent key, because D9 gives them different L1 behaviour. But the wire rule is only 'include `probe` when, and only when, it is declared', and the mirror `CliConfig.probe` is typed `dict | None`. A natural implementation (`if cli.probe:` / `if probe:` in `get_dispatch_configs()` or the dispatcher loader) drops an empty dict as falsy, so a lane with `probe: {}` serialises as absent through `/agents/dispatch-configs` and fingerprints as `null` on the reader while the writer (local yaml) fingerprints `{}` -- exactly the cross-source stale-cache class that iteration 1 fixed, and the filter silently never fires for that lane. No scenario pins `{}` round-tripping as `{}`. Add 'a lane declaring `probe: {}` SHALL return `probe: {}`' to the round-trip scenario and to task 3.3's mirror-CliConfig assertion and task 6.1's cross-source test.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 46,
+      "status": "addressed",
+      "axis": "resilience",
+      "type": "architecture",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/design.md",
+      "fingerprint": "dd3b6822e01502c3",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "D8 runs the report with bare `python3`, and the `report` entry point lazily imports `review_dispatcher` (a 3.7k-line module with non-stdlib dependencies) to resolve config. The verification step in work-packages.yaml instead runs it with `skills/.venv/bin/python`, so the gate exercises an interpreter install.sh never uses. In the motivating case -- a consumer repo running `install.sh --check` outside any venv -- the import will fail and every run prints `probe report unavailable`, making the feature's install-time surface dead on arrival while still passing wp-integration. Either specify interpreter resolution in D8 (prefer `skills/.venv/bin/python` when present, then `python3`) with a task-5.1 scenario covering the bare-python case, or move the HTTP/`AGENTS_YAML` resolution (which needs only `json`/`urllib`) into `vendor_probe.py` and import `review_dispatcher` only for the PyYAML-backed local-file fallback.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 47,
+      "status": "addressed",
+      "axis": "compatibility",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/specs/vendor-ux/spec.md",
+      "spec_file": "openspec/changes/add-local-agent-probe/specs/vendor-ux/spec.md",
+      "fingerprint": "fff634d004357376",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The base vendor-ux spec's 'Watchdog Integration' requirement promises the watchdog emits `vendor.unavailable` when a previously-available vendor becomes unavailable on the current check. With D11 (`reuse_fresh=True`, 24 h TTL) the watchdog now observes L1/L2 state up to 24 h late: an expired login or a flag regression after an in-place CLI upgrade (same realpath) is invisible until the TTL lapses or an operator re-probes. Only realpath changes, API-key loss, and runtime-failure records remain prompt. This changes the semantics of an existing requirement but the delta neither MODIFIES 'Watchdog Integration' nor states the new detection latency. Add a MODIFIED delta (or a sentence plus scenario) stating which transitions the watchdog detects within one interval and which lag the probe TTL.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 48,
+      "status": "open",
+      "axis": "resilience",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/specs/parallel-infrastructure/spec.md",
+      "spec_file": "openspec/changes/add-local-agent-probe/specs/parallel-infrastructure/spec.md",
+      "fingerprint": "b86cb00744b931a2",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The only concurrency scenario uses two threads in one process, which the module-level `threading.Lock` alone satisfies; the `fcntl.flock` path -- the one that matters for several concurrent review processes and for `vendor_health` racing a dispatcher -- is never exercised. Add a scenario with two subprocesses (or `multiprocessing`) writing to the same cache file so the file lock is pinned, and a scenario that the write still succeeds where `fcntl` is unavailable (monkeypatched to raise ImportError).",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 49,
+      "status": "open",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/specs/parallel-infrastructure/spec.md",
+      "spec_file": "openspec/changes/add-local-agent-probe/specs/parallel-infrastructure/spec.md",
+      "fingerprint": "83d33caee8780328",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The requirement states that a non-zero exit or timeout of a help command fails L1 only for the modes using that help argv, but every scenario covers the version command failing (all modes) or flags missing. There is no scenario for `codex exec --help` exiting 1 while `codex --help` succeeds, which is the case that distinguishes per-help-argv failure from whole-lane failure. Add one so the implementation cannot collapse a help failure into `probe_failed` for every mode. Likewise 'Every probe subprocess SHALL run with stdin bound to DEVNULL' has no direct scenario (a fake CLI that reads stdin and would block is the natural fixture).",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 50,
+      "status": "open",
+      "axis": "readability",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/design.md",
+      "fingerprint": "38f115364e2bf972",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "D10 says lanes unfinished when the report's 60 s timeout fires 'are reported as probe_timeout', implying the probe process owns the deadline and prints a partial table. D8 says install.sh applies the 60 s timeout and 'any failure ... timeout ... prints one probe report unavailable line', implying an external kill with no table. The toolkit-distribution scenario hedges ('print a report or a probe report unavailable: timeout line'). Pick one owner: either the report takes an internal deadline (e.g. 50 s) and always prints partial rows, with install.sh's 60 s as the outer safety net, or drop the D10 claim of partial reporting.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 51,
+      "status": "open",
+      "axis": "security",
+      "type": "security",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/contracts/README.md",
+      "fingerprint": "6ac52796182416e2",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The help-token rule is meant to stop a `help_args` override from running a real subcommand, but it only requires that a help token appear somewhere. `[\"-p\", \"summarise the repo\", \"--help\"]` passes both layers; whether the CLI exits on `--help` before honouring `-p` depends on its parser order, and the zero-token NFR test only asserts that dispatch-mode argv are never executed. Cheap tightening: require the help token to be the last element (or the only non-path token), and add the override argv to the token-free assertion in task 2.1.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 52,
+      "status": "open",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/specs/agent-identity/spec.md",
+      "fingerprint": "fde997ba21555f86",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The denylist is explicitly case-insensitive, but the trailing-`login` rule and the help-token rule read as exact (case-sensitive) matches. Say which it is so `Login` does not slip through in one layer and not the other. Also, the `logout` pattern is an unanchored substring, so an innocent token such as `--log-output` is rejected; if that is intended, say so in the README (it is a safe over-rejection), otherwise anchor it as a whole word like the other entries effectively are.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 53,
+      "status": "open",
+      "axis": "compatibility",
+      "type": "architecture",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/tasks.md",
+      "fingerprint": "f5807fbefffe9836",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Task 6.1 lives in `agent-coordinator/tests/` and runs under the coordinator venv, yet it must import `review_dispatcher` from `skills/parallel-infrastructure/scripts/` to drive the mirror loader. The two venvs are deliberately separate (AGENTS.md), and nothing in the packet establishes that `review_dispatcher`'s import-time dependencies are present in the coordinator venv. Either pin the mirror-loader leg via a subprocess call into `skills/.venv/bin/python`, or split the test so the coordinator leg stays in `agent-coordinator/tests/` and the dispatcher leg in `skills/tests/`, comparing fingerprints through a shared fixture file.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 54,
+      "status": "open",
+      "axis": "readability",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/plan-findings.md",
+      "fingerprint": "8c38c6d20e1186e8",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code",
+        "grok"
+      ],
+      "description": "Re-verify ledger [102]/[88]/[54]: still open. Cold-probe bound disagrees across plan artifacts: plan-findings.md iteration 1 #6 says the NFR 'is now \u2264 30 s'; proposal.md NFR table says \u2264 ~25 s for \u2264 8 lanes (design D10); parallel-infrastructure scenario asserts finish within 26 seconds. session-log.md dates Plan Iteration 1 as 2026-10-30 while loop-state phase timestamps are 2026-10-28 UTC. Committed loop-state.json still has current_phase PLAN (working tree is modified to VAL_REVIEW) while validation-report.md records VALIDATE. Align one bound and the audit-trail dates/phase.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 55,
+      "status": "open",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/specs/parallel-infrastructure/spec.md",
+      "spec_file": "openspec/changes/add-local-agent-probe/specs/parallel-infrastructure/spec.md",
+      "fingerprint": "55766e5fff4ff6cd",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The projection defines `model_flag` absent \u2192 `-m` and other `*_flag` `null` \u2192 dropped, but leaves `model_flag: null` undefined (default-applied, or dropped?). Every lane in the current `agents.yaml` declares `model_flag`, so no live lane hits this, but a consumer that nulls it to suppress model injection would get an unspecified required-flag set. One clause ('`model_flag: null` is treated as absent and therefore `-m`' or 'is dropped') closes it.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 56,
+      "status": "open",
+      "axis": "resilience",
+      "type": "resilience",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/design.md",
+      "fingerprint": "dda1fa1d2609daa0",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Ledger item [24] re-verified: the normalized projection (D4), the top-level `runtime_failures` map, the locked read-modify-write with `0600` tempfile and `os.replace`, and D11's `reuse_fresh` plus `asyncio.to_thread` remain coherent across design, contracts, specs and tasks after the round-2 edits. No regression; only the `probe: {}` serialisation edge (finding 1) is new.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 57,
+      "status": "open",
+      "axis": "security",
+      "type": "security",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/contracts/cli-probe-block.schema.json",
+      "fingerprint": "224275c0d03fbad5",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Ledger item [25] re-verified: the denylist is applied uniformly to `version_args`, every `help_args` value and `auth_status_args` via one `$defs/probe_token`; the pattern is ECMA-262-portable with no inline flags; auth is exit-code-only with DEVNULL; `credential_files` is exists-only; the cache schema admits no credential-bearing field and the lane schema's `cli_version` is capped at 200 chars matching the first-line truncation. The schema/validate split (trailing `login`, help token) is documented consistently in README, D3, agent-identity and tasks 1.1/4.1.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 58,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "high",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/design.md",
+      "fingerprint": "ce12dc58f47d6530",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Nit: Design D4 / Per-Machine Probe Cache pin fingerprint defaults for `model_flag` and for `probe` absent vs `{}`, but do not say whether `probe.version_args` (schema default `[\"--version\"]`) is normalized inside the projection. `get_dispatch_configs()` present-only round-trip (agent-identity) omits defaulted `version_args`, while a CliConfig that materializes JSON Schema defaults would emit them \u2014 the same cross-source stale-cache failure mode plan iteration 1 already fixed for `model_flag`.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 59,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/specs/parallel-infrastructure/spec.md",
+      "spec_file": "openspec/changes/add-local-agent-probe/specs/parallel-infrastructure/spec.md",
+      "fingerprint": "3788fe9b8e04787c",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Nit: Tiered Local Vendor Probe specifies help argv as `[command, \u2026]` (and the partial-override scenario prepends `command`), but never states that `version_args` and `auth_status_args` are likewise args after `cli.command`. Design D3\u2019s table implies `claude auth status` / `command --version`, yet an implementer could exec the declared list as a bare argv (`auth`, `status`) and still satisfy a loose reading of the SHALL.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 60,
+      "status": "addressed",
+      "axis": "architecture",
+      "type": "architecture",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/work-packages.yaml",
+      "fingerprint": "1523283c43b8b693",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Nit: `wp-dispatch` verification runs `agent-coordinator/tests/test_dockerfile_vendor_registry.py` after D1 adds `vendor_probe.py` to the Dockerfile COPY, but that test path is absent from the package `scope.write_allow`. If the registry test pins copied script names, the package cannot update it without a scope violation.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 61,
+      "status": "addressed",
+      "axis": "compatibility",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/specs/agent-identity/spec.md",
+      "fingerprint": "fc20e6107e718523",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Nit: `cli-probe-block.schema.json` requires each `ignore_flags` item to match `^-`, but agent-identity Declarative CLI Probe Block only says `ignore_flags` is a non-empty string list. AGENTS_SCHEMA merges this schema, so load validation is stricter than the written requirement.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 62,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/specs/parallel-infrastructure/spec.md",
+      "spec_file": "openspec/changes/add-local-agent-probe/specs/parallel-infrastructure/spec.md",
+      "fingerprint": "763efb6d279df55f",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Optional: Cache-Filtered Reviewer Discovery requires that an `auth_required` clear happen only when the auth subprocess started after the failure\u2019s `observed_at` (D6), but the scenario \u201cA passing status command clears a remembered auth failure\u201d does not pin that ordering, so the race guard can be skipped while the suite stays green.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 63,
+      "status": "addressed",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/tasks.md",
+      "fingerprint": "871558f5e02abe96",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Nit: Task 4.1 says it covers \u201call six scenarios\u201d of Declarative CLI Probe Block, but the spec lists seven (including the dispatch-configs round-trip that the same task also names).",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 64,
+      "status": "open",
+      "axis": "architecture",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "fingerprint": "2a43cee527367d5d",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Normalized fingerprint projection, top-level `runtime_failures`, locked read-modify-write, and D11 `reuse_fresh` for the watchdog remain coherent across design D4/D6/D11, the cache schema, parallel-infrastructure / vendor-ux scenarios, and tasks 2.5 / 3.1 / 6.1 (ledger item [24] re-verified).",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 65,
+      "status": "open",
+      "axis": "security",
+      "type": "security",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "fingerprint": "4ddf9c297c45748a",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Ledger [25] re-verified: auth stays exit-code-only with DEVNULL, credential_files are exists-only, cache writes use mode 0600, and the credential-printing denylist plus trailing-login rule remain split between cli-probe-block.schema.json (schema layer) and agents_config._check_probe_blocks / vendor_probe.probe_argv_unsafe (semantic / execute layers). No regression.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 66,
+      "status": "parked",
+      "axis": "correctness",
+      "type": "behavioral_failure",
+      "criticality": "high",
+      "evidence_class": "judgment",
+      "file_path": "agent-coordinator/agents.yaml",
+      "fingerprint": "76b6ea510ef310ca",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Declaring `probe:` on `claude-remote` turns on L1 flag checking, and the validation report's real-CLI run shows `claude --help` (2.1.314) does not list `--remote`, so the lane's `review` mode is recorded `missing_flags`. After the first probe (any `/vendor-status`, `install.sh --check`, or autopilot INIT `--check-vendors`) `discover_reviewers` excludes `claude-remote review` for 24 h and `--check-vendors` stops counting it toward quorum. A lane that works today is silently removed from dispatch by this change. The report notes it as an 'open question for the owner' but ships the exclusion. Either add `ignore_flags: [\"--remote\"]` with a comment citing the hidden flag, or hold the `probe:` block on `claude-remote` until the owner decides; do not merge with a known-false `missing_flags` on a live lane.",
+      "parked_reason": "adjudicated_not_regression",
+      "consensus_status": "disagreement"
+    },
+    {
+      "id": 67,
+      "status": "addressed",
+      "axis": "security",
+      "type": "security",
+      "criticality": "high",
+      "evidence_class": "judgment",
+      "file_path": "skills/parallel-infrastructure/scripts/vendor_probe.py",
+      "fingerprint": "9ce878c43c40577c",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "`probe_argv_unsafe` mirrors the denylist and the trailing-`login` rule from the coordinator, but not the help-token rule (`--help`/`-h`/`help` must be present). The skills-side readers (`vendor_health.load_agents_yaml`, `_resolve_cli_configs`, `_from_yaml`) bypass `agents_config.validate` entirely, so a consumer `AGENTS_YAML` with `help_args: {review: [\"-p\", \"summarise the repo\"]}` passes the gate and `probe_lane` executes `[command, \"-p\", \"summarise the repo\"]` with stdout captured, which is a real model request and violates the token-free NFR and the 'probe SHALL NOT execute any dispatch-mode argument vector' requirement. The coordinator rule only protects the coordinator's own agents.yaml.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 68,
+      "status": "open",
+      "axis": "correctness",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "skills/parallel-infrastructure/scripts/vendor_health.py",
+      "fingerprint": "848823f743b063a0",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Design D5 states the same predicate (fresh `cli_not_found` / `missing_flags` / `probe_failed` / `auth_failed` / runtime failure) drives `--check-vendors` (unverified), `discover_reviewers` (excluded) and `vendor_health` (`healthy: false`). The implementation only flips `healthy` on `auth_failed` and runtime failures. A lane whose version command exits non-zero (`probe_failed`) or whose every mode has `missing_flags` keeps `healthy: True` (L0 ok, api key ok) with an empty `dispatch_modes`, so the watchdog never emits `vendor.unavailable` for a lane dispatch will refuse. The vendor-ux spec text only names auth/runtime, so the spec and D5 also disagree with each other.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 69,
+      "status": "open",
+      "axis": "compatibility",
+      "type": "correctness",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "skills/parallel-infrastructure/scripts/vendor_health.py",
+      "fingerprint": "e0b98c3fe5301de6",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "`probe_lane`/`failed_lane` substitute the pseudo-mode `_lane` when a cli block has no `dispatch_modes` (`mode_names = list(_modes(cli)) or [LANE_PSEUDO_MODE]`). `check_vendor` copies every ok mode from `entry[\"modes\"]` straight into `VendorHealth.dispatch_modes`, so a command-only lane (e.g. `ocr-local` in the real report) now reports `dispatch_modes: [\"_lane\"]` in `vendor_health --json` where it previously reported `[]`. The proposal promises existing fields keep their meaning except for L1 narrowing; an internal sentinel leaking into the public field is a compatibility regression, and `/vendor-status` consumers that count modes will see a phantom mode.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 70,
+      "status": "open",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "skills/parallel-infrastructure/scripts/vendor_probe.py",
+      "fingerprint": "3b4ff581de8435cf",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "`observed_at` is written by `_iso()` with whole-second resolution (`%Y-%m-%dT%H:%M:%SZ`), while `auth_started_at` is a float from `time.time()`. A dispatch failure observed at T=100.9 is stored as 100.0; an auth probe that started at T=100.5 (before the failure) satisfies `100.0 < 100.5` and clears it. This is exactly the race the spec scenario 'A probe that started before the failure does not clear it' forbids; the unit test sidesteps it by using `now=started + 1`. The window is under one second but it occurs precisely when `--check-vendors` and a dispatch overlap, which is the concurrent case D6 was written for.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 71,
+      "status": "open",
+      "axis": "correctness",
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "agent-coordinator/src/agents_config.py",
+      "fingerprint": "ae1bbd22142f6b38",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Ledger [52] re-verified, still open and now observable in code: the coordinator's trailing-`login` rule is case-sensitive (`auth[-1] == \"login\"`), while `vendor_probe.probe_argv_unsafe` lowercases (`str(auth[-1]).lower() == \"login\"`). `auth_status_args: [auth, LOGIN]` loads fine through the coordinator and `get_dispatch_configs`, then is refused at execute time by the probe with `probe_failed` (and the test suite pins the probe side with `[\"auth\", \"LOGIN\"]`). Same divergence for the help-token rule, which is case-sensitive in the coordinator and absent in the probe (finding 2).",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 72,
+      "status": "open",
+      "axis": "resilience",
+      "type": "resilience",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "skills/parallel-infrastructure/scripts/vendor_probe.py",
+      "fingerprint": "4a3acd879190706b",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "`update_cache` is documented 'Best-effort' and the spec says write failures never fail the caller, but only `OSError` is caught. `_valid_doc` checks that `runtime_failures` is a dict but not that each value is; a hand-edited or partially corrupted record such as `\"runtime_failures\": {\"codex-local\": \"auth_required\"}` makes `record.get(...)` raise `AttributeError` inside `mutate`, which propagates through `store_probes` \u2192 `probe_lanes` \u2192 `vendor_health.check_vendor`/`check_all_vendors` (the watchdog's periodic path) and the `report` CLI. `fresh_runtime_failure` guards against the same shape with `isinstance(record, dict)`, so the reader tolerates what the writer crashes on. Separately, `record_runtime_failure` says 'never raises' but deliberately raises `ValueError` for an unknown class; the docstring overclaims.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 73,
+      "status": "open",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "fingerprint": "a41fe8c16dd6fffb",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "`_probe_mode` picks the lane whose probe verdict it reports with first-match iteration over `orch.adapters`, while `discover_reviewers` dedupes by vendor through its own `cli_by_vendor` map (not shown in the diff, so its tie-break may be last-wins or preference-based). The real roster has two lanes with the same vendor (`claude-local` and `claude-remote`, both `claude_code`), and finding 1 shows they can probe differently. If the two selections ever disagree, `--check-vendors` counts the vendor verified on `claude-local`'s entry while dispatch evaluates `claude-remote`'s, breaking the 'INIT quorum count equals the lanes dispatch will use' guarantee D5 and the modified Dispatchable Vendor Verification requirement make.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 74,
+      "status": "open",
+      "axis": "architecture",
+      "type": "architecture",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "fingerprint": "5a4e7603675fa320",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "`lane_fingerprint` hashes every `*_flag` key, but `_cli_probe_view` (the dispatcher's input to the fingerprint) is an allowlist of exactly `model_flag` and `prompt_via_flag`. If a lane ever declares another `*_flag` key the coordinator carries (design D2 names `thinking_flag` as an example), the writer side (`vendor_health` on raw yaml, `get_dispatch_configs`) includes it and the reader side (`discover_reviewers`) does not, so every entry for that lane looks stale and the filter silently never fires: the same failure class plan-finding #1 fixed. Task 6.1 catches it only for keys present in today's agents.yaml.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 75,
+      "status": "open",
+      "axis": "observability",
+      "type": "observability",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "fingerprint": "05547d939892f705",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The cache exclusion is evaluated before `can_dispatch(dispatch_mode)`, and `mode_verdict` falls through to `auth_failed` / runtime reasons even when the entry has no tier for the requested mode. A lane that does not configure the mode at all (or has `api_key_env` unset) is therefore logged and recorded in `last_exclusions` / the manifest's `excluded_lanes` as `auth_failed` or `runtime_auth_required`, and `_probe_mode` reports that reason instead of the pre-existing `not_dispatchable`. Operators reading the manifest will see lanes 'excluded by the probe' that could never have run that mode.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 76,
+      "status": "open",
+      "axis": "readability",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/design.md",
+      "fingerprint": "8bf5f39cc7fdeca8",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Ledger [50] re-verified, still open: the implementation chose the D8 behaviour. `cmd_report` prints `probe report unavailable: timeout` and calls `os._exit(2)`, so unfinished lanes are not 'reported as probe_timeout' and no partial table is printed; D10's last sentence is now false. `os._exit` also skips the worker thread mid-`store_probes`, which can leave a `.vendor-probe-*.tmp` file in the cache directory (atomic replace protects the cache itself).",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 77,
+      "status": "open",
+      "axis": "resilience",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/tests/parallel-infrastructure/test_vendor_probe_cache.py",
+      "fingerprint": "b058f71a08294ca7",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Ledger [48] re-verified, still open: the only concurrency test uses threads in one process, which the module-level `threading.Lock` satisfies on its own; the `fcntl.flock` path, the one that protects a dispatcher process racing `vendor_health`/the watchdog, is still never exercised, and there is no test that writes still succeed with `fcntl` unavailable (`fcntl = None`). Ledger [49] is partly closed: `_run` has a stdin test (`cat; exit 0`) and the code fails L1 per help argv, but no test distinguishes `exec --help` exiting 1 from `--help` succeeding, so a regression that collapses one help failure into whole-lane `probe_failed` would pass.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 78,
+      "status": "open",
+      "axis": "observability",
+      "type": "observability",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/parallel-infrastructure/scripts/vendor_probe.py",
+      "fingerprint": "ccfe0b4d980d3567",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "An unsafe probe block (denylisted token, trailing `login`) is cached as `probe_failed` for 24 h with the hint 'CLI version/help command failed; reinstall or update it'. The cause is a config error, not a broken CLI, and the only accurate signal is a WARNING log that the report/`--check-vendors` JSON do not surface. Operators will reinstall a working CLI. The cache schema's `reason` enum has no slot for this, so a new reason would need a contract bump; at minimum the hint should not claim the CLI is broken.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 79,
+      "status": "open",
+      "axis": "readability",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/plan-findings.md",
+      "fingerprint": "2bcd2c45bf96b67a",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Ledger [54] re-verified, still open: plan-findings says the cold-probe NFR is '\u2264 30 s' while the proposal table says '\u2264 ~25 s for \u2264 8 lanes' and the scenario asserts 26 s; session-log dates Plan Iteration 1 as 2026-10-30 with loop-state timestamps of 2026-10-28, and the committed loop-state.json still reads `current_phase: PLAN` while the validation report records the VALIDATE phase (the working-tree copy is modified but uncommitted). Ledger [55] is closed in code (`injected_flags` maps `model_flag: null` to `-m`, pinned by `test_undeclared_model_flag_defaults_to_dash_m`) but the spec/design text still leaves `null` unspecified. Ledger [53] is closed empirically (3 passed in the coordinator venv) though the test imports `review_dispatcher` and its sibling modules into the coordinator process at module scope.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 80,
+      "status": "open",
+      "axis": "observability",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/work-packages.yaml",
+      "fingerprint": "0cc3daacd3b2549f",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "wp-integration's 'Skills regression' step expects exit 0, but the validation report documents 12 pre-existing failures plus one collection error on both `origin/main` and the branch, so the `skills_regression_passed` result key cannot be truthfully recorded and task 6.2 is ticked against a gate that did not pass as written. The report is candid about it (identical failing IDs on main), so this is an audit-trail inconsistency rather than a regression, but a reader of work-packages.yaml alone would assume the gate is green.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 81,
+      "status": "open",
+      "axis": "architecture",
+      "type": "architecture",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "fingerprint": "c6058be8e0eb4d80",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Ledger [24] re-verified: the normalized fingerprint projection (D4), top-level runtime_failures map, locked read-modify-write with 0600 tempfile + os.replace, and D11 reuse_fresh / asyncio.to_thread for the watchdog remain coherent across design.md, vendor-probe-cache.schema.json, parallel-infrastructure and vendor-ux specs, and tasks 2.5 / 3.1 / 6.1. No regression from round-2 edits.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 82,
+      "status": "open",
+      "axis": "resilience",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "fingerprint": "f7a5dd566c141eb0",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Ledger [48] still open: the only concurrency scenario/test (Concurrent writers do not lose updates / test_concurrent_writers_do_not_lose_updates) uses threads in one process, which the module-level threading.Lock alone satisfies. The fcntl.flock path that matters across concurrent review processes (and vendor_health racing a dispatcher) is never exercised. Add a two-subprocess or multiprocessing scenario that writes the same cache file, plus a scenario that the write still succeeds when fcntl is unavailable (ImportError / monkeypatched None).",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 83,
+      "status": "open",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "fingerprint": "7835be3eb2e1f645",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Ledger [49] still open: the requirement says a non-zero exit or timeout of a help command fails L1 only for modes that share that help argv, but every scenario and test_help_nonzero_is_probe_failed cover modes that all resolve to the same --help. There is no scenario where e.g. `codex exec --help` exits 1 while `codex --help` succeeds, which is the case that distinguishes per-help-argv failure from whole-lane failure. Add that scenario (and a matching unit test). The stdin=DEVNULL claim now has a unit test (test_stdin_is_devnull) but still lacks a WHEN/THEN scenario.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 84,
+      "status": "open",
+      "axis": "compatibility",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "fingerprint": "1531af76c8de7129",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Ledger [50] still open: D10 says lanes unfinished when the report's 60s timeout fires 'are reported as probe_timeout' (partial table). D8 and cmd_report implement the opposite \u2014 on TimeoutError they print `probe report unavailable: timeout` and os._exit(2), with no partial rows. The toolkit-distribution scenario still hedges ('print a report or a probe report unavailable: timeout line'). Pick one owner: either give report an internal deadline that always prints partial rows (install.sh's 60s as outer safety net), or drop the D10 partial-reporting claim and keep the unavailable-line contract that the code already implements.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 85,
+      "status": "addressed",
+      "axis": "security",
+      "type": "security",
+      "criticality": "high",
+      "evidence_class": "judgment",
+      "fingerprint": "67889e970ed46a5d",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Ledger [51] still open, and the execute-path gap is larger than the ledger text states. The help-token rule is meant to stop help_args from running a real subcommand, but it only requires that `--help`/`-h`/`help` appear somewhere (`[\"-p\", \"summarise the repo\", \"--help\"]` passes both schema and _check_probe_blocks). Worse: probe_argv_unsafe on the skills-side execute path enforces the denylist and trailing-login rules but does NOT enforce the help-token rule at all. vendor_health.load_agents_yaml and report's _resolve_cli_configs load YAML without AGENTS_SCHEMA, so a hand-edited AGENTS_YAML with help_args equal to a dispatch-mode argv would be executed as [command, *argv] and can send a model request \u2014 defeating the token-free NFR. Tighten the rule (help token must be last, or the only non-path token), enforce it inside probe_argv_unsafe before any subprocess, and extend task 2.1's token-free assertion to cover help_args overrides.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": false
+    },
+    {
+      "id": 86,
+      "status": "open",
+      "axis": "correctness",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "fingerprint": "45584f1486fb1ea8",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Ledger [52] still open: the denylist is explicitly case-insensitive, but the coordinator trailing-login check is case-sensitive (`auth[-1] == \"login\"`) while vendor_probe.probe_argv_unsafe uses `.lower() == \"login\"`. The help-token set is also exact (`--help`/`-h`/`help`). Say which matching rule each layer uses so `Login` / `HELP` cannot slip through one layer and not the other. Also the logout pattern is an unanchored substring in both the ECMA-262 schema and `_argv_denied`, so an innocent token such as `--log-output` is rejected; document that safe over-rejection in contracts/README.md or anchor it as a whole-token match.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 87,
+      "status": "open",
+      "axis": "architecture",
+      "type": "architecture",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "agent-coordinator/tests/test_probe_fingerprint_sources.py",
+      "fingerprint": "e545eefa4891461e",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Re-verify ledger [87]/[53]: test_probe_fingerprint_sources.py (task 6.1) still inserts skills/parallel-infrastructure/scripts onto sys.path and imports review_dispatcher + vendor_probe inside the coordinator venv. AGENTS.md keeps the two venvs separate; the validation report shows 3 passed empirically, but nothing in the packet pins that review_dispatcher's import-time dependencies remain satisfiable in agent-coordinator/.venv across dependency bumps. Prefer driving the mirror-loader leg via subprocess into skills/.venv/bin/python, or split the test so the coordinator leg stays under agent-coordinator/tests/ and the dispatcher leg under skills/tests/, comparing fingerprints through a shared fixture file.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 88,
+      "status": "open",
+      "axis": "readability",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "fingerprint": "9cfeba3925ac6f08",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Cold-probe timing numbers disagree across the audit trail: plan-findings #6 says the NFR 'is now \u2264 30 s', the proposal NFR table says \u2264 ~25 s for \u2264 8 lanes, and the per-lane scenario asserts finish within 26 s. session-log.md dates 'Plan Iteration 1' as 2026-10-30 while loop-state phase timestamps are 2026-10-28 UTC. Align the bound and the dates so the plan artifacts stay internally consistent.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 89,
+      "status": "open",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/design.md",
+      "fingerprint": "c41692945a3a3bbf",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Re-verify ledger [89]/[55]: design D4 and the parallel-infrastructure Per-Machine Probe Cache requirement still leave model_flag: null unspecified. Prose defines absent model_flag \u2192 default -m and other *_flag null \u2192 dropped; implementation (injected_flags) and test_undeclared_model_flag_defaults_to_dash_m treat model_flag: null as -m. Add one explicit clause in D4 and the fingerprint requirement ('model_flag: null is treated as absent and therefore -m') so a consumer that nulls the flag to suppress injection gets a defined required-flag set and fingerprint.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 90,
+      "status": "parked",
+      "axis": "compatibility",
+      "type": "compatibility",
+      "criticality": "high",
+      "evidence_class": "judgment",
+      "fingerprint": "89d15e64787e2bb5",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Real-CLI evidence (task 6.3 / validation-report) shows claude-remote review mode fails L1 with missing_flags for `--remote` under Claude Code 2.1.314 help text. That lane now declares probe.auth_status_args, so D9 turns flag checking on; after the first probe, discover_reviewers will exclude claude-remote review. No ignore_flags entry was added. This is a shipped behavioral narrowing of a previously dispatchable lane. Owner must choose: add ignore_flags: [\"--remote\"] if the flag is valid-but-hidden, change the dispatch args, or explicitly accept permanent exclusion and document it in the vendor-ux / proposal compatibility notes.",
+      "parked_reason": "adjudicated_not_regression",
+      "consensus_status": "disagreement"
+    },
+    {
+      "id": 91,
+      "status": "open",
+      "axis": "architecture",
+      "type": "architecture",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "fingerprint": "e15cec5466f31b42",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "D2/D4 say required flags and the fingerprint include every cli key ending in `_flag` (model_flag, thinking_flag, \u2026). review_dispatcher's `_cli_probe_view` is a hand-maintained allowlist that copies only model_flag and prompt_via_flag (plus command, dispatch_modes, probe). A non-null thinking_flag (or any future `*_flag`) present on the mirror CliConfig or in raw agents.yaml is dropped before probe_lanes / cache_exclusion / lane_fingerprint run from the dispatcher, so dispatch-time L1 and fingerprints can silently diverge from a raw-yaml probe of the same lane. Forward all `*_flag` attributes (or build the view from the same projection helper vendor_probe uses) instead of hard-coding two keys.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 92,
+      "status": "open",
+      "axis": "readability",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "fingerprint": "7985cc2578e11765",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "record_runtime_failure is documented as 'Best-effort; never raises' but raises ValueError when error_class is not auth_required/vendor_unavailable. Callers in CliVendorAdapter catch Exception, so dispatch is safe, yet the docstring claim is false. Narrow the docstring to 'never raises OSError from cache I/O' or return False for unsupported classes instead of raising.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 93,
+      "status": "open",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "fingerprint": "20e7d95de79d33da",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "New file skills/parallel-infrastructure/tests/conftest.py isolates AGENTIC_PROBE_CACHE, but the collected probe tests live under skills/tests/parallel-infrastructure/ (which already gained the same autouse fixture). The scripts-adjacent tests/ tree is not part of the skills test layout described in AGENTS.md, so this conftest is orphaned. Remove it or move any intended tests under skills/tests/.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 94,
+      "status": "open",
+      "axis": "resilience",
+      "type": "resilience",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "skills/parallel-infrastructure/scripts/vendor_probe.py",
+      "fingerprint": "27478c0dab8d08c8",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "When the report deadline fires, cmd_report prints the unavailable line and calls os._exit(2). The probe subprocesses were started with start_new_session=True and are only killed inside _run's communicate(timeout=...) handler, which lives in the abandoned worker thread. os._exit skips that handler, so a vendor CLI that never exits (the exact case the hung-probe scenario describes) is orphaned and keeps running after install.sh --check returns; the parallel-infrastructure requirement says a timed-out subprocess SHALL be killed. The install_sh and report tests pass only because the fake CLI is `sleep 60`, which exits on its own. Track live Popen objects (e.g. a module-level set guarded by a lock) and killpg each group before os._exit, or give probe_lanes a cooperative overall deadline so the worker reaches the kill path itself.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 95,
+      "status": "open",
+      "axis": "compatibility",
+      "type": "compatibility",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "skills/parallel-infrastructure/scripts/vendor_probe.py",
+      "fingerprint": "99d40d4bb0c11478",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "future.result(timeout=...) raises concurrent.futures.TimeoutError, which is only an alias of the builtin TimeoutError from Python 3.11. On 3.10 (Ubuntu 22.04's python3, the bare-interpreter fallback D8 and install.sh explicitly support) the except TimeoutError branch is skipped, the generic except prints `probe report unavailable: ` with an empty reason, and `return 2` lets the interpreter join the non-daemon pool thread at exit, so the report blocks until the lane deadlines expire instead of leaving immediately. install.sh's outer `timeout` then kills it and the buffered output is lost, collapsing to `probe error`. Catch concurrent.futures.TimeoutError (or both) so the timeout path is the same on every supported interpreter, and add a test that runs cmd_report under the fallback `python3` when it differs from the venv interpreter.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 96,
+      "status": "open",
+      "axis": "resilience",
+      "type": "resilience",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/parallel-infrastructure/scripts/vendor_health.py",
+      "fingerprint": "838cc28fc399c553",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "check_vendor(agent_id, agent_config) keeps its signature but silently changes behaviour for existing direct callers: it used to be a pure shutil.which check, and now every call without a lane_probe spawns the version, help and auth-status subprocesses (reuse_fresh=False), writes the per-user cache, and can raise ImportError from _load_vendor_probe when vendor_probe.py is not beside it (previously it never raised). Any caller iterating vendors and calling check_vendor per lane now pays a full re-probe per call. Either document the change on the function (and in the vendor-ux delta, which only mentions check_all_vendors), or default the single-lane path to reuse_fresh=True so the subprocess cost is opt-in.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 97,
+      "status": "open",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/vendor-status/SKILL.md",
+      "fingerprint": "450c6e7eb2c7bdc1",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The remediation row says an auth runtime failure 'clears on a passing re-probe', but D6 and the parallel-infrastructure spec clear runtime_auth_required only when L2 is auth_ok via a status command. For a credential_files lane (grok-local in the shipped agents.yaml) a passing re-probe does not clear it; the lane stays excluded until the 1-hour TTL. An operator following this skill for grok will re-run /vendor-status, see auth_ok, and not understand why dispatch still skips the lane. State the status-command condition and that credential-file lanes wait for the TTL.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 98,
+      "status": "open",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/specs/parallel-infrastructure/spec.md",
+      "spec_file": "openspec/changes/add-local-agent-probe/specs/parallel-infrastructure/spec.md",
+      "fingerprint": "e646ce48289a7990",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Two SHALL clauses have no WHEN/THEN scenario. parallel-infrastructure: 'Every declared probe argv SHALL be executed as arguments after cli.command \u2014 [command, *argv] \u2014 never as a bare argv' (only indirectly exercised by the fake-CLI tests through `$*` matching). toolkit-distribution: the 'no python3' branch of 'When the report cannot be produced (no python3, ...) it SHALL print a single line beginning probe report unavailable:' has scenarios for unresolvable config, missing PyYAML and timeout but none for a missing interpreter, which install.sh's `python3 not found` branch implements untested. Add one scenario each (a fake CLI that records argv[0] for the first; a PATH without python3 and no skills/.venv for the second).",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 99,
+      "status": "open",
+      "axis": "architecture",
+      "type": "architecture",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/work-packages.yaml",
+      "fingerprint": "9562b9e07e82c485",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Several files in the diff are outside every package's write_allow: agent-coordinator/tests/conftest.py, skills/tests/parallel-infrastructure/conftest.py, skills/tests/parallel-infrastructure/test_check_vendors_dispatchable.py, skills/tests/parallel-infrastructure/test_probe_cache_isolation.py and skills/parallel-infrastructure/tests/conftest.py. The edits are justified (cache isolation, Popen-level recording) but the scope checker that work-packages.yaml exists to feed would have flagged them, and the audit trail does not record which package made them or why. Record them as a scope extension on wp-dispatch / wp-integration (or in the choices ledger) so the plan revision matches the tree.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 100,
+      "status": "open",
+      "axis": "performance",
+      "type": "performance",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/install.sh",
+      "fingerprint": "d2c3e53d5ec5ef24",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "install.sh --check is one of the four local skills-change gates and is run in CI and pre-commit flows, and it now runs a full reuse_fresh=False probe on every invocation: a version command, one help command per distinct argv, and a live auth-status command (claude auth status, codex login status, pi auth check ...) for every lane, bounded by 25 s per lane and 60 s overall. A drift check that took well under a second can now take tens of seconds and contacts vendor auth endpoints each time. D8 chose this deliberately ('operator asked for a live check'), so this is a conscious trade-off, but consider reuse_fresh=True with a short max_age for --check and leaving the forced re-probe to /vendor-status and --check-vendors, or an AGENTIC_PROBE_REPORT=0 opt-out for gate runs.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 101,
+      "status": "parked",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "high",
+      "evidence_class": "judgment",
+      "file_path": "agent-coordinator/src/agents_config.py",
+      "fingerprint": "5d5e09a084d7885c",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Re-verify ledger [101]/[86]/[52]: still open. agents_config._check_probe_blocks uses case-sensitive auth[-1] == \"login\" and an exact frozenset for --help/-h/help; vendor_probe.probe_argv_unsafe lowercases the trailing login token (str(auth[-1]).lower() == \"login\") and uses the same exact help-token set. Confirmed live: auth_status_args [\"auth\", \"LOGIN\"] and bare [\"LOGIN\"] load through the coordinator, then probe_argv_unsafe fails closed (pinned by test_unsafe_probe_argv). HELP/--HELP are rejected at load (exact match) with no probe-side case fold either\u2014document per-layer rules or unify case. Separately, logout remains an unanchored substring in both the ECMA-262 schema pattern and _argv_denied (word in lowered); contracts/README.md still does not document that safe over-rejection.",
+      "parked_reason": "adjudicated_low",
+      "consensus_status": "disagreement"
+    },
+    {
+      "id": 102,
+      "status": "open",
+      "axis": "observability",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/plan-findings.md",
+      "fingerprint": "77be9f151d999ac1",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Re-verify ledger [88]/[54]: cold-probe timing and plan dates still disagree across plan artifacts. plan-findings.md iteration 1 #6 says the NFR 'is now \u2264 30 s'; the proposal NFR table says \u2264 ~25 s for \u2264 8 lanes (design D10); the parallel-infrastructure per-lane scenario asserts finish within 26 seconds. session-log.md dates 'Plan Iteration 1' as 2026-10-30 while loop-state.json phase timestamps are 2026-10-28 UTC, and the committed loop-state still shows current_phase PLAN while validation-report.md records VALIDATE. Align the bound (pick one of 25/26/30 and update all three) and the dates so the audit trail is internally consistent.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 103,
+      "status": "parked",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "high",
+      "evidence_class": "judgment",
+      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "fingerprint": "983e8fc191592c75",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Re-verify ledger [91]/[74]: D2/D4 require every cli key ending in _flag (model_flag, thinking_flag, \u2026) in the normalized projection used for required flags and lane_fingerprint. review_dispatcher._cli_probe_view is still a hand-maintained allowlist that copies only model_flag and prompt_via_flag (plus command, dispatch_modes, probe). A non-null thinking_flag (or any future *_flag) present on raw agents.yaml is hashed by vendor_health/report writers but dropped before discover_reviewers / --check-vendors call cache_exclusion and lane_fingerprint, so every entry for that lane looks stale and the dispatch-time filter silently never fires \u2014 the same failure class plan-finding #1 fixed for model_flag defaults. Forward all *_flag attributes from the mirror CliConfig (or build the view from the same projection helper vendor_probe.injected_flags / lane_fingerprint use) instead of hard-coding two keys. Task 6.1 only catches keys present in today's agents.yaml.",
+      "parked_reason": "adjudicated_latent",
+      "consensus_status": "disagreement"
+    },
+    {
+      "id": 104,
+      "status": "open",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/parallel-infrastructure/scripts/vendor_probe.py",
+      "fingerprint": "44954c8e9b965fad",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Re-verify ledger [104]/[92]/[72]: still open. vendor_probe.record_runtime_failure docstring still says 'Best-effort; never raises.' but raises ValueError when error_class is not auth_required/vendor_unavailable, before update_cache runs (confirmed). CliVendorAdapter._remember_runtime_failure catches Exception so dispatch stays safe; narrow the docstring to never-raises-on-cache-I/O (or return False for unsupported classes).",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 105,
+      "status": "open",
+      "axis": "architecture",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/parallel-infrastructure/tests/conftest.py",
+      "fingerprint": "902b8a96f960c043",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Re-verify ledger [93]: new file skills/parallel-infrastructure/tests/conftest.py isolates AGENTIC_PROBE_CACHE, but collected probe tests live under skills/tests/parallel-infrastructure/ (which already has the same autouse fixture). The scripts-adjacent tests/ tree is not part of the skills test layout in AGENTS.md, so this conftest is orphaned and never loads for the suite that runs. Remove it, or move any intended tests under skills/tests/.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 106,
+      "status": "open",
+      "axis": "architecture",
+      "type": "architecture",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "agent-coordinator/src/agents_config.py",
+      "fingerprint": "9314de9ae9e79686",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "The cli.probe denied-token rules are authored twice with no parity pin: contracts/cli-probe-block.schema.json (task 1.1) and the inline _PROBE_SCHEMA / _ci() character-class builder in agents_config.py (task 4.1). Contract tests exercise only the JSON schema; coordinator load tests exercise only the Python schema. A one-sided edit to either denylist pattern (or minItems / additionalProperties) can let a credential-printing argv pass one gate and fail the other. Add a parity test that the Python AGENTS_SCHEMA probe subschema and cli-probe-block.schema.json reject/accept the same fixture set (or generate one from the other).",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 107,
+      "status": "open",
+      "axis": "security",
+      "type": "security",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "agent-coordinator/src/agents_config.py",
+      "fingerprint": "d747c0c31af58680",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "`version_args` and `auth_status_args` are only denylist-screened (`_PROBE_DENIED_PATTERN`); unlike `help_args` (ledger [51] / `_PROBE_HELP_TOKENS`) they have no positive shape rule. A config source, including the remote `/agents/dispatch-configs` projection consumed by `_resolve_cli_configs`, can therefore make the token-free probe execute an arbitrary CLI invocation, e.g. `version_args: [\"-p\", \"...\"]` on `claude` is a paid inference call, and the L1 path captures its stdout (truncated) into the per-user cache. This contradicts the '0 model tokens' NFR and the 'Health probes stay token-free' scenario. Suggested fix: require the first non-flag token of `version_args` to be `--version`/`-V`/`version` and the first token of `auth_status_args` to be one of an allowlisted auth/status vocabulary (`auth`, `login`, `status`, `whoami`), enforced in `_check_probe_blocks` and mirrored in `probe_argv_unsafe` so a remote config cannot bypass the loader.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 108,
+      "status": "open",
+      "axis": "compatibility",
+      "type": "compatibility",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "fingerprint": "29efe0d0e619e512",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "`AGENTIC_PROBE_IGNORE_CACHE=1` disables the cache filter in `discover_reviewers`, but `_probe_mode` / `check_vendors_report` still apply probe verdicts, so under the switch `--check-vendors` can report a lane as unverified that dispatch will actually use. This breaks the design's 'same predicate' guarantee between check-vendors and dispatch (scenario 'Check-vendors does not count a lane dispatch will skip' assumes the two agree in both directions). Either honour the switch in `_probe_cli_lanes` or document that the switch only affects dispatch.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 109,
+      "status": "open",
+      "axis": "architecture",
+      "type": "architecture",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/parallel-infrastructure/scripts/vendor_health.py",
+      "fingerprint": "17e0aafe5913ce97",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "`_load_vendor_probe` is implemented twice, in `review_dispatcher.py` (returns None on failure, dispatcher degrades) and in `vendor_health.py` (raises ImportError, health check aborts), with divergent error semantics. Design D1 calls for one shared sibling loader. A single helper in `vendor_probe`-adjacent code (or in `vendor_health` imported by the dispatcher) with an explicit `strict: bool` would keep the two entry points from drifting further.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 110,
+      "status": "open",
+      "axis": "observability",
+      "type": "observability",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/parallel-infrastructure/scripts/vendor_probe.py",
+      "fingerprint": "e9a91dc9b74ed354",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "`vendor_probe.py` logs through `logging.getLogger(\"vendor_probe\")` with no handler configured by `cmd_report`, so Python's lastResort handler prints WARNING lines (e.g. 'vendor probe cache not written', 'unsafe probe argv') to stderr. `install.sh` merges `2>&1`, so these lines interleave into the printed informational report and can precede the `# Vendor probe` marker the shell checks for. Either configure a stderr handler in `cmd_report` and keep stderr separate in install.sh, or route the warnings into the report body.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 111,
+      "status": "open",
+      "axis": "security",
+      "type": "security",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "agent-coordinator/src/agents_config.py",
+      "fingerprint": "c74d0474d8d4ddad",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "`credential_files` is any list of strings; a remote dispatch-config can direct the L2 probe to test the existence of arbitrary local paths (e.g. `~/.ssh/id_ed25519`). Only a boolean leaks, and only into the local cache/report, so impact is low, but restricting entries to `~/`-relative paths under a dotdir (or rejecting absolute paths) in `_PROBE_SCHEMA` would close the probe-as-oracle vector cheaply.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 112,
+      "status": "open",
+      "axis": "resilience",
+      "type": "resilience",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/install.sh",
+      "fingerprint": "b1b759cf8e0f22d0",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "`print_vendor_probe_report` computes `$((limit + 5))` from `AGENTIC_PROBE_REPORT_TIMEOUT`; under `set -euo pipefail` a non-integer value (e.g. `60s`) makes the arithmetic expansion fail and aborts `install.sh --check` instead of degrading to 'probe report unavailable'. Validate the variable matches `^[0-9]+$` and fall back to 60 otherwise, consistent with the spec's 'informational, never fatal' contract.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 113,
+      "status": "open",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/specs/parallel-infrastructure/spec.md",
+      "spec_file": "openspec/changes/add-local-agent-probe/specs/parallel-infrastructure/spec.md",
+      "fingerprint": "85fa3b3f2bb260f2",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verification of open ledger items: [68], [69], [70], [71]/[86]/[101], [72]/[92]/[104], [74]/[91], [75], [76]/[84], [77]/[82], [83], [93]/[105], [94], [95], [96], [97], [98], [99], [100], [106] were each re-checked against the current diff and remain accurate and open; no code change in this round addresses them. Group-4 check passed: the MODIFIED 'Dispatchable Vendor Verification' requirement preserves all three original scenarios (cli_not_found, probe_timeout, credential non-disclosure) and 'Health Check Dimensions' preserves its original scenario, so no requirement was silently narrowed.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 114,
+      "status": "open",
+      "axis": "performance",
+      "type": "performance",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "fingerprint": "8d1b8dccc6afeec3",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Re-verify ledger [100]: still open. install.sh --check always runs vendor_probe.py report, and cmd_report calls probe_lanes(configs, False) (reuse_fresh=False), so every drift gate / CI / pre-commit --check pays a cold L0\u2013L2 probe (version + distinct help argv + live auth-status for each lane), bounded by 25 s/lane and AGENTIC_PROBE_REPORT_TIMEOUT (default 60 s). D8 chose live checks deliberately; there is still no AGENTIC_PROBE_REPORT=0 (or reuse_fresh with a short max_age) opt-out for gate runs.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 115,
+      "status": "open",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/parallel-infrastructure/tests/conftest.py",
+      "fingerprint": "638b53320a20ca75",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Re-verify ledger [105]/[93]: partially incorrect as stated. skills/parallel-infrastructure/tests/conftest.py still exists and duplicates the AGENTIC_PROBE_CACHE autouse fixture also present under skills/tests/parallel-infrastructure/conftest.py. It is not orphaned for 'the suite that runs': CI's isolated in-skill step runs parallel-infrastructure/tests (ci.yml), and that tree's vendor_health tests now exercise the probe, so the fixture is useful there. Relative to the new probe unit tests under skills/tests/, it is redundant. Keep both (accept) or document why the in-skill tree needs its own copy; do not delete without checking the isolated suite.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 116,
+      "status": "open",
+      "axis": "compatibility",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "agent-coordinator/src/agents_config.py",
+      "fingerprint": "1c3762bd9f599ebc",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Re-verify ledger [106]: still open. cli.probe denied-token rules are authored twice with no parity pin: contracts/cli-probe-block.schema.json (task 1.1 / test_vendor_probe_contracts.py) and the inline _PROBE_SCHEMA / _ci() builder in agents_config.py (task 4.1 / test_agents_config_probe.py). The two patterns are equal today, but nothing asserts that; a one-sided edit to the denylist, minItems, or additionalProperties can let a credential-printing argv pass one gate and fail the other. Add a parity test that AGENTS_SCHEMA's probe subschema and cli-probe-block.schema.json reject/accept the same fixture set (or generate one from the other).",
+      "consensus_status": "unconfirmed"
+    }
+  ]
+}

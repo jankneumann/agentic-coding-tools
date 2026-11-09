@@ -1228,7 +1228,9 @@ class TestCiEventCoverage:
         workflow = self._workflow()
         # PyYAML 1.1 reads a bare `on:` key as the boolean True.
         triggers = workflow.get("on", workflow.get(True))
-        assert set(triggers) == {"push", "pull_request", "merge_group"}
+        # workflow_dispatch was added by migrate-ci-to-self-hosted-gx10-runners (runner-lane
+        # override); it is manual-only and does not change which events gate a merge.
+        assert set(triggers) - {"workflow_dispatch"} == {"push", "pull_request", "merge_group"}
         assert triggers["push"]["branches"] == ["main"]
 
     def test_gate_job_is_not_conditioned_on_the_event(self):

@@ -1,31 +1,26 @@
 {
   "schema_version": 1,
   "roadmap_id": "roadmap-jev-system-one-integration-assessment",
-  "current_item_id": "ri-01",
+  "current_item_id": "ri-18",
   "phase": "planning",
   "created_at": "2026-09-18T11:31:45.988509+00:00",
-  "updated_at": "2026-09-18T11:31:46.009046+00:00",
-  "gate_decisions": [
-    {
-      "gate": "roadmap_approval",
-      "outcome": "proceed",
-      "resolution": "console_approved",
-      "authorizing_disposition": "block",
-      "reason": "gate 'roadmap_approval' approved by the operator \u2014 direct invocation: user asked to approve items and start autopilot-roadmap on ri-01, continuing through the roadmap",
-      "approval_id": null,
-      "default_action": null,
-      "posture_present": false,
-      "notified": null,
-      "timeout_seconds": null,
-      "disposition": "block",
-      "phase": "SUPERVISE",
-      "recorded_at": "2026-09-18T11:31:45.995122+00:00",
-      "decision_id": "fa4278cf-0e86-4d2b-ba0f-0640e2c0e740",
-      "source": "supervise",
-      "verb": "cycle",
-      "roadmap_id": "roadmap-jev-system-one-integration-assessment",
-      "roadmap_fingerprint": "c8626932a9c5cd8a0df73c00cb48b20cc9c374b069f820042470b0ad0f93ac00",
-      "note": "direct invocation: user asked to approve items and start autopilot-roadmap on ri-01, continuing through the roadmap"
-    }
+  "updated_at": "2026-09-19T01:10:07.789099+00:00",
+  "completed_items": [
+    "ri-01",
+    "ri-02",
+    "ri-03",
+    "ri-04",
+    "ri-05",
+    "ri-06",
+    "ri-07",
+    "ri-14",
+    "ri-09",
+    "ri-10",
+    "ri-11",
+    "ri-15",
+    "ri-16",
+    "ri-12",
+    "ri-13",
+    "ri-17"
   ]
 }

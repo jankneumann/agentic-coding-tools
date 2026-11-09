@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "feature_id": "restructure-openbao-per-agent-secrets",
+  "package_id": "wp-seeding",
+  "plan_revision": 10,
+  "contracts_revision": 6,
+  "status": "completed",
+  "locks": {
+    "files": [
+      "skills/bao-vault/scripts/bao_seed.py"
+    ],
+    "keys": [
+      "feature:pca02:seeding"
+    ]
+  },
+  "scope": {
+    "write_allow": [
+      "skills/bao-vault/scripts/bao_seed.py",
+      "skills/bao-vault/scripts/tests/**",
+      "agent-coordinator/Makefile",
+      "openspec/changes/restructure-openbao-per-agent-secrets/tasks.md"
+    ],
+    "read_allow": [
+      "**"
+    ],
+    "deny": []
+  },
+  "files_modified": [
+    "agent-coordinator/Makefile",
+    "openspec/changes/restructure-openbao-per-agent-secrets/tasks.md",
+    "skills/bao-vault/scripts/bao_seed.py",
+    "skills/bao-vault/scripts/tests/test_bao_seed.py"
+  ],
+  "scope_check": {
+    "passed": true,
+    "violations": []
+  },
+  "git": {
+    "base": {
+      "ref": "1b4c0396"
+    },
+    "head": {
+      "commit": "56dabf90",
+      "branch": "openspec/restructure-openbao-per-agent-secrets--wp-seeding",
+      "worktree": "/home/jankneumann/Coding/agentic-coding-tools/.git-worktrees/restructure-openbao-per-agent-secrets--wp-seeding"
+    }
+  },
+  "verification": {
+    "tier": "B",
+    "passed": true,
+    "steps": [
+      {
+        "name": "Seeder tests",
+        "kind": "command",
+        "command": "skills/.venv/bin/python -m pytest skills/bao-vault/scripts/tests/test_bao_seed.py -q",
+        "exit_code": 0,
+        "passed": true,
+        "evidence": {
+          "artifacts": [],
+          "metrics": {
+            "test_count": 30
+          }
+        }
+      },
+      {
+        "name": "Strict OpenSpec",
+        "kind": "command",
+        "command": "openspec validate restructure-openbao-per-agent-secrets --strict",
+        "exit_code": 0,
+        "passed": true,
+        "evidence": {
+          "artifacts": [],
+          "metrics": {}
+        }
+      }
+    ]
+  },
+  "escalations": [],
+  "notes": "Independent final audit passed. Vendor review quorum 3/4 on earlier tip; confirmed alias mismatch fixed, archive path fixed, other actionable findings disposed in resolution ledger. Live OpenBao 2.6.2 seeding, scoped reads/denials, and cutover smoke passed. context_impact declaration is unmigrated."
+}

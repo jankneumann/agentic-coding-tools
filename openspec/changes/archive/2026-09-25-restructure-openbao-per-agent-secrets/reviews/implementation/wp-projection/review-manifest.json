@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "change_id": null,
+  "review_type": "implementation",
+  "created_at": "2026-09-25T00:35:15Z",
+  "target": "cli-dispatch",
+  "dispatches": [
+    {
+      "vendor": "antigravity",
+      "success": false,
+      "model_used": null,
+      "models_attempted": [
+        "gemini-3.8-flash-high"
+      ],
+      "elapsed_seconds": 240.13860889989883,
+      "error": "Timeout after 240s",
+      "error_class": "transient",
+      "async_dispatch": false,
+      "task_id": null,
+      "ledger_task_id": null
+    },
+    {
+      "vendor": "claude_code",
+      "success": false,
+      "model_used": null,
+      "models_attempted": [
+        "fable"
+      ],
+      "elapsed_seconds": 240.12700980203226,
+      "error": "Timeout after 240s",
+      "error_class": "transient",
+      "async_dispatch": false,
+      "task_id": null,
+      "ledger_task_id": null
+    },
+    {
+      "vendor": "grok",
+      "success": false,
+      "model_used": null,
+      "models_attempted": [
+        "grok-4.5"
+      ],
+      "elapsed_seconds": 240.08598681772128,
+      "error": "Timeout after 240s",
+      "error_class": "transient",
+      "async_dispatch": false,
+      "task_id": null,
+      "ledger_task_id": null
+    },
+    {
+      "vendor": "pi",
+      "success": false,
+      "model_used": "nvidia/nemotron-3-ultra-550b-a55b",
+      "models_attempted": [
+        "nvidia/nemotron-3-ultra-550b-a55b"
+      ],
+      "elapsed_seconds": 91.33720408240333,
+      "error": "{\"type\":\"session\",\"version\":3,\"id\":\"01a0d5f9-3a3f-76dc-b2bc-3045aa53c35b\",\"timestamp\":\"2026-09-25T00:31:15.520Z\",\"cwd\":\"/home/jankneumann/Coding/agentic-coding-tools/.git-worktrees/restructure-openbao-per-agent-secrets--wp-projection\"}\n{\"type\":\"agent_start\"}\n{\"type\":\"turn_start\"}\n{\"type\":\"message_start\",\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Review ONLY the completed wp-projection implementation of OpenSpec restructure-openbao-per-agent-secrets. Worktree: /home/jankneumann/Co",
+      "error_class": "vendor_unavailable",
+      "async_dispatch": false,
+      "task_id": null,
+      "ledger_task_id": null
+    }
+  ],
+  "quorum_requested": 4,
+  "quorum_received": 0,
+  "vendors": []
+}

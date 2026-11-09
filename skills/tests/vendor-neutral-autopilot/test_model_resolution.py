@@ -108,9 +108,11 @@ def test_same_model_in_two_tiers_is_distinguished_by_thinking() -> None:
 
 
 def test_string_tier_entries_have_no_thinking_level() -> None:
-    spec = resolve_provider_model_spec("standard", provider="claude_code")
+    # Antigravity encodes effort in the model slug, so its tiers stay bare
+    # strings. A bare string resolves with no separate thinking level.
+    spec = resolve_provider_model_spec("standard", provider="antigravity")
 
-    assert spec.model == _entry_model("claude_code", "standard")
+    assert spec.model == _entry_model("antigravity", "standard")
     assert spec.thinking is None
 
 

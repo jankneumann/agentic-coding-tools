@@ -230,3 +230,22 @@ def test_exit_4_divergence_from_runner_is_stated() -> None:
     assert "EXIT_GATE_PARKED" in normalized
     assert "answerable via" in normalized or "gate-answer" in normalized
     assert "no ESCALATE state" in normalized
+
+
+def test_recovered_apply_and_route_retry_protocol_is_documented() -> None:
+    text = _SUPERVISE_MD.read_text(encoding="utf-8")
+    assert "must equal exactly the current batch members" in text
+    assert "application_journal.state" in text
+    assert "ExecutionAdapter.route_parked_escalations" in text
+    assert "retry this route-only method" in text
+    assert "never replay delegated apply or its callback" in text
+
+
+def test_generation_context_and_mirror_authority_are_documented() -> None:
+    text = _SUPERVISE_MD.read_text(encoding="utf-8")
+    assert "reason: supervised phase retry budget exhausted" in text
+    assert "gate-answer --lease-generation" in text
+    assert "legacy generationless records are bound at most once" in text
+    assert "checkpoint `gate_decisions` ledger is authoritative" in text
+    assert "derived post-commit projection" in text
+    assert "repair it idempotently from the ledger" in text

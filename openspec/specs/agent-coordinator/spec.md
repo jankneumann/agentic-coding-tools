@@ -3208,6 +3208,152 @@ Migration 035 SHALL prevent unsafe index creation by checking legacy reserved ke
 - **AND** no partial index or function change SHALL remain
 - **AND** after rows are remediated, the unchanged migration SHALL succeed on retry
 
+### Requirement: Model Routing API Surface
+
+The coordinator SHALL serve all five operations from the merged routing OpenAPI contract:
+`POST /routing/select_model`, `GET /routing/catalog`, `GET /routing/decisions/{id}`,
+`GET /routing/usage`, and `POST /routing/feedback`. The coordinator SHALL expose the same
+selection operation as the `select_model_for_task` MCP tool, and both transports SHALL use the
+same routing service.
+
+#### Scenario: POST selection operation is served
+
+- **WHEN** a cloud agent POSTs task signals to `/routing/select_model` with valid authentication
+- **THEN** the response SHALL contain the selected candidate, ranked alternatives, and a decision ID
+
+#### Scenario: GET catalog operation is served
+
+- **WHEN** an authenticated caller GETs `/routing/catalog`
+- **THEN** the response SHALL contain stored catalog entries without an external refresh
+
+#### Scenario: GET decision operation is served
+
+- **WHEN** an authenticated caller GETs `/routing/decisions/{id}` for a persisted decision ID
+- **THEN** the response SHALL contain that persisted selection record
+
+#### Scenario: GET usage operation is served
+
+- **WHEN** an authenticated caller GETs `/routing/usage` with a valid usage window
+- **THEN** the response SHALL contain the ledger aggregate for that requested window
+
+#### Scenario: POST feedback operation is served
+
+- **WHEN** an authenticated caller POSTs a valid event to `/routing/feedback`
+- **THEN** the coordinator SHALL accept the event through the shared routing service
+
+#### Scenario: Local agent uses the MCP tool
+
+- **WHEN** a local agent invokes the `select_model_for_task` MCP tool
+- **THEN** the same resolver SHALL serve the request as the HTTP path
+
+### Requirement: Model Routing Storage Migrations
+
+The coordinator database SHALL gain additive-only migrations for `model_catalog`,
+`model_posteriors`, `routing_decisions`, and `routing_spend_ledger`. Applying the migration more
+than once MUST preserve the schema and existing data.
+
+#### Scenario: Migrations are additive and idempotent
+
+- **WHEN** the model-routing migrations are applied and the migration runner is invoked again
+- **THEN** no existing table SHALL be altered destructively
+- **AND** the second run SHALL require no schema rollback
+
+### Requirement: dg-00 Routing Watchdog Jobs
+
+The coordinator watchdog SHALL schedule the OpenRouter catalog refresher, local-endpoint health
+probe, and spend-ledger rollup independently. A failure in one routing job SHALL be recorded
+without preventing the other jobs or the watchdog loop from continuing.
+
+#### Scenario: Routing job failure is contained
+
+- **WHEN** the catalog refresher raises an exception
+- **THEN** the watchdog SHALL record a routing-job failure signal
+- **AND** the local probe and ledger rollup SHALL remain independently schedulable
+
+#### Scenario: Ledger rollup uses an independent schedule
+
+- **WHEN** the ledger-rollup interval is due while the refresher or local probe is not due or fails
+- **THEN** the watchdog SHALL still run the ledger rollup on its own schedule
+
+### Requirement: Atomic API-Key Identity Reload
+
+When OpenBao is configured, the coordinator SHALL load every keyed registry agent's API key using the dedicated identity-reader service principal and build an immutable candidate identity map. It SHALL validate completeness, uniqueness, and shape before atomically replacing the active map. Successful reloads SHALL occur on a 30-second default cadence and make a valid key rotation observable within 60 seconds without process restart. Request authentication SHALL read exactly one installed snapshot per request. Static `X-API-Key` HTTP authentication SHALL remain in use until pca-03; this change SHALL not introduce session tokens.
+
+When OpenBao is configured, the installed snapshot SHALL be the sole accepted
+API-key allowlist. `COORDINATION_API_KEYS` SHALL NOT authorize a key absent from
+that snapshot, including a rotated or unbound key. The 120-second age gate SHALL
+apply before any identity lookup. Non-OpenBao mode SHALL retain the existing
+static allowlist semantics. Configured-Bao cutover preflight SHALL report any `COORDINATION_API_KEYS` entry without a registry-bound identity as a blocker; there SHALL be no unbound service-key exception in pca-02.
+
+#### Scenario: COORD-01 Rotation becomes active without restart
+
+- **GIVEN** a complete installed identity snapshot
+- **WHEN** one agent key is rotated in its own OpenBao document
+- **THEN** the next successful reload SHALL atomically install the new complete map within 60 seconds
+- **AND** the old key SHALL stop authenticating after installation
+
+#### Scenario: COORD-02 Partial candidate never leaks
+
+- **WHEN** one of several required agent reads fails or returns a duplicate or malformed key
+- **THEN** no part of the candidate map SHALL become active
+- **AND** an authentication request SHALL observe the previous complete snapshot or denial
+
+#### Scenario: COORD-09 Static allowlist cannot bypass rotation
+
+- **WHEN** OpenBao is configured and an old or unbound key remains in `COORDINATION_API_KEYS` after a successful rotation
+- **THEN** that key SHALL be denied because it is absent from the installed identity snapshot
+- **AND** the new key SHALL resolve to its declared principal
+
+### Requirement: Bounded Identity Reload Degradation
+
+On a configured OpenBao refresh failure, the coordinator SHALL retain the last-known-good identity snapshot for no longer than 120 seconds measured from its last successful installation, emit a sanitized audit event, and report degraded readiness. Once that age exceeds 120 seconds, it SHALL deny new API-key authentication until a valid complete snapshot is installed. Startup without a valid complete snapshot SHALL deny new API-key authentication and report degraded readiness. Every successful complete refresh SHALL clear the degraded state. The audit record SHALL include failure class, principal/path identifier when safe, snapshot age, and outcome, without key values, tokens, SecretIDs, wrapping tokens, or raw backend responses.
+
+#### Scenario: COORD-03 Failed refresh within grace window
+
+- **GIVEN** a complete snapshot installed 60 seconds ago
+- **WHEN** the next refresh fails
+- **THEN** the installed snapshot SHALL remain active
+- **AND** readiness SHALL be degraded and a sanitized failure SHALL be audited
+
+#### Scenario: COORD-04 Grace window expires
+
+- **GIVEN** the last successful complete snapshot was installed more than 120 seconds ago
+- **WHEN** a new API-key authentication is attempted
+- **THEN** authentication SHALL be denied even if its key exists in the stale map
+- **AND** readiness SHALL remain degraded
+
+#### Scenario: COORD-05 Recovery installs whole snapshot
+
+- **GIVEN** the coordinator is degraded after failed refreshes
+- **WHEN** a complete valid refresh succeeds
+- **THEN** it SHALL atomically install the new map, restore ready identity status, and audit recovery
+
+#### Scenario: COORD-06 Startup cannot hydrate identities
+
+- **WHEN** OpenBao is configured and the first complete identity load fails
+- **THEN** no partial or static identity map SHALL be accepted
+- **AND** readiness SHALL report identity degradation and new API-key authentication SHALL be denied
+
+### Requirement: Credential Failure Audit and Readiness Contract
+
+The coordinator SHALL expose identity reload health as a distinct readiness component so operators can distinguish it from database and unrelated optional-service health. A configured OpenBao authentication, authorization, timeout, missing-data, or malformed-data failure SHALL use the shared typed error taxonomy and produce a sanitized audit event. Error handling SHALL never substitute an ambient key, `.secrets.yaml`, or `secret/coordinator` data. Health and audit payloads SHALL not disclose credentials or raw `hvac` responses. During the 120-second last-known-good grace period, `/ready` SHALL return HTTP 200 with `identity: degraded`; startup failure or an expired snapshot SHALL return HTTP 503. This keeps the documented grace period routable while exposing degradation in the component field and audit stream.
+
+#### Scenario: COORD-07 Typed backend failure is observable
+
+- **WHEN** the identity reader receives an OpenBao permission denial
+- **THEN** readiness SHALL identify the credential component as degraded
+- **AND** the audit event SHALL identify `AUTHORIZATION_DENIED` as the error code without secret material
+
+#### Scenario: COORD-10 Non-OpenBao readiness
+
+- **WHEN** `BAO_ADDR` is absent and the database is healthy
+- **THEN** `/ready` SHALL report `identity: disabled` and remain HTTP 200
+
+#### Scenario: COORD-08 Database health is independent
+
+- **WHEN** identity reload is degraded while the database is healthy
+- **THEN** the readiness response SHALL show those component states separately
+
 ## Database Tables
 
 ### Phase 1 (Implemented)

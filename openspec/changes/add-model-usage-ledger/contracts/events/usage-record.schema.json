@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools/contracts/usage-record.schema.json",
+  "title": "UsageRecord",
+  "description": "One vendor API call (assistant message) as emitted by the usage collector. Design D3.",
+  "type": "object",
+  "required": ["ts", "vendor", "model", "input_tokens", "output_tokens", "session_id", "record_hash"],
+  "additionalProperties": false,
+  "properties": {
+    "ts": { "type": "string", "format": "date-time" },
+    "vendor": { "type": "string", "minLength": 1 },
+    "model": { "type": "string", "minLength": 1, "description": "Vendor identifier as observed; never an archetype tier" },
+    "effort": { "type": ["string", "null"] },
+    "input_tokens": { "type": "integer", "minimum": 0 },
+    "output_tokens": { "type": "integer", "minimum": 0 },
+    "cache_creation_tokens": { "type": "integer", "minimum": 0, "default": 0 },
+    "cache_read_tokens": { "type": "integer", "minimum": 0, "default": 0 },
+    "thinking_tokens": { "type": ["integer", "null"], "minimum": 0 },
+    "vendor_cost_usd": { "type": ["number", "null"], "minimum": 0 },
+    "session_id": { "type": "string", "minLength": 1 },
+    "agent_id": { "type": ["string", "null"] },
+    "parent_session_id": { "type": ["string", "null"] },
+    "project": { "type": ["string", "null"] },
+    "principal": { "type": ["string", "null"] },
+    "host": { "type": ["string", "null"] },
+    "git_branch": { "type": ["string", "null"] },
+    "message_id": { "type": ["string", "null"] },
+    "record_hash": { "type": "string", "pattern": "^[0-9a-f]{64}$", "description": "sha256 of canonical JSON of (vendor, session_id, agent_id, message_id_or_uuid, usage)" }
+  }
+}

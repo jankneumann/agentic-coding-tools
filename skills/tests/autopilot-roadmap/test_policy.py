@@ -5,7 +5,13 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 from models import Policy, PolicyAction
-from policy import VendorLimit, evaluate_policy
+from policy import (
+    VendorLimit,
+    evaluate_policy,
+    filter_registry_lanes,
+    quote_lane_cost,
+    select_registry_lane,
+)
 
 
 class TestWaitPolicy:
@@ -57,6 +63,33 @@ class TestWaitPolicy:
 
         assert decision.action == "wait"
         assert decision.expected_wait_seconds is None
+
+
+def test_registry_lane_selection_honors_wait_policy_without_selecting_lane():
+    decision = select_registry_lane(
+        policy=Policy(default_action=PolicyAction.WAIT),
+        vendor_limit=VendorLimit(
+            vendor="claude",
+            reason="capacity",
+            reset_at="2026-09-17T12:00:00+00:00",
+        ),
+        lanes=[{
+            "agent_id": "codex-cloud",
+            "policy_vendor": "codex",
+            "dispatchable": True,
+            "availability": {
+                "available": True,
+                "status": "available",
+                "rate_limits": [],
+            },
+        }],
+    )
+
+    assert decision.action == "wait"
+    assert decision.to_vendor is None
+    assert decision.to_agent_id is None
+    assert decision.expected_wait_seconds is not None
+
 
 class TestSwitchPolicy:
     """Tests for switch_if_time_saved policy."""
@@ -122,7 +155,7 @@ class TestSwitchPolicy:
         assert decision.action == "switch"
         assert decision.to_vendor == "antigravity"
 
-    def test_switch_includes_cost_delta(self):
+    def test_switch_without_exact_quote_marks_cost_guard_unavailable(self):
         policy = Policy(default_action=PolicyAction.SWITCH)
         limit = VendorLimit(vendor="claude", reason="rate limit")
 
@@ -134,7 +167,8 @@ class TestSwitchPolicy:
         )
 
         assert decision.action == "switch"
-        assert decision.expected_cost_delta_usd is not None
+        assert decision.expected_cost_delta_usd is None
+        assert decision.cost_guard == "unavailable"
 
 class TestCascadingFailover:
     """Tests for cascading switch limit enforcement."""
@@ -208,7 +242,7 @@ class TestCostCeiling:
 
         assert decision.action == "switch"
 
-    def test_switch_exceeds_ceiling_returns_fail_closed(self):
+    def test_static_tier_does_not_enforce_cost_ceiling(self):
         policy = Policy(
             default_action=PolicyAction.SWITCH,
             cost_ceiling_usd=0.01,  # Very tight ceiling
@@ -223,10 +257,9 @@ class TestCostCeiling:
             switch_attempts=0,
         )
 
-        assert decision.action == "fail_closed"
-        assert "ceiling" in decision.reason.lower()
-        assert decision.expected_cost_delta_usd is not None
-        assert decision.expected_cost_delta_usd > policy.cost_ceiling_usd
+        assert decision.action == "switch"
+        assert decision.expected_cost_delta_usd is None
+        assert decision.cost_guard == "unavailable"
 
 
 class TestLocalEndpointGate:
@@ -364,3 +397,111 @@ class TestLocalEndpointGate:
 
         assert _decide().to_vendor == "codex"
         assert _decide().to_vendor == "local"
+
+
+def _lane(
+    agent_id: str,
+    *,
+    policy_vendor: str,
+    location: str = "cloud",
+    available: bool = True,
+    limits: list[dict] | None = None,
+    models: list[dict] | None = None,
+) -> dict:
+    return {
+        "agent_id": agent_id,
+        "policy_vendor": policy_vendor,
+        "location": location,
+        "capabilities": ["queue"],
+        "archetypes": ["implementer"],
+        "dispatch_modes": ["alternative"],
+        "dispatchable": True,
+        "availability": {
+            "available": available,
+            "status": "available" if available else "unavailable",
+            "rate_limits": limits or [],
+        },
+        "cost": {"known": bool(models), "models": models or []},
+    }
+
+
+def test_registry_filters_all_routing_dimensions_and_active_limits() -> None:
+    good = _lane("codex-cloud", policy_vendor="codex")
+    wrong_location = _lane(
+        "codex-local", policy_vendor="codex", location="local"
+    )
+    lane_limited = _lane(
+        "claude-cloud",
+        policy_vendor="claude",
+        limits=[{"scope": "lane", "model": None}],
+    )
+    model_limited = _lane(
+        "grok-cloud",
+        policy_vendor="grok",
+        limits=[{"scope": "model", "model": "grok-4"}],
+    )
+
+    selected = filter_registry_lanes(
+        [good, wrong_location, lane_limited, model_limited],
+        capability="queue",
+        archetype="implementer",
+        dispatch_mode="alternative",
+        location="cloud",
+        model="grok-4",
+    )
+
+    assert [lane["agent_id"] for lane in selected] == ["codex-cloud"]
+
+
+def test_model_limit_keeps_lane_eligible_for_an_alternate_model() -> None:
+    lane = _lane(
+        "grok-cloud",
+        policy_vendor="grok",
+        limits=[{"scope": "model", "model": "grok-4"}],
+    )
+
+    assert filter_registry_lanes([lane], model="grok-4") == []
+    assert filter_registry_lanes([lane], model="grok-4-fast") == [lane]
+
+
+def test_exact_catalog_quote_requires_model_and_token_estimates() -> None:
+    lane = _lane(
+        "codex-cloud",
+        policy_vendor="codex",
+        models=[{
+            "model": "gpt-5.6",
+            "prompt_usd_per_mtok": "2.00",
+            "completion_usd_per_mtok": "8.00",
+            "available": True,
+            "stale": False,
+        }],
+    )
+
+    assert quote_lane_cost(
+        lane, model="gpt-5.6", prompt_tokens=1000, completion_tokens=500
+    ) == 0.006
+    assert quote_lane_cost(lane, model="gpt-5.6") is None
+    assert quote_lane_cost(
+        lane, model=None, prompt_tokens=1000, completion_tokens=500
+    ) is None
+
+
+def test_static_tiers_rank_but_do_not_enforce_usd_ceiling(caplog) -> None:
+    decision = select_registry_lane(
+        policy=Policy(
+            default_action=PolicyAction.SWITCH,
+            cost_ceiling_usd=0.000001,
+        ),
+        vendor_limit=VendorLimit(vendor="claude", reason="capacity"),
+        lanes=[
+            _lane("grok-cloud", policy_vendor="grok"),
+            _lane("codex-cloud", policy_vendor="codex"),
+        ],
+    )
+
+    assert decision.action == "switch"
+    assert decision.to_vendor == "codex"
+    assert decision.to_agent_id == "codex-cloud"
+    assert decision.expected_cost_delta_usd is None
+    assert decision.cost_guard == "unavailable"
+    assert "cost_guard unavailable" in caplog.text

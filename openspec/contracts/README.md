@@ -68,6 +68,7 @@ live code references.
 | `roadmap-orchestration` | `bounded-dispatch-context.schema.json`, `supervised-dispatch-request.schema.json`, `supervised-dispatch-result.schema.json`, `delegated-dispatch-attempt.schema.json` | `wire-supervise-execution-through-the-dispatch-fn-seam` (ri-03) |
 | `gen-eval-framework` | `schemas/cli-contract.schema.json`, `cli/gen-eval.yaml` | `derive-descriptors-from-contracts` (**in flight**) |
 | `semantic-context-evaluation` | `context-eval-report.schema.json`, `context-eval-corpus.schema.json`, `context-eval-case.schema.json` | `gate-semantic-context-default-enablement` (ri-13) |
+| `multiplayer-simulation` | `schemas/sim-report.schema.json`, `cli/mpsim.yaml` | `multiplayer-simulation-harness` (ri-05) |
 
 `gen-eval-framework` and `semantic-context-evaluation` are both promoted while
 their changes are still in flight rather than at archival. That is the workflow

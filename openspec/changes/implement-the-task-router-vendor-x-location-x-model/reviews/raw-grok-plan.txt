@@ -1,0 +1,220 @@
+{
+  "text": "{\"findings\":[]}{\"findings\":[]}{\"findings\":[]}{\"findings\":[]}{\n  \"findings\": [\n    {\n      \"id\": 1,\n      \"type\": \"contract_mismatch\",\n      \"criticality\": \"high\",\n      \"description\": \"Critical: Exact lane/catalog association identity disagrees across artifacts. design.md D4 requires the projection key `(catalog_vendor, model, endpoint_kind, base_url)` and contracts/openapi/v1.1.yaml `RoutingProvenance.catalog_key` is a 4-tuple ending in nullable `base_url`, but specs/task-routing/spec.md 'Exact lane and catalog association' only requires association by 'exact projected catalog vendor, model, and endpoint-kind identity' and omits `base_url`. Implementers following the spec alone can collapse distinct base_url projections and violate the no-heuristics exact-join boundary.\",\n      \"disposition\": \"fix\",\n      \"axis\": \"correctness\",\n      \"severity\": \"critical\",\n      \"resolution\": \"Update specs/task-routing/spec.md so the association key is exactly `(catalog_vendor, model, endpoint_kind, base_url)`, matching design.md D4 and OpenAPI `catalog_key`.\",\n      \"file_path\": \"openspec/changes/implement-the-task-router-vendor-x-location-x-model/specs/task-routing/spec.md\",\n      \"line_range\": {\"start\": 47, \"end\": 53},\n      \"evidence_class\": \"judgment\",\n      \"existing_code\": \"- **THEN** routing SHALL associate it only by the exact projected catalog vendor, model,\\n  and endpoint-kind identity\"\n    },\n    {\n      \"id\": 2,\n      \"type\": \"contract_mismatch\",\n      \"criticality\": \"high\",\n      \"description\": \"Critical: Alternative candidates cannot retain the required lane assignment shape. specs/task-routing/spec.md 'Alternative candidates retain lane identity' requires each alternative to keep exact `agent_id`, vendor type, location, isolation, dispatch mode, model, and endpoint kind, and design.md D6 says alternatives retain their own lane assignment. contracts/openapi/v1.1.yaml only adds optional `Candidate.agent_id` and places `RoutingAssignment` on the top-level response; `Candidate` has no vendor_type, location, isolation, or dispatch_mode fields, so the OpenAPI contract cannot satisfy the spec/design requirement.\",\n      \"disposition\": \"fix\",\n      \"axis\": \"compatibility\",\n      \"severity\": \"critical\",\n      \"resolution\": \"Extend alternatives with a per-candidate `assignment` (or equivalent required fields for vendor_type/location/isolation/dispatch_mode) in OpenAPI, and keep selected top-level `assignment` additive as designed.\",\n      \"file_path\": \"openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/openapi/v1.1.yaml\",\n      \"line_range\": {\"start\": 126, \"end\": 201},\n      \"evidence_class\": \"judgment\",\n      \"existing_code\": \"agent_id: {type: [string, \\\"null\\\"], default: null}\\n...\\nassignment:\\n  anyOf:\\n    - {$ref: '#/components/schemas/RoutingAssignment'}\\n    - {type: \\\"null\\\"}\\n  default: null\"\n    },\n    {\n      \"id\": 3,\n      \"type\": \"contract_mismatch\",\n      \"criticality\": \"high\",\n      \"description\": \"Critical: Authoritative decision vs linked audit-event semantics are inconsistent. design.md D7 says `routing_decisions` is authoritative and the audit-log event 'links only the decision ID, selected agent/model, policy version, and source' as an index/link. specs/task-routing/spec.md instead requires the durable audit event to 'record sanitized request, assignment, policy provenance, and success'. contracts/events/routing-decision.schema.json and contracts/README.md further treat that full snapshot as 'shared by `routing_decisions` and the linked coordinator audit event', which reintroduces a second source of routing truth the design forbids.\",\n      \"disposition\": \"fix\",\n      \"axis\": \"architecture\",\n      \"severity\": \"critical\",\n      \"resolution\": \"Align spec, event schema, and README with D7: keep the full sanitized snapshot in `routing_decisions`, and contract the coordinator audit event as a thin durable link (decision_id + selected agent/model + policy_version + source), not a duplicate decision body.\",\n      \"file_path\": \"openspec/changes/implement-the-task-router-vendor-x-location-x-model/design.md\",\n      \"line_range\": {\"start\": 89, \"end\": 99},\n      \"evidence_class\": \"judgment\",\n      \"existing_code\": \"After that row is inserted, DG-04 emits a sanitized `routing_decision` audit-log event\\nthat links only the decision ID, selected agent/model, policy version, and source.\"\n    },\n    {\n      \"id\": 4,\n      \"type\": \"spec_gap\",\n      \"criticality\": \"high\",\n      \"description\": \"Critical: Spec does not require fail-closed awaited audit durability that design.md D7 mandates. D7 says the audit write 'uses an awaited durable audit operation and fails the request if durability cannot be established; fire-and-forget acceptance is insufficient.' The durable-and-auditable scenario in specs/task-routing/spec.md only says an audit event SHALL be recorded, with no SHALL that the HTTP/MCP call fails when durability is not established. Given existing AuditService defaults to fire-and-forget acceptance (`async_logging`), implementers following only the spec can ship non-durable 'success' responses and violate the honest durable-link boundary.\",\n      \"disposition\": \"fix\",\n      \"axis\": \"resilience\",\n      \"severity\": \"critical\",\n      \"resolution\": \"Add a SHALL/scenario: coordinator success responses require an awaited durable audit link; if durability cannot be established, the request fails and no successful routing response is returned.\",\n      \"file_path\": \"openspec/changes/implement-the-task-router-vendor-x-location-x-model/specs/task-routing/spec.md\",\n      \"line_range\": {\"start\": 93, \"end\": 98},\n      \"evidence_class\": \"judgment\",\n      \"existing_code\": \"- **AND** a durable coordinator audit event SHALL record sanitized request,\\n  assignment, policy provenance, and success.\"\n    },\n    {\n      \"id\": 5,\n      \"type\": \"compatibility\",\n      \"criticality\": \"high\",\n      \"description\": \"Critical: OpenAPI regresses dg-00 excluded-candidate typing needed for lane exclusion provenance. add-adaptive-model-router contracts typed excluded items as required `{vendor, model, reason}`; dg-04 contracts/openapi/v1.1.yaml weakens this to `excluded: {type: array, items: {type: object}}` with no required reason and no lane identity (`agent_id` / assignment key). That undercuts specs/task-routing/spec.md ('the exclusion SHALL carry a machine-readable reason' and persisted decisions retain 'excluded assignments') and makes exclusion contract tests non-normative.\",\n      \"disposition\": \"fix\",\n      \"axis\": \"compatibility\",\n      \"severity\": \"critical\",\n      \"resolution\": \"Restore a typed excluded schema with required machine-readable reason and exact lane/catalog identity fields (at least agent_id plus catalog vendor/model/endpoint_kind, and base_url if part of the join key).\",\n      \"file_path\": \"openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/openapi/v1.1.yaml\",\n      \"line_range\": {\"start\": 191, \"end\": 191},\n      \"evidence_class\": \"judgment\",\n      \"existing_code\": \"excluded: {type: array, default: [], items: {type: object}}\"\n    },\n    {\n      \"id\": 6,\n      \"type\": \"contract_mismatch\",\n      \"criticality\": \"medium\",\n      \"description\": \"Nit: Roadmap policy allow/exclude sets are incomplete versus design.md D2. D2 requires 'allowed/excluded lane/vendor/location sets', but contracts/openapi/v1.1.yaml `RoadmapRoutingPolicy` defines `allowed_locations` without `excluded_locations` (while agent_id and vendor_type both have allowed and excluded counterparts). Feasibility step D5 item 4 therefore cannot exclude by location through the typed request contract.\",\n      \"disposition\": \"fix\",\n      \"axis\": \"correctness\",\n      \"severity\": \"nit\",\n      \"resolution\": \"Add `excluded_locations` to `RoadmapRoutingPolicy` (and mirror it in request validation tests), or revise D2 if location exclusion is intentionally omitted.\",\n      \"file_path\": \"openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/openapi/v1.1.yaml\",\n      \"line_range\": {\"start\": 46, \"end\": 58},\n      \"evidence_class\": \"judgment\",\n      \"existing_code\": \"allowed_locations:\\n  type: array\\n  items: {$ref: '#/components/schemas/Location'}\\n  uniqueItems: true\"\n    },\n    {\n      \"id\": 7,\n      \"type\": \"spec_gap\",\n      \"criticality\": \"medium\",\n      \"description\": \"Nit: Local-fallback honesty is under-specified on persistence. design.md D8 and OpenAPI `RoutingProvenance` require both `persisted=false` and `durable_audit=false` with `source=local-static`, but specs/task-routing/spec.md 'Coordinator is unreachable' only requires `fallback=true`, `source=local-static`, and `durable_audit=false`. A helper could claim `persisted=true` while still satisfying the written scenario.\",\n      \"disposition\": \"fix\",\n      \"axis\": \"observability\",\n      \"severity\": \"nit\",\n      \"resolution\": \"Add `persisted=false` to the local-fallback THEN clause, matching D8 and the provenance contract.\",\n      \"file_path\": \"openspec/changes/implement-the-task-router-vendor-x-location-x-model/specs/task-routing/spec.md\",\n      \"line_range\": {\"start\": 112, \"end\": 118},\n      \"evidence_class\": \"judgment\",\n      \"existing_code\": \"- **THEN** the local helper SHALL return the normal assignment shape with\\n  `fallback=true`, `source=local-static`, and `durable_audit=false`\"\n    },\n    {\n      \"id\": 8,\n      \"type\": \"spec_gap\",\n      \"criticality\": \"medium\",\n      \"description\": \"Optional: `routing.yaml` 'phase defaults' language is broader than the config schema. design.md D3 and specs/task-routing/spec.md refer to phase defaults filling remaining location/isolation/dispatch-mode dimensions and failing on 'unconfigured phase default', but contracts/config/routing.schema.json `defaults` only requires `dispatch_mode` and `phase_dispatch_modes`—there are no location/isolation phase defaults, only `fallback.location_order` / `fallback.isolation_order`. Implementers cannot tell whether unmatched location/isolation come from lane config, fallback order, or missing schema fields.\",\n      \"disposition\": \"fix\",\n      \"axis\": \"readability\",\n      \"severity\": \"optional\",\n      \"resolution\": \"Either extend the schema with explicit location/isolation defaults (and phase maps if needed) or rewrite design/spec so only dispatch_mode has phase defaults and location/isolation are lane-derived filters plus fallback orders.\",\n      \"file_path\": \"openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/config/routing.schema.json\",\n      \"line_range\": {\"start\": 10, \"end\": 21},\n      \"evidence_class\": \"judgment\",\n      \"existing_code\": \"\\\"defaults\\\": {\\n  \\\"type\\\": \\\"object\\\",\\n  \\\"additionalProperties\\\": false,\\n  \\\"required\\\": [\\\"dispatch_mode\\\", \\\"phase_dispatch_modes\\\"],\"\n    },\n    {\n      \"id\": 9,\n      \"type\": \"architecture\",\n      \"criticality\": \"low\",\n      \"description\": \"Optional: Parallel package split places HTTP API implementation and its tests in sibling packages with no dependency edge. work-packages.yaml `wp-policy-service` writes `agent-coordinator/src/model_routing/api.py` while `wp-transports-fallback` writes `agent-coordinator/tests/model_routing/test_api.py`, and both depend only on `wp-contract-config`. Transport/API tests cannot green against the real handler until after merge, increasing integration thrash.\",\n      \"disposition\": \"accept\",\n      \"axis\": \"architecture\",\n      \"severity\": \"optional\",\n      \"resolution\": \"Accept if contracts-first stubs are intentional; otherwise move `test_api.py` into `wp-policy-service` or make `wp-transports-fallback` depend on `wp-policy-service`.\",\n      \"file_path\": \"openspec/changes/implement-the-task-router-vendor-x-location-x-model/work-packages.yaml\",\n      \"line_range\": {\"start\": 75, \"end\": 159},\n      \"evidence_class\": \"judgment\"\n    },\n    {\n      \"id\": 10,\n      \"type\": \"observability\",\n      \"criticality\": \"low\",\n      \"description\": \"FYI: Plan pins decision/audit provenance well but does not define operational signals for routing failure modes (for example rate/count of HTTP 503 no-feasible assignments, local-fallback activations, or audit-durability failures). Detection would rely on log/audit scraping unless added later.\",\n      \"disposition\": \"accept\",\n      \"axis\": \"observability\",\n      \"severity\": \"fyi\",\n      \"resolution\": \"No change required for dg-04 scope; consider metrics/alerts in a follow-up if operators need SLOs on routing availability.\",\n      \"file_path\": \"openspec/changes/implement-the-task-router-vendor-x-location-x-model/design.md\",\n      \"evidence_class\": \"judgment\"\n    },\n    {\n      \"id\": 11,\n      \"type\": \"correctness\",\n      \"criticality\": \"low\",\n      \"description\": \"Plan correctly keeps a single additive routing surface: proposal.md, design.md D1, specs/task-routing/spec.md, tasks.md 1.4, and contracts/README.md all forbid introducing `POST /route/task` and require extending only `POST /routing/select_model` plus `select_model_for_task`.\",\n      \"disposition\": \"accept\",\n      \"axis\": \"architecture\",\n      \"severity\": \"none\",\n      \"file_path\": \"openspec/changes/implement-the-task-router-vendor-x-location-x-model/proposal.md\",\n      \"evidence_class\": \"judgment\",\n      \"existing_code\": \"This change does **not** create `POST /route/task`, score a second time, alter dispatch\\nexecution, pin isolation precedence, or enforce a sandbox.\"\n    },\n    {\n      \"id\": 12,\n      \"type\": \"correctness\",\n      \"criticality\": \"low\",\n      \"description\": \"Plan correctly sequences dg-01 in-process registry feasibility before dg-00 utility scoring, forbids name/publisher/fuzzy association, preserves dg-00 static fallback equality, uses strict versioned `routing.yaml`, and keeps dg-05/dg-06/dg-07 out of scope (design.md D4–D5, D8–D9; specs/task-routing/spec.md registry and fallback requirements).\",\n      \"disposition\": \"accept\",\n      \"axis\": \"architecture\",\n      \"severity\": \"none\",\n      \"file_path\": \"openspec/changes/implement-the-task-router-vendor-x-location-x-model/design.md\",\n      \"evidence_class\": \"judgment\",\n      \"existing_code\": \"Only feasible lane/model candidates enter\\nthe existing `score_and_rank`; DG-04 does not duplicate quality, posterior, cost,\\nlatency, headroom, or exploration math.\"\n    }\n  ]\n}",
+  "stopReason": "end_turn",
+  "sessionId": "01a0ac6e-f753-7153-b408-fb1d6bf21107",
+  "requestId": "47d7a305-01cd-43ea-a829-4723de9430bc",
+  "thought": "The user wants me to independently review an OpenSpec plan for change `implement-the-task-router-vendor-x-location-x-model`. I need to read the specified files and produce a JSON findings report accor...The user wants me to independently review the OpenSpec plan and output ONLY a JSON object with findings. Looking at the skill, when this is dispatched as a vendor reviewer, I should only produce findi...Let me read all the contract files carefully to check for inconsistencies.Let me dig deeper into potential inconsistencies. I need to compare:\n{\n  \"findings\": [\n    {\n      \"id\": \"dg-04-001\",\n      \"type\": \"contract_mismatch\",\n      \"criticality\": \"high\",\n      \"description\": \"Design D4 association key `(catalog_vendor, model, endpoint_kind, base_url)` conflicts with spec \\\"exact projected catalog vendor, model, and endpoint-kind identity\\\" missing base_url; OpenAPI catalog_key includes base_url\",\n      \"disposition\": \"fix\",\n      \"axis\": \"compatibility\",\n      \"severity\": \"critical\"\n    },\n    {\n      \"id\": \"dg-04-002\",\n      \"type\": \"contract_mismatch\",\n      \"criticality\": \"high\",\n      \"description\": \"Design D7 audit event links only decision ID, selected agent/model, policy version, source; spec scenario requires durable coordinator audit event to record sanitized request, assignment, policy provenance, success\",\n      \"disposition\": \"fix\",\n \"axis\": \"correctness\",\n      \"severity\": \"critical\"\n    },\n    {\n      \"id\": \"dg-04-003\",\n      \"type\": \"contract_mismatch\",\n      \"criticality\": \"high\",\n      \"description\": \"events/routing-decision.schema.Let me dig deeper into dg-01 location/isolation enums and existing select_model OpenAPI, and also check for more inconsistencies around alternatives assignment, excluded schema, defaults for location/...I found a significant inconsistency in routing.schema.json vs design/spec:\n{\n  \"findings\": [\n    {\n      \"id\": \"dg-04-001\",\n      \"type\": \"spec_gap\",\n      \"criticality\": \"high\",\n      \"description\": \"routing.schema.json lacks phase defaults for location and isolation dimensions, contradicting design D3 which requires phase/default values to fill 3 dimensions when no rule matches\",\n      \"disposition\": \"fix\",\n      \"axis\": \"correctness\",\n      \"severity\": \"critical\",\n      \"file\": \"routing.schema.json\"\n    },\n    {\n      \"id\": \"dg-04-002\",\n      \"type\": \"contract_mismatch\",\n      \"criticality\": \"high\",\n      \"description\": \"design D3 resolution order (explicit > rule set > phase/defaults) conflicts with schema defaults only covering dispatch_mode and fallback orders for location/isolation\",\n      \"disposition\": \"fix\",\n      \"axis\": \"correctness\",\n      \"severity\": \" critical\",\n      \"file\": \"routing.schema.json\"\n    },\n    {\n      \"id\": \"dg-04-003\",\n      \"type\": \"contract_mismatch\",\n      \"criticality\": \"high\",\n      \"description\": \"spec omits base_url while design and OpenAPI catalog_key require it for Vendor RegistryService exact lane-to-catalog association\",\n      \"disposition\": \"fix\",\n      \"axis\": \"correctness\",\n      \"severity\": \"critical\",\n      \"file\": \"specs/task-routing/spec.Important finding: dg-04 OpenAPI `SelectModelRequest` has `additionalProperties: false` at the top level, while dg-00 didn't specify additionalProperties (defaults to true in OpenAPI 3 / JSON Schema)....{\n  \"findings\": [\n    {\n      \"id\": \"dg-04-001\",\n      \"type\": \"contract_mismatch\",\n      \"criticality\": \"high\",\n      \"severity\": \"nit\",\n      \"axis\": \"compatibility\",\n      \"description\": \"dg-04 OpenAPI SelectModelRequest has additionalProperties: false at top level while dg-00 did not specify (defaults to true). Also weight_overrides lacks structured properties from dg-00. This is a regression of contract detail.Let me check what dispatch mode names exist in agents.yamlagents.yaml structure might be a dict not a list. Let me fix.Dispatch mode and isolation enums match. Location includes `unknown` in contracts which is fine for dg-01.\nI have enough to produce a thorough review. The audit.py fire-and-forget default makes Design D7's \"awaited durable audit operation and fails the request if durability cannot be established; fire-and-...",
+  "usage": {
+    "input_tokens": 116517,
+    "cache_read_input_tokens": 416896,
+    "cache_creation_input_tokens": 0,
+    "output_tokens": 12917,
+    "reasoning_tokens": 7894,
+    "total_tokens": 546330
+  },
+  "num_turns": 11,
+  "total_cost_usd": 0.148105632,
+  "total_cost_usd_ticks": 1481056320,
+  "modelUsage": {
+    "grok-4.5-build": {
+      "inputTokens": 116517,
+      "outputTokens": 12917,
+      "cacheReadInputTokens": 416896,
+      "cacheCreationInputTokens": 0,
+      "modelCalls": 11,
+      "costUSD": 0.148105632
+    }
+  },
+  "structuredOutput": {
+    "findings": [
+      {
+        "id": 1,
+        "type": "contract_mismatch",
+        "criticality": "high",
+        "description": "Critical: Exact lane/catalog association identity disagrees across artifacts. design.md D4 requires the projection key `(catalog_vendor, model, endpoint_kind, base_url)` and contracts/openapi/v1.1.yaml `RoutingProvenance.catalog_key` is a 4-tuple ending in nullable `base_url`, but specs/task-routing/spec.md 'Exact lane and catalog association' only requires association by 'exact projected catalog vendor, model, and endpoint-kind identity' and omits `base_url`. Implementers following the spec alone can collapse distinct base_url projections and violate the no-heuristics exact-join boundary.",
+        "disposition": "fix",
+        "axis": "correctness",
+        "severity": "critical",
+        "resolution": "Update specs/task-routing/spec.md so the association key is exactly `(catalog_vendor, model, endpoint_kind, base_url)`, matching design.md D4 and OpenAPI `catalog_key`.",
+        "file_path": "openspec/changes/implement-the-task-router-vendor-x-location-x-model/specs/task-routing/spec.md",
+        "line_range": {
+          "start": 47,
+          "end": 53
+        },
+        "evidence_class": "judgment",
+        "existing_code": "- **THEN** routing SHALL associate it only by the exact projected catalog vendor, model,\n  and endpoint-kind identity"
+      },
+      {
+        "id": 2,
+        "type": "contract_mismatch",
+        "criticality": "high",
+        "description": "Critical: Alternative candidates cannot retain the required lane assignment shape. specs/task-routing/spec.md 'Alternative candidates retain lane identity' requires each alternative to keep exact `agent_id`, vendor type, location, isolation, dispatch mode, model, and endpoint kind, and design.md D6 says alternatives retain their own lane assignment. contracts/openapi/v1.1.yaml only adds optional `Candidate.agent_id` and places `RoutingAssignment` on the top-level response; `Candidate` has no vendor_type, location, isolation, or dispatch_mode fields, so the OpenAPI contract cannot satisfy the spec/design requirement.",
+        "disposition": "fix",
+        "axis": "compatibility",
+        "severity": "critical",
+        "resolution": "Extend alternatives with a per-candidate `assignment` (or equivalent required fields for vendor_type/location/isolation/dispatch_mode) in OpenAPI, and keep selected top-level `assignment` additive as designed.",
+        "file_path": "openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/openapi/v1.1.yaml",
+        "line_range": {
+          "start": 126,
+          "end": 201
+        },
+        "evidence_class": "judgment",
+        "existing_code": "agent_id: {type: [string, \"null\"], default: null}\n...\nassignment:\n  anyOf:\n    - {$ref: '#/components/schemas/RoutingAssignment'}\n    - {type: \"null\"}\n  default: null"
+      },
+      {
+        "id": 3,
+        "type": "contract_mismatch",
+        "criticality": "high",
+        "description": "Critical: Authoritative decision vs linked audit-event semantics are inconsistent. design.md D7 says `routing_decisions` is authoritative and the audit-log event 'links only the decision ID, selected agent/model, policy version, and source' as an index/link. specs/task-routing/spec.md instead requires the durable audit event to 'record sanitized request, assignment, policy provenance, and success'. contracts/events/routing-decision.schema.json and contracts/README.md further treat that full snapshot as 'shared by `routing_decisions` and the linked coordinator audit event', which reintroduces a second source of routing truth the design forbids.",
+        "disposition": "fix",
+        "axis": "architecture",
+        "severity": "critical",
+        "resolution": "Align spec, event schema, and README with D7: keep the full sanitized snapshot in `routing_decisions`, and contract the coordinator audit event as a thin durable link (decision_id + selected agent/model + policy_version + source), not a duplicate decision body.",
+        "file_path": "openspec/changes/implement-the-task-router-vendor-x-location-x-model/design.md",
+        "line_range": {
+          "start": 89,
+          "end": 99
+        },
+        "evidence_class": "judgment",
+        "existing_code": "After that row is inserted, DG-04 emits a sanitized `routing_decision` audit-log event\nthat links only the decision ID, selected agent/model, policy version, and source."
+      },
+      {
+        "id": 4,
+        "type": "spec_gap",
+        "criticality": "high",
+        "description": "Critical: Spec does not require fail-closed awaited audit durability that design.md D7 mandates. D7 says the audit write 'uses an awaited durable audit operation and fails the request if durability cannot be established; fire-and-forget acceptance is insufficient.' The durable-and-auditable scenario in specs/task-routing/spec.md only says an audit event SHALL be recorded, with no SHALL that the HTTP/MCP call fails when durability is not established. Given existing AuditService defaults to fire-and-forget acceptance (`async_logging`), implementers following only the spec can ship non-durable 'success' responses and violate the honest durable-link boundary.",
+        "disposition": "fix",
+        "axis": "resilience",
+        "severity": "critical",
+        "resolution": "Add a SHALL/scenario: coordinator success responses require an awaited durable audit link; if durability cannot be established, the request fails and no successful routing response is returned.",
+        "file_path": "openspec/changes/implement-the-task-router-vendor-x-location-x-model/specs/task-routing/spec.md",
+        "line_range": {
+          "start": 93,
+          "end": 98
+        },
+        "evidence_class": "judgment",
+        "existing_code": "- **AND** a durable coordinator audit event SHALL record sanitized request,\n  assignment, policy provenance, and success."
+      },
+      {
+        "id": 5,
+        "type": "compatibility",
+        "criticality": "high",
+        "description": "Critical: OpenAPI regresses dg-00 excluded-candidate typing needed for lane exclusion provenance. add-adaptive-model-router contracts typed excluded items as required `{vendor, model, reason}`; dg-04 contracts/openapi/v1.1.yaml weakens this to `excluded: {type: array, items: {type: object}}` with no required reason and no lane identity (`agent_id` / assignment key). That undercuts specs/task-routing/spec.md ('the exclusion SHALL carry a machine-readable reason' and persisted decisions retain 'excluded assignments') and makes exclusion contract tests non-normative.",
+        "disposition": "fix",
+        "axis": "compatibility",
+        "severity": "critical",
+        "resolution": "Restore a typed excluded schema with required machine-readable reason and exact lane/catalog identity fields (at least agent_id plus catalog vendor/model/endpoint_kind, and base_url if part of the join key).",
+        "file_path": "openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/openapi/v1.1.yaml",
+        "line_range": {
+          "start": 191,
+          "end": 191
+        },
+        "evidence_class": "judgment",
+        "existing_code": "excluded: {type: array, default: [], items: {type: object}}"
+      },
+      {
+        "id": 6,
+        "type": "contract_mismatch",
+        "criticality": "medium",
+        "description": "Nit: Roadmap policy allow/exclude sets are incomplete versus design.md D2. D2 requires 'allowed/excluded lane/vendor/location sets', but contracts/openapi/v1.1.yaml `RoadmapRoutingPolicy` defines `allowed_locations` without `excluded_locations` (while agent_id and vendor_type both have allowed and excluded counterparts). Feasibility step D5 item 4 therefore cannot exclude by location through the typed request contract.",
+        "disposition": "fix",
+        "axis": "correctness",
+        "severity": "nit",
+        "resolution": "Add `excluded_locations` to `RoadmapRoutingPolicy` (and mirror it in request validation tests), or revise D2 if location exclusion is intentionally omitted.",
+        "file_path": "openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/openapi/v1.1.yaml",
+        "line_range": {
+          "start": 46,
+          "end": 58
+        },
+        "evidence_class": "judgment",
+        "existing_code": "allowed_locations:\n  type: array\n  items: {$ref: '#/components/schemas/Location'}\n  uniqueItems: true"
+      },
+      {
+        "id": 7,
+        "type": "spec_gap",
+        "criticality": "medium",
+        "description": "Nit: Local-fallback honesty is under-specified on persistence. design.md D8 and OpenAPI `RoutingProvenance` require both `persisted=false` and `durable_audit=false` with `source=local-static`, but specs/task-routing/spec.md 'Coordinator is unreachable' only requires `fallback=true`, `source=local-static`, and `durable_audit=false`. A helper could claim `persisted=true` while still satisfying the written scenario.",
+        "disposition": "fix",
+        "axis": "observability",
+        "severity": "nit",
+        "resolution": "Add `persisted=false` to the local-fallback THEN clause, matching D8 and the provenance contract.",
+        "file_path": "openspec/changes/implement-the-task-router-vendor-x-location-x-model/specs/task-routing/spec.md",
+        "line_range": {
+          "start": 112,
+          "end": 118
+        },
+        "evidence_class": "judgment",
+        "existing_code": "- **THEN** the local helper SHALL return the normal assignment shape with\n  `fallback=true`, `source=local-static`, and `durable_audit=false`"
+      },
+      {
+        "id": 8,
+        "type": "spec_gap",
+        "criticality": "medium",
+        "description": "Optional: `routing.yaml` 'phase defaults' language is broader than the config schema. design.md D3 and specs/task-routing/spec.md refer to phase defaults filling remaining location/isolation/dispatch-mode dimensions and failing on 'unconfigured phase default', but contracts/config/routing.schema.json `defaults` only requires `dispatch_mode` and `phase_dispatch_modes`—there are no location/isolation phase defaults, only `fallback.location_order` / `fallback.isolation_order`. Implementers cannot tell whether unmatched location/isolation come from lane config, fallback order, or missing schema fields.",
+        "disposition": "fix",
+        "axis": "readability",
+        "severity": "optional",
+        "resolution": "Either extend the schema with explicit location/isolation defaults (and phase maps if needed) or rewrite design/spec so only dispatch_mode has phase defaults and location/isolation are lane-derived filters plus fallback orders.",
+        "file_path": "openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/config/routing.schema.json",
+        "line_range": {
+          "start": 10,
+          "end": 21
+        },
+        "evidence_class": "judgment",
+        "existing_code": "\"defaults\": {\n  \"type\": \"object\",\n  \"additionalProperties\": false,\n  \"required\": [\"dispatch_mode\", \"phase_dispatch_modes\"],"
+      },
+      {
+        "id": 9,
+        "type": "architecture",
+        "criticality": "low",
+        "description": "Optional: Parallel package split places HTTP API implementation and its tests in sibling packages with no dependency edge. work-packages.yaml `wp-policy-service` writes `agent-coordinator/src/model_routing/api.py` while `wp-transports-fallback` writes `agent-coordinator/tests/model_routing/test_api.py`, and both depend only on `wp-contract-config`. Transport/API tests cannot green against the real handler until after merge, increasing integration thrash.",
+        "disposition": "accept",
+        "axis": "architecture",
+        "severity": "optional",
+        "resolution": "Accept if contracts-first stubs are intentional; otherwise move `test_api.py` into `wp-policy-service` or make `wp-transports-fallback` depend on `wp-policy-service`.",
+        "file_path": "openspec/changes/implement-the-task-router-vendor-x-location-x-model/work-packages.yaml",
+        "line_range": {
+          "start": 75,
+          "end": 159
+        },
+        "evidence_class": "judgment"
+      },
+      {
+        "id": 10,
+        "type": "observability",
+        "criticality": "low",
+        "description": "FYI: Plan pins decision/audit provenance well but does not define operational signals for routing failure modes (for example rate/count of HTTP 503 no-feasible assignments, local-fallback activations, or audit-durability failures). Detection would rely on log/audit scraping unless added later.",
+        "disposition": "accept",
+        "axis": "observability",
+        "severity": "fyi",
+        "resolution": "No change required for dg-04 scope; consider metrics/alerts in a follow-up if operators need SLOs on routing availability.",
+        "file_path": "openspec/changes/implement-the-task-router-vendor-x-location-x-model/design.md",
+        "evidence_class": "judgment"
+      },
+      {
+        "id": 11,
+        "type": "correctness",
+        "criticality": "low",
+        "description": "Plan correctly keeps a single additive routing surface: proposal.md, design.md D1, specs/task-routing/spec.md, tasks.md 1.4, and contracts/README.md all forbid introducing `POST /route/task` and require extending only `POST /routing/select_model` plus `select_model_for_task`.",
+        "disposition": "accept",
+        "axis": "architecture",
+        "severity": "none",
+        "file_path": "openspec/changes/implement-the-task-router-vendor-x-location-x-model/proposal.md",
+        "evidence_class": "judgment",
+        "existing_code": "This change does **not** create `POST /route/task`, score a second time, alter dispatch\nexecution, pin isolation precedence, or enforce a sandbox."
+      },
+      {
+        "id": 12,
+        "type": "correctness",
+        "criticality": "low",
+        "description": "Plan correctly sequences dg-01 in-process registry feasibility before dg-00 utility scoring, forbids name/publisher/fuzzy association, preserves dg-00 static fallback equality, uses strict versioned `routing.yaml`, and keeps dg-05/dg-06/dg-07 out of scope (design.md D4–D5, D8–D9; specs/task-routing/spec.md registry and fallback requirements).",
+        "disposition": "accept",
+        "axis": "architecture",
+        "severity": "none",
+        "file_path": "openspec/changes/implement-the-task-router-vendor-x-location-x-model/design.md",
+        "evidence_class": "judgment",
+        "existing_code": "Only feasible lane/model candidates enter\nthe existing `score_and_rank`; DG-04 does not duplicate quality, posterior, cost,\nlatency, headroom, or exploration math."
+      }
+    ]
+  }
+}

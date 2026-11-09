@@ -47,6 +47,9 @@ CLI (skills shell out from markdown)::
 from __future__ import annotations
 
 import enum
+import hashlib
+import json
+import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -118,6 +121,21 @@ class GateDisposition:
     disposition: Disposition
     timeout_seconds: Optional[int] = None
     default_action: Optional[DefaultAction] = None
+    # dispatch-contract D8: the fallback applied to an `auto` proposal_approval /
+    # replan_required gate when no launch marker carries a roadmap_approval_ref.
+    # Only those two gates may declare it; `None` means the default (block).
+    unscoped: Optional["GateDisposition"] = None
+
+    def to_canonical(self) -> dict:
+        """The parsed config as a JSON-ready mapping (no defaults invented)."""
+        data: dict = {"disposition": self.disposition.value}
+        if self.timeout_seconds is not None:
+            data["timeout_seconds"] = self.timeout_seconds
+        if self.default_action is not None:
+            data["default_action"] = self.default_action.value
+        if self.unscoped is not None:
+            data["unscoped"] = self.unscoped.to_canonical()
+        return data
 
     @property
     def is_block(self) -> bool:
@@ -133,6 +151,10 @@ class GateDisposition:
 # structural anchor of the backward-compatibility guarantee.
 BLOCK = GateDisposition(disposition=Disposition.BLOCK)
 
+#: Gates whose `auto` disposition is scoped to a roadmap approval (D8). Only
+#: these may declare an `unscoped` fallback.
+SCOPED_GATES = frozenset({Gate.PROPOSAL_APPROVAL, Gate.REPLAN_REQUIRED})
+
 
 @dataclass(frozen=True)
 class TrustPosture:
@@ -142,6 +164,9 @@ class TrustPosture:
     gates: dict
     present: bool = False
     source_path: Optional[Path] = None
+    # Declared sync windows (empty == none declared, fail-closed). Defaults to an
+    # empty tuple so existing constructors are unaffected.
+    sync_windows: tuple = ()
 
     def disposition_for(self, gate: Union[Gate, str]) -> GateDisposition:
         """Return the resolved disposition for ``gate``.
@@ -151,6 +176,14 @@ class TrustPosture:
         the absent-file case both return :data:`BLOCK`.
         """
         return self.gates.get(_coerce_gate(gate), BLOCK)
+
+    def unscoped_for(self, gate: Union[Gate, str]) -> GateDisposition:
+        """The fallback for a scoped gate evaluated without a roadmap approval.
+
+        Absent ``unscoped`` (and every non-scoped gate) resolves to :data:`BLOCK`.
+        """
+        configured = self.disposition_for(gate).unscoped
+        return configured if configured is not None else BLOCK
 
     def is_present(self) -> bool:
         return self.present
@@ -182,6 +215,205 @@ def _find_repo_root(start: Optional[Path] = None) -> Path:
 
 
 # --------------------------------------------------------------------------- #
+# Sync windows
+# --------------------------------------------------------------------------- #
+
+#: The sync-point skills a window may authorize to start without a user.
+SYNC_SKILLS = frozenset({"merge-pull-requests", "update-specs", "cleanup-feature"})
+
+#: PR origins a window may admit. Mirrors ``github_classifier.PR_ORIGINS``; this
+#: module stays a leaf with no skill dependency, and a parity test pins the two.
+SYNC_SOURCES = frozenset(
+    {
+        "openspec", "sentinel", "bolt", "palette", "jules",
+        "codex", "dependabot", "renovate", "other",
+    }
+)
+
+_SYNC_WINDOW_FIELDS = (
+    "id", "cadence", "skills", "allowed_sources", "auto_merge_ceiling",
+)
+_SYNC_ID_RE = re.compile(r"[a-z0-9]+(-[a-z0-9]+)*")
+#: Five fields of ``[0-9*/,-]`` separated by ASCII spaces, no padding. Kept
+#: character-identical to the JSON schema's ``cadence`` pattern so the loader and
+#: its declarative mirror accept exactly the same strings.
+_CADENCE_PATTERN = r"[0-9*/,-]+( +[0-9*/,-]+){4}"
+_CADENCE_RE = re.compile(_CADENCE_PATTERN)
+
+
+class MergeCeiling(str, enum.Enum):
+    """How far a window may auto-merge, ordered least to most permissive."""
+
+    NONE = "none"
+    AUTOMATION = "automation"
+    PLAN = "plan"
+    IMPLEMENTATION = "implementation"
+
+    def permits(self, kind: object) -> bool:
+        """True only for a known PR kind ranked at or below this ceiling.
+
+        An unknown or unclassified kind is never permitted (fail-closed).
+        """
+        rank = _KIND_RANK.get(kind) if isinstance(kind, str) else None
+        return rank is not None and rank <= _CEILING_RANK[self]
+
+
+#: Rank of each PR kind ``classify_kind.KIND_TO_SKILL`` emits.
+_KIND_RANK = {"automation": 1, "plan": 2, "implementation": 3}
+_CEILING_RANK = {
+    MergeCeiling.NONE: 0,
+    MergeCeiling.AUTOMATION: 1,
+    MergeCeiling.PLAN: 2,
+    MergeCeiling.IMPLEMENTATION: 3,
+}
+
+
+class SyncWindowNotAuthorized(Exception):
+    """The named sync window, or its listing of the skill, is not declared."""
+
+
+@dataclass(frozen=True)
+class SyncWindow:
+    """A declared window authorizing sync-point skills to start without a user."""
+
+    id: str
+    cadence: str
+    skills: tuple
+    allowed_sources: tuple
+    auto_merge_ceiling: MergeCeiling
+
+    def to_canonical(self) -> dict:
+        """Order-independent JSON-ready form (list fields sorted)."""
+        return {
+            "id": self.id,
+            "cadence": self.cadence,
+            "skills": sorted(self.skills),
+            "allowed_sources": sorted(self.allowed_sources),
+            "auto_merge_ceiling": self.auto_merge_ceiling.value,
+        }
+
+
+def _check_list_field(
+    label: str, name: str, value: object, allowed: frozenset
+) -> tuple:
+    """Validate one closed-vocabulary list field; returns (values, errors)."""
+    if not isinstance(value, list) or not value:
+        return (), [f"{label}: '{name}' must be a non-empty list"]
+    errors: list = []
+    seen: set = set()
+    for item in value:
+        if not isinstance(item, str) or item not in allowed:
+            errors.append(
+                f"{label}: unknown {name} value {item!r} "
+                f"(expected one of: {', '.join(sorted(allowed))})"
+            )
+        elif item in seen:
+            errors.append(f"{label}: '{name}' repeats value {item!r}")
+        seen.add(item if isinstance(item, str) else repr(item))
+    return tuple(value), errors
+
+
+def _build_sync_window(
+    index: int, raw: object, seen_ids: set
+) -> tuple[Optional[SyncWindow], list]:
+    if not isinstance(raw, dict):
+        return None, [
+            f"sync_windows[{index}]: entry must be a mapping, got {type(raw).__name__}"
+        ]
+    wid = raw.get("id")
+    label = (
+        f"sync_windows[{index}] {wid!r}" if isinstance(wid, str) else f"sync_windows[{index}]"
+    )
+    errors: list = []
+    for key in raw:
+        if key not in _SYNC_WINDOW_FIELDS:
+            errors.append(f"{label}: unknown field {key!r}")
+    for key in _SYNC_WINDOW_FIELDS:
+        if key not in raw:
+            errors.append(f"{label}: missing required field {key!r}")
+    if errors:
+        return None, errors
+
+    if not isinstance(wid, str) or not _SYNC_ID_RE.fullmatch(wid):
+        errors.append(f"{label}: 'id' must be kebab-case, got {wid!r}")
+    elif wid in seen_ids:
+        errors.append(f"{label}: duplicate window id {wid!r}")
+    else:
+        # Recorded before the other checks, so a later duplicate is reported
+        # even when this entry is rejected for another reason.
+        seen_ids.add(wid)
+
+    cadence = raw["cadence"]
+    if not isinstance(cadence, str) or not _CADENCE_RE.fullmatch(cadence):
+        errors.append(
+            f"{label}: 'cadence' must be five space-separated fields of "
+            f"[0-9*/,-] with no leading or trailing whitespace, got {cadence!r}"
+        )
+
+    skills, e = _check_list_field(label, "skills", raw["skills"], SYNC_SKILLS)
+    errors.extend(e)
+    sources, e = _check_list_field(
+        label, "allowed_sources", raw["allowed_sources"], SYNC_SOURCES
+    )
+    errors.extend(e)
+
+    ceiling_raw = raw["auto_merge_ceiling"]
+    ceiling: Optional[MergeCeiling] = None
+    try:
+        ceiling = MergeCeiling(ceiling_raw)
+    except ValueError:
+        known = ", ".join(c.value for c in MergeCeiling)
+        errors.append(
+            f"{label}: unknown auto_merge_ceiling {ceiling_raw!r} (expected one of: {known})"
+        )
+    if errors:
+        return None, errors
+    return SyncWindow(wid, cadence, skills, sources, ceiling), []
+
+
+def _build_sync_windows(raw: object) -> tuple[tuple, list]:
+    if raw is None:
+        return (), []
+    if not isinstance(raw, list):
+        return (), [f"sync_windows: must be a list, got {type(raw).__name__}"]
+    windows: list = []
+    errors: list = []
+    seen_ids: set = set()
+    for index, entry in enumerate(raw):
+        window, window_errors = _build_sync_window(index, entry, seen_ids)
+        errors.extend(window_errors)
+        if window is not None:
+            windows.append(window)
+    return tuple(windows), errors
+
+
+def authorize_sync_window(
+    posture: Optional[TrustPosture], window_id: str, skill: str
+) -> SyncWindow:
+    """Return the declared window iff it exists and lists ``skill``.
+
+    Raises :class:`SyncWindowNotAuthorized` (naming the missing declaration)
+    otherwise, and ``ValueError`` for a skill outside :data:`SYNC_SKILLS`. A
+    window is necessary, never sufficient: gate dispositions are not consulted.
+    ``None`` and the absent-file posture declare no windows, so both fail.
+    """
+    if skill not in SYNC_SKILLS:
+        raise ValueError(
+            f"unknown sync-point skill {skill!r}; known skills: "
+            f"{', '.join(sorted(SYNC_SKILLS))}"
+        )
+    windows = posture.sync_windows if posture is not None else ()
+    for window in windows:
+        if window.id == window_id:
+            if skill in window.skills:
+                return window
+            raise SyncWindowNotAuthorized(
+                f"sync window {window_id!r} does not list skill {skill!r}"
+            )
+    raise SyncWindowNotAuthorized(f"sync window {window_id!r} is not declared")
+
+
+# --------------------------------------------------------------------------- #
 # Parsing + validation
 # --------------------------------------------------------------------------- #
 
@@ -209,8 +441,15 @@ def _parse_front_matter(text: str) -> dict:
     )
 
 
-def _build_gate_disposition(name: str, cfg: dict) -> tuple[Optional[GateDisposition], list]:
+def _build_gate_disposition(
+    name: str, cfg: dict, *, allow_unscoped: bool = False
+) -> tuple[Optional[GateDisposition], list]:
     errors: list = []
+    unscoped: Optional[GateDisposition] = None
+    if "unscoped" in cfg:
+        unscoped, unscoped_errors = _build_unscoped(name, cfg["unscoped"], allow_unscoped)
+        if unscoped_errors:
+            return None, unscoped_errors
     disp_raw = cfg.get("disposition")
     if disp_raw is None:
         return None, [f"gate {name!r}: missing required 'disposition'"]
@@ -247,6 +486,7 @@ def _build_gate_disposition(name: str, cfg: dict) -> tuple[Optional[GateDisposit
             disposition=disposition,
             timeout_seconds=int(timeout),
             default_action=default_action,
+            unscoped=unscoped,
         ), errors
 
     # auto / block: timeout_seconds and default_action are not applicable. Reject
@@ -261,7 +501,25 @@ def _build_gate_disposition(name: str, cfg: dict) -> tuple[Optional[GateDisposit
         )
     if errors:
         return None, errors
-    return GateDisposition(disposition=disposition), errors
+    return GateDisposition(disposition=disposition, unscoped=unscoped), errors
+
+
+def _build_unscoped(
+    name: str, raw: object, allowed: bool
+) -> tuple[Optional[GateDisposition], list]:
+    """Parse a gate's ``unscoped`` fallback (D8): same shape as a gate config,
+    ``auto`` disallowed, and only on :data:`SCOPED_GATES`."""
+    if not allowed:
+        scoped = ", ".join(sorted(g.value for g in SCOPED_GATES))
+        return None, [f"gate {name!r}: 'unscoped' is only valid for {scoped}"]
+    if not isinstance(raw, dict):
+        return None, [f"gate {name!r}: 'unscoped' must be a mapping"]
+    if "unscoped" in raw:
+        return None, [f"gate {name!r}: 'unscoped.unscoped' is not allowed"]
+    if raw.get("disposition") == Disposition.AUTO.value:
+        return None, [f"gate {name!r}: 'unscoped.disposition' must not be auto"]
+    gd, errors = _build_gate_disposition(f"{name}.unscoped", raw)
+    return gd, errors
 
 
 def _build_posture(data: dict, source_path: Optional[Path]) -> TrustPosture:
@@ -294,14 +552,21 @@ def _build_posture(data: dict, source_path: Optional[Path]) -> TrustPosture:
         if not isinstance(cfg, dict):
             errors.append(f"gate {name!r}: config must be a mapping, got {type(cfg).__name__}")
             continue
-        gd, gate_errors = _build_gate_disposition(name, cfg)
+        gd, gate_errors = _build_gate_disposition(
+            name, cfg, allow_unscoped=gate in SCOPED_GATES
+        )
         errors.extend(gate_errors)
         if gd is not None:
             resolved[gate] = gd
 
+    windows, window_errors = _build_sync_windows(data.get("sync_windows"))
+    errors.extend(window_errors)
+
     if errors:
         raise PostureValidationError(errors)
-    return TrustPosture(gates=resolved, present=True, source_path=source_path)
+    return TrustPosture(
+        gates=resolved, present=True, source_path=source_path, sync_windows=windows
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -329,6 +594,31 @@ def load_posture(
     text = contract_path.read_text(encoding="utf-8")
     data = _parse_front_matter(text)
     return _build_posture(data, source_path=contract_path)
+
+
+def posture_digest(posture: Optional[TrustPosture]) -> str:
+    """SHA-256 of the canonical JSON of the parsed ``gates`` map and sync windows (D5).
+
+    Every gate is resolved through :meth:`TrustPosture.disposition_for`, so an
+    absent posture, an omitted gate and an explicit ``block`` all hash alike, and
+    edits to the Markdown body or to front-matter key order do not change the
+    digest. ``None`` means the absent-posture (all-block) default.
+    """
+    resolved = posture if posture is not None else TrustPosture(gates={})
+    canonical: dict = {
+        gate.value: resolved.disposition_for(gate).to_canonical() for gate in Gate
+    }
+    if resolved.sync_windows:
+        # Only when windows are declared, so a window-less posture keeps the
+        # exact gates-only digest it had before this field existed (D5).
+        canonical = {
+            "gates": canonical,
+            "sync_windows": sorted(
+                (w.to_canonical() for w in resolved.sync_windows), key=lambda w: w["id"]
+            ),
+        }
+    payload = json.dumps(canonical, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
 
 
 def validate_posture_file(path: Union[str, Path]) -> list:
@@ -376,6 +666,15 @@ def _main(argv: list) -> int:
             if gd.disposition is Disposition.NOTIFY_WITH_TIMEOUT:
                 extra = f" timeout={gd.timeout_seconds}s default={gd.default_action.value}"
             print(f"  {gate.value}: {gd.disposition.value}{extra}")
+        print("sync_windows:")
+        if not posture.sync_windows:
+            print("  (none declared)")
+        for w in sorted(posture.sync_windows, key=lambda w: w.id):
+            print(
+                f"  {w.id}: cadence={w.cadence!r} skills={','.join(sorted(w.skills))}"
+                f" sources={','.join(sorted(w.allowed_sources))}"
+                f" ceiling={w.auto_merge_ceiling.value}"
+            )
         return 0
     print(f"unknown command {command!r}; use validate|show", file=sys.stderr)
     return 1

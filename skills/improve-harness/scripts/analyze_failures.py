@@ -7,6 +7,11 @@ severity, source).  Also scans ``openspec/changes/**/session-log.md`` for
 by frequency x severity weight, and returns structured findings for report
 generation.
 
+Optionally merges the repository's shared learnings projection
+(``.agentic-toolkit/learnings.jsonl``) when ``.agentic-toolkit/config.json``
+enables it.  Merged records are tagged ``origin:shared-repo`` and are never
+written back to episodic memory.
+
 Environment:
     COORDINATOR_URL  — base URL of the coordinator (default: http://localhost:8000)
 """
@@ -159,6 +164,10 @@ def rank_findings(
             source = _extract_tag(tags, "source")
             if source:
                 sources.add(source)
+
+            origin = _extract_tag(tags, "origin")
+            if origin:
+                sources.add(f"origin:{origin}")
 
         # Determine the highest severity seen
         max_severity = "low"
@@ -350,6 +359,106 @@ def normalize_memory_entries(
 
 
 # ---------------------------------------------------------------------------
+# Shared learnings (one-way, read-only consumption of the repo projection)
+# ---------------------------------------------------------------------------
+
+SHARED_ORIGIN_TAG = "origin:shared-repo"
+SHARED_LEARNINGS_RELPATH = Path(".agentic-toolkit") / "learnings.jsonl"
+
+
+def _entry_key(entry: dict[str, Any]) -> tuple[str, str, str]:
+    """Dedupe key for shared records: ``(capability_gap, affected_skill, summary)``.
+
+    Exported records carry no ``session_id``, so the local
+    ``(capability_gap, affected_skill, session_id)`` key cannot apply to them.
+    """
+    tags = entry.get("tags") or []
+    return (
+        _extract_tag(tags, "capability_gap") or "unknown",
+        _extract_tag(tags, "affected_skill") or "unknown",
+        str(entry.get("summary") or ""),
+    )
+
+
+def sharing_enabled(repo_root: str | os.PathLike[str]) -> bool:
+    """True when ``<repo_root>/.agentic-toolkit/config.json`` opts in."""
+    here = str(Path(__file__).resolve().parent)
+    if here not in sys.path:
+        sys.path.insert(0, here)
+    from export_shared_learnings import sharing_enabled as _enabled
+
+    return _enabled(repo_root)[0]
+
+
+def load_shared_learnings(
+    repo_root: str | os.PathLike[str] | None = None,
+    path: str | os.PathLike[str] | None = None,
+) -> list[dict[str, Any]]:
+    """Read the shared learnings projection; ``[]`` unless sharing is enabled.
+
+    Never writes anywhere.  Unreadable files and malformed lines are skipped
+    with a warning, because the projection is advisory context.
+    """
+    root = Path(repo_root) if repo_root is not None else Path(os.getcwd())
+    if not sharing_enabled(root):
+        return []
+    source = Path(path) if path is not None else root / SHARED_LEARNINGS_RELPATH
+    try:
+        text = source.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return []
+    except OSError as exc:
+        print(f"WARNING: cannot read shared learnings {source} — {exc}", file=sys.stderr)
+        return []
+
+    records: list[dict[str, Any]] = []
+    for lineno, line in enumerate(text.splitlines(), 1):
+        if not line.strip():
+            continue
+        try:
+            record = json.loads(line)
+        except json.JSONDecodeError:
+            print(f"WARNING: {source}:{lineno} is not valid JSON; skipped", file=sys.stderr)
+            continue
+        if isinstance(record, dict) and isinstance(record.get("tags", []), list):
+            records.append(record)
+    return records
+
+
+def merge_shared_learnings(
+    memory_entries: list[dict[str, Any]],
+    shared_records: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Merge shared records into memory entries without mutating either input.
+
+    Records are deduplicated against local entries and against each other on
+    ``(capability_gap, affected_skill, summary)``.  A record that matches a
+    local entry marks that entry ``origin:shared-repo`` instead of appearing
+    twice; a new record is appended tagged ``origin:shared-repo``.  The result
+    is analysis input only and is never written back to episodic memory.
+    """
+    merged = [dict(e) for e in memory_entries]
+    index: dict[tuple[str, str, str], int] = {}
+    for i, entry in enumerate(merged):
+        index.setdefault(_entry_key(entry), i)
+
+    for record in shared_records:
+        key = _entry_key(record)
+        tags = list(record.get("tags") or [])
+        if key in index:
+            target = merged[index[key]]
+            target_tags = list(target.get("tags") or [])
+            if SHARED_ORIGIN_TAG not in target_tags:
+                target["tags"] = target_tags + [SHARED_ORIGIN_TAG]
+            continue
+        entry = dict(record)
+        entry["tags"] = tags + [SHARED_ORIGIN_TAG]
+        index[key] = len(merged)
+        merged.append(entry)
+    return merged
+
+
+# ---------------------------------------------------------------------------
 # CLI entry point
 # ---------------------------------------------------------------------------
 
@@ -376,6 +485,14 @@ def main() -> None:
         "--repo-root", type=str, default=None,
         help="Repository root for session-log scanning (default: cwd)",
     )
+    parser.add_argument(
+        "--shared-learnings", type=str, default=None,
+        help=(
+            "Shared learnings JSONL to merge (default: "
+            "<repo-root>/.agentic-toolkit/learnings.jsonl). Read only when "
+            ".agentic-toolkit/config.json enables shared_learnings."
+        ),
+    )
     args = parser.parse_args()
 
     # Collect from both sources
@@ -398,8 +515,12 @@ def main() -> None:
         memory_findings + session_log_findings
     )
 
+    # One-way merge of the repo-scoped shared learnings (never stored back).
+    shared_records = load_shared_learnings(args.repo_root, args.shared_learnings)
+    ranking_input = merge_shared_learnings(memory_entries, shared_records)
+
     # Rank using the standard pipeline (convert back to tag-based format)
-    ranked = rank_findings(memory_entries)
+    ranked = rank_findings(ranking_input)
 
     if args.json:
         # Strip raw entries from JSON output for readability

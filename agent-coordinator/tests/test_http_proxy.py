@@ -14,7 +14,7 @@ Covers:
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import httpx
 import pytest
@@ -911,6 +911,28 @@ async def test_proxy_release_lock_sends_identity(_reset_client: None) -> None:
     assert captured["json"]["file_path"] == "x.py"
 
 
+
+@pytest.mark.asyncio
+async def test_proxy_complete_work_leaves_identity_to_authenticated_principal(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    request = AsyncMock(return_value={"success": True})
+    monkeypatch.setattr(http_proxy, "_request", request)
+    monkeypatch.setattr(
+        http_proxy,
+        "_agent_identity",
+        MagicMock(side_effect=AssertionError("ambient identity must not be read")),
+    )
+
+    await http_proxy.proxy_complete_work(
+        task_id="ledger-task",
+        success=True,
+    )
+
+    body = request.await_args.kwargs["json_body"]
+    assert "agent_id" not in body
+    assert "agent_type" not in body
+
 async def test_proxy_submit_and_reconcile_projection_payloads(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -929,6 +951,15 @@ async def test_proxy_submit_and_reconcile_projection_payloads(
     assert request.await_args_list[0].args[:2] == ("POST", "/work/submit")
     assert request.await_args_list[0].kwargs["json_body"]["projection_key"] == key
     assert request.await_args_list[0].kwargs["json_body"]["projection_labels"] == labels
+    assert "claim_immediately" not in request.await_args_list[0].kwargs["json_body"]
+
+    await http_proxy.proxy_submit_work(
+        task_type="vendor-dispatch-correlation",
+        description="atomic ledger row",
+        claim_immediately=True,
+    )
+    assert request.await_args_list[1].args[:2] == ("POST", "/work/submit")
+    assert request.await_args_list[1].kwargs["json_body"]["claim_immediately"] is True
 
     await http_proxy.proxy_reconcile_work_projection(
         projection_key=key,
@@ -936,9 +967,9 @@ async def test_proxy_submit_and_reconcile_projection_payloads(
         description="resume",
         projection_labels=labels,
     )
-    assert request.await_args_list[1].args[:2] == ("POST", "/work/reconcile")
-    assert request.await_args_list[1].kwargs["json_body"]["projection_key"] == key
-    assert request.await_args_list[1].kwargs["json_body"]["projection_labels"] == labels
+    assert request.await_args_list[2].args[:2] == ("POST", "/work/reconcile")
+    assert request.await_args_list[2].kwargs["json_body"]["projection_key"] == key
+    assert request.await_args_list[2].kwargs["json_body"]["projection_labels"] == labels
 
 
 @pytest.mark.asyncio

@@ -26,7 +26,14 @@ import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
+from types import ModuleType
 from typing import Any
+
+system_one_decisions: ModuleType | None
+try:
+    import system_one_decisions
+except ImportError:
+    system_one_decisions = None
 
 logger = logging.getLogger(__name__)
 
@@ -160,6 +167,14 @@ class FindingMatch:
     matched: list[Finding] = field(default_factory=list)
     score: float = 0.0
     basis: str = ""
+    #: Vendors whose contribution to this match came from the judged path,
+    #: as opposed to a fast path or Jaccard. Tracked separately from
+    #: `basis` (which only ever holds the single last-assigned basis
+    #: string) so a later fast-path/Jaccard match against a *different*
+    #: vendor can never overwrite and hide an earlier judged one --
+    #: `_consensus_evidence_class` must not depend on vendor iteration
+    #: order (Codex review, PR #590).
+    judged_vendors: set[str] = field(default_factory=set)
 
 
 @dataclass
@@ -332,21 +347,20 @@ def _normalize_snippet(code: str) -> str:
     return "\n".join(lines)
 
 
-def match_score(a: Finding, b: Finding) -> tuple[float, str]:
-    """Compute match score and basis between two findings.
+def _fast_path_score(a: Finding, b: Finding) -> tuple[float, str]:
+    """Location and snippet bands only -- no Jaccard, no judgment.
 
-    Score bands are calibrated so each is reachable at the default 0.6
-    threshold with realistic inputs — independent LLMs never produce
-    verbatim-identical descriptions, so every band must clear the
-    threshold on paraphrased agreement.
+    Split out from ``match_score`` (design D1 of
+    ``judge-cross-vendor-finding-matching-in-consensus-synthesizer``) so
+    ``_match_all`` can determine, for every candidate pair, whether it is
+    resolved without ever needing an LLM call: a pair scored here is never
+    routed to ``_judge_pairs``. Axis mismatch is checked first since it
+    gates every band, fast or not.
 
     Returns:
         (score, basis) where score is 0.0-1.0 and basis describes
-        the matching criteria used.
+        the matching criteria used, or (0.0, "") when neither band fires.
     """
-    # Axis is part of the cross-vendor matching key: an observability
-    # finding and a correctness finding on the same lines are two distinct
-    # signals, and merging them would silently drop one.
     if _canonical_axis(a.axis) != _canonical_axis(b.axis):
         return 0.0, ""
 
@@ -373,6 +387,37 @@ def match_score(a: Finding, b: Finding) -> tuple[float, str]:
         if _normalize_snippet(a.existing_code) == _normalize_snippet(b.existing_code):
             return 0.9, "snippet"
 
+    return 0.0, ""
+
+
+def match_score(a: Finding, b: Finding) -> tuple[float, str]:
+    """Compute match score and basis between two findings.
+
+    Score bands are calibrated so each is reachable at the default 0.6
+    threshold with realistic inputs — independent LLMs never produce
+    verbatim-identical descriptions, so every band must clear the
+    threshold on paraphrased agreement.
+
+    This is the deterministic scorer only -- fast paths (location, snippet)
+    plus Jaccard token-overlap. It never calls a judged path; that is
+    orchestrated separately by ``ConsensusSynthesizer._match_all`` via
+    ``_judge_pairs``, so this function's behavior (and every existing
+    caller's, including ``review_ledger.py``'s dedup matching) is unchanged
+    by that feature.
+
+    Returns:
+        (score, basis) where score is 0.0-1.0 and basis describes
+        the matching criteria used.
+    """
+    fast_score, fast_basis = _fast_path_score(a, b)
+    if fast_score > 0.0:
+        return fast_score, fast_basis
+
+    if _canonical_axis(a.axis) != _canonical_axis(b.axis):
+        return 0.0, ""
+
+    same_type = _types_compatible(a.type, b.type)
+    same_file = _paths_match(a.file_path, b.file_path)
     desc_sim = _jaccard(_tokenize(a.description), _tokenize(b.description))
 
     if same_file and same_type and desc_sim >= 0.25:
@@ -385,6 +430,60 @@ def match_score(a: Finding, b: Finding) -> tuple[float, str]:
         return min(0.3 + desc_sim * 0.6, 0.75), "type+description"
 
     return 0.0, ""
+
+
+def _judge_pairs(
+    file_path: str, pairs: list[tuple[Finding, Finding]],
+) -> dict[int, float]:
+    """Judge every same-file, same-axis candidate pair unresolved by the
+    fast paths, in one batched ``decide()`` call (design D1/D2).
+
+    Builds one shared per-file state and one ``Noul`` question per pair, so
+    a file with N judgeable pairs costs exactly one call regardless of N.
+    Returns a ``{pair_index: noul_confidence}`` map covering only the pairs
+    that got an answer; a missing index means ``decide()`` was unavailable
+    (or answered nothing for that index), and the caller falls back to
+    ``match_score``'s Jaccard bands for it (design D3).
+
+    Called only from ``ConsensusSynthesizer._match_all``. ``match_score``
+    and ``review_ledger.py``'s dedup matching are unaffected.
+    """
+    if not pairs or system_one_decisions is None:
+        return {}
+
+    state = {
+        "file_path": file_path,
+        "pairs": {
+            f"pair_{i}": {
+                "a": {"vendor": a.vendor, "description": a.description},
+                "b": {"vendor": b.vendor, "description": b.description},
+            }
+            for i, (a, b) in enumerate(pairs)
+        },
+    }
+    questions = {
+        f"pair_{i}": {
+            "type": "noul",
+            "instructions": (
+                f"In state.pairs.pair_{i}, findings a and b describe the "
+                "same underlying defect."
+            ),
+        }
+        for i in range(len(pairs))
+    }
+
+    answers = system_one_decisions.decide(
+        state, questions, site="parallel-infrastructure.consensus_match",
+    )
+    if answers is None:
+        return {}
+
+    result: dict[int, float] = {}
+    for i in range(len(pairs)):
+        answer = answers.get(f"pair_{i}")
+        if answer is not None:
+            result[i] = max(0.0, min(1.0, float(answer.noul)))
+    return result
 
 
 def _higher_criticality(a: str, b: str) -> str:
@@ -424,7 +523,25 @@ def _agreed_axis(findings: list[Finding]) -> str:
 # Synthesizer
 # ---------------------------------------------------------------------------
 
-MATCH_THRESHOLD = 0.6
+
+def _default_match_threshold() -> float:
+    """Return the cross-vendor match-score threshold, sourced from the
+    review-rules sidecar when available, else its documented default.
+
+    Same shape as ``_coverage_quorum_threshold`` below, and for the same
+    reason: this module's CLI has no natural ``cwd`` to resolve a project
+    override against, so it uses the embedded default rather than the full
+    ``review_rules.load_config`` resolution chain.
+    """
+    try:
+        import review_rules
+
+        return review_rules.DEFAULT_MATCH_THRESHOLD
+    except Exception:  # noqa: BLE001 — degrade to the documented default
+        return 0.6
+
+
+MATCH_THRESHOLD = _default_match_threshold()
 
 
 class ConsensusSynthesizer:
@@ -507,63 +624,182 @@ class ConsensusSynthesizer:
         )
 
     def _match_all(self, findings: list[Finding]) -> list[FindingMatch]:
-        """Match findings across vendors using greedy best-match."""
-        used: set[tuple[str, int]] = set()
-        matches: list[FindingMatch] = []
+        """Match findings across vendors using greedy best-match.
 
-        # Group findings by vendor
-        by_vendor: dict[str, list[Finding]] = {}
-        for f in findings:
-            by_vendor.setdefault(f.vendor, []).append(f)
+        Every finding starts as its own primary (`by_primary`); a match is
+        recorded by *merging* one primary into another (`merge`), never by
+        an eager, order-dependent "used" flag -- a primary with an
+        unresolved vendor slot stays a fully live candidate for every later
+        pass, and `_consensus_evidence_class` reads `judged_vendors` off
+        the surviving primary rather than a single overwritable `basis`
+        string (Codex review, PR #590 P1: matching and evidence-class must
+        not depend on vendor iteration order).
 
-        vendors = list(by_vendor.keys())
+        Three passes (design D1-D3), each scoring every still-live,
+        cross-vendor pair with an unfilled slot up front and merging
+        strongest-first, so a primary with multiple same-vendor candidates
+        still gets its single best match rather than merely the first one
+        to clear the threshold:
 
-        # For each finding, find best matches from other vendors
-        for f in findings:
-            key = (f.vendor, f.id)
-            if key in used:
-                continue
+        1. Fast paths (location, snippet) -- zero `decide()` calls.
+        2. Batched judgment: every same-file, same-axis pair still live
+           after pass 1 is judged in exactly one `decide()` call *per
+           file*, spanning every primary and vendor on that file at once
+           -- not one call per primary (Codex review, PR #590 P2).
+        3. Jaccard fallback for everything still unresolved.
 
-            match = FindingMatch(primary=f)
-            used.add(key)
+        Note: unlike the pre-judgment algorithm (which scored fast-path,
+        judged, and Jaccard bands together for a pair in one comparison),
+        a fast-path hit in pass 1 is taken before judgment or Jaccard is
+        ever tried for that pair. Both later bands are still tried for
+        every pair pass 1 left unresolved, so total coverage is unchanged;
+        only a narrow tie-break between a fast-path score for one candidate
+        and a higher Jaccard score for a *different* candidate from the
+        same vendor could in principle differ.
+        """
+        def key_of(x: Finding) -> tuple[str, int]:
+            return (x.vendor, x.id)
 
-            # Find matches from other vendors
-            for other_vendor in vendors:
-                if other_vendor == f.vendor:
-                    continue
-                best_score = 0.0
-                best_match: Finding | None = None
-                best_basis = ""
-                for candidate in by_vendor[other_vendor]:
-                    ckey = (candidate.vendor, candidate.id)
-                    if ckey in used:
+        # Every finding starts as its own primary. Passes 1-3 never delete a
+        # finding; a match is recorded by *merging* the loser primary's own
+        # match into the winner's (`merge`), so every primary considered by
+        # a later pass is always still live -- there is no separate "used"
+        # bookkeeping to fall out of sync with (the bug Codex's P1 finding
+        # on PR #590 caught: a single overwritable `basis`/eager-"used"
+        # scheme made matching depend on vendor iteration order).
+        by_primary: dict[tuple[str, int], FindingMatch] = {
+            key_of(f): FindingMatch(primary=f) for f in findings
+        }
+        filled_slots: set[tuple[tuple[str, int], str]] = set()
+
+        def merge(winner_key: tuple[str, int], loser_key: tuple[str, int], score: float, basis: str) -> None:
+            winner = by_primary[winner_key]
+            loser = by_primary.pop(loser_key)
+            winner.matched.append(loser.primary)
+            winner.score = max(winner.score, score)
+            winner.basis = basis
+            if basis == "judged":
+                winner.judged_vendors.add(loser.primary.vendor)
+            filled_slots.add((winner_key, loser.primary.vendor))
+            # Reparent whatever the loser had already matched (rare: only
+            # possible with 3+ vendors), and everything it renders unavailable.
+            for m in loser.matched:
+                winner.matched.append(m)
+                filled_slots.add((winner_key, m.vendor))
+            winner.judged_vendors |= loser.judged_vendors
+
+        def live_pairs() -> list[tuple[tuple[str, int], tuple[str, int]]]:
+            """Every unordered pair of still-live, cross-vendor primaries
+            with an unfilled slot in both directions."""
+            keys = list(by_primary.keys())
+            pairs = []
+            for i, pk in enumerate(keys):
+                p = by_primary[pk].primary
+                for qk in keys[i + 1:]:
+                    q = by_primary[qk].primary
+                    if p.vendor == q.vendor:
                         continue
-                    s, basis = match_score(f, candidate)
-                    if s > best_score:
-                        best_score = s
-                        best_match = candidate
-                        best_basis = basis
+                    if (pk, q.vendor) in filled_slots or (qk, p.vendor) in filled_slots:
+                        continue
+                    pairs.append((pk, qk))
+            return pairs
 
-                if best_match and best_score >= self.match_threshold:
-                    match.matched.append(best_match)
-                    match.score = max(match.score, best_score)
-                    match.basis = best_basis
-                    used.add((best_match.vendor, best_match.id))
+        # Pass 1: fast paths only -- zero decide() calls. Scored for every
+        # live pair up front and merged strongest-first, so a primary with
+        # multiple same-vendor candidates still gets its single best match
+        # (as the pre-judgment algorithm did), not merely the first one
+        # found to clear the threshold.
+        fast_scored: list[tuple[float, str, tuple[str, int], tuple[str, int]]] = []
+        for pk, qk in live_pairs():
+            p, q = by_primary[pk].primary, by_primary[qk].primary
+            score, basis = _fast_path_score(p, q)
+            if score >= self.match_threshold:
+                fast_scored.append((score, basis, pk, qk))
+        for score, basis, pk, qk in sorted(fast_scored, key=lambda t: t[0], reverse=True):
+            if pk not in by_primary or qk not in by_primary:
+                continue
+            p, q = by_primary[pk].primary, by_primary[qk].primary
+            if (pk, q.vendor) in filled_slots or (qk, p.vendor) in filled_slots:
+                continue
+            merge(pk, qk, score, basis)
 
-            matches.append(match)
+        # Pass 2: batched judgment. Every same-file, same-axis pair among
+        # still-live primaries is judged in exactly one decide() call per
+        # file, regardless of how many primaries or vendors it spans.
+        by_file: dict[str, list[tuple[tuple[str, int], tuple[str, int]]]] = {}
+        for pk, qk in live_pairs():
+            p, q = by_primary[pk].primary, by_primary[qk].primary
+            if not p.file_path or not q.file_path:
+                continue
+            if _canonical_axis(p.axis) != _canonical_axis(q.axis):
+                continue
+            if not _paths_match(p.file_path, q.file_path):
+                continue
+            by_file.setdefault(_normalize_path(p.file_path), []).append((pk, qk))
 
-        return matches
+        judged: list[tuple[float, tuple[str, int], tuple[str, int]]] = []
+        for file_path, pairs in by_file.items():
+            finding_pairs = [
+                (by_primary[pk].primary, by_primary[qk].primary) for pk, qk in pairs
+            ]
+            scores = _judge_pairs(file_path, finding_pairs)
+            for idx, (pk, qk) in enumerate(pairs):
+                s = scores.get(idx)
+                if s is not None:
+                    judged.append((s, pk, qk))
+
+        for score, pk, qk in sorted(judged, key=lambda t: t[0], reverse=True):
+            if score < self.match_threshold:
+                continue
+            if pk not in by_primary or qk not in by_primary:
+                continue
+            p, q = by_primary[pk].primary, by_primary[qk].primary
+            if (pk, q.vendor) in filled_slots or (qk, p.vendor) in filled_slots:
+                continue
+            merge(pk, qk, score, "judged")
+
+        # Pass 3: Jaccard fallback for everything still unresolved, same
+        # strongest-first merge order as pass 1.
+        jaccard_scored: list[tuple[float, str, tuple[str, int], tuple[str, int]]] = []
+        for pk, qk in live_pairs():
+            p, q = by_primary[pk].primary, by_primary[qk].primary
+            score, basis = match_score(p, q)
+            if score >= self.match_threshold:
+                jaccard_scored.append((score, basis, pk, qk))
+        for score, basis, pk, qk in sorted(jaccard_scored, key=lambda t: t[0], reverse=True):
+            if pk not in by_primary or qk not in by_primary:
+                continue
+            p, q = by_primary[pk].primary, by_primary[qk].primary
+            if (pk, q.vendor) in filled_slots or (qk, p.vendor) in filled_slots:
+                continue
+            merge(pk, qk, score, basis)
+
+        return [by_primary[key_of(f)] for f in findings if key_of(f) in by_primary]
 
     @staticmethod
     def _consensus_evidence_class(match: "FindingMatch") -> str:
-        """JUDGMENT only when every contributing finding was judgment-class.
+        """JUDGMENT when any contributing vendor was matched via the judged
+        path, or when every contributing finding was judgment-class.
 
-        One deterministic corroboration is enough to make the consensus finding
-        blockable. The reproducible observation is what carries it; a model
-        agreeing with a failing test does not make the test less real, and the
-        reverse — letting one judgment voice demote a reproducible finding out of
-        the blocking count — would be a way to talk a gate out of firing.
+        `match.judged_vendors` (not `match.basis`, which only ever holds
+        the single most-recently-assigned basis string and can be
+        overwritten by a later fast-path/Jaccard match against a
+        *different* vendor) tracks every vendor whose contribution came
+        from judgment. Any non-empty set is always JUDGMENT,
+        unconditionally -- a probabilistic cross-vendor pairing can never
+        promote a consensus finding into the blocking count, regardless of
+        how confident the contributing findings' own evidence classes are,
+        and regardless of vendor iteration order (Codex review, PR #590).
+
+        Otherwise: one deterministic corroboration is enough to make the
+        consensus finding blockable. The reproducible observation is what
+        carries it; a model agreeing with a failing test does not make the
+        test less real, and the reverse — letting one judgment voice demote
+        a reproducible finding out of the blocking count — would be a way
+        to talk a gate out of firing.
         """
+        if match.judged_vendors:
+            return JUDGMENT
         contributing = [match.primary, *match.matched]
         return (
             JUDGMENT

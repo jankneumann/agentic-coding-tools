@@ -1,0 +1,162 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "security",
+      "criticality": "high",
+      "description": "Critical: skills/bao-vault/scripts/langfuse_env.sh still prefers ambient BAO_TOKEN over BAO_INTERNAL_ROLE_ID/BAO_INTERNAL_SECRET_ID. CFG-19 and D5 require the coordinator-internal loader (including langfuse_env.sh) to authenticate with only the renamed internal AppRole inputs; OpenBaoConfig/profile_loader already enforce that, but this helper does not. run_live_matrix.sh exports BAO_TOKEN=dev-root-token, so the live Langfuse assertion must clear BAO_TOKEN to exercise the internal path\u2014operators who eval the helper in a provisioning shell with BAO_TOKEN set will authenticate with the provisioner token instead of the isolated internal role.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "critical",
+      "resolution": "Authenticate langfuse_env.sh with BAO_INTERNAL_* only when BAO_ADDR is set; do not accept BAO_TOKEN for this helper. Update the header comment and add a unit/live assertion that BAO_TOKEN is ignored when internal inputs are present (and that provisioner-token-only auth is rejected).",
+      "package_id": "wp-integration",
+      "file_path": "skills/bao-vault/scripts/langfuse_env.sh",
+      "line_range": {
+        "start": 11,
+        "end": 59
+      },
+      "evidence_class": "judgment",
+      "existing_code": "token=\"${BAO_TOKEN:-}\"\n        if [ -z \"$token\" ] && [ -n \"${BAO_INTERNAL_ROLE_ID:-}\" ] && [ -n \"${BAO_INTERNAL_SECRET_ID:-}\" ]; then"
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Nit: Task 5.3 / design D3 require tests covering sequential and simultaneous dispatch processes sharing one bootstrap directory (CFG-17 interprocess lock: only one unwrap, others reuse the session cache). The live matrix only proves same-process sequential ensure_session reuse in test_wrap_lookup_replay_and_fresh_recovery; packages/openbao-credentials unit tests likewise lack a multi-process contention case. The flock path is therefore unproven under concurrency.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "Add a live (or adapter integration) test that starts two concurrent processes against the same principal bootstrap dir and asserts a single unwrap plus locked session reuse.",
+      "package_id": "wp-integration",
+      "file_path": "skills/bao-vault/scripts/tests/integration/test_live_openbao.py",
+      "line_range": {
+        "start": 123,
+        "end": 144
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Nit: Task 5.4 lists COORD-05 for live coordinator rotation testing, but test_coordinator_live_snapshot_rotation_and_readiness stops after a duplicate-key reload failure leaves readiness degraded; it never repairs the documents and asserts a subsequent successful reload restores ready status and the recovered map (COORD-05). COORD-01/02/03 behaviors are exercised; recovery is not.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "After restoring distinct api_key values in the test body (not only in finally), call reload() again and assert readiness == (\"ready\", True) and lookups match the repaired keys.",
+      "package_id": "wp-integration",
+      "file_path": "skills/bao-vault/scripts/tests/integration/test_live_openbao.py",
+      "line_range": {
+        "start": 231,
+        "end": 252
+      },
+      "evidence_class": "judgment",
+      "existing_code": "assert not runtime.reload()\n        assert runtime.readiness() == (\"degraded\", True)\n        assert runtime.lookup(\"alice-rotated\") is not None"
+    },
+    {
+      "id": 4,
+      "type": "resilience",
+      "criticality": "medium",
+      "description": "Optional: Task 5.1 / D6 ask the dedicated runner to fail when zero tests run. run_live_matrix.sh relies on pytest exit code 5 for an empty collection, but unlike the PostgREST/Postgres integration fail-closed hook it does not assert a minimum passed count or fail if the suite were entirely skipped. Today the live tests do not skip, so this is latent hardening rather than a current silent-pass bug.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "optional",
+      "resolution": "Parse pytest report output or use a sessionfinish hook / --override-ini to require passed > 0 and treat all-skipped as failure, mirroring agent-coordinator Postgres REQUIRE_* fail-closed behavior.",
+      "package_id": "wp-integration",
+      "file_path": "skills/bao-vault/scripts/tests/integration/run_live_matrix.sh",
+      "line_range": {
+        "start": 38,
+        "end": 41
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "FYI: Task 5.4 also names COORD-09 and COORD-10 for the live package, but the live matrix never installs required_static_keys / COORDINATION_API_KEYS bypass checks and never runs with BAO_ADDR absent (identity: disabled). Those scenarios remain covered by agent-coordinator unit tests (e.g. test_cutover_preflight_reports_unbound_static_keys_without_disclosing_values); the live task list overstates what the pinned fixture proves.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "fyi",
+      "resolution": "Either narrow task 5.4 scenario citations to what the live harness covers, or add thin live/API-level checks for static-allowlist denial and non-Bao readiness.",
+      "package_id": "wp-integration",
+      "file_path": "skills/bao-vault/scripts/tests/integration/test_live_openbao.py",
+      "line_range": {
+        "start": 231,
+        "end": 252
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 6,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Pinned OpenBao digest is shared by agent-coordinator/docker-compose.yml and run_live_matrix.sh; the runner rejects compose/image drift and :latest, health-checks a random localhost port, fails if the server never becomes ready, and does not inherit agent-coordinator PostgREST skip fixtures. CI job test-openbao-live wires the Langfuse unit tests and this runner.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "No change; keep the digest and runner guard in lockstep when bumping OpenBao.",
+      "package_id": "wp-integration",
+      "file_path": "skills/bao-vault/scripts/tests/integration/run_live_matrix.sh",
+      "line_range": {
+        "start": 5,
+        "end": 41
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 7,
+      "type": "security",
+      "criticality": "low",
+      "description": "none: Live policy matrix proves agent/vendor allow+deny, identity-reader vendor denial, egress-gateway agent denial, no list/write, local creation-path forgery rejected before unwrap (wrapping lookup still valid), and server-side sys/wrapping/wrap origin rejection (CFG-06/CFG-24). Synthetic fixture secrets only; no real credential material in the diff.",
+      "disposition": "accept",
+      "axis": "security",
+      "severity": "none",
+      "resolution": "Keep these cases as the minimum live conformance set.",
+      "package_id": "wp-integration",
+      "file_path": "skills/bao-vault/scripts/tests/integration/test_live_openbao.py",
+      "line_range": {
+        "start": 97,
+        "end": 201
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 8,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: test_periodic_token_renews_past_auth_mount_max_ttl tunes AppRole max_lease_ttl to 5s, issues a period=4s token with token_max_ttl=0, renews across >5s wall time while retaining the same client token, then restores prior mount tuning in finally\u2014matching D3\u2019s requirement to prove periodic renewal beyond the ordinary role/mount max-TTL window. Function-scoped live fixture isolation avoids cross-scenario session-dir reuse.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "Retain the mount-TTL proof; avoid running this file under xdist without per-test servers because auth-method tuning is process-global on the shared container.",
+      "package_id": "wp-integration",
+      "file_path": "skills/bao-vault/scripts/tests/integration/test_live_openbao.py",
+      "line_range": {
+        "start": 255,
+        "end": 287
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 9,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "none: docs/openbao-secret-management.md plus coordinator README/CLAUDE/.secrets.yaml.example document staged migration (backup, vendor keys into the flat file, migration map, dry-run, protected bootstrap modes, internal AppRole handoff, --confirm-cutover retirement) and explicit rollback (prior release + backed-up secret/coordinator, no dual-read / static-key override in OpenBao mode), satisfying the safe cutover/rollback documentation focus for tasks 5.5 and D3/D5/D6.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "resolution": "No change required for migration/rollback documentation.",
+      "package_id": "wp-integration",
+      "file_path": "docs/openbao-secret-management.md",
+      "line_range": {
+        "start": 11,
+        "end": 58
+      },
+      "evidence_class": "judgment"
+    }
+  ]
+}

@@ -1,0 +1,187 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: Legacy `vendor_limit:claude:<reason>` outcomes cannot produce the lane-scoped observations required by design.md:10-15. The existing outcome carries only `claude`, while agents.yaml defines both `claude-local` and `claude-remote` with provider type `claude_code`; provider_dispatch.py also carries provider/model but no lane ID. The outcome is therefore unmatched or ambiguous and cannot safely persist a limit.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "architecture",
+      "criticality": "high",
+      "description": "Critical: The policy boundary loses lane identity. design.md:46-49 removes one limited lane and then groups remaining lanes by provider type, but policy.py accepts flat vendor strings, compares them directly with `VendorLimit.vendor`, and returns only a provider string. The plan does not define how `from_vendor`, preferred vendors, cost lookups, decision records, and the next dispatch preserve both `lane_id` and `vendor_type`.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: The static pricing fallback in design.md:48-49 and tasks.md:35 contradicts the catalog-only behavior in proposal.md:14-15 and spec.md:21-25. policy.py's `_STATIC_COST_TIERS` is a second in-code price table whose normalized values can populate `expected_cost_delta_usd` and enforce a USD ceiling even when the catalog projection is required to be unknown.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: No deterministic join is defined from a lane to dg-00 catalog rows. CatalogService keys rows by `(vendor, model, endpoint_kind)`, while AgentEntry exposes a lane type and optional CLI/SDK/endpoint fields, many configured CLI models are null, and OpenRouter catalog vendors such as `anthropic` do not equal lane types such as `claude_code`. Independent implementations can select different rows or return unknown for the same lane.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: Per-model catalog prices cannot deterministically become the scalar policy delta compared with `cost_ceiling_usd`. spec.md:101-105 mentions model and token assumptions, but the plan defines no model-selection rule, prompt/completion token quantities, formula, stale-price rule, tie-break, units, or rounding. OpenAPI's `CostProjection.models` items are unconstrained objects, whereas dg-00 stores separate prompt and completion USD-per-million-token prices.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 6,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: Local endpoint availability is left in dg-00's catalog by design.md:5-8, but the effective availability precedence in design.md:25-30 and spec.md:48-51 considers only lane limits and watchdog probe snapshots. A local lane can therefore appear available or dispatchable while CatalogService's local probe marks its endpoint/model unavailable or stale. The plan must define how catalog-local health gates lane availability without duplicating its state.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 7,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: Probe freshness is optional end-to-end. design.md:25-30 requires stale evidence to become unknown, but contracts/db/schema.sql makes `stale_after` nullable, the event schema also permits null, and neither the spec nor tasks define a TTL source, default, or exact expiry boundary. A first successful or failed probe can remain authoritative forever after watchdog failure or restart.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 8,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: Rate-limit expiry is nondeterministic. OpenAPI permits `reset_at` and `retry_after_seconds` to be both absent or both present, storage retains only nullable `reset_at`, and no precedence, maximum horizon, server-time conversion, supersession, or null-reset behavior is specified. A valid observation can exclude a lane indefinitely or be normalized differently by different callers.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 9,
+      "type": "security",
+      "criticality": "critical",
+      "description": "Critical: The rate-limit endpoint specifies authentication but not authorization or trustworthy attribution. Any valid coordinator key can target any known lane and self-assert `source` and `observed_at`. Existing coordination_api.py already provides bound principals, anti-spoof identity resolution, and operation authorization, but the plan does not require their use and OpenAPI defines no 403 response.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 10,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: Registry-unavailable behavior is left as two materially different choices\u2014use a bounded injected fallback provider or fail closed\u2014in spec.md:107-111. The plan does not define the default, what bounds the fallback, its freshness or provenance, capability filtering, or behavior for timeout, 401/403, 404, 5xx, and malformed responses. An implementation can silently recreate the forbidden hardcoded roster.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 11,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: Tasks 3.5-3.6 require dispatcher-result metadata and ingestion, but wp-bridge-policy owns no existing dispatcher result producer. Its write scope omits `skills/autopilot/scripts/provider_dispatch.py` and `skills/autopilot/scripts/tests/test_provider_dispatch.py`; the current normalizer drops metadata beyond outcome, handoff, model, and warnings. A new reporter with no scoped caller cannot supply canonical lane/reset data.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 12,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: The verification plan cannot prove tasks 5.1-5.2. wp-integration's sole verification command is strict OpenSpec validation, despite tasks requiring focused suites, regressions, Ruff, mypy, and work-package gates. wp-api-producers also omits the existing `test_watchdog_vendor.py` compatibility suite and does not execute the vendor_health test it permits modifying.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 13,
+      "type": "resilience",
+      "criticality": "high",
+      "description": "Critical: The plan does not require registry persistence failures to be isolated from existing WatchdogService transition events. watchdog.py currently wraps probing, first-run baseline logic, persistence insertion points, and `vendor.unavailable`/`vendor.recovered` emission in one broad exception boundary. A failed snapshot write could suppress legacy events, yet tasks.md:25-26 has no persistence-failure scenario.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 14,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Nit: The event and persistence contracts admit incompatible states. Probe events may use `status: limited`, although `vendor_probe_state.status` rejects it, and both event and POST schemas allow `scope: model` without a model value. Kind-discriminated status rules and a required non-empty model for model scope are needed.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 15,
+      "type": "compatibility",
+      "criticality": "medium",
+      "description": "Nit: design.md:39-42 calls `{available, result|error}` the repository bridge envelope, but coordination_bridge.py uses `status=ok|error|skipped`, `COORDINATOR_AVAILABLE`, transport, response/data, and error fields. A one-off registry envelope would make existing normalization and caller error handling inconsistent.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "nit",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 16,
+      "type": "observability",
+      "criticality": "medium",
+      "description": "Nit: No requirement defines structured audit, logs, or metrics for accepted, duplicate, rejected, expired, or stale observations; catalog-match failures; persistence failures; or registry fallback activation. Operators would be unable to explain why a lane was excluded or why policy used degraded behavior without reconstructing database state.",
+      "disposition": "fix",
+      "axis": "observability",
+      "severity": "nit",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 17,
+      "type": "performance",
+      "criticality": "medium",
+      "description": "Nit: Rate-limit observations have no retention or compaction policy, while `Availability.rate_limits` is an unpaginated array of unconstrained objects with no active-versus-history semantics. Unlimited unique observation IDs, especially those without resets, cause unbounded storage and response work despite the table being described as active runtime state.",
+      "disposition": "fix",
+      "axis": "performance",
+      "severity": "nit",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 18,
+      "type": "style",
+      "criticality": "medium",
+      "description": "Nit: The plan overloads `vendor` across lane IDs, legacy aliases, AgentEntry provider types, catalog vendors, and policy variables while alternately naming the same API identifier `id`, `lane_id`, and `agent_id`. Add a canonical vocabulary and typed mappings so future implementers can distinguish lane identity, provider grouping, catalog vendor, and legacy aliases.",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "nit",
+      "evidence_class": "judgment"
+    }
+  ]
+}

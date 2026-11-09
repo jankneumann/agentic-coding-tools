@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "roadmap_id": "dispatch-governance",
+  "current_item_id": "dg-02",
+  "phase": "completed",
+  "created_at": "2026-09-16T15:00:01.347444+00:00",
+  "updated_at": "2026-09-22T04:32:13.859882+00:00",
+  "completed_items": [
+    "dg-00",
+    "dg-01",
+    "dg-04",
+    "dg-02"
+  ],
+  "gate_decisions": [
+    {
+      "gate": "roadmap_approval",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'roadmap_approval' approved by the operator \u2014 Direct autopilot-roadmap invocation for dg-00 recovery; stale in_progress state had no canonical checkpoint",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-09-16T15:00:01.350376+00:00",
+      "decision_id": "c0affb90-b7ec-4561-93e2-90dd3ea59835",
+      "source": "supervise",
+      "verb": "cycle",
+      "roadmap_id": "dispatch-governance",
+      "roadmap_fingerprint": "81793a9a40be8f8825a0499d7373e1b1d4496670ab38eee8b1b70e1e9900aa31",
+      "note": "Direct autopilot-roadmap invocation for dg-00 recovery; stale in_progress state had no canonical checkpoint"
+    }
+  ]
+}

@@ -5,6 +5,50 @@
 
 ---
 
+## 2026-09-24 — 2026-09-27-retain-static-model-until-routing-evidence
+
+### Phase: Implementation
+
+**Retention short-circuits to the static object on the client** — Retention is a normal outcome, not a fallback; returning `static` preserves identity and avoids a false 'routing failed' warning.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-27-retain-static-model-until-routing-evidence/session-log.md](/openspec/changes/archive/2026-09-27-retain-static-model-until-routing-evidence/session-log.md) (D3)
+
+---
+
+## 2026-09-16 — add-skill-audit
+
+### Phase: Implementation
+
+**Reconciled openspec/schemas/archetypes.schema.json from the skill-owned copy** — install.sh flagged divergence and assumes the openspec/ copy is newer; here the direction inverted because task 1.3 edited the skill-owned source. The stale copy provably rejected the shipped roster with '4 is not one of [1, 2, 3]'.
+
+- Status: `active`
+- Source: [openspec/changes/add-skill-audit/session-log.md](/openspec/changes/add-skill-audit/session-log.md) (D3)
+
+---
+
+## 2026-09-16 — add-skill-audit
+
+### Phase: Implementation
+
+**Corrected the proposal's injection point from compose_prompt to resolve_archetype_for_phase** — compose_prompt composes with a task prompt and is used by other callers such as audit_triage; injecting there would change behaviour beyond phase resolution. Design D3 was right and the Impact prose had drifted from it.
+
+- Status: `active`
+- Source: [openspec/changes/add-skill-audit/session-log.md](/openspec/changes/add-skill-audit/session-log.md) (D5)
+
+---
+
+## 2026-09-15 — add-skill-audit
+
+### Phase: Plan
+
+**procedure_mode is an optional field on the archetype, injected only in resolve_archetype_for_phase** — The tier is known there and nowhere else; the autopilot fold forwards system_prompt verbatim; the review dispatcher never composes an archetype prompt; guided default keeps output byte-identical.
+
+- Status: `active`
+- Source: [openspec/changes/add-skill-audit/session-log.md](/openspec/changes/add-skill-audit/session-log.md) (D3)
+
+---
+
 ## 2026-09-14 — 2026-09-13-retire-skill-literal-model-hints
 
 ### Phase: Plan
@@ -35,6 +79,17 @@
 
 - Status: `active`
 - Source: [openspec/changes/archive/2026-09-13-retire-skill-literal-model-hints/session-log.md](/openspec/changes/archive/2026-09-13-retire-skill-literal-model-hints/session-log.md) (D4)
+
+---
+
+## 2026-09-03 — add-model-usage-ledger
+
+### Phase: Plan
+
+**Thinking forwarded via per-provider argv template in agents.yaml** — agents.yaml stays the single source of truth for CLI shape; missing template warns and proceeds. Design D4.
+
+- Status: `active`
+- Source: [openspec/changes/add-model-usage-ledger/session-log.md](/openspec/changes/add-model-usage-ledger/session-log.md) (D4)
 
 ---
 

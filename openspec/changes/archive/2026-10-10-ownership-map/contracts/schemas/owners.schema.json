@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.dev/schemas/owners.schema.json",
+  "title": "openspec/owners.yaml",
+  "description": "Git-native ownership map (multiplayer-collaboration ri-02, change ownership-map). Assigns owners, decision rights and acceptance rights to OpenSpec capabilities, roadmap items and repository paths, with a mandatory repository-default owner as the fail-closed fallback. Owners are human principal ids declared in the `humans:` block of the principal registry (agents.yaml); agents are never owners. Resolved by skills/ownership-runtime/scripts/owners.py, which performs the cross-file checks this schema cannot (owner is registered, owner is not an agent).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "default_owner"],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version of this file."
+    },
+    "default_owner": {
+      "$ref": "#/$defs/PrincipalId",
+      "description": "Repository-default owner. Every subject with no matching assignment resolves to this principal (source: default_owner). Must be a registered human principal."
+    },
+    "registry": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^(?!/)(?!(?:.*/)?\\.\\.(?:/|$))(?!.*\\s$).+$",
+      "description": "Optional repo-relative path to the principal registry (agents.yaml). Confined to the repository: no leading `/`, no `..` segment, and the resolver rejects a value that resolves outside the repository root (design D3, D10). When omitted the resolver tries agent-coordinator/agents.yaml, then agents.yaml at the repository root. OWNERSHIP_REGISTRY_PATH overrides both and is not confined."
+    },
+    "assignments": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Explicit assignments by subject kind. Any kind may be omitted.",
+      "properties": {
+        "capabilities": {
+          "type": "object",
+          "description": "Keyed by OpenSpec capability directory name (openspec/specs/<name>).",
+          "propertyNames": { "$ref": "#/$defs/CapabilityName" },
+          "additionalProperties": { "$ref": "#/$defs/Assignment" }
+        },
+        "roadmap_items": {
+          "type": "object",
+          "description": "Keyed by <roadmap-id>/<item-id> as declared in openspec/roadmaps/<roadmap-id>/roadmap.yaml.",
+          "propertyNames": { "$ref": "#/$defs/RoadmapItemKey" },
+          "additionalProperties": { "$ref": "#/$defs/Assignment" }
+        },
+        "paths": {
+          "type": "object",
+          "description": "Keyed by repo-relative glob pattern. Restricted to the syntax CODEOWNERS and the resolver interpret identically: `*`, `**`, `?`, optional leading `/`, optional trailing `/`. No `!` negation, no `[...]` classes, no whitespace (design D3, D8). The most specific matching rule wins (design D4).",
+          "propertyNames": { "$ref": "#/$defs/PathPattern" },
+          "additionalProperties": { "$ref": "#/$defs/Assignment" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "PrincipalId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+      "description": "Human principal id: a key of the registry's `humans:` block. Shares the slug pattern and namespace with agent names."
+    },
+    "PrincipalList": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/PrincipalId" }
+    },
+    "CapabilityName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[a-z0-9][a-z0-9._-]*$"
+    },
+    "RoadmapItemKey": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 256,
+      "pattern": "^[a-z0-9][a-z0-9._-]*/[a-z0-9][a-z0-9._-]*$"
+    },
+    "PathPattern": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^/?(?:[A-Za-z0-9._*?-]+/)*[A-Za-z0-9._*?-]+/?$",
+      "description": "Repo-relative glob using only `*`, `**`, `?`, letters, digits, `.`, `_`, `-` and `/`. Negation, character classes and whitespace are rejected so the resolver and GitHub CODEOWNERS agree on every match. `**` must be a whole path segment; the loader rejects an embedded `**` (design D3 matching table)."
+    },
+    "Assignment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["owners"],
+      "properties": {
+        "owners": {
+          "$ref": "#/$defs/PrincipalList",
+          "description": "Principals who own this subject. Ownership is decision rights plus acceptance rights (P2); it is not a claim on implementation labor."
+        },
+        "decision_rights": {
+          "$ref": "#/$defs/PrincipalList",
+          "description": "Principals who decide questions the spec leaves open for this subject. Defaults to `owners`."
+        },
+        "acceptance_rights": {
+          "$ref": "#/$defs/PrincipalList",
+          "description": "Principals who accept or reject results delivered against this subject. Defaults to `owners`."
+        }
+      }
+    }
+  }
+}

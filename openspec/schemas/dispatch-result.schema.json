@@ -1,0 +1,250 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.dev/schemas/dispatch-result.schema.json",
+  "title": "Dispatch Result (v2)",
+  "description": "The only definition of the result a delegated child Autopilot run returns to the supervisor (dispatch-contract D1-D4, D10). Emitted by `runner.py emit-result` from the committed loop-state.json; version-1 results are validated against openspec/contracts/roadmap-orchestration/schemas/supervised-dispatch-result.schema.json and upgraded in memory by the shared dispatch_contract.upgrade_v1(). Paths are host-portable: no field carries an absolute path.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "dispatch_id",
+    "change_id",
+    "attempt",
+    "lease_generation",
+    "outcome",
+    "degradations"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 2
+    },
+    "dispatch_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "change_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+      "maxLength": 160
+    },
+    "attempt": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "lease_generation": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "outcome": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Outcome class. Each oneOf branch names its class in x-outcome-class; the closure contract test enumerates them.",
+      "oneOf": [
+        {"x-outcome-class": "success", "const": "success"},
+        {"x-outcome-class": "failed", "pattern": "^failed:.+$"},
+        {"x-outcome-class": "vendor_limit", "pattern": "^vendor_limit:[^:]+:.+$"},
+        {"x-outcome-class": "parked", "const": "parked"}
+      ]
+    },
+    "replan": {
+      "type": "boolean",
+      "default": false
+    },
+    "handoff_id": {
+      "type": ["string", "null"],
+      "maxLength": 256
+    },
+    "worktree_ref": {
+      "$ref": "#/$defs/WorktreeRef"
+    },
+    "branch": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "host_id": {
+      "$ref": "#/$defs/HostId"
+    },
+    "parked": {
+      "$ref": "#/$defs/Parked"
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["loop_state_path", "commit", "loop_state_digest"],
+      "properties": {
+        "loop_state_path": {
+          "$ref": "#/$defs/RelativePath",
+          "description": "loop-state.json path relative to the worktree root."
+        },
+        "commit": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "loop_state_digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "degradations": {
+      "type": "array",
+      "maxItems": 32,
+      "items": {"$ref": "#/$defs/Degradation"}
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"outcome": {"const": "success"}}, "required": ["outcome"]},
+      "then": {
+        "required": ["handoff_id", "worktree_ref", "branch", "host_id", "evidence"],
+        "properties": {
+          "handoff_id": {"type": "string", "minLength": 1, "maxLength": 256}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"outcome": {"const": "parked"}}, "required": ["outcome"]},
+      "then": {"required": ["parked", "worktree_ref", "branch", "host_id", "evidence"]}
+    },
+    {
+      "if": {"properties": {"outcome": {"not": {"const": "parked"}}}, "required": ["outcome"]},
+      "then": {"not": {"required": ["parked"]}}
+    }
+  ],
+  "$defs": {
+    "HostId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+      "description": "Non-secret host identifier from the shared environment_profile.host_id(); never a hostname or username."
+    },
+    "RelativePath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "pattern": "^(?![/\\\\])(?![A-Za-z]:)(?!\\.\\.(?:[/\\\\]|$))(?!.*[/\\\\]\\.\\.(?:[/\\\\]|$)).+$"
+    },
+    "WorktreeRef": {
+      "description": "Worktree path relative to the managed worktree root (managed_worktree) or the repo root (harness_provided inside the repo); null otherwise.",
+      "oneOf": [
+        {"$ref": "#/$defs/RelativePath"},
+        {"type": "null"}
+      ]
+    },
+    "ChildGate": {
+      "description": "Every Gate a child can park on: the Gate enum minus roadmap_approval, which a child never evaluates (D3).",
+      "enum": [
+        "gatekeeper_escalation",
+        "proposal_approval",
+        "plan_review_convergence_failure",
+        "validation_failure",
+        "escalate_resume",
+        "replan_required",
+        "pr_creation",
+        "merge"
+      ]
+    },
+    "ParkedCommon": {
+      "type": "object",
+      "required": ["kind", "reason"],
+      "properties": {
+        "reason": {"type": "string", "minLength": 1, "maxLength": 1024},
+        "deadline": {"type": ["string", "null"], "format": "date-time"},
+        "resume_hint": {"type": ["string", "null"], "maxLength": 512}
+      }
+    },
+    "ParkedPendingGate": {
+      "allOf": [{"$ref": "#/$defs/ParkedCommon"}],
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "reason", "gate"],
+      "properties": {
+        "kind": {"const": "pending_gate"},
+        "gate": {"$ref": "#/$defs/ChildGate"},
+        "reason": true,
+        "deadline": true,
+        "resume_hint": true
+      }
+    },
+    "ParkedPolicyPause": {
+      "allOf": [{"$ref": "#/$defs/ParkedCommon"}],
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "reason"],
+      "properties": {
+        "kind": {"const": "policy_pause"},
+        "gate": {"enum": [null, "escalate_resume"]},
+        "reason": true,
+        "deadline": true,
+        "resume_hint": true
+      }
+    },
+    "ParkedPermissionBlocked": {
+      "allOf": [{"$ref": "#/$defs/ParkedCommon"}],
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "reason", "tool", "rule", "classifier_reason"],
+      "properties": {
+        "kind": {"const": "permission_blocked"},
+        "gate": {"enum": [null]},
+        "tool": {"type": "string", "minLength": 1, "maxLength": 128},
+        "rule": {"type": "string", "minLength": 1, "maxLength": 512, "description": "The matched permission rule (e.g. Bash(env *)), never the full command."},
+        "classifier_reason": {"type": "string", "minLength": 1, "maxLength": 512},
+        "command": {"type": ["string", "null"], "maxLength": 256, "description": "Redacted through sanitize_session_log.sanitize() and truncated to 256 characters."},
+        "reason": true,
+        "deadline": true,
+        "resume_hint": true
+      }
+    },
+    "ParkedCapabilityUnavailable": {
+      "allOf": [{"$ref": "#/$defs/ParkedCommon"}],
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "reason", "phase", "missing_lanes"],
+      "properties": {
+        "kind": {"const": "capability_unavailable"},
+        "gate": {"enum": [null]},
+        "phase": {"enum": ["PLAN_REVIEW", "IMPL_REVIEW", "VAL_REVIEW"]},
+        "missing_lanes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1, "maxLength": 128}
+        },
+        "reason": true,
+        "deadline": true,
+        "resume_hint": true
+      }
+    },
+    "Parked": {
+      "description": "Parked snapshot. One branch per kind; each branch constrains its allowed gate values (D3).",
+      "oneOf": [
+        {"$ref": "#/$defs/ParkedPendingGate"},
+        {"$ref": "#/$defs/ParkedPolicyPause"},
+        {"$ref": "#/$defs/ParkedPermissionBlocked"},
+        {"$ref": "#/$defs/ParkedCapabilityUnavailable"}
+      ]
+    },
+    "Degradation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "phase", "detail"],
+      "properties": {
+        "code": {
+          "enum": [
+            "single_vendor_review",
+            "review_skipped",
+            "coordinator_projection_forbidden",
+            "audit_sink_failed",
+            "phase_fallback_inline",
+            "handoff_local_fallback"
+          ]
+        },
+        "phase": {"type": "string", "minLength": 1, "maxLength": 64},
+        "detail": {"type": "string", "maxLength": 512}
+      }
+    }
+  }
+}

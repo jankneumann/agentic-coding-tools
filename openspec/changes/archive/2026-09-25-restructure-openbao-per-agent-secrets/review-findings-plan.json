@@ -1,0 +1,73 @@
+{
+  "review_type": "plan",
+  "target": "restructure-openbao-per-agent-secrets",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "security",
+      "axis": "security",
+      "severity": "critical",
+      "criticality": "high",
+      "description": "Critical: The coordinator plan replaces api_key_identities but does not explicitly replace the separate api_keys allowlist. Current ApiConfig.from_env retains COORDINATION_API_KEYS and derives an allowlist only once, while _principal_for_api_key accepts any key in that list even when no identity row exists. A rotated key could therefore stay authorized after snapshot replacement or an old static key could authenticate as an unbound principal after configured OpenBao failure.",
+      "resolution": "Specify and test one atomic authentication state containing both accepted keys and their identities. In configured OpenBao mode, reject keys absent from the current valid snapshot regardless of COORDINATION_API_KEYS; apply the 120-second age gate to every key path and explicitly define any non-agent service-key exception.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/restructure-openbao-per-agent-secrets/specs/agent-coordinator/spec.md"
+    },
+    {
+      "id": 2,
+      "type": "architecture",
+      "axis": "architecture",
+      "severity": "critical",
+      "criticality": "high",
+      "description": "Critical: wp-dispatch may edit only api_key_resolver.py and its tests, but review_dispatcher.py still passes openbao_role_id plus api_key_env to resolve() and constructs those values from agent roster fields. The new canonical-principal/requested-vendor lookup cannot be called from this site within the package write scope; leaving it unchanged preserves the legacy role override and environment fallback interface.",
+      "resolution": "Assign review_dispatcher.py and focused tests to wp-dispatch, update adapter construction and both SDK/OpenAI call sites to pass canonical principal and vendor, and add an end-to-end dispatch assertion that an undeclared vendor fails before any Bao read.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/restructure-openbao-per-agent-secrets/work-packages.yaml"
+    },
+    {
+      "id": 3,
+      "type": "compatibility",
+      "axis": "compatibility",
+      "severity": "critical",
+      "criticality": "high",
+      "description": "Critical: The change removes BAO_SECRET_ID and shared-path agent access, but profile_loader.py still authenticates with OpenBaoConfig.create_client() using BAO_SECRET_ID and reads BAO_SECRET_PATH for coordinator profile secrets. No work package can edit profile_loader.py. The plan promises coordinator-internal and dynamic-database secret behavior remains unchanged without defining how this live consumer will authenticate after the configuration change.",
+      "resolution": "Define the retained coordinator-internal credential contract separately from agent identity bootstrap, then allocate profile_loader.py and its tests to an owning package. Verify profile interpolation and dynamic database credentials with Bao configured through migration and rollback.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/restructure-openbao-per-agent-secrets/work-packages.yaml"
+    },
+    {
+      "id": 4,
+      "type": "spec_gap",
+      "axis": "correctness",
+      "severity": "critical",
+      "criticality": "high",
+      "description": "Critical: The seeder currently receives one flat .secrets.yaml document, while the plan requires per-agent API-key documents and per-vendor documents. Design D3 acknowledges ambiguous mappings but neither the contracts nor tasks define the explicit operator input format or how a flat source key maps to each destination. Without this, the seeder cannot populate all required paths deterministically or preflight complete migration before mutation.",
+      "resolution": "Add a versioned migration input schema or concrete CLI mapping format keyed by canonical agent and vendor, define validation for missing/duplicate destinations and unused source fields, and assign a RED test plus seeder implementation task before cutover.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/restructure-openbao-per-agent-secrets/design.md"
+    },
+    {
+      "id": 5,
+      "type": "resilience",
+      "axis": "resilience",
+      "severity": "critical",
+      "criticality": "high",
+      "description": "Critical: review_dispatcher.py creates a fresh ApiKeyResolver for each dispatch invocation, but the planned bootstrap bundle contains a single-use wrapped SecretID and no persisted client token. After the first process unwraps and logs in, a later dispatch process cannot authenticate from the same bundle. The design says rebootstrap is an operator action after token expiry, yet does not provide a protected token cache or a fresh-bundle delivery path for normal repeated dispatches.",
+      "resolution": "Define the dispatch credential session lifecycle before implementation: either a protected renewable token broker/cache shared across invocations or an authorized fresh wrapped SecretID delivery flow for each process. Specify storage permissions, concurrency, renewal/max-TTL behavior, and tests for two sequential dispatch processes and simultaneous dispatches.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/restructure-openbao-per-agent-secrets/design.md"
+    },
+    {
+      "id": 6,
+      "type": "contract_mismatch",
+      "axis": "compatibility",
+      "severity": "nit",
+      "criticality": "medium",
+      "description": "Nit: OpenBaoConfig and the current seeder support BAO_MOUNT_PATH, including non-default mounts, but principal-topology.schema.json fixes mount to 'secret' and every policy path in contracts/README.md starts with secret/data. The configuration spec calls secret the default, leaving it unclear whether non-default mounts remain supported or must be rejected during preflight.",
+      "resolution": "State whether BAO_MOUNT_PATH is now fixed. If configurable, derive mount and all KV-v2 policy paths from the validated mount and test a non-default mount; if fixed, fail preflight with a migration instruction rather than writing mismatched policies.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/restructure-openbao-per-agent-secrets/contracts/principal-topology.schema.json"
+    }
+  ]
+}

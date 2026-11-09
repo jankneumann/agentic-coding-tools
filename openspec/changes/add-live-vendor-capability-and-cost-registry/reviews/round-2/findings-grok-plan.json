@@ -1,0 +1,151 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: Revision 2 adds explicit `catalog_vendor` but still does not define the configured model/endpoint membership used to join dg-00 `model_catalog` when `AgentEntry.cli.model` is null (the common case in `agents.yaml`). Catalog rows are keyed `(vendor, model, endpoint_kind)`; without naming whether join uses `sdk.model`, archetype model rosters, a new explicit model list, and/or `endpoint_kind`, list projections stay `known=false` and D4's \u201cmatching catalog model\u201d local gate has no deterministic match set.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Normatively enumerate AgentEntry/config fields that supply model IDs and endpoint_kind for catalog joins; define empty-membership behavior (unknown projection + audited miss) without heuristic publisher inference.",
+      "file_path": "openspec/changes/add-live-vendor-capability-and-cost-registry/design.md",
+      "line_range": {
+        "start": 28,
+        "end": 33
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: D4/spec local catalog gating is keyed to \u201clocal lane\u201d, but existing dg-00 health is `endpoint_kind=local` while planned `location=local` means CLI-host locality (`claude-local` still talks to cloud Anthropic). No current agent sets `endpoint_kind`. Applying catalog availability/staleness to all `location=local` lanes can falsely degrade healthy cloud CLI lanes when OpenRouter rows are stale, or never gate anything when no models match.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Split the gate: state whether catalog health applies to `location=local`, `endpoint_kind=local`, or both with distinct rules; keep cloud CLI readiness on the vendor-health probe path.",
+      "file_path": "openspec/changes/add-live-vendor-capability-and-cost-registry/design.md",
+      "line_range": {
+        "start": 37,
+        "end": 44
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "architecture",
+      "criticality": "high",
+      "description": "Critical: D7 asserts dispatch adapters already know selected `agent_id` and that `provider_dispatch.py` reports capacity with lane/reset metadata, but `PhaseDispatchPayload`/`PhaseDispatchResult` only carry `provider` (e.g. `claude_code`), and the module has no capacity/429/reset classification seam today. Putting the file in write scope closes ownership, not the missing lane/capacity contract.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical",
+      "resolution": "Require plumbing `dispatch_agent_id` (or equivalent) into provider-dispatch payload/result, define provider\u2192lane selection when only provider exists, and specify where capacity/reset metadata is extracted before bridge POST.",
+      "file_path": "openspec/changes/add-live-vendor-capability-and-cost-registry/design.md",
+      "line_range": {
+        "start": 71,
+        "end": 79
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "resilience",
+      "criticality": "high",
+      "description": "Critical: Task 3.6/D1 require packaging the reused health probe, but do not require aligning watchdog load path with the image layout. `watchdog.py` resolves `parents[2]/skills/.../vendor_health.py` from `/app/src` to `/skills/...`, while the image sets `SKILLS_ROOT=/app/skills` and copies skills under `/app/skills` (as with `github_classifier.py`). COPY alone can still leave the deployed probe silently skipped.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "critical",
+      "resolution": "Require watchdog to honor `SKILLS_ROOT` (or an equivalent portable root) and specify the Dockerfile COPY destination that makes the probe present and executable in production.",
+      "file_path": "openspec/changes/add-live-vendor-capability-and-cost-registry/design.md",
+      "line_range": {
+        "start": 3,
+        "end": 9
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Nit: `review_dispatcher.py` already has `agent_id` and capacity classification, but D7's \u201cretry/reset metadata\u201d has no source: `ReviewResult` carries `error_class` without `retry_after`/`reset_at`, and no parsing rule is specified. Exact-lane reports would always fall through to `VENDOR_UNKNOWN_LIMIT_TTL_SECONDS` unless implementers invent undocumented parsers.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "Define which adapter/stderr/header fields may supply reset metadata, the parse/fail behavior when absent, and the result-collector fields that carry them into the bridge helper.",
+      "file_path": "openspec/changes/add-live-vendor-capability-and-cost-registry/design.md",
+      "line_range": {
+        "start": 71,
+        "end": 76
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 6,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Nit: D6 requires Bearer, `X-Coordinator-API-Key`, or `X-API-Key`, and runtime `verify_api_key` already accepts all three, but `contracts/openapi/v1.yaml` securitySchemes only declare Bearer and `X-API-Key`. Contract-parity tests will under-specify the third header that existing coordinator clients and other OpenAPI surfaces already use.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "nit",
+      "resolution": "Add an OpenAPI apiKey security scheme for `X-Coordinator-API-Key` and list it on the registry operations alongside the existing schemes.",
+      "file_path": "openspec/changes/add-live-vendor-capability-and-cost-registry/contracts/openapi/v1.yaml",
+      "line_range": {
+        "start": 64,
+        "end": 66
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 7,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Nit: Storage/design require non-null probe `stale_after` and limit `reset_at`, but the event schema types both as `string|null` while marking them required by kind\u2014so `null` still validates. OpenAPI `RateLimitObservation` also leaves both reset fields optional/nullable and does not encode the prose rule that supplying both is rejected (400).",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "Make event `stale_after`/`reset_at` non-null when required by kind; add OpenAPI constraints or explicit 400 semantics so dual-reset payloads cannot pass contract parity as valid.",
+      "file_path": "openspec/changes/add-live-vendor-capability-and-cost-registry/contracts/events/vendor-availability.schema.json",
+      "line_range": {
+        "start": 18,
+        "end": 35
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 8,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Nit: D8 closes the quote formula, but roadmap switch evaluation still has no specified source of exact catalog model plus prompt/completion token estimates on the `vendor_limit` path (today only vendor/reason). Without that wiring, either `cost_ceiling_usd` becomes permanently inert or implementers will reintroduce vendor-scalar/`_STATIC_COST_TIERS` USD deltas contrary to D8.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "nit",
+      "resolution": "Specify how switch evaluation obtains model id and token estimates (or explicitly require unknown quotes and non-enforcement of USD ceilings whenever those inputs are absent).",
+      "file_path": "openspec/changes/add-live-vendor-capability-and-cost-registry/design.md",
+      "line_range": {
+        "start": 89,
+        "end": 97
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 9,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Nit: tasks.md 6.2 still requires mypy, migration, contract, and DAG gates, but `wp-integration` verification only runs coordinator/skills pytest, strict OpenSpec, and two Ruff checks. Migration/contract coverage lives earlier, and mypy/DAG remain non-executable relative to the task checklist.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "nit",
+      "resolution": "Either add mypy/DAG (and any missing migration/contract re-checks) as `wp-integration` verification steps or narrow task 6.2 to the commands the packages actually run.",
+      "file_path": "openspec/changes/add-live-vendor-capability-and-cost-registry/work-packages.yaml",
+      "line_range": {
+        "start": 289,
+        "end": 322
+      },
+      "evidence_class": "judgment"
+    }
+  ]
+}
