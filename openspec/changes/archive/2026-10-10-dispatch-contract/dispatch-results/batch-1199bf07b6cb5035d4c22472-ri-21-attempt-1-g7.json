@@ -1,0 +1,44 @@
+{
+  "attempt": 1,
+  "branch": "openspec/dispatch-contract",
+  "change_id": "dispatch-contract",
+  "degradations": [
+    {
+      "code": "single_vendor_review",
+      "detail": "claude_code only; min_quorum=1 under cloud-container policy (TRUST_POSTURE.md 479dcd9)",
+      "phase": "PLAN_REVIEW"
+    },
+    {
+      "code": "single_vendor_review",
+      "detail": "claude_code only; min_quorum=1 under cloud-container policy (TRUST_POSTURE.md 479dcd9)",
+      "phase": "IMPL_REVIEW"
+    },
+    {
+      "code": "single_vendor_review",
+      "detail": "claude_code only; min_quorum=1 under cloud-container policy (TRUST_POSTURE.md 479dcd9)",
+      "phase": "VAL_REVIEW"
+    },
+    {
+      "code": "coordinator_projection_forbidden",
+      "detail": "every project-state submit returned forbidden (trust-2 cloud agent)",
+      "phase": "SUBMIT_PR"
+    },
+    {
+      "code": "audit_sink_failed",
+      "detail": "audit sink failed for proposal_approval, escalate_resume, pr_creation, merge gate decisions",
+      "phase": "SUBMIT_PR"
+    }
+  ],
+  "dispatch_id": "batch-1199bf07b6cb5035d4c22472:ri-21:attempt-1",
+  "evidence": {
+    "commit": "efed26dc52357e73bac37d30ac4f08f035702f0c",
+    "loop_state_digest": "92a866516e214e866ee0e65df42d9b6781ce3011bfbb802201686f85ea6e5ed3",
+    "loop_state_path": "openspec/changes/dispatch-contract/loop-state.json"
+  },
+  "handoff_id": "3913b110-b178-4694-922e-3986082c81aa",
+  "host_id": "machine-dc39bf1e25efdf45",
+  "lease_generation": 7,
+  "outcome": "success",
+  "schema_version": 2,
+  "worktree_ref": "dispatch-contract"
+}

@@ -1,0 +1,199 @@
+{
+  "review_type": "implementation",
+  "target": "migrate-ci-to-self-hosted-gx10-runners",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "resilience",
+      "criticality": "medium",
+      "description": "The unit has StartLimitIntervalSec=0 and RestartSec=10, and the design routes all back-off into mint-jitconfig.sh. But the script exits immediately (no sleep) on non-retryable HTTP codes (401/403/404/422), and a container that crashes right after start (bad image, JIT rejected) also exits immediately. systemd then restarts every 10 s forever: with 8 instances that is ~48 mint POSTs/min plus one runners GET per sweep and one GET in cleanup-runner, i.e. roughly 8,000+ requests/hour against a PAT's 5,000/hour budget. PAT expiry (90 days, O2) is a planned event that turns into exactly this loop. The design's claim 'the API is hammered only if TimeoutStartSec is too low' does not hold for this path.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "critical",
+      "file_path": "deploy/gx10-runner/mint-jitconfig.sh",
+      "existing_code": "log \"generate-jitconfig failed with non-retryable HTTP $code\"\n    exit 1",
+      "resolution": "Sleep a bounded penalty (e.g. min(300, remaining budget)) before exiting on non-retryable codes, and add systemd-native exponential restart back-off to the unit (systemd 255 supports RestartSteps= and RestartMaxDelaySec=, e.g. RestartSec=10 RestartSteps=6 RestartMaxDelaySec=600). Add a test for the non-retryable path asserting the script does not return in under the penalty when GX10_MINT_BASE_DELAY is small.",
+      "evidence_class": "judgment",
+      "line_range": {
+        "start": 132,
+        "end": 133
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 2,
+      "type": "security",
+      "criticality": "medium",
+      "description": "O4 tells the operator to append an include to /etc/nftables.conf and run `systemctl enable --now nftables`. Ubuntu's stock /etc/nftables.conf begins with `flush ruleset`, so starting nftables.service flushes every existing table, including ufw's iptables-nft rules, Docker/podman-netavark rules and Tailscale's rules, on every boot before they are re-added (ufw is not). The runbook warns about ufw flushing the hand-added table but not about this reverse direction. Also `sudo tee /etc/nftables.d/gx10-runner.nft` fails if /etc/nftables.d does not exist (Ubuntu does not create it), and the DNS exemption assumes systemd-resolved at 127.0.0.53; if /etc/resolv.conf points at a LAN resolver in 10/8 or 192.168/16, the private-range drops cut DNS for the mint script and every container, and no instance comes online.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "critical",
+      "file_path": "docs/guides/self-hosted-ci-runners.md",
+      "existing_code": "sudo nft -c -f /etc/nftables.conf && sudo systemctl enable --now nftables",
+      "resolution": "Add `sudo mkdir -p /etc/nftables.d`; instruct the operator to remove or review `flush ruleset` in /etc/nftables.conf (the included file is already idempotent via the create/delete/create idiom) or load the file from a dedicated oneshot unit; add a verification `resolvectl status | grep -q 127.0.0.53` (or inspect /etc/resolv.conf) before the DNS exemption, with a note on adapting the accept rule.",
+      "evidence_class": "judgment",
+      "line_range": {
+        "start": 124,
+        "end": 124
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 3,
+      "type": "security",
+      "criticality": "medium",
+      "description": "Sudo removal in the image is `sed -i '/NOPASSWD/d' /etc/sudoers 2>/dev/null || true`. It relies on the upstream actions-runner image writing its grant into /etc/sudoers (today it does: `%sudo ALL=(ALL:ALL) NOPASSWD:ALL`). If a future base-image bump moves the grant to /etc/sudoers.d/ or changes its wording, the sed silently matches nothing, `|| true` hides it, and the runner user keeps passwordless sudo. The runner also stays in the `sudo` group and the sudo binary stays installed. The guarding test test_no_sudoers_grant_is_added only passes because `2>/dev/null` has no whitespace after `>`; it does not assert that no grant remains. Runtime --cap-drop ALL and no-new-privileges do neutralise setuid, so this is defence-in-depth, not an active hole.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "nit",
+      "file_path": "deploy/gx10-runner/Containerfile",
+      "existing_code": "RUN sed -i '/NOPASSWD/d' /etc/sudoers 2>/dev/null || true",
+      "resolution": "Make the removal fail-closed and explicit: `RUN rm -rf /etc/sudoers.d/* && (gpasswd -d runner sudo || true) && apt-get purge -y sudo` (or at least `sed -i ... && ! grep -rq NOPASSWD /etc/sudoers /etc/sudoers.d`). Extend test_runner_image.py to assert the Containerfile removes the sudo group membership or the sudo binary rather than only not adding a grant.",
+      "evidence_class": "judgment",
+      "line_range": {
+        "start": 29,
+        "end": 29
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "The CLI catches only GhError in main(). A missing --manifest/--workflow-file path (FileNotFoundError), malformed YAML (yaml.YAMLError), a run payload without head_sha (KeyError), or compare without a resolvable workflow_file (ValueError from _infer_workflow_file) all surface as Python tracebacks instead of a one-line error with exit code 2, which contradicts the operator-facing intent of the tool and makes O6/O11 verification output noisy.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "file_path": "scripts/ci/ci_wallclock.py",
+      "existing_code": "    except GhError as exc:\n        print(f\"error: {exc}\", file=sys.stderr)\n        return 2",
+      "resolution": "Catch (GhError, OSError, yaml.YAMLError, KeyError, ValueError) in main and print a short message; add one CLI test with a nonexistent --manifest asserting exit 2 and no traceback.",
+      "evidence_class": "judgment",
+      "line_range": {
+        "start": 527,
+        "end": 529
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "correlate() attributes any API entry named `<display> (\u2026)` to job `<display>` without checking that the workflow definition actually has strategy.matrix. A renamed job such as `build (new)` or `build (legacy)` is therefore counted as a matrix expansion of `build` instead of being reported as 'unknown job', weakening the renamed-job detection the design (D8) promises. The module docstring also calls the functions 'pure', but compare() accepts a callable `workflow` that the CLI wires to a network fetch.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "file_path": "scripts/ci/ci_wallclock.py",
+      "existing_code": "        prefixed = sorted(\n            (j for j, n in names.items() if name.startswith(n + \" (\")),",
+      "resolution": "Only allow prefix matching for job ids whose definition contains `strategy.matrix`; add a fixture where a non-matrix job has a `name (x)` sibling and assert it is reported unknown. Soften the 'pure' docstring claim for compare().",
+      "evidence_class": "judgment",
+      "line_range": {
+        "start": 94,
+        "end": 95
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 6,
+      "type": "behavioral_failure",
+      "criticality": "low",
+      "description": "Several tests cannot fail when the behaviour they name is broken: test_routed_job_drift_is_detected compares two constant strings and never reads a workflow; test_unclassified_job_is_reported asserts only that a set difference is non-empty, not that test_job_sets_match_manifest would fail with the stated message; test_routed_job_missing_setup_node_is_detected re-tests the matcher on a hand-built dict rather than the production assertion; test_hard_boundary_is_stated checks that the word 'main' appears anywhere in the runbook. They inflate the spec-scenario coverage without protecting it.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "file_path": "skills/tests/ci_runners/test_routing_expression.py",
+      "existing_code": "def test_routed_job_drift_is_detected(manifest, load_workflow):\n    drifted = CANONICAL_RUNS_ON.replace(\"'push'\", \"'pull_request_target'\", 1)\n    assert normalize(drifted) != normalize(CANONICAL_RUNS_ON)",
+      "resolution": "Factor the per-job assertions into helper functions that take a workflow dict (e.g. check_routed_jobs(manifest, workflows) -> list[str]) and have the negative tests feed a mutated workflow dict and assert the helper names the job; replace the 'main' check with the exact boundary phrase.",
+      "evidence_class": "judgment",
+      "line_range": {
+        "start": 107,
+        "end": 109
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 7,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The schema exists twice with identical content: the change's contracts/schemas/runner-lanes.schema.json (the draft) and the promoted .github/runner-lanes.schema.json. Tests read only the promoted copy, so the two can drift silently after any later edit; the contracts README states the promoted copy is authoritative but nothing enforces it before archival.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "optional",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/contracts/README.md",
+      "resolution": "Either add a test that resolves the change dir via openspec_paths.change_dir() and asserts byte-equality while the change is active, or state in the README that the draft is frozen at promotion and no longer maintained.",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 8,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "`After=network-online.target` / `Wants=network-online.target` are declared in a user unit. The user manager has no such target, so the directives have no ordering effect (systemd logs an unresolved dependency and may surface it in `systemd-analyze verify --user`, which test_systemd_analyze_verify filters only by lines mentioning gx10-runner). Start-up correctness currently depends entirely on the mint script's retry budget, which works but is not what the comment implies.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "fyi",
+      "file_path": "deploy/gx10-runner/systemd/gx10-runner@.service",
+      "existing_code": "After=network-online.target\nWants=network-online.target",
+      "resolution": "Drop the two lines (and rely on the documented retry budget), or document that ordering against network-online is unavailable to user units.",
+      "evidence_class": "judgment",
+      "line_range": {
+        "start": 8,
+        "end": 9
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 9,
+      "type": "security",
+      "criticality": "low",
+      "description": "The runner-side hook refuses a fork PR that rewrote runs-on to the gx10 labels, but refusal happens after a JIT runner has been assigned: each refused job consumes an instance, exits, and triggers a mint/restart cycle. An approved fork PR whose rewritten workflow fans out to many jobs can occupy all 8 instances and starve legitimate runs for minutes, and each churn costs API requests. This is bounded by the O5 approval gate and is an accepted residual, but it is not listed in the design's Risks table.",
+      "disposition": "accept",
+      "axis": "security",
+      "severity": "fyi",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/design.md",
+      "resolution": "Add a Risks row: 'Approved fork PR with rewritten runs-on churns the pool (hook refuses after assignment)' with mitigation 'approval gate + instance count; observe via journalctl refusal count'.",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 10,
+      "type": "performance",
+      "criticality": "low",
+      "description": "Every ephemeral job starts from an empty container: setup-uv downloads uv, `uv python install 3.12` downloads a ~30 MB CPython build into ~/.local/share/uv/python (outside UV_CACHE_DIR, so even the opt-in shared cache does not cover it), and validate-specs downloads Node 22 into the empty toolcache. With the cache off by default (the shipped configuration) the self-hosted lane pays these downloads 8\u00d7 in parallel per run, which works against the 0.85 wall-clock target measured in O8.",
+      "disposition": "accept",
+      "axis": "performance",
+      "severity": "optional",
+      "file_path": "deploy/gx10-runner/Containerfile",
+      "resolution": "Consider baking uv and the pinned CPython 3.12 into the image (read-only, no cross-job write surface, so none of the cache-poisoning concern applies), e.g. `COPY --from=ghcr.io/astral-sh/uv:<ver> /uv /usr/local/bin/` and `uv python install 3.12` at build time with UV_PYTHON_INSTALL_DIR under /opt. Record as an O8 tuning option in the runbook.",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 11,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "The routing expression sends every `push` event to the self-hosted lane, while the runner hook allows `push` only when GITHUB_REF is refs/heads/main. Today both workflows restrict push to [main], so they agree, but adding a tag or branch push trigger later would route the job to the GX10 and have the hook fail it in 'Set up job' rather than fall back to hosted. No test pins the push filter of either workflow to [main], so the two allowlists can diverge unnoticed.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "fyi",
+      "file_path": "skills/tests/ci_runners/test_fork_guard.py",
+      "resolution": "Add an assertion in test_trigger_allowlist that `on.push.branches == ['main']` and no `tags:` key exists for both workflows, so a change to the push filter must also revisit the hook.",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 12,
+      "type": "style",
+      "criticality": "low",
+      "description": "tasks.md leaves 2.9 ('Run the existing tests that parse workflows and confirm they stay green') unchecked although the diff contains exactly the adjustments that task produces (test_gate.py and test_ci_sweep_wiring.py edits), and the Status block marks Implementation complete. The ledger understates what was done.",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "fyi",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/tasks.md",
+      "existing_code": "- [ ] 2.9 Run the existing tests that parse workflows and confirm they stay green (XS)",
+      "resolution": "Mark 2.9 done once the listed suites have been run on this branch, or note why it remains open.",
+      "evidence_class": "judgment",
+      "line_range": {
+        "start": 167,
+        "end": 167
+      },
+      "line_resolution": "hunk_new"
+    }
+  ]
+}

@@ -1,0 +1,97 @@
+{
+  "review_type": "plan",
+  "target": "migrate-ci-to-self-hosted-gx10-runners",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 5,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "The runner unit remains underspecified and may be nonfunctional. D7 and task 3.1 do not require an EnvironmentFile entry that loads gx10-runner.env.example, while task 3.2 expects that file to supply the repository, image, limits, labels, retry budget, and cache arguments used by ExecStartPre and ExecStart. They also do not require LoadCredential=github-token:<path>, and the example environment-file task does not include GX10_RUNNER_TOKEN_FILE. An implementation can therefore satisfy every planned unit test while the mint script receives neither its configuration nor a credential. Specify both files unambiguously and test the EnvironmentFile and credential wiring.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 6,
+      "type": "resilience",
+      "criticality": "high",
+      "description": "The reboot/restart design still has no stale-container or stale-registration recovery. ExecStart uses a fixed container name without --replace, so a container retained after an unclean stop can make every subsequent restart fail with a name conflict. A hard reboot can also bypass ExecStopPost and leave an unused JIT registration offline indefinitely. Require tested pre-start cleanup or --replace for the container, and sweep offline registrations matching the instance's runner-name prefix before minting another registration.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 27,
+      "type": "architecture",
+      "criticality": "high",
+      "description": "wp-integration is declared responsible for merging the package branches, but its scope.write_allow permits writes only below openspec/changes/migrate-ci-to-self-hosted-gx10-runners/**. Merging wp-workflows, wp-runner-kit, wp-tooling, and wp-docs necessarily materializes changes under .github/, deploy/, scripts/, docs/, and skills/. Under scope enforcement the integration package cannot perform its declared work. Either make package materialization an explicit coordinator operation completed before wp-integration starts, or grant the integration package the exact output paths it must merge.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "The requirement that the canonical expression's self-hosted labels equal routing.self_hosted_labels still lacks a scenario that changes the manifest independently and observes failure. The existing canonical-expression scenario can pass while repository_variable or dispatch_input in the manifest drifts from the hard-coded vars.CI_RUNNER_LANE and inputs.runner_lane references. Add a scenario and test tying all three routing fields to the expression.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "optional",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 16,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "The normative CLI contract for explicit run filters and bounded --limit fetching still has no behavioral scenario. Task 4.1 checks argument parsing only, so an implementation that accepts --limit but fetches every page before truncating can pass. Add a stubbed-gh scenario that asserts the emitted query filters and bounds the number of fetched results or pages.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "optional",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 9,
+      "type": "security",
+      "criticality": "medium",
+      "description": "D5 still claims that a job reading ACTIONS_RUNNER_INPUT_JITCONFIG gains nothing. The encoded JIT configuration contains runner identity and Actions-service credentials usable during the job's lifetime. Ephemerality limits the exposure but does not eliminate it. Document this residual capability accurately and either accept it explicitly or use an entrypoint that removes the value from the environment before executing job steps.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "optional",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 28,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "D8 says compare derives a run's lane from actual placement of its routed jobs but does not define the result when those jobs have mixed placement, no assigned runner, or conflicting labels. Such runs can otherwise be counted in either sample and distort the acceptance ratio. Define these runs as invalid or excluded with a diagnostic, and add a fixture covering mixed placement.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "optional",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 24,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "contracts.openapi.primary still names contracts/README.md even though that file is not an OpenAPI document. Schema validation based only on path existence can pass while consumers that parse the declared primary contract fail. Represent the absence of an OpenAPI surface using the work-package schema's supported sentinel or contract type; if the schema truly cannot express this, escalate that schema defect instead of publishing Markdown as OpenAPI.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "optional",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 23,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "wp-runner-kit still omits deploy/gx10-runner/gx10-runner.env.example from outputs.artifacts even though the package authors it and the unit depends on its configuration contract. Add it to the declared outputs so package handoff and evidence collection include the required operator configuration.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "nit",
+      "evidence_class": "judgment"
+    }
+  ]
+}

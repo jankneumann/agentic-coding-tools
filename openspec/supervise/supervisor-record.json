@@ -27,7 +27,14 @@
       "id": "fa4278cf-0e86-4d2b-ba0f-0640e2c0e740",
       "rationale": "direct invocation: user asked to approve items and start autopilot-roadmap on ri-01, continuing through the roadmap",
       "scope": "roadmap-jev-system-one-integration-assessment"
+    },
+    {
+      "decided_at": "2026-10-10T10:46:47.164929+00:00",
+      "decision": "roadmap_approval:proceed",
+      "id": "40776beb-63e5-4a06-b7b9-b349f3a918df",
+      "rationale": "Operator re-approved the roadmap after the ri-22 refinement: supervisor session 2026-10-10 (\"5. Yes\", approve ri-22 openrouter-review-lane for dispatch). ri-22 added in aacac4c and approved in 0064137.",
+      "scope": "multiplayer-collaboration"
     }
   ],
-  "written_at": "2026-09-18T11:31:45.951577Z"
+  "written_at": "2026-10-10T13:30:53.391366Z"
 }

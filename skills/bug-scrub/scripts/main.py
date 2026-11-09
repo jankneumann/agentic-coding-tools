@@ -16,6 +16,7 @@ from aggregate import aggregate
 from bug_candidate_work import write_projection
 from collect_architecture import collect as collect_architecture
 from collect_deferred import collect as collect_deferred
+from collect_github_issues import collect as collect_github_issues
 from collect_markers import collect as collect_markers
 from collect_mypy import collect as collect_mypy
 from collect_openspec import collect as collect_openspec
@@ -35,6 +36,7 @@ ALL_SOURCES = {
     "security": collect_security,
     "deferred": collect_deferred,
     "markers": collect_markers,
+    "github-issues": collect_github_issues,
 }
 
 

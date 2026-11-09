@@ -1,0 +1,279 @@
+{
+  "review_type": "plan",
+  "target": "migrate-ci-to-self-hosted-gx10-runners",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "resilience",
+      "axis": "resilience",
+      "criticality": "high",
+      "severity": "critical",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/design.md",
+      "existing_code": "(`meta skuid ghrunner fib daddr type local drop` in an `output` hook chain). Because",
+      "description": "The preferred host-isolation control in D6 (`meta skuid ghrunner fib daddr type local drop`, repeated in A11, tasks O4 and the spec scenario 'Operator verifies host services are unreachable on every host address') drops every packet owned by uid ghrunner whose destination is a local address. On an Ubuntu 24.04 host the resolver is systemd-resolved's stub at 127.0.0.53, which is a local address, so the rule also drops (a) the mint script's own DNS lookups for api.github.com \u2014 `ExecStartPre` then burns its whole `GX10_MINT_MAX_ELAPSED` budget on every start and no instance ever comes online \u2014 and (b) slirp4netns's forwarding of container DNS (10.0.2.3) to the host resolver, so even a minted runner cannot resolve github.com. The rule as written wedges the entire pool and the spec scenario would literally pass (the rule 'is listed'). Fix: exempt the resolver (`meta skuid ghrunner ip daddr 127.0.0.53 udp dport 53 accept` and the tcp equivalent, placed before the drop), or point the containers at a non-local resolver with `--dns` and state that the mint script's resolver must not be loopback; add that exemption to O4's listed rule and to the spec scenario's AND clause.",
+      "line_range": {
+        "start": 246,
+        "end": 246
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "axis": "security",
+      "criticality": "high",
+      "severity": "critical",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/tasks.md",
+      "existing_code": "`podman exec gx10-runner-1 bash -c 'curl -sm 3 http://<addr>:<port> >/dev/null && echo reachable || echo unreachable'`",
+      "description": "The O4 isolation probe uses `curl http://<addr>:<port> && echo reachable || echo unreachable`. Against Postgres on :54322 the TCP connect succeeds, Postgres rejects the HTTP bytes and closes, and curl exits non-zero (52 'Empty reply' or 56 'Recv failure'), so the probe prints `unreachable` precisely when the port IS reachable. The same false negative applies to any non-HTTP service. Since the design (D6) makes this probe the required evidence that the nftables/loopback control holds, the runbook would certify isolation that does not exist. Use a transport-level check (`bash -c 'exec 3<>/dev/tcp/<addr>/<port>'`, `nc -z -w3`, or treat only curl exit codes 7 and 28 as 'unreachable') and reword the spec scenario 'every probe fails' to 'every TCP connect is refused or times out'.",
+      "line_range": {
+        "start": 396,
+        "end": 396
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 3,
+      "type": "spec_gap",
+      "axis": "correctness",
+      "criticality": "medium",
+      "severity": "optional",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/design.md",
+      "existing_code": "`cache-local-path: /home/runner/.cache/uv` so the action does not redirect the cache to",
+      "description": "D6 (the ledger-#7 fix) now requires two concrete artefacts \u2014 the image sets `UV_CACHE_DIR=/home/runner/.cache/uv`, and routed jobs that use `astral-sh/setup-uv` pass `cache-local-path: /home/runner/.cache/uv` \u2014 but nothing implements or tests them: tasks 2.5\u20132.8 (workflow edits), 3.6/3.7 (Containerfile and its test) and the wp-workflows / wp-runner-kit package descriptions do not mention either, and no spec scenario covers them. The measured A6 speedup when the operator opts in would silently be against a bypassed cache. Add the `ENV UV_CACHE_DIR` line to task 3.7 (asserted in test 3.6), add the setup-uv `cache-local-path` edit to task 2.8 (asserted in test_tool_parity or test_routing_expression for routed jobs), and note that on the hosted lane the path is harmless because ubuntu-latest's user is also `runner`.",
+      "line_range": {
+        "start": 288,
+        "end": 288
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 4,
+      "type": "contract_mismatch",
+      "axis": "architecture",
+      "criticality": "low",
+      "severity": "optional",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/work-packages.yaml",
+      "existing_code": "reason: \"CI measurement CLI\"",
+      "description": "The D8 correlation contract makes `verify_run` depend on the workflow definition (job-level `if:`, literal `name:`, `strategy.matrix`, `continue-on-error`), yet (a) wp-tooling's scope lists `.github/workflows/**` under `deny` and omits it from `read_allow`, so the implementer cannot build fixtures from the live workflows; and (b) neither D8 nor task 4.3 says where the CLI obtains the definition \u2014 reading the local checkout while verifying a run from another commit (O6 on `main`, O11 on a fork PR) misattributes `if:`/names after any workflow edit. State that `verify-run` fetches `.github/workflows/<file>` at the run's `head_sha` via `gh api repos/{owner}/{repo}/contents/...?ref=<sha>` (read-only, within the boundary) or takes `--workflow-file`, and widen wp-tooling's read scope.",
+      "line_range": {
+        "start": 277,
+        "end": 277
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 5,
+      "type": "style",
+      "axis": "readability",
+      "criticality": "low",
+      "severity": "nit",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/session-log.md",
+      "existing_code": "- Accepted Shared uv cache volume across ephemeral jobs over Cold caches per job because This is the main source of speedup. Forks never route here, locked hash verification applies, and the operator can disable it with GX10_RUNNER_UV_CACHE=off.",
+      "description": "The ledger-#12/#14 fix renamed the switch to `GX10_RUNNER_CACHE_ARGS` and inverted the default (cache off), but the companion documents were not updated: session-log.md's PLAN trade-off still says the cache is on, 'locked hash verification applies' and names `GX10_RUNNER_UV_CACHE=off`; its PLAN_ITERATE section still records 'Accept shared uv cache in solo mode as A10'; its Relevant Files line still says 'assumptions A1-A9'; plan-findings.md #4 still says team mode 'requires GX10_RUNNER_UV_CACHE=off'; and proposal.md \u00a7 What Changes item 4 still says verify-run checks 'every job succeeded', contradicting D8's skipped/warning rules. A reader following the session log will look for a variable that no longer exists.",
+      "line_range": {
+        "start": 43,
+        "end": 43
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 6,
+      "type": "correctness",
+      "axis": "compatibility",
+      "criticality": "low",
+      "severity": "fyi",
+      "disposition": "escalate",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/design.md",
+      "existing_code": "- `labels` = manifest `self_hosted_labels`, read from the env file that the install docs",
+      "description": "D5 sends the full manifest label set (`self-hosted`, `linux`, `ARM64`, `gx10`) as the `labels` field of `generate-jitconfig`, and spec scenario 'JIT labels match the routing labels' pins that equality. `self-hosted`, `Linux` and `ARM64` are runner-assigned default labels; GitHub's API documents `labels` as custom labels and may reject or silently dedupe the defaults (note also the case difference `linux` vs `Linux`, harmless for `runs-on` matching but visible in the runners list). Decide explicitly: either send only the custom labels (`gx10`) and have the test assert `manifest labels == defaults \u222a requested`, or record in O2/O6 that a 422 from `generate-jitconfig` on default labels is the expected failure signature and how to adapt.",
+      "line_range": {
+        "start": 175,
+        "end": 175
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 7,
+      "type": "spec_gap",
+      "axis": "correctness",
+      "criticality": "low",
+      "severity": "optional",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/specs/ci-runner-infrastructure/spec.md",
+      "existing_code": "The self-hosted label set inside the expression MUST equal the manifest's `routing.self_hosted_labels`.",
+      "description": "Re-verification of open ledger items #3 and #16: still open. (1) The MUST that the `fromJSON` label set equals `routing.self_hosted_labels` has no scenario (the 'JIT labels' scenario is about the mint script), and nothing ties `vars.CI_RUNNER_LANE` / `inputs.runner_lane` in the expression to `routing.repository_variable` / `routing.dispatch_input`. (2) 'The CLI SHALL select runs only through explicit filters \u2026 and SHALL cap fetched runs with `--limit`' still has no WHEN/THEN; task 4.1 checks argument parsing only, which would not detect a client that paginates everything before truncating. Add one scenario for each clause (for #2: with a stubbed `gh` returning N pages, at most ceil(limit/per_page) requests are issued).",
+      "line_range": {
+        "start": 25,
+        "end": 25
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 8,
+      "type": "spec_gap",
+      "axis": "architecture",
+      "criticality": "medium",
+      "severity": "optional",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/design.md",
+      "existing_code": "- `ExecStartPre` is the mint script.",
+      "description": "Re-verification of open ledger item #5: partly resolved (the cache switch is now `$GX10_RUNNER_CACHE_ARGS` with word-splitting semantics specified and tested), but the remainder stands. D7's property list and test 3.1 still never name the `EnvironmentFile=%h/.config/gx10-runner/env` (or equivalent) line that must load `gx10-runner.env.example`'s values \u2014 without it `$GX10_RUNNER_CACHE_ARGS`, `--cpus`, `--memory`, the image ref and `GX10_MINT_MAX_ELAPSED` are all unset in `ExecStart`/`ExecStartPre` \u2014 nor whether the credential reaches the mint script via `LoadCredential=github-token:<path>` or `GX10_RUNNER_TOKEN_FILE` (O2 stores it at `~ghrunner/.config/gx10-runner/token`, which matches neither statement). Pin both in D7 and assert them in 3.1.",
+      "line_range": {
+        "start": 315,
+        "end": 315
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 9,
+      "type": "resilience",
+      "axis": "resilience",
+      "criticality": "medium",
+      "severity": "optional",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/design.md",
+      "existing_code": "- `--name gx10-runner-%i`",
+      "description": "Re-verification of open ledger item #6: still open. The D6 option list has `--name gx10-runner-%i` without `--replace`, so after any unclean stop (podman client killed at `TimeoutStopSec`, host crash) the stale container name makes every subsequent `ExecStart` fail and `Restart=always` spins every 10 s with the instance silently out of the pool. Add `--replace` to the required options (and to test 3.1), and have `mint-jitconfig.sh` or `cleanup-runner.sh` sweep offline registrations matching `gx10-<hostname>-<instance>-*` before minting, since `ExecStopPost` never runs on power loss (O10).",
+      "line_range": {
+        "start": 210,
+        "end": 210
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 10,
+      "type": "security",
+      "axis": "security",
+      "criticality": "low",
+      "severity": "fyi",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/design.md",
+      "existing_code": "reads it gains nothing, because the config is consumed by the runner it already belongs to.",
+      "description": "Re-verification of open ledger item #9: still open, text unchanged. `ACTIONS_RUNNER_INPUT_JITCONFIG` stays in every step's environment and carries the runner's key material; PR code can act as that runner against the Actions broker for the job's lifetime. Replace 'gains nothing' with an explicit residual-risk statement bounded by ephemerality, optionally noting the `unset`-and-pass-`--jitconfig` entrypoint wrapper as a hardening follow-up.",
+      "line_range": {
+        "start": 188,
+        "end": 188
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 11,
+      "type": "spec_gap",
+      "axis": "readability",
+      "criticality": "low",
+      "severity": "nit",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/specs/ci-runner-infrastructure/spec.md",
+      "existing_code": "- It SHALL pin its base image by version and digest.",
+      "description": "Re-verification of open ledger items #19, #20, #21: all still open. The 'Runners Are Ephemeral Per Job' requirement text omits the `ExecStopPost` cleanup-runner.sh clause its own scenario checks; 'Runners Survive Host Reboot' does not require `install-units.sh` to be copy-and-print-only although its scenario does; and the tool-parity requirement does not acknowledge the D10 limit that indirect invocations via scripts are invisible to the scan and backstopped by O6. One sentence each closes them.",
+      "line_range": {
+        "start": 103,
+        "end": 103
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 12,
+      "type": "contract_mismatch",
+      "axis": "compatibility",
+      "criticality": "low",
+      "severity": "fyi",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/contracts/schemas/runner-lanes.schema.json",
+      "existing_code": "\"contains\": { \"const\": \"self-hosted\" }",
+      "description": "Re-verification of open ledger item #22: still open but acceptable as-is. The schema permits any label array while D3 hard-codes four labels; drift is caught by the test in task 2.1 (expression labels == manifest) and 3.3 (mint labels == manifest), so the manifest remains the source of truth and the schema stays reusable if labels change. Accept, or tighten with `minItems: 4` plus `contains` for `gx10` if a stronger static guarantee is wanted.",
+      "line_range": {
+        "start": 23,
+        "end": 23
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 13,
+      "type": "architecture",
+      "axis": "architecture",
+      "criticality": "low",
+      "severity": "nit",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/work-packages.yaml",
+      "existing_code": "- \"deploy/gx10-runner/install-units.sh\"",
+      "description": "Re-verification of open ledger item #23: still open. wp-runner-kit `outputs.artifacts` lists five files but omits `deploy/gx10-runner/gx10-runner.env.example`, `Containerfile`'s companion `toolchain.txt`, and the systemd unit's env example that tests 3.1 and D7 depend on. Add them so the integration package's scope check sees the full output set.",
+      "line_range": {
+        "start": 255,
+        "end": 255
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 14,
+      "type": "compatibility",
+      "axis": "compatibility",
+      "criticality": "low",
+      "severity": "fyi",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/work-packages.yaml",
+      "existing_code": "primary: \"openspec/changes/migrate-ci-to-self-hosted-gx10-runners/contracts/README.md\"",
+      "description": "Re-verification of open ledger items #17 and #24: still present, accept. Pointing `contracts.openapi.primary` at the change-local README is this repository's recorded convention for changes with no HTTP surface, and change-local contract paths in work-packages.yaml are consumed only during the implementation phase, before archival; the path-stability rule targets tests. No action beyond the existing comment.",
+      "line_range": {
+        "start": 20,
+        "end": 20
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 15,
+      "type": "style",
+      "axis": "readability",
+      "criticality": "low",
+      "severity": "nit",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/proposal.md",
+      "existing_code": "- **A10. The shared uv cache volume is off by default and enabled only by explicit operator",
+      "description": "Re-verification of open ledger item #25: still open. A blank line separates A9 from A10/A11 in the proposal's assumptions list, splitting it into two Markdown lists. Remove the blank line. Also in tasks O4, the bullet 'Before enabling the units, install the host-service isolation control' is placed after the `systemctl --user enable --now` instruction; move it first so the runbook's step order matches its own wording.",
+      "line_range": {
+        "start": 194,
+        "end": 194
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 16,
+      "type": "observability",
+      "axis": "observability",
+      "criticality": "low",
+      "severity": "fyi",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/loop-state.json",
+      "existing_code": "\"code\": \"coordinator_projection_forbidden\",",
+      "description": "Re-verification of open ledger item #26: unchanged. The two recorded degradations (coordinator projection forbidden at INIT, audit sink failure at the PLAN gate) are environment issues, not plan defects. Accept for this review; the orchestrator should confirm the audit sink is healthy before the IMPLEMENT phase records package decisions.",
+      "line_range": {
+        "start": 76,
+        "end": 76
+      },
+      "line_resolution": "hunk_new"
+    }
+  ]
+}
