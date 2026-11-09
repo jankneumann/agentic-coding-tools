@@ -158,7 +158,7 @@ requires-dist = [
     { name = "gen-eval", extras = ["mcp", "sdk", "db"], marker = "extra == 'all'" },
     { name = "httpx", specifier = ">=0.28" },
     { name = "jinja2", specifier = ">=3.1.6" },
-    { name = "jsonpath-ng", specifier = ">=1.6" },
+    { name = "jsonpath-ng", specifier = ">=1.8.0" },
     { name = "openai", marker = "extra == 'sdk'", specifier = ">=1.50" },
     { name = "pydantic", specifier = ">=2.13" },
     { name = "pyyaml", specifier = ">=6.0" },
@@ -172,7 +172,7 @@ dev = [
     { name = "mypy", specifier = ">=1.13" },
     { name = "pytest", specifier = ">=8.3" },
     { name = "pytest-asyncio", specifier = ">=0.24" },
-    { name = "ruff", specifier = ">=0.6" },
+    { name = "ruff", specifier = ">=0.16.8" },
 ]
 
 [[package]]
