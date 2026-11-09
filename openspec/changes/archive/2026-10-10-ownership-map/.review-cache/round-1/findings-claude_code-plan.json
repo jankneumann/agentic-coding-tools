@@ -1,0 +1,103 @@
+{
+  "review_type": "plan",
+  "target": "ownership-map",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "style",
+      "criticality": "low",
+      "description": "Scaffold generator lower-cased the first letter of the acceptance outcome, producing 'The system SHALL ensure that pRs created by /autopilot ...' (the 'PRs' acronym became 'pRs'). The requirement text is still readable but is wrong as written and will propagate into the merged capability spec on sync.",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "nit",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/reviewer-shaped-prs/specs/multiplayer-collaboration/spec.md",
+      "line_range": {
+        "start": 10,
+        "end": 10
+      },
+      "existing_code": "The system SHALL ensure that pRs created by /autopilot and /cleanup-feature render a ledger section generated from choices.json and contract diffs.",
+      "resolution": "Change 'pRs' to 'PRs' (and guard the scaffold's lower-casing step against leading acronyms in plan-roadmap).",
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 2,
+      "type": "style",
+      "criticality": "low",
+      "description": "The proposal's Selected Approach section says design.md records decisions '(D1\u2013D13)', but design.md now has D14 (solo-mode suppression of unowned_* findings) added in plan iteration 1, and the proposal itself cites D14 elsewhere. The readiness checklist in plan-findings.md correctly says D1\u2013D14.",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "nit",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/ownership-map/proposal.md",
+      "existing_code": "2\u20134 are recorded above as rejected; design.md records the finer-grained decisions\n(D1\u2013D13).",
+      "resolution": "Update the range to D1\u2013D14.",
+      "line_range": {
+        "start": 163,
+        "end": 164
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "The YAML front-matter comment states 'merges and every failure/escalation path still wait for a human', but `replan_required` (which fires when a roadmap item enters replan_required, a failure-adjacent path) is set to `auto`. The prose table below does explain that replan_required is covered by roadmap approval, so the posture is internally justified, but the header comment, which is what an operator reads first when editing the gates, overstates what blocks.",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "optional",
+      "evidence_class": "judgment",
+      "file_path": "TRUST_POSTURE.md",
+      "line_range": {
+        "start": 4,
+        "end": 7
+      },
+      "existing_code": "  # Operator decision 2026-10-05: a recorded roadmap_approval authorizes the\n  # plans inside it, so per-item plan gates run unattended; PR creation notifies\n  # and proceeds after an hour; merges and every failure/escalation path still\n  # wait for a human.",
+      "resolution": "Reword the comment to name replan_required as the one failure-adjacent gate that runs unattended, e.g. 'merges and every failure/escalation path except replan_required (covered by roadmap approval) still wait for a human'.",
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 4,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "All 19 scaffolded spec deltas satisfy the WHEN/THEN rule only mechanically: every scenario is 'WHEN `<change>` is implemented THEN <restated requirement>', which is tautological and untestable, and all of them target the placeholder capability directory `multiplayer-collaboration`. The files are clearly marked as plan-roadmap scaffolds to be refined by /plan-feature, and the ownership-map change shows what the refined form looks like, so this is expected at this stage, but syncing any of these scaffolds as-is would add vacuous requirements to a placeholder capability.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "fyi",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/attention-budgets-digests/specs/multiplayer-collaboration/spec.md",
+      "resolution": "No change now; ensure each item passes through /plan-feature or /iterate-on-plan before opsx:sync, as the scaffold header already instructs."
+    },
+    {
+      "id": 5,
+      "type": "security",
+      "criticality": "low",
+      "description": "checkpoint.json commits a dispatch `launch_token` and lease `owner_nonce` into the tracked repository. These are one-shot launch-gate markers for an already-resolved attempt (lease state 'released', outcome 'parked'), and the same pattern is already tracked for the dispatch-governance and principal-credential-architecture roadmaps, so there is no live credential exposure; flagged only so the convention is a conscious one.",
+      "disposition": "accept",
+      "axis": "security",
+      "severity": "fyi",
+      "evidence_class": "judgment",
+      "file_path": "openspec/roadmaps/multiplayer-collaboration/checkpoint.json",
+      "resolution": "Accept as consistent with existing roadmap checkpoints; if tokens are ever reusable across attempts, redact them at checkpoint write time."
+    },
+    {
+      "id": 6,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "The `PathPattern` schema regex admits an embedded `**` (e.g. `openspec/spec**s/`) and also sequences like `***`, relying on the loader to reject them per design D3. The split is documented in both the schema description and D3, and the spec has a scenario for the loader half, so this is a deliberate two-layer validation rather than a gap; noting it because schema-only validators (e.g. an editor plugin) will accept a value the resolver refuses.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "optional",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/ownership-map/contracts/schemas/owners.schema.json",
+      "existing_code": "\"pattern\": \"^/?(?:[A-Za-z0-9._*?-]+/)*[A-Za-z0-9._*?-]+/?$\",",
+      "resolution": "Accept; optionally tighten the regex later to forbid `*` adjacent to `**` within a segment if a schema-only consumer appears.",
+      "line_range": {
+        "start": 82,
+        "end": 82
+      },
+      "line_resolution": "hunk_new"
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "change_id": "retain-static-model-until-routing-evidence",
+  "validator_vendors": [],
+  "worker_vendors": [
+    "claude"
+  ]
+}

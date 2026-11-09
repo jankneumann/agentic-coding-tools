@@ -252,6 +252,35 @@ erDiagram
         TEXT summary
         TEXT tags
     }
+    public__model_catalog {
+        BOOLEAN available
+        TEXT base_url
+        JSONB benchmark_priors
+        NUMERIC_12_6_ completion_usd_per_mtok
+        INTEGER context_window
+        TEXT endpoint_kind
+        BIGSERIAL id
+        TEXT model
+        NUMERIC_10_2_ p50_latency_ms
+        NUMERIC_12_6_ prompt_usd_per_mtok
+        NUMERIC_5_2_ quota_headroom_pct
+        TIMESTAMPTZ quota_reset_at
+        TEXT quota_source
+        TIMESTAMPTZ refreshed_at
+        BOOLEAN stale
+        TEXT vendor
+    }
+    public__model_posteriors {
+        BIGINT catalog_id
+        INTEGER half_life_days
+        BIGSERIAL id
+        BOOLEAN low_confidence
+        TEXT metric
+        DOUBLE_PRECISION sample_size
+        TEXT task_type
+        TIMESTAMPTZ updated_at
+        DOUBLE_PRECISION value
+    }
     public__network_access_log {
         TEXT agent_id
         BOOLEAN allowed
@@ -294,6 +323,36 @@ erDiagram
         TEXT pattern
         TEXT severity
     }
+    public__routing_decisions {
+        JSONB alternatives
+        JSONB budget_state
+        TIMESTAMPTZ created_at
+        UUID decision_id
+        JSONB excluded
+        BOOLEAN exploration
+        BOOLEAN fallback
+        TEXT outcome_ref
+        TEXT policy_version
+        JSONB request
+        JSONB retention
+        JSONB selected
+    }
+    public__routing_spend_ledger {
+        NUMERIC_12_6_ actual_usd
+        BIGINT completion_tokens
+        NUMERIC_12_6_ counterfactual_usd
+        UUID decision_id
+        TEXT endpoint_kind
+        BOOLEAN exploration
+        TEXT generation_id
+        BIGSERIAL id
+        TEXT model
+        TIMESTAMPTZ occurred_at
+        BIGINT prompt_tokens
+        BOOLEAN tokens_estimated
+        TEXT vendor
+        TEXT work_unit_ref
+    }
     public__session_permission_grants {
         TEXT agent_id
         TEXT approved_by
@@ -303,6 +362,28 @@ erDiagram
         TEXT justification
         TEXT operation
         TEXT session_id
+    }
+    public__vendor_probe_state {
+        TEXT agent_id
+        JSONB metadata
+        TEXT observation_id
+        TIMESTAMPTZ observed_at
+        TEXT reason
+        TEXT source_agent_id
+        TIMESTAMPTZ stale_after
+        TEXT status
+    }
+    public__vendor_rate_limits {
+        TEXT agent_id
+        JSONB metadata
+        TEXT model
+        TEXT observation_id
+        TIMESTAMPTZ observed_at
+        TEXT payload_hash
+        TEXT reason
+        TIMESTAMPTZ reset_at
+        TEXT scope
+        TEXT source_agent_id
     }
     public__verification_policies {
         JSONB config

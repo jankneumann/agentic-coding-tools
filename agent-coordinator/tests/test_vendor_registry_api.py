@@ -105,6 +105,46 @@ def test_availability_detail_is_authenticated(registry_client) -> None:
     registry.get_availability.assert_awaited_once_with("dispatcher")
 
 
+def test_vendor_reads_serialize_database_timestamps(registry_client) -> None:
+    # The Postgres backend returns timestamptz columns as datetime objects; a
+    # raw JSONResponse cannot encode them, so GET /vendors answered a bare 500
+    # in production (#643). The other tests mock ISO strings and never saw it.
+    from datetime import UTC, datetime
+
+    client, registry = registry_client
+    observed = datetime(2026, 9, 28, 12, 0, tzinfo=UTC)
+    availability = {
+        "agent_id": "dispatcher",
+        "status": "available",
+        "available": True,
+        "reason": None,
+        "source": "watchdog",
+        "observed_at": observed,
+        "stale_after": observed,
+        "reset_at": None,
+        "rate_limits": [],
+    }
+    registry.list_vendors.return_value = [
+        {
+            "agent_id": "dispatcher",
+            "availability": availability,
+            "cost": {"models": [{"model": "m", "refreshed_at": observed}]},
+        }
+    ]
+    registry.get_availability.return_value = availability
+    headers = {"X-API-Key": "legacy-key"}
+
+    listed = client.get("/vendors", headers=headers)
+    detail = client.get("/vendors/dispatcher/availability", headers=headers)
+
+    assert listed.status_code == 200
+    lane = listed.json()["vendors"][0]
+    assert lane["availability"]["observed_at"] == "2026-09-28T12:00:00+00:00"
+    assert lane["cost"]["models"][0]["refreshed_at"] == "2026-09-28T12:00:00+00:00"
+    assert detail.status_code == 200
+    assert detail.json()["observed_at"] == "2026-09-28T12:00:00+00:00"
+
+
 def test_rate_limit_write_binds_source_to_authenticated_principal(
     registry_client,
 ) -> None:

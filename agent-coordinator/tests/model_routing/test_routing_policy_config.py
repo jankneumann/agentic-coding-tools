@@ -32,7 +32,7 @@ def test_deployed_policy_matches_versioned_strict_schema() -> None:
     Draft202012Validator(schema).validate(_policy())
 
     assert _policy()["schema_version"] == 1
-    assert _policy()["policy_version"] == "dg04-v1"
+    assert _policy()["policy_version"] == "ri18-v1"
 
 
 def test_policy_rules_are_ordered_unique_and_typed() -> None:

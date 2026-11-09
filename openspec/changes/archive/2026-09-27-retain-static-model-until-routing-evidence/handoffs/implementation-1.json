@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-24T00:10:54.330292+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Implemented server-side incumbent retention: evidence predicate and retention rule in the resolver, evidenced-only exploration, incumbent/retention on select_model (HTTP, MCP, proxy), and client forwarding that returns the identical static object on retention. Deviation: routing_decisions has fixed columns, so migration 044 (nullable retention, CHECK-guarded nullable selected, updated audit RPC) was added with user approval.",
+    "completed_work": [
+      "tasks 1.1-6.1 (20/20)",
+      "migration 044 verified on a fresh migrated database",
+      "coordinator suite 2874 passed / 11 skipped; mypy --strict and ruff clean"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Add migration 044 instead of nesting retention in budget_state",
+        "rationale": "User choice mid-implementation; structured column plus CHECK makes a null selection representable only with its reason. Additive and safe in either deploy order.",
+        "capability": "model-routing",
+        "supersedes": null
+      },
+      {
+        "title": "Proxy and seam omit incumbent when absent",
+        "rationale": "A coordinator predating the field forbids unknown request keys even as null; omitting keeps new clients compatible with old servers.",
+        "capability": "model-routing",
+        "supersedes": null
+      },
+      {
+        "title": "Retention short-circuits to the static object on the client",
+        "rationale": "Retention is a normal outcome, not a fallback; returning `static` preserves identity and avoids a false 'routing failed' warning.",
+        "capability": "agent-archetypes",
+        "supersedes": null
+      },
+      {
+        "title": "evidenced flag on ScoredCandidate (not serialized)",
+        "rationale": "Exact D1 predicate needs benchmark_prior, which ScoredCandidate lacked; _candidate_payload copies explicit fields so the flag cannot leak.",
+        "capability": "model-routing",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "/validate-feature retain-static-model-until-routing-evidence \u2014 isolated-stack smoke, then a live select_model read against coord.rotkohl.ai once deployed (expect retention.reason=no-evidence everywhere)",
+      "After deploy + 044 applied: ROUTING_ADAPTIVE can be enabled; watch routing_decisions.retention"
+    ],
+    "relevant_files": [
+      {
+        "path": "agent-coordinator/src/model_routing/resolver.py",
+        "description": "has_evidence, apply_incumbent_retention"
+      },
+      {
+        "path": "agent-coordinator/src/model_routing/api.py",
+        "description": "select_model retention wiring, seam"
+      },
+      {
+        "path": "agent-coordinator/database/migrations/044_routing_decision_retention.sql",
+        "description": "retention column + audit RPC"
+      },
+      {
+        "path": "agent-coordinator/src/agents_config.py",
+        "description": "incumbent forwarding, static short-circuit"
+      }
+    ]
+  }
+}

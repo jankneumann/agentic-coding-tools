@@ -17,14 +17,18 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from src.isolation_contract import IsolationMode
 
-from .exploration import ExplorationBudget, choose
+from .exploration import ExplorationBudget, choose, choose_evidenced
 from .resolver import (
     OBJECTIVE_PROFILES,
     ExcludedAssignmentInput,
+    IncumbentIdentity,
+    ScoredCandidate,
     Weights,
+    apply_incumbent_retention,
     build_feasible_assignments,
     score_and_rank,
 )
+from .routing_policy import CostPolicy, RoutingPolicy
 
 # Match contracts/events/routing-decision-record.schema.json's
 # alternatives.maxItems / excluded.maxItems -- a real catalog refresh (e.g.
@@ -34,6 +38,10 @@ from .resolver import (
 # violate it (Codex review on PR #605, round 5).
 _ALTERNATIVES_MAX = 64
 _EXCLUDED_MAX = 256
+# Absolute utility lead an evidenced challenger needs over the incumbent
+# (retain-static-model-until-routing-evidence, design D3). Server-side knob:
+# ROUTING_INCUMBENT_MARGIN.
+DEFAULT_INCUMBENT_MARGIN = 0.05
 
 EndpointKind = Literal["vendor-cli", "vendor-sdk", "openrouter", "local"]
 ObjectiveProfile = Literal["quality-first", "balanced", "cost-first", "resilience"]
@@ -123,6 +131,15 @@ class TaskRoutingProfile(BaseModel):
     required_dispatch_mode: Literal["review", "alternative", "quick", "sdk"] | None = None
 
 
+class IncumbentRequest(BaseModel):
+    """The caller's static resolution, offered as the incumbent (design D2)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    vendor: str | None = Field(default=None, max_length=128)
+    model: str = Field(min_length=1, max_length=256)
+
+
 class SelectModelRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -131,6 +148,7 @@ class SelectModelRequest(BaseModel):
     objective_profile: ObjectiveProfile | None = None
     weight_overrides: WeightOverrides | None = None
     allow_exploration: bool = True
+    incumbent: IncumbentRequest | None = None
 
 
 class RoutingAssignmentResponse(BaseModel):
@@ -159,6 +177,7 @@ class RoutingProvenanceResponse(BaseModel):
     persisted: bool
     durable_audit: bool
     catalog_key: tuple[str, str, str, str | None] | None
+    cost_tier: Literal["subscription-local", "subscription-cloud", "metered-api"] | None = None
 
 
 class CandidateResponse(BaseModel):
@@ -192,9 +211,31 @@ class ExcludedCandidate(BaseModel):
     reason: str
 
 
+RetentionReason = Literal[
+    "challenger-evidenced-above-margin",
+    "no-evidence",
+    "below-margin",
+    "incumbent-unresolved",
+    "incumbent-infeasible-evidenced-alternative",
+    "incumbent-infeasible-no-evidenced-alternative",
+    "exploration-evidenced",
+]
+
+
+class RetentionResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    retained: bool
+    reason: RetentionReason
+    margin: float = Field(ge=0)
+    incumbent_score: float | None = None
+
+
 class SelectModelResponse(BaseModel):
     decision_id: UUID
-    selected: CandidateResponse
+    # Null only when an incumbent was kept that no feasible catalog row
+    # represents; ``retention`` then says why (design D5).
+    selected: CandidateResponse | None
     alternatives: list[CandidateResponse]
     exploration: bool = False
     fallback: bool = False
@@ -203,6 +244,12 @@ class SelectModelResponse(BaseModel):
     # see CandidateResponse.assignment.
     assignment: RoutingAssignmentResponse | None = None
     provenance: RoutingProvenanceResponse | None = None
+    # ``retention`` exists only for requests that supplied an incumbent; everyone
+    # else keeps the exact pre-change response shape. A field-level exclusion
+    # (not a model serializer) keeps the published OpenAPI schema intact.
+    retention: RetentionResponse | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
 
 
 class UsageByModelResponse(BaseModel):
@@ -264,9 +311,7 @@ class _Catalog(Protocol):
 
     async def record_decision(self, decision: dict[str, Any]) -> dict[str, Any]: ...
 
-    async def record_decision_and_audit(
-        self, decision: dict[str, Any]
-    ) -> dict[str, Any]: ...
+    async def record_decision_and_audit(self, decision: dict[str, Any]) -> dict[str, Any]: ...
 
     async def get_decision(self, decision_id: str) -> dict[str, Any] | None: ...
 
@@ -326,7 +371,19 @@ def _sanitized_request(request: SelectModelRequest) -> dict[str, Any]:
             else None
         ),
         "allow_exploration": request.allow_exploration,
+        **(
+            {"incumbent": request.incumbent.model_dump(mode="json")}
+            if request.incumbent is not None
+            else {}
+        ),
     }
+
+
+def _persisted_request(request: SelectModelRequest) -> dict[str, Any]:
+    # Omit an absent incumbent so pre-change requests persist unchanged.
+    return request.model_dump(
+        mode="json", exclude={"incumbent"} if request.incumbent is None else None
+    )
 
 
 def _task_type(signals: TaskSignals) -> str:
@@ -450,6 +507,7 @@ class RoutingService:
         candidates = await self.catalog.list_candidates(_task_type(request.task_signals))
         assignment_excluded: list[ExcludedAssignmentInput] = []
         evaluation: Any | None = None
+        incumbent_below_cost_tier = False
         if self._assignment_enabled:
             try:
                 lanes = await self.registry.list_vendors(available_only=False)
@@ -492,9 +550,7 @@ class RoutingService:
                 required_isolation = "__constraint-conflict__"
             elif required_isolation is None:
                 required_isolation = evaluation.isolation
-            explicit_dispatch = (
-                explicit.required_dispatch_mode if explicit is not None else None
-            )
+            explicit_dispatch = explicit.required_dispatch_mode if explicit is not None else None
             rule_dispatch = getattr(evaluation, "rule_dispatch_mode", None)
             if (
                 explicit_dispatch is not None
@@ -518,6 +574,48 @@ class RoutingService:
                 required_isolation=required_isolation,
                 roadmap_policy=roadmap,
             )
+            if isinstance(self.policy, RoutingPolicy) and isinstance(
+                self.policy.document.cost_policy, CostPolicy
+            ):
+                tiered = [
+                    (
+                        candidate,
+                        self.policy.cost_tier(
+                            candidate.assignment.location, candidate.endpoint_kind
+                        ),
+                    )
+                    for candidate in candidates
+                    if candidate.assignment is not None
+                ]
+                best_tier = min((tier[0] for _, tier in tiered if tier is not None), default=None)
+                for candidate, tier in tiered:
+                    assert candidate.assignment is not None
+                    if tier is None or tier[0] != best_tier:
+                        assignment_excluded.append(
+                            ExcludedAssignmentInput(
+                                agent_id=candidate.assignment.agent_id,
+                                vendor=candidate.vendor,
+                                model=candidate.model,
+                                endpoint_kind=candidate.endpoint_kind,
+                                base_url=candidate.base_url,
+                                reason=(
+                                    "cost-policy:unclassified"
+                                    if tier is None
+                                    else "cost-policy:lower-priority-tier"
+                                ),
+                            )
+                        )
+                candidates = [
+                    candidate
+                    for candidate, tier in tiered
+                    if tier is not None and tier[0] == best_tier
+                ]
+                incumbent_below_cost_tier = request.incumbent is not None and any(
+                    item.vendor == request.incumbent.vendor
+                    and item.model == request.incumbent.model
+                    and item.reason == "cost-policy:lower-priority-tier"
+                    for item in assignment_excluded
+                )
         ranked, excluded = score_and_rank(
             candidates,
             profile=request.objective_profile or "balanced",
@@ -543,27 +641,38 @@ class RoutingService:
                     "metered_usd_used": None,
                     "degraded_reason": "ledger-read-failed",
                 }
-        selection = choose(
-            ranked,
-            allow_exploration=exploration_allowed,
-            budget=budget,
-            rng=self._rng,
-        )
-        if selection is None:
-            raise RoutingUnavailableError("no feasible model-routing candidate")
+        retention: dict[str, Any] | None = None
+        chosen: ScoredCandidate | None
+        if request.incumbent is None or incumbent_below_cost_tier:
+            selection = choose(
+                ranked,
+                allow_exploration=exploration_allowed,
+                budget=budget,
+                rng=self._rng,
+            )
+            if selection is None:
+                raise RoutingUnavailableError("no feasible model-routing candidate")
+            chosen, explored = selection.selected, selection.exploration
+        else:
+            chosen, explored, retention = self._retain_incumbent(
+                request.incumbent,
+                ranked,
+                [(c.vendor, c.model) for c, _reason in excluded]
+                + [(item.vendor, item.model) for item in assignment_excluded],
+                allow_exploration=exploration_allowed,
+                budget=budget,
+            )
 
-        selected = _candidate_payload(selection.selected)
+        selected = _candidate_payload(chosen) if chosen is not None else None
         alternatives = [
-            _candidate_payload(candidate) for candidate in ranked if candidate != selection.selected
+            _candidate_payload(candidate) for candidate in ranked if candidate != chosen
         ][:_ALTERNATIVES_MAX]
         excluded_payloads = [_excluded_payload(item) for item in assignment_excluded]
         excluded_payloads.extend(
             _excluded_payload(
                 ExcludedAssignmentInput(
                     agent_id=(
-                        candidate.assignment.agent_id
-                        if candidate.assignment is not None
-                        else None
+                        candidate.assignment.agent_id if candidate.assignment is not None else None
                     ),
                     vendor=candidate.vendor,
                     model=candidate.model,
@@ -579,14 +688,21 @@ class RoutingService:
             "decision_id": str(uuid4()),
             "selected": selected,
             "alternatives": alternatives,
-            "exploration": selection.exploration,
+            "exploration": explored,
             "fallback": False,
             "excluded": excluded_payloads,
         }
+        if retention is not None:
+            payload["retention"] = retention
         if self._assignment_enabled:
-            assignment = selected["assignment"]
-            assert isinstance(assignment, dict)
+            assignment = selected["assignment"] if selected is not None else None
+            assert selected is None or isinstance(assignment, dict)
             assert evaluation is not None
+            cost_tier = (
+                self.policy.cost_tier(assignment["location"], assignment["endpoint_kind"])
+                if assignment is not None and isinstance(self.policy, RoutingPolicy)
+                else None
+            )
             provenance = {
                 "source": "coordinator",
                 "policy_version": self.policy.version,
@@ -595,18 +711,25 @@ class RoutingService:
                 "rationale": list(evaluation.rationale),
                 "persisted": True,
                 "durable_audit": True,
-                "catalog_key": [
-                    assignment["catalog_vendor"],
-                    assignment["model"],
-                    assignment["endpoint_kind"],
-                    assignment["base_url"],
-                ],
+                "catalog_key": (
+                    [
+                        assignment["catalog_vendor"],
+                        assignment["model"],
+                        assignment["endpoint_kind"],
+                        assignment["base_url"],
+                    ]
+                    if assignment is not None
+                    else None
+                ),
+                "cost_tier": cost_tier[1] if cost_tier is not None else None,
             }
             payload["assignment"] = assignment
             payload["provenance"] = provenance
             durable_payload = {
                 **payload,
-                "selected": {**selected, "provenance": provenance},
+                "selected": (
+                    {**selected, "provenance": provenance} if selected is not None else None
+                ),
                 "created_at": datetime.now(UTC).isoformat(),
                 "request": _sanitized_request(request),
                 "policy_version": "linear-utility-v1",
@@ -621,12 +744,54 @@ class RoutingService:
                 {
                     **payload,
                     "created_at": datetime.now(UTC).isoformat(),
-                    "request": request.model_dump(mode="json"),
+                    "request": _persisted_request(request),
                     "policy_version": "linear-utility-v1",
                     "budget_state": budget_state,
                 }
             )
         return payload
+
+    def _retain_incumbent(
+        self,
+        incumbent: IncumbentRequest,
+        ranked: list[ScoredCandidate],
+        excluded_identities: list[tuple[str, str]],
+        *,
+        allow_exploration: bool,
+        budget: ExplorationBudget | None,
+    ) -> tuple[ScoredCandidate | None, bool, dict[str, Any]]:
+        """Apply incumbent retention, then evidenced-only exploration (D3, D4)."""
+        decision = apply_incumbent_retention(
+            ranked,
+            excluded_identities,
+            IncumbentIdentity(vendor=incumbent.vendor, model=incumbent.model),
+            _nonnegative_env_float("ROUTING_INCUMBENT_MARGIN", DEFAULT_INCUMBENT_MARGIN),
+        )
+        retention: dict[str, Any] = {
+            "retained": decision.retained,
+            "reason": decision.reason,
+            "margin": decision.margin,
+            "incumbent_score": decision.incumbent_score,
+        }
+        if decision.selected is None:
+            return None, False, retention
+        # Once a challenger has displaced the incumbent, exploring back onto the
+        # incumbent would report a routed "exploration" of the caller's own model.
+        pool = (
+            ranked
+            if decision.retained
+            else [c for c in ranked if (c.vendor, c.model) != (incumbent.vendor, incumbent.model)]
+        )
+        selection = choose_evidenced(
+            decision.selected,
+            pool,
+            allow_exploration=allow_exploration,
+            budget=budget,
+            rng=self._rng,
+        )
+        if selection.exploration:
+            retention = {**retention, "retained": False, "reason": "exploration-evidenced"}
+        return selection.selected, selection.exploration, retention
 
     async def list_catalog(
         self, *, endpoint_kind: str | None, available_only: bool
@@ -707,23 +872,36 @@ def resolve_phase_model(
     static_model: str,
     provider: str | None,
     timeout_seconds: float,
+    incumbent: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Synchronous HTTP seam used by the synchronous archetype resolver."""
+    """Synchronous HTTP seam used by the synchronous archetype resolver.
+
+    ``incumbent`` is sent only when given, so this client still works against a
+    coordinator that predates the field. A null ``selected`` is valid only when
+    the router reports the incumbent as retained.
+    """
     from ..http_proxy import HttpProxyConfig
 
     config = HttpProxyConfig.from_env()
     if config is None:
         raise RoutingUnavailableError("COORDINATION_API_URL is not configured")
     headers = {"Authorization": f"Bearer {config.api_key}"} if config.api_key else {}
+    body: dict[str, Any] = {"task_signals": task_signals}
+    if incumbent is not None:
+        body["incumbent"] = incumbent
     response = httpx.post(
         f"{config.base_url}/routing/select_model",
-        json={"task_signals": task_signals},
+        json=body,
         headers=headers,
         timeout=timeout_seconds,
     )
     response.raise_for_status()
     result = response.json()
-    if not isinstance(result, dict) or not isinstance(result.get("selected"), dict):
+    if not isinstance(result, dict):
+        raise RoutingUnavailableError("adaptive router returned an invalid selection")
+    retention = result.get("retention")
+    retained = isinstance(retention, dict) and retention.get("retained") is True
+    if not isinstance(result.get("selected"), dict) and not retained:
         raise RoutingUnavailableError("adaptive router returned an invalid selection")
     return result
 

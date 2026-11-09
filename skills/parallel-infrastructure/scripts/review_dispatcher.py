@@ -54,6 +54,54 @@ from coordination_bridge import (  # noqa: E402
 logger = logging.getLogger(__name__)
 
 
+def _load_vendor_probe() -> Any | None:
+    """Load the stdlib-only ``vendor_probe`` by sibling path (best-effort).
+
+    Same loader and ``sys.modules["vendor_probe"]`` key as ``vendor_health.py``,
+    so a process that loads both shares one module instance and one cache lock.
+    Returns ``None`` when the probe cannot be loaded — dispatch then behaves as
+    it did before the probe existed.
+    """
+    existing = sys.modules.get("vendor_probe")
+    if existing is not None:
+        return existing
+    try:
+        import importlib.util
+
+        path = Path(__file__).with_name("vendor_probe.py")
+        spec = importlib.util.spec_from_file_location("vendor_probe", path)
+        if spec is None or spec.loader is None:
+            return None
+        module = importlib.util.module_from_spec(spec)
+        sys.modules["vendor_probe"] = module
+        try:
+            spec.loader.exec_module(module)
+        except BaseException:
+            sys.modules.pop("vendor_probe", None)
+            raise
+        return module
+    except Exception as exc:  # noqa: BLE001 - never block dispatch on the probe
+        logger.warning("vendor_probe unavailable: %s", exc)
+        return None
+
+
+def _cli_probe_view(cfg: Any) -> dict[str, Any]:
+    """Plain ``cli`` dict (the probe's input) from the mirror ``CliConfig``.
+
+    Tolerates partial stand-ins: absent attributes read as unset.
+    """
+    return {
+        "command": getattr(cfg, "command", ""),
+        "dispatch_modes": {
+            name: {"args": list(getattr(mode, "args", None) or [])}
+            for name, mode in (getattr(cfg, "dispatch_modes", None) or {}).items()
+        },
+        "model_flag": getattr(cfg, "model_flag", None),
+        "prompt_via_flag": getattr(cfg, "prompt_via_flag", None),
+        "probe": getattr(cfg, "probe", None),
+    }
+
+
 # ---------------------------------------------------------------------------
 # Tier→model resolution from archetypes.yaml (sole authored roster).
 # ---------------------------------------------------------------------------
@@ -573,6 +621,9 @@ class CliConfig:
     # OPENROUTER_API_KEY). A present binary with this var unset cannot serve
     # a request — can_dispatch() fails closed on it (issue #383).
     api_key_env: str = ""
+    # Declarative probe block (vendor_probe.py). ``None`` = undeclared; a
+    # declared ``{}`` is kept distinct (presence, not truthiness).
+    probe: dict[str, Any] | None = None
 
 
 @dataclass
@@ -774,6 +825,25 @@ class CliVendorAdapter:
         self.transport = transport
         self._ledger_submitter = ledger_submitter
         self._ledger_completer = ledger_completer
+
+    def _remember_runtime_failure(self, error_class: "ErrorClass") -> None:
+        """Persist an account-scoped auth/billing failure (best-effort, design D6).
+
+        Only call this with an error classified from the stderr of a non-zero
+        exit; zero-exit stdout classifications are never remembered.
+        """
+        if error_class == ErrorClass.AUTH:
+            name = "auth_required"
+        elif error_class == ErrorClass.UNAVAILABLE:
+            name = "vendor_unavailable"
+        else:
+            return
+        try:
+            probe = _load_vendor_probe()
+            if probe is not None:
+                probe.record_runtime_failure(self.agent_id, name)
+        except Exception as exc:  # noqa: BLE001 - never alter the ReviewResult
+            logger.warning("runtime failure not recorded for %s: %s", self.agent_id, exc)
 
     @staticmethod
     def _ledger_response_error(response: dict[str, Any]) -> str:
@@ -1071,6 +1141,7 @@ class CliVendorAdapter:
                     # Non-zero exit — classify error
                     last_error = result.stderr
                     last_error_class = classify_error(result.stderr)
+                    self._remember_runtime_failure(last_error_class)
 
                 if last_error_class in (ErrorClass.AUTH, ErrorClass.UNAVAILABLE):
                     # Neither auth nor billing/entitlement errors can be fixed
@@ -1548,6 +1619,7 @@ class CliVendorAdapter:
             # Process errors before reading the structured envelope.
             if result.returncode != 0:
                 error_class = classify_error(result.stderr)
+                self._remember_runtime_failure(error_class)
                 if error_class == ErrorClass.AUTH:
                     relogin = _relogin_hint(self.cli_config.command)
                     print(
@@ -1702,6 +1774,8 @@ class CliVendorAdapter:
 
             if result.returncode != 0:
                 message = result.stderr[:500] or "async status command failed"
+                status_error_class = classify_error(result.stderr)
+                self._remember_runtime_failure(status_error_class)
                 ledger_error = self._complete_completion_ledger(
                     ledger_task_id,
                     success=False,
@@ -1714,7 +1788,7 @@ class CliVendorAdapter:
                     success=False,
                     elapsed_seconds=time.monotonic() - elapsed_start,
                     error=message,
-                    error_class=classify_error(result.stderr),
+                    error_class=status_error_class,
                     task_id=task_id,
                     ledger_task_id=ledger_task_id,
                 )
@@ -2495,6 +2569,10 @@ class ReviewOrchestrator:
     → Tier 3 (Skip).
     """
 
+    #: Lanes the probe cache excluded in the latest ``discover_reviewers`` call
+    #: (``{vendor, mode, reason, since}``); recorded in the review manifest.
+    last_exclusions: list[dict[str, Any]]
+
     def __init__(
         self,
         adapters: dict[str, CliVendorAdapter],
@@ -2505,6 +2583,7 @@ class ReviewOrchestrator:
         credential_scopes: dict[str, tuple[str, ...]] | None = None,
         openai_credential_requests: dict[str, tuple[str | None, str]] | None = None,
     ) -> None:
+        self.last_exclusions = []
         self.adapters = adapters
         self.sdk_adapters = sdk_adapters or {}
         self.openai_adapters = openai_adapters or {}
@@ -2577,6 +2656,7 @@ class ReviewOrchestrator:
                         prompt_via_stdin=cli.get("prompt_via_stdin", False),
                         prompt_via_flag=cli.get("prompt_via_flag"),
                         api_key_env=cli.get("api_key_env") or "",
+                        probe=cli.get("probe"),
                     ),
                     transport=agent.get("transport", "mcp"),
                 )
@@ -2826,6 +2906,18 @@ class ReviewOrchestrator:
         (OpenAI-compatible) → Tier 3 (Skip).
         Deduplicates by vendor — at most one reviewer per vendor type.
         """
+        # Cache-driven exclusions (never probes; AGENTIC_PROBE_IGNORE_CACHE=1 skips).
+        self.last_exclusions = []
+        probe_mod, probe_doc = None, None
+        if os.environ.get("AGENTIC_PROBE_IGNORE_CACHE") != "1":
+            probe_mod = _load_vendor_probe()
+            if probe_mod is not None:
+                try:
+                    probe_doc = probe_mod.read_cache()
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning("probe cache unreadable: %s", exc)
+                    probe_mod = None
+
         # Collect all CLI adapters (local transport only)
         cli_by_vendor: dict[str, tuple[str, CliVendorAdapter]] = {}
         for agent_id, adapter in self.adapters.items():
@@ -2863,7 +2955,30 @@ class ReviewOrchestrator:
             # be reported available (issue #383).
             if vendor in cli_by_vendor:
                 agent_id, cli_adapter = cli_by_vendor[vendor]
-                if cli_adapter.can_dispatch(dispatch_mode):
+                exclusion = None
+                if probe_mod is not None:
+                    try:
+                        exclusion = probe_mod.cache_exclusion(
+                            agent_id,
+                            _cli_probe_view(cli_adapter.cli_config),
+                            dispatch_mode,
+                            probe_doc,
+                        )
+                    except Exception as exc:  # noqa: BLE001 - cache never blocks dispatch
+                        logger.warning("probe cache lookup failed for %s: %s", agent_id, exc)
+                if exclusion is not None:
+                    reason, since = exclusion
+                    logger.info(
+                        "Excluding %s mode=%s: %s (since %s)",
+                        agent_id, dispatch_mode, reason, since,
+                    )
+                    self.last_exclusions.append({
+                        "vendor": agent_id,
+                        "mode": dispatch_mode,
+                        "reason": reason,
+                        "since": since,
+                    })
+                elif cli_adapter.can_dispatch(dispatch_mode):
                     logger.info("Tier 1 (CLI) selected for %s: %s", vendor, agent_id)
                     reviewers.append(ReviewerInfo(
                         vendor=vendor,
@@ -3336,6 +3451,7 @@ class ReviewOrchestrator:
             dispatches=dispatches,
             quorum_requested=len(results),
             quorum_received=sum(1 for r in results if r.success),
+            excluded_lanes=list(getattr(self, "last_exclusions", None) or []),
         )
 
 
@@ -3357,6 +3473,8 @@ def _check_vendors(
     exclude_vendor: str | None = None,
     min_vendors: int = 2,
     dispatch_mode: str = "review",
+    as_json: bool = False,
+    dry_invoke: Callable[[list[str]], str | None] | None = None,
 ) -> int:
     """Report whether enough vendors are dispatchable for multi-vendor review.
 
@@ -3364,25 +3482,31 @@ def _check_vendors(
     :data:`CHECK_VENDORS_BELOW_QUORUM`. Orchestrators use the exit status to
     decide whether to enable CLI review — so this MUST fail closed: any error
     resolving the roster reports "below quorum" rather than passing silently.
+
+    A lane counts only after its dry invocation succeeds (D10). With
+    ``as_json`` the report is printed as JSON (see :func:`check_vendors_report`).
     """
-    try:
-        orch = _orchestrator_for_dispatch(agents_yaml, cwd or Path("."))
-        reviewers = orch.discover_reviewers(
-            exclude_vendor=exclude_vendor,
-            dispatch_mode=dispatch_mode,
-        )
-    except Exception as exc:  # noqa: BLE001 — fail closed on any resolution error
-        print(
-            f"check-vendors: unable to resolve vendor roster ({exc})",
-            file=sys.stderr,
-        )
+    report = check_vendors_report(
+        agents_yaml=agents_yaml,
+        cwd=cwd,
+        exclude_vendor=exclude_vendor,
+        dry_invoke=dry_invoke or _dry_invoke,
+    )
+    if "error" in report:
+        if as_json:
+            print(json.dumps(report, sort_keys=True), flush=True)
+        print(f"check-vendors: {report['error']}", file=sys.stderr)
         report_degraded(
-            f"Vendor availability NOT CHECKED — the roster could not be "
-            f"resolved ({exc}); multi-vendor review is unavailable.",
+            f"Vendor availability NOT CHECKED — {report['error']}; multi-vendor "
+            f"review is unavailable.",
         )
         return CHECK_VENDORS_BELOW_QUORUM
 
-    names = sorted({r.vendor for r in reviewers})
+    mode_report = report["modes"].get(dispatch_mode) or {"verified": [], "unverified": []}
+    names = sorted(mode_report["verified"])
+    if as_json:
+        print(json.dumps(report, sort_keys=True), flush=True)
+        return 0 if len(names) >= min_vendors else CHECK_VENDORS_BELOW_QUORUM
     # flush so the summary precedes the stderr diagnostic when both are captured
     print(
         f"check-vendors: {len(names)}/{min_vendors} available: "
@@ -3403,6 +3527,230 @@ def _check_vendors(
         )
         return CHECK_VENDORS_BELOW_QUORUM
     return 0
+
+
+# ---------------------------------------------------------------------------
+# Dispatchable-lane verification (dispatch-contract D10)
+# ---------------------------------------------------------------------------
+
+#: Seconds a lane's dry invocation may take before it counts as unverified.
+DRY_PROBE_TIMEOUT_SECONDS = 10
+#: Modes the --json report resolves (the execution profile's lanes).
+PROFILE_MODES = ("review", "alternative", "quick")
+_QUORUM_POLICY_PATH = Path(__file__).resolve().parents[1] / "review_quorum_policy.json"
+_REVIEW_PHASES = ("PLAN_REVIEW", "IMPL_REVIEW", "VAL_REVIEW")
+
+
+def _dry_invoke(argv: list[str], timeout: int = DRY_PROBE_TIMEOUT_SECONDS) -> str | None:
+    """Run a lane's declared no-op; ``None`` on success, else the failure reason.
+
+    Output is discarded and never printed or returned, so a probe cannot
+    disclose an environment value or credential.
+    """
+    try:
+        completed = subprocess.run(
+            argv,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=timeout,
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        return "probe_timeout"
+    except (FileNotFoundError, PermissionError):
+        return "cli_not_found"
+    except OSError:
+        return "probe_failed"
+    return None if completed.returncode == 0 else "probe_failed"
+
+
+def _cli_lane_for_vendor(orch: Any, vendor: str) -> tuple[str, Any] | None:
+    """The CLI lane ``discover_reviewers`` would consider for ``vendor``."""
+    for agent_id, adapter in orch.adapters.items():
+        if adapter.vendor == vendor and getattr(adapter, "transport", "mcp") == "mcp":
+            return agent_id, adapter
+    return None
+
+
+def _probe_cli_lanes(orch: Any) -> dict[str, Any]:
+    """Tiered probe (``reuse_fresh=False``) of every local CLI lane; writes the cache.
+
+    Returns ``{}`` when the probe cannot be loaded so callers fall back to the
+    legacy dry invocation.
+    """
+    probe = _load_vendor_probe()
+    if probe is None:
+        return {}
+    configs = {
+        agent_id: _cli_probe_view(adapter.cli_config)
+        for agent_id, adapter in orch.adapters.items()
+        if getattr(adapter, "transport", "mcp") == "mcp"
+        and getattr(getattr(adapter, "cli_config", None), "command", "")
+    }
+    try:
+        return probe.probe_lanes(configs, reuse_fresh=False) if configs else {}
+    except Exception as exc:  # noqa: BLE001 - fall back to the legacy probe
+        logger.warning("tiered probe failed, using version-only check: %s", exc)
+        return {}
+
+
+#: The shipped version-only dry invocation. ``dry_invoke is _REAL_DRY_INVOKE``
+#: means "no injected substitute", so --check-vendors uses the tiered probe.
+_REAL_DRY_INVOKE = _dry_invoke
+
+
+def _probe_mode(
+    orch: ReviewOrchestrator,
+    mode: str,
+    *,
+    exclude_vendor: str | None,
+    dry_invoke: Callable[[list[str]], str | None],
+    probes: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Verified and unverified lanes for one mode.
+
+    A CLI lane is verified only when the tiered probe (``probes``, from
+    :func:`_probe_cli_lanes`) passes L0/L1, has no ``auth_failed`` and no fresh
+    runtime failure — the predicate ``discover_reviewers`` uses. Without
+    ``probes`` it falls back to ``<cli> --version``. SDK and OpenAI-compatible lanes have no
+    authenticated no-op in their adapters yet, so they are reported unverified
+    (``probe_unsupported``) rather than counted on importability alone.
+    """
+    configured: set[str] = set()
+    for adapters in (orch.adapters, orch.sdk_adapters, getattr(orch, "openai_adapters", {})):
+        for adapter in adapters.values():
+            if exclude_vendor and adapter.vendor == exclude_vendor:
+                continue
+            configured.add(adapter.vendor)
+    reviewers = {r.vendor: r for r in orch.discover_reviewers(exclude_vendor=exclude_vendor, dispatch_mode=mode)}
+    verified: list[str] = []
+    unverified: list[dict[str, str]] = []
+    for vendor in sorted(configured | set(reviewers)):
+        reviewer = reviewers.get(vendor)
+        lane = _cli_lane_for_vendor(orch, vendor) if probes else None
+        lane_probe = probes.get(lane[0]) if lane and probes else None
+        verdict = (
+            _load_vendor_probe().mode_verdict(lane_probe.entry, lane_probe.runtime_failure, mode)
+            if lane_probe is not None
+            else None
+        )
+        if reviewer is None:
+            cli = next(
+                (a for a in orch.adapters.values() if a.vendor == vendor),
+                None,
+            )
+            if verdict is not None:
+                unverified.append({"vendor": vendor, "reason": verdict[0]})
+                continue
+            reason = (
+                "cli_not_found"
+                if cli is not None and shutil.which(cli.cli_config.command) is None
+                else "not_dispatchable"
+            )
+            unverified.append({"vendor": vendor, "reason": reason})
+            continue
+        if reviewer.dispatch_tier == "cli" and reviewer.cli_config is not None:
+            if lane_probe is not None:
+                failure = verdict[0] if verdict is not None else None
+            else:
+                failure = dry_invoke([reviewer.cli_config.command, "--version"])
+        else:
+            failure = "probe_unsupported"
+        if failure is None:
+            verified.append(vendor)
+        else:
+            unverified.append({"vendor": vendor, "reason": failure})
+    return {"verified": verified, "unverified": unverified}
+
+
+def resolve_quorum_policy(
+    *,
+    environment: str,
+    verified_review_lanes: int,
+    policy_path: Path | None = None,
+) -> dict[str, Any]:
+    """The per-environment review quorum, from data (dispatch-contract D10).
+
+    Returns ``{"min_quorum": {phase: n}, "environment", "policy_id",
+    "sunset"}``. The default quorum applies unless an active policy for this
+    environment applies to the verified lane count.
+    """
+    try:
+        document = json.loads((policy_path or _QUORUM_POLICY_PATH).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        document = {}
+    default = int(document.get("default_min_quorum", 2))
+    resolved: dict[str, Any] = {
+        "min_quorum": {phase: default for phase in _REVIEW_PHASES},
+        "environment": environment,
+        "policy_id": None,
+        "sunset": None,
+    }
+    for policy in document.get("policies", []):
+        if not policy.get("active") or policy.get("environment") != environment:
+            continue
+        below = policy.get("applies_when_verified_lanes_below")
+        if isinstance(below, int) and verified_review_lanes >= below:
+            continue
+        resolved.update(
+            min_quorum={phase: int(policy["min_quorum"]) for phase in _REVIEW_PHASES},
+            policy_id=policy.get("id"),
+            sunset=policy.get("sunset"),
+        )
+        break
+    return resolved
+
+
+def _execution_environment() -> str:
+    """``cloud_container`` when the harness provides isolation, else ``host``."""
+    try:
+        skills_root = Path(__file__).resolve().parents[2]
+        if str(skills_root) not in sys.path:
+            sys.path.insert(0, str(skills_root))
+        from shared.environment_profile import detect
+
+        return "cloud_container" if detect().isolation_provided else "host"
+    except Exception:  # noqa: BLE001 - unknown environment keeps the default quorum
+        return "host"
+
+
+def check_vendors_report(
+    *,
+    agents_yaml: str | None = None,
+    cwd: Path | None = None,
+    exclude_vendor: str | None = None,
+    dry_invoke: Callable[[list[str]], str | None] | None = None,
+    environment: str | None = None,
+) -> dict[str, Any]:
+    """The structured ``--check-vendors --json`` report (never raises)."""
+    if dry_invoke is None:
+        dry_invoke = _dry_invoke
+    try:
+        orch = _orchestrator_for_dispatch(agents_yaml, cwd or Path("."))
+        # An injected dry_invoke (tests, custom callers) keeps the legacy
+        # version-only check; the real one upgrades to the tiered probe.
+        probes = _probe_cli_lanes(orch) if dry_invoke is _REAL_DRY_INVOKE else {}
+        modes = {
+            mode: _probe_mode(
+                orch, mode, exclude_vendor=exclude_vendor, dry_invoke=dry_invoke, probes=probes,
+            )
+            for mode in PROFILE_MODES
+        }
+    except Exception as exc:  # noqa: BLE001 — fail closed on any resolution error
+        return {"error": f"unable to resolve vendor roster ({type(exc).__name__})", "modes": {}}
+    report: dict[str, Any] = {
+        "modes": modes,
+        "probe_command": (
+            "python3 <skill-base-dir>/../parallel-infrastructure/scripts/review_dispatcher.py "
+            "--check-vendors --json"
+        ),
+    }
+    report["quorum_policy"] = resolve_quorum_policy(
+        environment=environment or _execution_environment(),
+        verified_review_lanes=len(modes["review"]["verified"]),
+    )
+    return report
 
 
 def _orchestrator_for_dispatch(
@@ -3457,6 +3805,13 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--json", action="store_true", dest="as_json",
+        help=(
+            "With --check-vendors: print {modes: {<mode>: {verified, unverified}}, "
+            "probe_command, quorum_policy} (or {error, modes: {}}) as JSON."
+        ),
+    )
+    parser.add_argument(
         "--min-vendors", type=int, default=2,
         help=(
             "Quorum required by --check-vendors (default: 2, the minimum for "
@@ -3506,6 +3861,7 @@ def main() -> int:
             exclude_vendor=args.exclude_vendor,
             min_vendors=args.min_vendors,
             dispatch_mode=args.mode,
+            as_json=args.as_json,
         )
 
     # --list-agents: show available agents and exit

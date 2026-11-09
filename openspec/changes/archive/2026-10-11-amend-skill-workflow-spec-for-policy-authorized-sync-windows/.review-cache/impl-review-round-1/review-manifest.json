@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "change_id": "amend-skill-workflow-spec-for-policy-authorized-sync-windows",
+  "review_type": "implementation",
+  "created_at": "2026-10-11T05:33:26Z",
+  "target": "amend-skill-workflow-spec-for-policy-authorized-sync-windows",
+  "dispatches": [
+    {
+      "vendor": "antigravity",
+      "success": false,
+      "model_used": null,
+      "models_attempted": [
+        "gemini-3.8-flash-high"
+      ],
+      "elapsed_seconds": 240.09075536578894,
+      "error": "Timeout after 240s",
+      "error_class": "transient"
+    },
+    {
+      "vendor": "claude_code",
+      "success": true,
+      "model_used": "fable",
+      "models_attempted": [
+        "fable"
+      ],
+      "elapsed_seconds": 151.24022268503904,
+      "error": null,
+      "error_class": null
+    },
+    {
+      "vendor": "codex",
+      "success": true,
+      "model_used": "gpt-5.6-sol",
+      "models_attempted": [
+        "gpt-5.6-sol"
+      ],
+      "elapsed_seconds": 111.41981352772564,
+      "error": null,
+      "error_class": null
+    },
+    {
+      "vendor": "grok",
+      "success": false,
+      "model_used": null,
+      "models_attempted": [
+        "grok-4.5"
+      ],
+      "elapsed_seconds": 2.175157817080617,
+      "error": "Error: Internal error: {\n  \"message\": \"API error (status 426 Upgrade Required): Your Grok CLI version (1.0.5) is outdated. Please update to version 1.0.13 or later via `grok update` or the installation documentation.\",\n  \"http_status\": 426\n}\n",
+      "error_class": "unknown"
+    },
+    {
+      "vendor": "pi",
+      "success": false,
+      "model_used": "nvidia/nemotron-3-ultra-550b-a55b",
+      "models_attempted": [
+        "nvidia/nemotron-3-ultra-550b-a55b"
+      ],
+      "elapsed_seconds": 198.1756720105186,
+      "error": "{\"type\":\"session\",\"version\":3,\"id\":\"01a1296f-d58d-73be-a0f6-ea7f98899d49\",\"timestamp\":\"2026-10-11T05:29:17.453Z\",\"cwd\":\"/home/jankneumann/Coding/agentic-coding-tools/.git-worktrees/amend-skill-workflow-spec-for-policy-authorized-sync-windows\"}\n{\"type\":\"agent_start\"}\n{\"type\":\"turn_start\"}\n{\"type\":\"message_start\",\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"## Review Round 1\\n\\nThe packet is complete; do not explore the repo for missing artifacts.\\n\\nReview the attached artifacts for",
+      "error_class": "auth_required"
+    }
+  ],
+  "quorum_requested": 5,
+  "quorum_received": 2,
+  "vendors": [
+    {
+      "name": "claude_code",
+      "findings_path": "findings-claude_code-implementation.json",
+      "finding_count": 7,
+      "unanchored_findings": 0,
+      "fact_check": "ran",
+      "fact_check_removed": 0,
+      "fact_check_tokens": 0
+    },
+    {
+      "name": "codex",
+      "findings_path": "findings-codex-implementation.json",
+      "finding_count": 4,
+      "unanchored_findings": 0,
+      "fact_check": "ran",
+      "fact_check_removed": 0,
+      "fact_check_tokens": 0
+    }
+  ]
+}

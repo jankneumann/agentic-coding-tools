@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-16T13:48:00.367048+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "autopilot-phase-validator",
+    "session_id": "ri06-final-validate-20260916",
+    "summary": "Final post-fix validation passed at pushed commit 3e1657b0. The exact routing contract, exact-once/concurrency, multiple-resume cohort, and ledger-to-mirror rehydration regressions pass; all required spec, package, full-suite, Ruff, OpenSpec, traceability, scope, and context-drift gates are green, with only advisory architecture provenance and file-size findings.",
+    "completed_work": [
+      "Passed 9 direct post-fix routing and rehydration regressions",
+      "Passed 620 focused roadmap-runtime, supervise, and autopilot-roadmap tests",
+      "Passed the complete skills suite: 6319 passed, 6 skipped, 2 warnings",
+      "Passed Ruff, strict OpenSpec 90/90, work-package/result validation, requirement traceability, scope, pre-merge, and deterministic context-drift gates"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Use behavioral suites as skill-runtime architecture evidence",
+        "rationale": "The preserved service graph predates the branch and excludes skills, so its zero findings are qualified rather than overstated; 9 direct regressions, 620 focused tests, and the 6319-test full suite are the authoritative evidence.",
+        "capability": "supervise",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Advance autopilot to final validation review"
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/validation-report.md",
+        "description": "Final post-fix passing validation report"
+      },
+      {
+        "path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/change-context.md",
+        "description": "Named 14-scenario behavioral evidence"
+      },
+      {
+        "path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/validation-findings.json",
+        "description": "Advisory-only structured findings"
+      },
+      {
+        "path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/architecture-impact.md",
+        "description": "Qualified architecture provenance and behavioral evidence"
+      }
+    ]
+  }
+}

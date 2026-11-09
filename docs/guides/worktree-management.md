@@ -10,6 +10,7 @@
 - **GC**: Default 24h stale threshold. Pinned worktrees survive GC unless `--force`
 - **Branch naming**: Agent branches use `--` separator: `openspec/<change-id>--<agent-id>`. Git cannot have both `refs/heads/a/b` and `refs/heads/a/b/c`, so `/` between change-id and agent-id would conflict with the feature branch `openspec/<change-id>`.
 - **Rule**: One agent, one worktree, one branch. Never share a worktree between agents
+- **Base freshness** (#619): new branches start from `origin/main`, not the local `main` ref, which lags whenever another session merges. Agent branches start from their parent feature branch. A reused same-name branch that is behind its base is fast-forwarded only when it holds no work of its own (`git cherry`, so rebase-merged commits count as merged) and no worktree has it checked out (`BRANCH_FAST_FORWARDED=<base>`). Otherwise it is left as is and reported (`BRANCH_BEHIND_BASE=<n>`). `setup` also prints `BRANCH_START_POINT` / `BRANCH_START_SOURCE` on stdout.
 - **Operator branch override**: Set `OPENSPEC_BRANCH_OVERRIDE=<branch>` in the environment to force `worktree.py setup` to use that branch instead of the default `openspec/<change-id>`. This is how the Claude cloud harness (or any operator) mandates a specific branch like `claude/fix-<slug>` for an entire session.
   - **Precedence**: explicit `--branch` flag > `OPENSPEC_BRANCH_OVERRIDE` env var > `openspec/<change-id>` default.
   - **Session stability**: The override must stay set for every phase (plan → implement → cleanup) or phases will diverge onto different branches.

@@ -1265,16 +1265,18 @@ async def proxy_select_model_for_task(
     objective_profile: str | None = None,
     weight_overrides: dict[str, float] | None = None,
     allow_exploration: bool = True,
+    incumbent: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Proxy the MCP model-selection tool to the matching HTTP operation."""
-    return await _request(
-        "POST",
-        "/routing/select_model",
-        json_body={
-            "task_signals": task_signals,
-            "routing_profile": routing_profile,
-            "objective_profile": objective_profile,
-            "weight_overrides": weight_overrides,
-            "allow_exploration": allow_exploration,
-        },
-    )
+    body: dict[str, Any] = {
+        "task_signals": task_signals,
+        "routing_profile": routing_profile,
+        "objective_profile": objective_profile,
+        "weight_overrides": weight_overrides,
+        "allow_exploration": allow_exploration,
+    }
+    # Only send an incumbent when there is one: a coordinator that predates
+    # the field rejects unknown request keys, even as null.
+    if incumbent is not None:
+        body["incumbent"] = incumbent
+    return await _request("POST", "/routing/select_model", json_body=body)
