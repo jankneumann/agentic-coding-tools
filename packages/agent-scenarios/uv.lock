@@ -159,7 +159,7 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.28" },
     { name = "jinja2", specifier = ">=3.1.6" },
     { name = "jsonpath-ng", specifier = ">=1.8.0" },
-    { name = "openai", marker = "extra == 'sdk'", specifier = ">=1.50" },
+    { name = "openai", marker = "extra == 'sdk'", specifier = ">=3.19.0" },
     { name = "pydantic", specifier = ">=2.13" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "system-one-decisions", extras = ["live"], marker = "extra == 'decisions'", directory = "../system-one-decisions" },
