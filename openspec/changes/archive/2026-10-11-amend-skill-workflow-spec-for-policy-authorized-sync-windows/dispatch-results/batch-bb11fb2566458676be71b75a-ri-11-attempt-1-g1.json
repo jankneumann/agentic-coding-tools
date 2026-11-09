@@ -1,0 +1,45 @@
+{
+  "attempt": 1,
+  "branch": "openspec/amend-skill-workflow-spec-for-policy-authorized-sync-windows",
+  "change_id": "amend-skill-workflow-spec-for-policy-authorized-sync-windows",
+  "degradations": [
+    {
+      "code": "coordinator_projection_forbidden",
+      "detail": "project-state submit returned forbidden",
+      "phase": "INIT"
+    },
+    {
+      "code": "audit_sink_failed",
+      "detail": "audit sink reported failure for gate proposal_approval decision auto",
+      "phase": "PLAN"
+    },
+    {
+      "code": "audit_sink_failed",
+      "detail": "audit sink reported failure for gate pr_creation decision auto",
+      "phase": "SUBMIT_PR"
+    },
+    {
+      "code": "audit_sink_failed",
+      "detail": "audit sink reported failure for gate merge decision posture_block",
+      "phase": "SUBMIT_PR"
+    }
+  ],
+  "dispatch_id": "batch-bb11fb2566458676be71b75a:ri-11:attempt-1",
+  "evidence": {
+    "commit": "c789d1e8e05818ac77e9f24ddb4af40c8a72de81",
+    "loop_state_digest": "7850f73f35f857a09523e23a2de0d4801c4addafa6aae9247013694745998d93",
+    "loop_state_path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/loop-state.json"
+  },
+  "host_id": "machine-8ce412f9e16ce285",
+  "lease_generation": 1,
+  "outcome": "parked",
+  "parked": {
+    "deadline": null,
+    "gate": "merge",
+    "kind": "pending_gate",
+    "reason": "Authorize merging this pull request? (autopilot records the authorization only; /cleanup-feature merges)",
+    "resume_hint": "answer gate merge through the resume request's gate_answer"
+  },
+  "schema_version": 2,
+  "worktree_ref": "amend-skill-workflow-spec-for-policy-authorized-sync-windows"
+}

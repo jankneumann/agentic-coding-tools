@@ -50,6 +50,19 @@ policies:
 
 credential_vendors: [anthropic, openai, openrouter, xai]
 
+# Human principals (ownership-map capability). Humans are principals, NOT agents:
+# nothing below is projected into agent_profiles, API-key identities, dispatch
+# configs or OpenBao AppRoles, and a human id may not equal an agent name.
+# `github` is required for any human who appears in an emitted CODEOWNERS owner
+# set; `email` is optional and consumed by nothing yet (omit it if you would
+# rather not publish it). `openspec/owners.yaml` assigns owners by these ids.
+humans:
+  jan:
+    display_name: "Jan Neumann"
+    github: jankneumann
+    domains: [agent-coordinator, skills]
+    description: "Repository maintainer"
+
 agents:
   # ---------------------------------------------------------------------------
   # Claude Code
@@ -88,9 +101,10 @@ agents:
     description: Local Claude Code CLI agent with full coordination access
     cli:
       command: claude
+      probe:
+        auth_status_args: [auth, status]
       dispatch_modes:
         review:
-          # --json-schema verified 2026-09-12 (claude 2.1.268 --help).
           # Model + thinking come from archetypes.yaml reviewer/premium tier.
           args: ["--print", "--allowedTools", "Read,Grep,Glob", "--json-schema", "@review-findings-schema"]
         alternative:
@@ -120,10 +134,11 @@ agents:
     description: Remote Claude Code agent (runs on Anthropic infrastructure)
     cli:
       command: claude
+      probe:
+        auth_status_args: [auth, status]
       dispatch_modes:
         review:
           # Sync: --print --remote blocks and returns stdout
-          # --json-schema verified 2026-09-12 (same claude CLI as claude-local).
           # Model + thinking come from archetypes.yaml reviewer/premium tier.
           args: ["--print", "--remote", "--allowedTools", "Read,Grep,Glob", "--json-schema", "@review-findings-schema"]
         quick:
@@ -165,6 +180,8 @@ agents:
     description: Local Codex worker with full coordination access
     cli:
       command: codex
+      probe:
+        auth_status_args: [login, status]
       dispatch_modes:
         review:
           # Model + thinking come from archetypes.yaml reviewer/premium tier.
@@ -232,6 +249,7 @@ agents:
     description: Local Antigravity (agy) worker with full coordination access
     cli:
       command: agy
+      probe: {}
       dispatch_modes:
         review:
           # --mode plan: planning only, no edits — read-only-shaped review.
@@ -249,8 +267,7 @@ agents:
           # withholding permissions. This was the only dispatch mode missing
           # the flag.
           #
-          # --json-schema verified 2026-09-12 (agy 1.2.2 --help: schema string
-          # or path). Sentinel injected by CliVendorAdapter._resolve_args.
+          # Sentinel injected by CliVendorAdapter._resolve_args.
           args: ["--mode", "plan", "--dangerously-skip-permissions", "--output-format", "json", "--json-schema", "@review-findings-schema"]
         alternative:
           args: ["--mode", "accept-edits", "--dangerously-skip-permissions"]
@@ -287,6 +304,8 @@ agents:
     description: Local Grok worker with full coordination access
     cli:
       command: grok
+      probe:
+        credential_files: ["~/.grok/auth.json"]
       dispatch_modes:
         review:
           # --json-schema is REQUIRED, not optional polish. review_dispatcher's
@@ -372,6 +391,8 @@ agents:
     description: Local pi worker (OpenRouter) with full coordination access
     cli:
       command: pi
+      probe:
+        auth_status_args: [auth, check, --provider, openrouter, --no-refresh]
       dispatch_modes:
         review:
           # --no-tools REMOVED. Its presence was the most damaging of the three

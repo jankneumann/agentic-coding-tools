@@ -6,7 +6,7 @@ readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.12"
 dependencies = [
-    "fastmcp>=3.4.4,<4.0",
+    "fastmcp>=3.4.10,<4.0",
     "httpx>=0.28.1",
     "hvac>=2.4.0",
     "jsonschema>=4.26.0",
@@ -18,7 +18,7 @@ dependencies = [
     "aiosmtplib>=5.1.1",
     "aioimaplib>=2.0.1",
     "email-validator>=2.3.0",
-    "urllib3>=2.7.0",
+    "urllib3>=2.8.0",
     # gen-eval framework is now a sibling package (see [tool.uv.sources]).
     # We install with the [mcp] extra so coordinator's MCP service surface
     # keeps working (it serves /gen-eval/* tools via gen_eval.mcp_service).
@@ -68,9 +68,9 @@ analysis = [
     "psycopg2-binary>=2.9.0",
 ]
 observability = [
-    "opentelemetry-api>=1.44.0",
-    "opentelemetry-sdk>=1.44.0",
-    "opentelemetry-exporter-otlp>=1.44.0",
+    "opentelemetry-api>=1.45.1",
+    "opentelemetry-sdk>=1.45.1",
+    "opentelemetry-exporter-otlp>=1.45.1",
     "opentelemetry-exporter-prometheus>=0.65b0",
     "prometheus-client>=0.26.0",
     "langfuse>=4.15.1,<5.0",
@@ -123,8 +123,19 @@ override-dependencies = [
     # CVE-2026-49852 (HIGH — HMAC empty-key auth bypass) and CVE-2026-48990
     # (RFC7797 payload-size-limit bypass) affect joserfc < 1.6.8. Brought in
     # transitively via the auth stack; force the patched version until an
-    # upstream parent floor covers it.
-    "joserfc>=1.6.8",
+    # upstream parent floor covers it. CVE-2026-119283/119284: joserfc < 1.7.6
+    # decrypts an unbounded JWE recipients array and copies oversized compact-JWS
+    # segments before checking their limits (both CPU/memory DoS).
+    "joserfc>=1.7.6",
+    # CVE-2026-96760 (JWS JSON signature-verification bypass), CVE-2026-116672
+    # (RFC 7592 registration management) and PYSEC-2026-4354..4360 (ID-token
+    # nonce, JWT-bearer audience, empty HMAC key, loopback-transport checks)
+    # affect authlib < 1.9.1. Transitive via fastmcp; force the patched version
+    # until fastmcp's floor covers it.
+    "authlib>=1.9.1",
+    # CVE-2026-114605: dnspython < 2.9.0 spends excessive CPU decompressing a
+    # crafted DNS name. Transitive via email-validator.
+    "dnspython>=2.9.0",
     # PYSEC-2026-3444: httplib2 < 0.32.0 performs unbounded decompression of
     # gzip/deflate response bodies, letting a malicious server OOM the client.
     # Brought in transitively via google-api-python-client / google-auth-httplib2;
@@ -134,8 +145,17 @@ override-dependencies = [
     # MCP HTTP transports) and CVE-2026-59950 (missing Host/Origin validation in
     # the deprecated WebSocket transport) affect mcp < 1.28.1. Brought in
     # transitively via fastmcp; force the patched version until fastmcp's floor
-    # covers it.
-    "mcp>=1.28.1",
+    # covers it. CVE-2026-59951: mcp < 1.30.0 never reclaims stateful
+    # Streamable HTTP sessions, so a client can grow server memory without
+    # bound; 1.30.0 adds an idle timeout and a session cap.
+    # Capped below 2: fastmcp 3.4.11 would otherwise resolve mcp 2.x, a major
+    # upgrade that does not belong in a security bump.
+    "mcp>=1.30.0,<2",
+    # PYSEC-2026-4320: certifi < 2026.10.18 trusts the emSign ECC Root CA - G3,
+    # whose intermediates had their private keys compromised. 2026.10.19 keeps
+    # the unaffected emSign roots. Transitive via httpx/requests; force the
+    # patched bundle until an upstream parent floor covers it.
+    "certifi>=2026.10.19",
 ]
 
 # Resolve `gen-eval` to the sibling package in this monorepo. Per design

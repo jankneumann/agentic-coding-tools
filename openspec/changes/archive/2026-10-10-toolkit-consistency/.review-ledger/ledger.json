@@ -1,0 +1,1596 @@
+{
+  "schema_version": 1,
+  "change_id": "toolkit-consistency",
+  "items": [
+    {
+      "id": 1,
+      "status": "parked",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/attention-budgets-digests/specs/multiplayer-collaboration/spec.md",
+      "spec_file": "openspec/changes/attention-budgets-digests/specs/multiplayer-collaboration/spec.md",
+      "fingerprint": "f12367b29cf4cf83",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "19 of the 20 spec deltas (every change except toolkit-consistency) are plan-roadmap scaffolds whose scenarios are circular: `WHEN <change-id> is implemented THEN <acceptance outcome>`. Each SHALL technically has a WHEN/THEN, but none is verifiable, and all sit under the placeholder capability `multiplayer-collaboration`, for which no `openspec/specs/` directory exists. toolkit-consistency's own plan-findings graded this same pattern 'critical testability' and replaced it. Acceptable as scaffolds that /plan-feature or PLAN_ITERATE must refine, but they must not pass through to IMPLEMENT as-is.",
+      "resolution": "IMPL_REVIEW 2026-10-10: file outside toolkit-consistency; tabled to owner in plan-findings.md Iteration 2 (PLAN_REVIEW decision 4)",
+      "parked_reason": "reject_out_of_scope",
+      "consensus_status": "disagreement"
+    },
+    {
+      "id": 2,
+      "status": "parked",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/reviewer-shaped-prs/specs/multiplayer-collaboration/spec.md",
+      "fingerprint": "7962576af4bad488",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The scaffold generator truncates requirement headings mid-sentence with `...` and lowercases the first character of the outcome, producing `pRs created by` here (and `that given any`, `that /implement-feature` elsewhere). `### Requirement:` headings are the identity used by opsx:sync and by the planned requirement-level collision scanner (ri-06), so truncated, near-identical headings undermine the very collision detection this roadmap introduces.",
+      "resolution": "IMPL_REVIEW 2026-10-10: file outside toolkit-consistency; tabled to owner in plan-findings.md Iteration 2 (PLAN_REVIEW decision 4)",
+      "parked_reason": "reject_out_of_scope",
+      "consensus_status": "disagreement"
+    },
+    {
+      "id": 3,
+      "status": "retired",
+      "axis": "security",
+      "type": "security",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "TRUST_POSTURE.md",
+      "fingerprint": "2ac81f7e68e1309c",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The rationale for `proposal_approval: auto` is that a recorded `roadmap_approval` already authorizes the plans inside a roadmap. But `proposal_approval` also fires for standalone changes started via /plan-feature or /autopilot with no parent roadmap, where no roadmap_approval exists. As written, the posture removes the only human intent gate for non-roadmap changes, which contradicts the epic's own P3 (intent is an owned artifact) and the fail-closed constraint.",
+      "resolution": "operator disposition 2026-10-10: implemented elsewhere (ri-21 dispatch-contract #667, main 731557b)",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 4,
+      "status": "parked",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "TRUST_POSTURE.md",
+      "fingerprint": "066e4de18cedbdf9",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The header comment says 'every failure/escalation path still wait[s] for a human', but `replan_required` (fires when a roadmap item enters `replan_required`, i.e. after a failed plan) is set to `auto`. The table further down is internally consistent (`proposal_approval, replan_required | auto`), so only the comment is wrong, but the comment is what an operator reads first.",
+      "resolution": "IMPL_REVIEW 2026-10-10: file outside toolkit-consistency; tabled to owner in plan-findings.md Iteration 2 (PLAN_REVIEW decision 4)",
+      "parked_reason": "reject_out_of_scope",
+      "consensus_status": "disagreement"
+    },
+    {
+      "id": 5,
+      "status": "parked",
+      "axis": "observability",
+      "type": "observability",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/loop-state.json",
+      "fingerprint": "c60633ada9c8130d",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Two operator approvals of `escalate_resume` cite a 'cloud single-vendor review policy (TRUST_POSTURE.md 479dcd9)' as their authority. The TRUST_POSTURE.md in this packet contains no review-quorum or single-vendor policy at all; it only defines gate dispositions. Either the policy lives in a commit not present here, or the authority citation is unverifiable from the repository, which defeats P9 traceability. Both approvals also carry `approval_id: null`, so the only record of the human decision is free text in `reason`.",
+      "resolution": "IMPL_REVIEW 2026-10-10: file outside toolkit-consistency; tabled to owner in plan-findings.md Iteration 2 (PLAN_REVIEW decision 4)",
+      "parked_reason": "reject_out_of_scope",
+      "consensus_status": "disagreement"
+    },
+    {
+      "id": 6,
+      "status": "retired",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/roadmaps/multiplayer-collaboration/roadmap.yaml",
+      "fingerprint": "f0b2b34a6fd5b2fa",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Canonical roadmap state disagrees with the change loop-state. `toolkit-consistency/loop-state.json` shows ri-20 ran GATEKEEPER and PLAN_ITERATE on 2026-10-05 and has been parked in PLAN_REVIEW twice, yet roadmap.yaml still lists ri-20 as `approved` (not `in_progress`), checkpoint.json has no dispatch_attempt for it, `current_item_id` is still ri-01, and roadmap `status` is `planning` after a recorded roadmap_approval proceed. Per docs/guides/work-queue-truth-projection.md roadmap.yaml/loop-state.json are the canonical state a rebuilt queue is projected from, so a reconciliation would re-dispatch ri-20 as fresh work.",
+      "resolution": "operator disposition 2026-10-10: owned by roadmap supervisor bookkeeping pass",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 7,
+      "status": "retired",
+      "axis": "security",
+      "type": "security",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/roadmaps/multiplayer-collaboration/checkpoint.json",
+      "fingerprint": "dfb14b81449a0c03",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The dispatch handshake `launch_token` and lease `owner_nonce` are committed in a tracked file. They appear to be single-use and already consumed (lease state `released`, gate `entered`), so exposure is low, but committing live-looking tokens trains readers to treat them as harmless and will trip secret scanners.",
+      "resolution": "operator disposition 2026-10-10: accepted; checkpoint digest-only since 4955e24",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 8,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "fingerprint": "d285354c9819e3fc",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The One-way consumption requirement says merged shared records 'SHALL participate in the existing deduplication', and design.md states that dedupe key is `(capability_gap, affected_skill, session_id)`. But the Exported learning privacy requirement drops `session_id` and allowlists only `event_type, summary, outcome, lessons, tags, created_at`, so neither `session_id` nor top-level `capability_gap`/`affected_skill` exist on an exported record. The exporter's own dedupe key `(capability_gap, affected_skill, summary)` likewise uses two fields that are not in the allowlist. The two requirements cannot both hold unless capability_gap/affected_skill are recovered from tags and the consumer dedupe key is changed.",
+      "resolution": "PLAN_FIX (conductor, inline): spec.md Exported learning privacy names capability_gap/affected_skill as retained tag values; One-way consumption dedupes shared records on (capability_gap, affected_skill, summary).",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 9,
+      "status": "addressed",
+      "axis": "security",
+      "type": "security",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "fingerprint": "d9f9d452b34ddbfe",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The privacy requirement drops the `agent_id` and `session_id` fields but exports `tags` verbatim. Per docs/guides/memory-conventions.md, memory entries are tagged with identifiers such as `agent:<id>`, `session:<id>`, `change:<id>` and vendor/model tags, so the identity the allowlist removes re-enters through tags. The secret sanitizer targets credential patterns, not identifiers, so it will not catch this. No scenario covers tag-encoded identity.",
+      "resolution": "PLAN_FIX (conductor, inline): spec.md tags filtered to D4 namespaces; identity/context tags dropped; scenario 'Identity-bearing tags are dropped' added.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 10,
+      "status": "open",
+      "axis": "resilience",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "spec_file": "openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "fingerprint": "b59eefac243153a1",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Because the stamp is the pin (D3) and every successful install overwrites it, a teammate who runs install.sh from an un-pinned toolkit checkout silently moves the team's pin instead of hitting drift. The drift check only runs under `--check`. No scenario covers 'install over an existing stamp whose hash differs from the new source', so the implementation is free to overwrite without even a notice; the only safeguard is a git diff on a hash string.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 11,
+      "status": "addressed",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/plan-findings.md",
+      "fingerprint": "db13a5c821fee4ab",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "plan-findings.md and session-log.md both claim 25 scenarios; the spec delta contains 26 (Install stamp 4, Payload hash 4, Drift check 6, Shared learnings opt-in 3, Exported learning privacy 4, One-way consumption 3, State-artifact registration 2).",
+      "resolution": "PLAN_FIX (conductor, inline): plan-findings.md scenario count corrected (26, 27 after finding 9); Iteration 2 section added.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 12,
+      "status": "parked",
+      "axis": "observability",
+      "type": "observability",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/supervise/supervisor-record.json",
+      "fingerprint": "5510faeb83272167",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The record's `written_at` (06:59:55.764) is 35 ms earlier than the `decided_at` of the decision it contains (06:59:55.799), so the file claims to have been written before the decision it records. Two different timestamp formats (`+00:00` vs `Z`) are also used in the same file.",
+      "resolution": "IMPL_REVIEW 2026-10-10: file outside toolkit-consistency; tabled to owner in plan-findings.md Iteration 2 (PLAN_REVIEW decision 4)",
+      "parked_reason": "reject_out_of_scope",
+      "consensus_status": "disagreement"
+    },
+    {
+      "id": 13,
+      "status": "parked",
+      "axis": "architecture",
+      "type": "architecture",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/roadmaps/multiplayer-collaboration/roadmap.yaml",
+      "fingerprint": "b527f16b12d90034",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Priority inversion: ri-13 (priority 2) depends on ri-12 (priority 3), so the priority-2 item cannot become ready until a priority-3 item completes. Under the autopilot-roadmap/queue ordering the priority field then misrepresents effective scheduling order.",
+      "resolution": "IMPL_REVIEW 2026-10-10: file outside toolkit-consistency; tabled to owner in plan-findings.md Iteration 2 (PLAN_REVIEW decision 4)",
+      "parked_reason": "reject_out_of_scope",
+      "consensus_status": "disagreement"
+    },
+    {
+      "id": 14,
+      "status": "addressed",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "fingerprint": "654c8abcbc6c8084",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The Install stamp and Drift check requirements use `<target-root>` for the consumer repository while the Shared learnings and One-way consumption requirements use `<project-root>` for the same directory. Readers may infer two different roots (install target vs the project the exporter runs in).",
+      "resolution": "PLAN_FIX (conductor, inline): spec.md uses <target-root> consistently and defines it once.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 15,
+      "status": "parked",
+      "axis": "observability",
+      "type": "observability",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/loop-state.json",
+      "fingerprint": "7de92e419448958d",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "After the operator-approved resume, `escalation_reason` still holds the pre-resume reason, `previous_phase` equals `current_phase`, and `iteration` is 0 while `total_iterations` is 8. Readers of the loop-state cannot tell whether the loop is still escalated or running. Harmless for execution but reduces the state file's value as the canonical record.",
+      "resolution": "IMPL_REVIEW 2026-10-10: file outside toolkit-consistency; tabled to owner in plan-findings.md Iteration 2 (PLAN_REVIEW decision 4)",
+      "parked_reason": "reject_out_of_scope",
+      "consensus_status": "disagreement"
+    },
+    {
+      "id": 16,
+      "status": "parked",
+      "axis": "readability",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/owner-routed-escalation/proposal.md",
+      "fingerprint": "97d74d353d473c65",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Scaffold proposals list dependencies as roadmap item IDs (`ri-02`) rather than change IDs (`ownership-map`). A change proposal is meant to be readable on its own in a PR; a reader without the roadmap cannot resolve `ri-02`. This matters more given the epic's constraint that artifacts stay legible to teammates who do not use the skills.",
+      "resolution": "IMPL_REVIEW 2026-10-10: file outside toolkit-consistency; tabled to owner in plan-findings.md Iteration 2 (PLAN_REVIEW decision 4)",
+      "parked_reason": "reject_out_of_scope",
+      "consensus_status": "disagreement"
+    },
+    {
+      "id": 17,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/tasks.md",
+      "fingerprint": "f2dd2eabb115659b",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Review fixes 9 (tag-namespace filtering) and 14 (`<project-root>` \u2192 `<target-root>`) were applied to spec.md only. The planning artifacts implementers actually follow still describe the pre-fix behaviour: tasks.md T5 defaults `--shared-learnings` to `<project-root>/.agentic-toolkit/learnings.jsonl`; tasks.md T4 and design.md D8 say records carry `tags` with no mention of filtering to the `failure_type:`/`capability_gap:`/`affected_skill:`/`severity:`/`source:` namespaces; proposal.md 'What Changes' \u00a74 likewise lists `tags` verbatim in the allowlist. An implementer working from tasks.md would ship the identity leak the spec now forbids and would reintroduce the two-roots ambiguity.",
+      "resolution": "PLAN_FIX round 2 (conductor, inline): tasks.md T4/T5, design.md D8 and proposal.md item 4 now carry the tag-namespace filter, the (capability_gap, affected_skill, summary) dedupe key and <target-root>.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 18,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "spec_file": "openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "fingerprint": "db285b0057b8970a",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The Exported learning privacy requirement ends with 'The exporter SHALL pass the Cross-Repo Portability gate' but has no scenario for it; the only portability scenario in the delta is under Payload hash and covers `payload_hash.py`, not `export_shared_learnings.py`. plan-findings.md row 8 claims 'portability scenarios under Payload hash and Exported learning privacy', so the ledger over-reports coverage. Either add a scenario (e.g. WHEN `validate_install_manifest.py` and the consumer-portability test run after the exporter is added THEN they pass and the exporter is listed in `smoke_entrypoints`) or move the SHALL into Payload hash's scenario.",
+      "resolution": "PLAN_FIX round 2 (conductor, inline): scenario 'Exporter passes the portability gate' added under Exported learning privacy.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 19,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "spec_file": "openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "fingerprint": "baaf91dc66cc768b",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "One-way consumption has three SHALLs without a scenario: accepting `--shared-learnings <path>` (no scenario with a non-default path), deduplicating merged records on `(capability_gap, affected_skill, summary)` against local and other shared findings (no scenario where a shared record duplicates a local one and appears once), and the behaviour when an exported record lacks a `capability_gap:` or `affected_skill:` tag, which leaves the dedupe key partially undefined for both exporter and consumer.",
+      "resolution": "PLAN_FIX round 2 (conductor, inline): scenario 'Duplicate shared record appears once' (explicit path + dedupe); missing gap tags map to 'unknown' as in analyze_failures.py.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 20,
+      "status": "addressed",
+      "axis": "observability",
+      "type": "observability",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/.review-ledger/ledger.json",
+      "fingerprint": "c7f4483cf82a24ed",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Ledger item 16 (file_path `openspec/changes/owner-routed-escalation/proposal.md`) carries a `spec_file` that is (a) an absolute path into this agent's private worktree (`/home/user/agentic-coding-tools/.claude/worktrees/agent-a2592d0f7287ff5d2/...`) and (b) points at toolkit-consistency's spec, which the finding is not about. Every other item uses repo-relative paths. A committed machine-local path breaks the ledger for any other checkout and the mis-association would mislead a spec-level fingerprint match in later rounds.",
+      "resolution": "PLAN_FIX round 2 (conductor, inline): item 16 spec_file cleared (absolute worktree path pointing at the wrong spec).",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 21,
+      "status": "parked",
+      "axis": "security",
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "TRUST_POSTURE.md",
+      "fingerprint": "f6e27c48d52ea219",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The summary table asserts that `pr_creation` 'Fails closed if the notification is undelivered', but the Dispositions section, which is the normative description of `notify_with_timeout`, defines only 'file approval, notify, poll until timeout, apply default_action' and says nothing about undelivered notifications. With `default_action: proceed` the documented semantics would proceed after an hour regardless of delivery. Either document the undelivered-notification rule under Dispositions or drop the claim from the table so the contract does not promise behaviour it does not specify.",
+      "resolution": "IMPL_REVIEW 2026-10-10: file outside toolkit-consistency; tabled to owner in plan-findings.md Iteration 2 (PLAN_REVIEW decision 4)",
+      "parked_reason": "reject_out_of_scope",
+      "consensus_status": "disagreement"
+    },
+    {
+      "id": 22,
+      "status": "addressed",
+      "axis": "observability",
+      "type": "observability",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/plan-findings.md",
+      "fingerprint": "95560ee661432983",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Iteration 2 cites `.review-cache/round-1/review-manifest.json` as dispatch evidence for the single-vendor degradation, but that file is not part of the committed packet (only `.review-ledger/ledger.json` is). The vendor-availability evidence for the min_quorum=1 decision is therefore not reproducible from git, which is the same P9 traceability gap ledger item 5 raises for the policy citation. Either commit the manifest or summarise its contents in plan-findings.md.",
+      "resolution": "PLAN_FIX round 2 (conductor, inline): plan-findings.md cites .review-cache/round-1-initial/; manifest, findings, fact-check and raw meta committed for both runs.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 23,
+      "status": "retired",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/attention-budgets-digests/specs/multiplayer-collaboration/spec.md",
+      "spec_file": "openspec/changes/attention-budgets-digests/specs/multiplayer-collaboration/spec.md",
+      "fingerprint": "08ecbe39b854f4a1",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verified ledger 1: still open. All 19 scaffold deltas retain `WHEN <change-id> is implemented THEN <outcome>` scenarios under the non-existent `multiplayer-collaboration` capability.",
+      "resolution": "Retired: verification-round re-verification echo of ledger 1, which stays open; merge did not match because the description changed.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 24,
+      "status": "retired",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/reviewer-shaped-prs/specs/multiplayer-collaboration/spec.md",
+      "fingerprint": "efc0ee1e1786284c",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verified ledger 2: still open (`pRs created by`, `that /implement-feature provides`, `that given any audit entry` headings truncated with `...`).",
+      "resolution": "Retired: verification-round re-verification echo of ledger 2, which stays open; merge did not match because the description changed.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 25,
+      "status": "retired",
+      "axis": "security",
+      "type": "security",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "TRUST_POSTURE.md",
+      "fingerprint": "e32278654441e0e2",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verified ledger 3: still open. `proposal_approval: auto` is unconditional in the front matter; nothing scopes it to changes with a recorded roadmap_approval.",
+      "resolution": "Retired: verification-round re-verification echo of ledger 3, which stays open; merge did not match because the description changed.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 26,
+      "status": "retired",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "TRUST_POSTURE.md",
+      "fingerprint": "adbd003ddec30107",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verified ledger 4: still open. Header comment says every failure/escalation path waits for a human while `replan_required: auto`.",
+      "resolution": "Retired: verification-round re-verification echo of ledger 4, which stays open; merge did not match because the description changed.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 27,
+      "status": "retired",
+      "axis": "observability",
+      "type": "observability",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/loop-state.json",
+      "fingerprint": "2d547879c7cb5f85",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verified ledger 5: still open. The TRUST_POSTURE.md in this packet has no 'Review quorum in cloud containers' section, yet plan-findings.md Iteration 2 and both `escalate_resume` approvals cite it (commit 479dcd9). The packet is internally inconsistent until 479dcd9 is on the branch.",
+      "resolution": "Retired: verification-round re-verification echo of ledger 5, which stays open; merge did not match because the description changed.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 28,
+      "status": "retired",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/roadmaps/multiplayer-collaboration/roadmap.yaml",
+      "fingerprint": "a7c6506844313717",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verified ledger 6: still open. roadmap.yaml lists ri-20 `approved`, `status: planning`, checkpoint `current_item_id: ri-01` with no ri-20 dispatch_attempt, while toolkit-consistency/loop-state.json records GATEKEEPER, PLAN_ITERATE and two PLAN_REVIEW parks.",
+      "resolution": "Retired: verification-round re-verification echo of ledger 6, which stays open; merge did not match because the description changed.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 29,
+      "status": "retired",
+      "axis": "security",
+      "type": "security",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/roadmaps/multiplayer-collaboration/checkpoint.json",
+      "fingerprint": "465b27fee73ef085",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verified ledger 7: still open. `launch_token` and `owner_nonce` remain committed in checkpoint.json.",
+      "resolution": "Retired: verification-round re-verification echo of ledger 7, which stays open; merge did not match because the description changed.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 30,
+      "status": "retired",
+      "axis": "resilience",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "spec_file": "openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "fingerprint": "4d15cc48bb9c0e70",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verified ledger 10: still open. No scenario covers an install whose new payload hash differs from an existing stamp; plan-findings defers it as an open question.",
+      "resolution": "Retired: verification-round re-verification echo of ledger 10, which stays open; merge did not match because the description changed.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 31,
+      "status": "retired",
+      "axis": "observability",
+      "type": "observability",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/supervise/supervisor-record.json",
+      "fingerprint": "8f9f3d8c16c23b6f",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verified ledger 12: still open. `written_at` 06:59:55.764Z precedes `decided_at` 06:59:55.799+00:00 and the two timestamp formats are mixed.",
+      "resolution": "Retired: verification-round re-verification echo of ledger 12, which stays open; merge did not match because the description changed.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 32,
+      "status": "retired",
+      "axis": "architecture",
+      "type": "architecture",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/roadmaps/multiplayer-collaboration/roadmap.yaml",
+      "fingerprint": "179dbac39cceb2f5",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verified ledger 13: still open. ri-13 (priority 2) depends on ri-12 (priority 3).",
+      "resolution": "Retired: verification-round re-verification echo of ledger 13, which stays open; merge did not match because the description changed.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 33,
+      "status": "retired",
+      "axis": "observability",
+      "type": "observability",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/loop-state.json",
+      "fingerprint": "17a1e885a432daf1",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verified ledger 15: still open. `escalation_reason` retains the pre-resume text, `previous_phase == current_phase == PLAN_REVIEW`, `iteration: 0` with `total_iterations: 8`, and phase_history has no PLAN_REVIEW completion despite plan-findings reporting convergence at 08:21Z.",
+      "resolution": "Retired: verification-round re-verification echo of ledger 15, which stays open; merge did not match because the description changed.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 34,
+      "status": "retired",
+      "axis": "readability",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/owner-routed-escalation/proposal.md",
+      "fingerprint": "498a458878e15b98",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verified ledger 16: still open. Scaffold proposals list dependencies as `ri-NN` rather than change IDs.",
+      "resolution": "Retired: verification-round re-verification echo of ledger 16, which stays open; merge did not match because the description changed.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 35,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "skills/install.sh",
+      "fingerprint": "d2c05996ca94cd38",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Runtime drift hashes each installed mirror with the *source checkout's* manifest (`$INSTALL_MANIFEST`), not the mirror's own `install-manifest.json`. The pinned `payload_hash` was computed over the pinned manifest's skill set. Whenever the checkout's portable skill set differs from the pinned one (a skill removed, renamed, or flipped portable\u2192non-portable between commit A and commit B), a mirror that is byte-identical to the pinned payload hashes differently and `--check` prints 'Runtime drift ... Re-run install.sh from the pinned toolkit commit' in addition to checkout drift. The spec's Checkout drift scenario expects only the checkout-drift message, and the runtime-drift remediation text is wrong in that case (re-running from the pinned commit changes nothing). Session-log decision 6 chose this to also catch a missing skill, but mirror parity already reports that. Fix: hash the mirror with its own manifest (omit `--manifest` or pass `$TARGET_ROOT/$rel_dir/install-manifest.json`); `test_checkout_drift` should add a skill removal in checkout B to pin the behaviour.",
+      "resolution": "IMPL_FIX 1 (000c2bc): check_install_stamp hashes each mirror against its own synced install-manifest.json; test_checkout_drift_with_changed_skill_set_is_not_runtime_drift",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 36,
+      "status": "retired",
+      "axis": "resilience",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/install.sh",
+      "spec_file": "/home/user/agentic-coding-tools/.claude/worktrees/agent-ae88fd95162947097/openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "fingerprint": "1e49b6ada15ff46e",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verified ledger 10: still open. `write_install_stamp` never reads the existing stamp, so an install from any checkout silently replaces the pin with no notice when the new `payload_hash` differs from the committed one; the only signal remains the git diff of a hash string. No scenario or test covers 'install over an existing stamp with a different hash'. Remains deferred per plan-findings; a one-line 'Pin moved: <old prefix> -> <new prefix>' notice would close it cheaply.",
+      "resolution": "echo of ledger 10 (re-verification landed as a new item); ledger 10 stays open advisory, deferred per plan-findings",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 37,
+      "status": "open",
+      "axis": "resilience",
+      "type": "resilience",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/improve-harness/scripts/analyze_failures.py",
+      "fingerprint": "440ea923ad2e2809",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "`load_shared_learnings` documents that unreadable files are skipped with a warning because the projection is advisory, but it only catches `OSError`. A `learnings.jsonl` with invalid UTF-8 raises `UnicodeDecodeError` (a `ValueError`) and aborts the whole analysis. Likewise `sharing_enabled()` imports the sibling exporter unconditionally, so a mirror missing `export_shared_learnings.py` raises `ImportError` for every user, including those who never opted in. Catch `ValueError` on the read and guard the import so an optional feature cannot fail the core pipeline.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 38,
+      "status": "open",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/improve-harness/scripts/analyze_failures.py",
+      "fingerprint": "3ecb162d62119355",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "After `merge_shared_learnings`, the merged list goes through `rank_findings`, whose grouping key is `(capability_gap, affected_skill, session_id)`. Exported records carry no `session_id`, so every shared record for the same gap+skill (different summaries, from many teammate sessions) collapses into one occurrence while the same signals locally would count once per session. Shared learnings therefore systematically undercount frequency relative to local ones. Acceptable for an advisory projection, but worth a sentence in SKILL.md or a synthetic per-record key for shared entries.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 39,
+      "status": "open",
+      "axis": "compatibility",
+      "type": "compatibility",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/improve-harness/scripts/analyze_failures.py",
+      "fingerprint": "ff63a834c5e5238d",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "`rank_findings` now emits `origin:<value>` strings into `sources` for any entry carrying an `origin:` tag, not only shared records. `sources` previously held bare `source:` values (e.g. `self-reported`); consumers such as `generate_report.py` that render or map source labels will see a new value shape. Silent change to an existing public return shape; document it or namespace it in a separate field.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 40,
+      "status": "open",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/install.sh",
+      "spec_file": "/home/user/agentic-coding-tools/.claude/worktrees/agent-ae88fd95162947097/openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "fingerprint": "fcf39c3f09d8cd66",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The stamp records `agents` but `check_install_stamp` never reads it: runtime drift iterates the CLI `agent_list` (default `claude,agents`). A consumer that installed with `--agents claude` and later runs a bare `--check` gets failures for a mirror that was never meant to exist, and the stamp's `agents` field has no consumer at all. Either drive the runtime-drift loop from the stamp's `agents`, or document that `--check` must be invoked with the same `--agents` as the install.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 41,
+      "status": "addressed",
+      "axis": "architecture",
+      "type": "architecture",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/improve-harness/SKILL.md",
+      "fingerprint": "4ece2adeb196f7c8",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The new 'Shared Learnings' section says consumption happens in `analyze_failures.py`, but session-log Implementation 1 decision 12 records that `generate_report.py` runs its own `query_memory` + `rank_findings` pipeline and does not merge the shared file. If the skill's report workflow goes through `generate_report.py`, enabling sharing changes nothing a user sees, and SKILL.md does not state this fallback. Either state the limitation under Consumption or route `generate_report.py` through `load_shared_learnings`/`merge_shared_learnings` (follow-up change).",
+      "resolution": "VAL_FIX 6 (b7f8168): see ledger 65 (SKILL.md Consumption sentence)",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 42,
+      "status": "addressed",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/tasks.md",
+      "fingerprint": "c725b60469575371",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The Verification command runs `install.sh` against this repository, which is a self-install: by design it writes no stamp and `--check` skips the stamp comparison, so this line cannot verify T2/T3 at all. T7 was actually verified against a scratch consumer (session-log Implementation 2). Replace with the scratch-consumer form (`--target <scratch>`) or note that the self-install run only covers mirror parity.",
+      "resolution": "VAL_FIX 6 (b7f8168): see ledger 64 (tasks.md Verification scratch-consumer form)",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 43,
+      "status": "open",
+      "axis": "performance",
+      "type": "performance",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/shared/payload_hash.py",
+      "fingerprint": "54c655b37a3efb66",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Exclusion is applied after `rglob` has already descended into the excluded tree, so a skill containing `node_modules/` or large `tests/` fixtures is fully stat-walked three times per `--check` (source plus two mirrors). `os.walk` with in-place pruning of `dirnames` skips those subtrees entirely and keeps the same ordering guarantee after sorting.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 44,
+      "status": "open",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/shared/payload_hash.py",
+      "fingerprint": "3d9b02d578b17efd",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The docstring claims symlinks are followed, but `Path.rglob` does not descend into symlinked *subdirectories* (pathlib skips `entry.is_symlink()` directories during `**` recursion in every supported Python version). Top-level skill-dir symlinks work (the start directory is opened directly), which is why `test_symlinked_tree_hashes_identically` passes, but a symlinked directory nested inside a skill is silently omitted from the hash. Also `payload_names` only catches `(OSError, ValueError, KeyError)`; a manifest whose top level is a list or whose `skills` values are not objects raises `TypeError`/`AttributeError` as a traceback instead of the documented exit 2. Narrow the docstring claim (or use `os.walk(followlinks=True)`) and widen the except.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 45,
+      "status": "open",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "spec_file": "openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "fingerprint": "26055ddd7d49368b",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Two SHALL clauses lack a verifying scenario: Payload hash's 'following symlinks' (a `--mode symlink` mirror hashing identically; the test exists but the spec has no scenario), and the 'Projection never feeds canonical state' scenario under State-artifact registration is a restated constraint with no observable WHEN/THEN (what fails if a skill does derive state from it?). Add a symlink-mode scenario under Payload hash and either drop the second scenario or tie it to a concrete check (e.g. the guard test asserting the state-artifacts row text, which is what the implementation actually verifies).",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 46,
+      "status": "open",
+      "axis": "observability",
+      "type": "observability",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/loop-state.json",
+      "fingerprint": "07dcdb7968191429",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "`phase_history` is not chronological: PLAN_REVIEW `converged` is stamped 2026-10-09T12:19:10Z, followed by two PLAN_FIX sub-steps at 08:25 and 08:31 and a `degraded` PLAN_REVIEW entry at 12:20. plan-findings.md dates the same convergence 08:21Z/08:30Z. The cherry-picked sub-step records carry the sub-agent's clock while the orchestrator entries carry its own, so a reader reconstructing the phase timeline from the canonical file gets contradictory ordering. Orchestrator-owned; distinct from ledger 15 (stale escalation fields).",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 47,
+      "status": "open",
+      "axis": "security",
+      "type": "security",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/improve-harness/scripts/export_shared_learnings.py",
+      "fingerprint": "be4cb5662a060948",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The exporter applies no gap filter of its own: whatever `query_memory` returns is projected, and an entry without `capability_gap:`/`failure_type:` tags is exported with dedupe key `(unknown, unknown, summary)`. The privacy posture therefore depends on `query_memory`'s server-side tag filter staying narrow; if that query is ever widened (e.g. to decisions or handoff summaries), non-gap episodic text lands in a tracked, shared file. A defensive `if not any(t.startswith(('capability_gap:', 'failure_type:')) ...): continue` keeps the exporter's contract independent of upstream. Relatedly, `load_sanitizer()` raises an uncaught `FileNotFoundError` traceback when `session-log` is not co-installed instead of a documented refusal.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 48,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/tests/install_sh/test_install_stamp.py",
+      "fingerprint": "1a591d8a02a60175",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "`test_aborted_install_leaves_previous_stamp_intact` compares bytes, but the only field that would differ on an erroneous rewrite is `installed_at` at one-second resolution (same payload, agents and mode). If the stamp were wrongly written before `check_openspec_cli` and both writes fell in the same UTC second, the test passes against the broken ordering. Mutate the prior stamp first (e.g. add a `\"marker\": 1` key or change `installed_at`) so any rewrite is detected deterministically.",
+      "resolution": "IMPL_FIX 2 (000c2bc): test_aborted_install_leaves_previous_stamp_intact marks the prior stamp so any rewrite is byte-detectable",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 49,
+      "status": "open",
+      "axis": "observability",
+      "type": "observability",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/improve-harness/scripts/analyze_failures.py",
+      "fingerprint": "e3c55cd05519b278",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "When the user passes `--shared-learnings <path>` explicitly but `config.json` does not enable sharing, the file is ignored with no message. The behaviour is correct per spec, but an explicit flag silently doing nothing is hard to diagnose; a one-line stderr notice ('shared learnings ignored: sharing not enabled in <config>') would make the opt-in rule discoverable.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 50,
+      "status": "open",
+      "axis": "resilience",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/install.sh",
+      "fingerprint": "aa9b34ac95fb273d",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The runtime-drift loop now depends on `$TARGET_ROOT/$rel_dir/install-manifest.json` existing in every mirror. When it does not (a mirror synced by a pre-manifest install.sh, a mirror whose manifest was deleted, or, per open ledger 40, an agent in the CLI `agent_list` that was never installed), payload_hash.py exits 2 and the only output is the generic 'Cannot compute mirror payload hash for <agent>'. That is a legitimate drift condition (mirror no longer matches the pinned payload) but it is neither the spec's runtime-drift message naming the pinned `toolkit_version`/`source_commit` nor a hint about the missing manifest. Before invoking the helper, test for the mirror manifest: if absent, print the runtime-drift message with a 'mirror manifest missing' qualifier (and skip the agent entirely when it is not listed in the stamp's `agents`, which also closes ledger 40).",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 51,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/tests/install_sh/test_install_check_drift.py",
+      "fingerprint": "43e03f3327e5ad64",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The new test correctly fails against the pre-fix code (checkout B's manifest drops json-canvas, so the mirror hash no longer equals the stamp and 'Runtime drift' is printed). But its negative assertions are loose: if install.sh stopped syncing `install-manifest.json` into the mirrors, payload_hash.py would exit 2, stderr would read 'Cannot compute mirror payload hash', the exit code would still be 1 and 'Checkout drift' would still be present, so the test would pass while the feature it pins is broken. Add `assert \"Cannot compute\" not in result.stderr` (or assert the exact expected stderr lines) so the test only passes on the intended path. Also note the hard-coded dependency on `json-canvas` being portable in the real manifest; the explicit `assert manifest[\"skills\"][\"json-canvas\"] == ...` makes that coupling fail loudly, which is acceptable, but picking the first portable skill from the manifest would make the test independent of that skill's future scoping.",
+      "resolution": "IMPL_FIX 3 (2cf3614): test asserts 'Cannot compute mirror payload hash' is absent, so a missing mirror manifest cannot mask the runtime-drift path",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 52,
+      "status": "open",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/.review-ledger/ledger.json",
+      "fingerprint": "efb3ca40f2da0123",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Fourteen pre-existing ledger entries change only in the relative order of `resolution`, `parked_reason` and `consensus_status`, with identical values. The ledger writer serialises keys in insertion order rather than a stable order, so every round that touches an entry re-emits unrelated entries and inflates the diff reviewers must read. The substantive additions (35 and 48 addressed with the 000c2bc reference, 36 retired as an echo of 10, 37-47 and 49 opened) are correct and consistent with the spec; the open items listed for re-verification are untouched by this diff and remain open. Consider `json.dump(..., sort_keys=True)` or a fixed key order in the ledger writer so future rounds diff only what changed.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 53,
+      "status": "addressed",
+      "axis": "observability",
+      "type": "observability",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/validation-report.md",
+      "fingerprint": "c0955d1a4b3d3f7a",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The report header declares `Overall: PASS` and the Phase Summary table has no Validation Review row, while the Validation Review section itself records `Result: incomplete` (converge() never ran, no pass/fail line, roadmap-outcome review not done). The header verdict therefore precedes and contradicts the phase it is supposed to summarise. The report also mixes evidence from two commits (header `cce5f36`, Validation Review from `544fa99` on a different branch) without stating whether the code under test changed between them. Add a Validation Review row to the summary, downgrade `Overall` to reflect the incomplete phase (or set it only after the VAL_REVIEW verdict), and state the commit each evidence block was produced from.",
+      "resolution": "VAL_FIX 2 (b7f8168): validation-report.md Validation Review section rewritten (Result: pass), Validation Review row added to the Phase Summary, header states that skills/ and docs/ are byte-identical between cce5f36 and bdfeefe (git diff --stat empty) and names the VAL_FIX commit",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 54,
+      "status": "addressed",
+      "axis": "security",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/validation-report.md",
+      "spec_file": "/home/user/agentic-coding-tools/.claude/worktrees/agent-af75bf5eed6c999b2/openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "fingerprint": "b5276e5e893cc3a3",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Roadmap acceptance outcome 4 (installed payloads contain no references to private coordinator source) is not proven by the report: the report's own grep found coordinator-source strings in the installed payload and dismisses them as pre-existing without naming the files, the matched strings, or the manifest rule under which `validate_install_manifest.py` accepts them. A reader cannot tell whether the outcome holds (hits are allowlisted documentation/identifiers) or is simply inherited as a known violation. More generally the report has no outcome-to-evidence mapping for the four ri-20 acceptance outcomes (it lists that review as 'Not done'). Add a four-row outcomes table and, for outcome 4, list the grep hits with the gate rule that admits each.",
+      "resolution": "VAL_FIX 2 (b7f8168): report gains an acceptance-outcome -> evidence table; outcome 4 names the authoritative gate rules (validate_install_manifest.py: `from src.` imports and sys.path/parents[] injection of agent-coordinator), the live rsync-mode scratch install's 'portability validation passed', and classifies the loose-grep hits (pre-existing skills outside this diff; documentation strings, repo-root markers, opt-in integrations)",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 55,
+      "status": "addressed",
+      "axis": "security",
+      "type": "security",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "skills/improve-harness/scripts/export_shared_learnings.py",
+      "fingerprint": "063a24594982ef33",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Acceptance outcome 3 ('never include private transcript content') rests entirely on the exclusion tag matching what the transcript producer actually emits. Every test and the live E2E run feed the exporter a hand-written `source:transcript-mined` tag; nothing in the validation evidence checks that `collect-transcripts` (the only transcript-mining writer named in the repo) stores exactly that tag, and a producer-side spelling such as `source:transcript` or `source:mined-transcript` would not match the prefix test and would be exported into a tracked file. Add a test that imports the producer's tag constant (or scans its memory-store call) and asserts it equals `EXCLUDED_SOURCE_TAG`, and cite it in the report under outcome 3.",
+      "resolution": "VAL_FIX 3 (b7f8168): test_producer_transcript_tag_is_excluded loads collect-transcripts/scripts/deep_analyze.py, builds TranscriptFinding.to_memory_tags() and asserts the exporter drops the entry; exclusion now proven against the producer's tag",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 56,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/validation-report.md",
+      "spec_file": "/home/user/agentic-coding-tools/.claude/worktrees/agent-af75bf5eed6c999b2/openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "fingerprint": "4debad003934bd42",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The scenario 'Installer never touches the config' is the only one of the 29 backed solely by a one-off live run; no test in `test_install_stamp.py` or `test_install_check_drift.py` installs over an existing `.agentic-toolkit/config.json`/`learnings.jsonl` (with `--force`) and asserts both are byte-identical and that neither is created when absent. A regression here (for example a future `install.sh` writing a default config) would pass the suite. Add the test and cite it in the mapping row.",
+      "resolution": "VAL_FIX 3 (b7f8168): test_installer_never_touches_config installs into a fresh target (config not created) and re-installs with --force over config.json and learnings.jsonl (both byte-identical)",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 57,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/improve-harness/scripts/export_shared_learnings.py",
+      "fingerprint": "80ed43660e644543",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Every exporter test replaces `analyze_failures` in `sys.modules` with a stub whose `query_memory(time_window_days=..., limit=...)` signature is defined by the test itself, and the only unstubbed CLI runs (`--help`, refusal without config) exit before the call. The exporter's keyword call against the real `analyze_failures.query_memory` is therefore never exercised by the suite or by the 'live stubbed export' in the report; a signature mismatch would surface only in production as a TypeError after opt-in. Add one test that loads the real `analyze_failures` and monkeypatches only its `urlopen` (as `test_cli_merges_and_never_stores_to_memory` already does) so the real call path is executed.",
+      "resolution": "VAL_FIX 3 (b7f8168): test_export_calls_the_real_query_memory_signature loads the real analyze_failures with urlopen stubbed; exporter's keyword call exercised end to end",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 58,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "spec_file": "openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "fingerprint": "fc70d4db448d71df",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The implementation also fails loud (exit 1, 'Invalid toolkit stamp') when `payload_hash` is missing or does not start with `sha256:` and `test_invalid_stamp_fails_loud_and_is_not_rewritten[no-hash]` pins that behaviour, but the Drift check requirement enumerates only bad JSON, non-object and wrong `schema_version` as invalid. The spec should list a missing/malformed `payload_hash` as an invalid stamp so the tested contract and the requirement agree.",
+      "resolution": "VAL_FIX 4 (b7f8168): Drift check requirement and 'Invalid stamp fails loud' scenario now list a missing or non-sha256 payload_hash as invalid (matches the implementation and the [no-hash] test case); openspec validate --strict passes",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 59,
+      "status": "addressed",
+      "axis": "compatibility",
+      "type": "compatibility",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/improve-harness/scripts/export_shared_learnings.py",
+      "fingerprint": "917c952bb958f077",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The opt-in requirement specifies the config as `{\"schema_version\": 1, \"shared_learnings\": {\"enabled\": true}}`, but `sharing_enabled()` never reads `schema_version`; a config declaring `schema_version: 2` with different semantics would be accepted as an opt-in. The stamp reader rejects unknown schema versions; the config reader should apply the same rule (treat `schema_version` other than 1 as 'not enabled' with a reason) so the two human/installer-owned artifacts fail the same way.",
+      "resolution": "VAL_FIX 5 (b7f8168): sharing_enabled() refuses schema_version other than 1 with a reason (same rule as the stamp reader); test_export_refused_without_opt_in[wrong-schema]; spec opt-in requirement and state-artifacts config row updated",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 60,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/tests/install_sh/test_install_check_drift.py",
+      "spec_file": "/home/user/agentic-coding-tools/.claude/worktrees/agent-af75bf5eed6c999b2/openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "fingerprint": "6bc46a434d48d2d5",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The Drift check requirement says each drift message SHALL name the pinned `toolkit_version` and `source_commit`. The checkout-drift test asserts both, but the Runtime drift scenario and `test_runtime_drift_names_the_agent` only assert the agent name, so the version/commit part of the SHALL is unverified for the runtime path (the implementation does include them today). Add the two assertions and the corresponding AND clause to the scenario.",
+      "resolution": "VAL_FIX 4 (b7f8168): test_runtime_drift_names_the_agent asserts the pinned version and source_commit; Runtime drift scenario gains the matching AND clause",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 61,
+      "status": "open",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/tests/install_sh/test_install_stamp.py",
+      "spec_file": "/home/user/agentic-coding-tools/.claude/worktrees/agent-af75bf5eed6c999b2/openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "fingerprint": "7a42645ceb9d794d",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The scenario reads 'install.sh exits non-zero before completing its sync steps', but the only test aborts via `--openspec-cli required` after all mirror and library steps have completed, as the comment states. The evidence proves the stamp is written after the OpenSpec-CLI step, not that an abort during mirroring leaves the prior stamp intact (true by construction since the stamp is the last step, but not demonstrated). Either reword the scenario to 'before the stamp step' or add a mid-sync failure case (for example an unwritable mirror directory).",
+      "resolution": "VAL_REVIEW 2026-10-10: left open (advisory). The stamp is the installer's last step by construction (write_install_stamp runs after every sync step); the only abort the suite can force without root-proof filesystem tricks is the OpenSpec-CLI step. Scenario wording unchanged.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 62,
+      "status": "open",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/tasks.md",
+      "fingerprint": "60ca1b0c3acc10d7",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "T2/T3 file scopes no longer match what landed: `is_self_install()` was relocated above `check_install_payload()` and the fixture installers in `test_openspec_assets.py` and `test_related_validation.py` were edited to copy `payload_hash.py` (session-log Implementation 1, decisions 5 and 11). tasks.md is the parallelisation contract reviewers use to judge file-overlap conflicts; update the Files lines so the record matches the diff.",
+      "resolution": "VAL_REVIEW 2026-10-10: left open (advisory). tasks.md Files lines are a planning record; the diff is the contract.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 63,
+      "status": "open",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/tests/install_sh/test_install_check_drift.py",
+      "fingerprint": "b324eb7317f9a1c8",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The changed-skill-set regression test hard-codes an unrelated skill (`json-canvas`) and its exact manifest object; any future change to that skill's manifest entry (added `reason`, re-scoping) fails this drift test for reasons unrelated to drift. Picking the first portable skill from the loaded manifest and asserting only `distribution == \"portable\"` keeps the oracle while removing the coupling.",
+      "resolution": "VAL_REVIEW 2026-10-10: left open (advisory). Test-oracle coupling to the json-canvas manifest entry; works today, no behaviour at stake.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 64,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/tasks.md",
+      "spec_file": "/home/user/agentic-coding-tools/.claude/worktrees/agent-af75bf5eed6c999b2/openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "fingerprint": "7795025c7f24d92f",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verification of ledger 42: still open. The Verification section still runs `install.sh` against this repository (a self-install), which by D6 writes no stamp and skips the stamp comparison, so the line cannot exercise T2/T3; the scratch-consumer form that actually verified T7 (session-log Implementation 2) is not recorded here.",
+      "resolution": "VAL_FIX 6 (b7f8168): tasks.md Verification marks the repository command as a self-install (D6) and adds the scratch-consumer install + --check form that exercises T2/T3 (closes ledger 42 as well)",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 65,
+      "status": "addressed",
+      "axis": "readability",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/improve-harness/SKILL.md",
+      "spec_file": "/home/user/agentic-coding-tools/.claude/worktrees/agent-af75bf5eed6c999b2/openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "fingerprint": "285ab9b287427ed6",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verification of ledger 41: still open. The new Shared Learnings section states consumption happens in `analyze_failures.py` but does not say that `generate_report.py` (the skill's report path) does not merge the projection, so a user who enables sharing and runs the report workflow sees no effect and is not told why. One sentence under Consumption naming the limitation closes it until the follow-up lands.",
+      "resolution": "VAL_FIX 6 (b7f8168): improve-harness SKILL.md Consumption states that generate_report.py does not merge the projection yet (closes ledger 41 as well)",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 66,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/validation-report.md",
+      "spec_file": "/home/user/agentic-coding-tools/.claude/worktrees/agent-af75bf5eed6c999b2/openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "fingerprint": "eefa5dfcbff7bea2",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "validation-report.md declares `Overall: PASS` and the Validation Review section says \"a verification round was run over the fix diff (below)\" in the past tense, but the slot that should carry that evidence reads literally `Verification round: VERIFY_ROUND_PLACEHOLDER`. As submitted, the report asserts a control that has no recorded outcome; the PASS verdict for the VAL_FIX diff (b7f8168: sharing_enabled() change, four new tests, spec/doc edits) rests on nothing in the report. Replace the placeholder with the verification-round result (packet, dispatch, findings count, blocking count) before the report is treated as complete, or reword the sentence to say the round is pending.",
+      "resolution": "VAL_FIX 7 (80747aa): the 'Verification round' slot of validation-report.md now carries the second converge() run (10 findings, 0 blocking, claude_code 117 s) and the dispositions of ledger 66-75",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 67,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "spec_file": "openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "fingerprint": "c38ee12dd2699aba",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The 'Shared learnings opt-in' requirement now adds a SHALL clause (exit 2 when `schema_version` is other than `1`), but its only refusal scenario, 'Export refused without opt-in', still has WHEN `config.json is absent or enabled is false`. The new clause has no WHEN/THEN covering it, whereas the parallel stamp change did extend 'Invalid stamp fails loud'. The implementation already has the `[wrong-schema]` case; add `or has schema_version other than 1` to the scenario WHEN (or a separate scenario) so the spec and the test agree.",
+      "resolution": "VAL_FIX 7 (80747aa): 'Export refused without opt-in' WHEN names schema_version other than 1 and enabled other than true; openspec validate --strict passes",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 68,
+      "status": "open",
+      "axis": "compatibility",
+      "type": "compatibility",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/improve-harness/scripts/export_shared_learnings.py",
+      "fingerprint": "ac782594dfac6f62",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "`sharing_enabled()` now refuses any config without `schema_version == 1`, and the check runs before the `shared_learnings` check. Two consequences for existing callers: (a) a consumer whose hand-written config was `{\"shared_learnings\": {\"enabled\": true}}` (valid before this commit) silently loses sharing; `analyze_failures.py` imports this function and, per open ledger 49, prints nothing when it returns False, so the regression is invisible; (b) a config with `{\"shared_learnings\": {\"enabled\": false}}` and no `schema_version` now reports `unsupported schema_version None` rather than the more accurate `enabled is not true`. Also `version != 1` accepts the float `1.0`, which the comment claims matches the stamp reader; confirm the stamp reader has the same tolerance or use `type(version) is int`. Document the breaking tightening in SKILL.md and consider reordering so the `enabled` check runs first.",
+      "resolution": "VAL_REVIEW 2026-10-10: left open (advisory). The config file is introduced by this change, so no shipped consumer holds a config without schema_version; the exporter prints the refusal reason (exit 2). analyze_failures.py staying silent is ledger 49.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 69,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/tests/install_sh/test_state_artifacts_registration.py",
+      "spec_file": "/home/user/agentic-coding-tools/.claude/worktrees/agent-af75bf5eed6c999b2/openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "fingerprint": "92bacf1434038eee",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The report cites `test_learnings_projection_is_read_only_by_improve_harness` as new proof of 'Projection never feeds canonical state'. The test only proves that no `.py`/`.sh` under `skills/` other than the two improve-harness scripts contains the literal string `learnings.jsonl`. A loop-state, checkpoint or trust-posture module could import `load_shared_learnings`/`merge_shared_learnings` from `analyze_failures`, or receive the path via `--shared-learnings`, without naming the file, and the test would stay green. It is a useful tripwire but the report's wording ('only ... name learnings.jsonl under skills/') should be the claim, not 'cannot feed canonical state'. Consider additionally asserting that no module outside improve-harness imports `load_shared_learnings`/`merge_shared_learnings`.",
+      "resolution": "VAL_FIX 7 (80747aa): test_learnings_projection_is_read_only_by_improve_harness also scans for imports of load_shared_learnings / merge_shared_learnings",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 70,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/tests/install_sh/test_install_check_drift.py",
+      "fingerprint": "276831d856229fc2",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The new assertions check `VERSION in result.stderr` and `source_commit in result.stderr` over the whole stderr, not the runtime-drift line. If `install.sh --check` prints any other line naming the pin (e.g. an informational 'stamp found: 0.2.0 @ <sha>'), the test passes even when the runtime-drift message itself omits the version and commit, which is exactly the AND clause the spec now requires. Anchor the assertion to the line containing 'Runtime drift' (split stderr on newlines and filter) so the test fails when the specific message regresses.",
+      "resolution": "VAL_FIX 7 (80747aa): test_runtime_drift_names_the_agent asserts version and commit on the 'Runtime drift' line(s) only",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 71,
+      "status": "addressed",
+      "axis": "readability",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/validation-report.md",
+      "spec_file": "/home/user/agentic-coding-tools/.claude/worktrees/agent-af75bf5eed6c999b2/openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "fingerprint": "243810822d9f6e7a",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Test-count arithmetic in the report is internally inconsistent: baseline 183 passed + the stated 'five new tests and the new [wrong-schema] case' (six items) should give 189, but the recorded result is 188. The diff adds four new test functions (producer tag, real query_memory signature, installer never touches config, projection read-only) plus one parametrize case = five items = 188. Correct the prose to 'four new tests and the new [wrong-schema] case' so a reader reconciling the numbers does not suspect a missing or failing test.",
+      "resolution": "VAL_FIX 7 (80747aa): report prose corrected to four new test functions plus one parametrize case (183 + 5 = 188)",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 72,
+      "status": "addressed",
+      "axis": "security",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/validation-report.md",
+      "spec_file": "/home/user/agentic-coding-tools/.claude/worktrees/agent-af75bf5eed6c999b2/openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "fingerprint": "7b70630b4d5cebc7",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The secret-scan substitute and the Smoke/Security/E2E live runs are recorded against bdfeefe, and the header justifies this with `skills/` and `docs/` being byte-identical between cce5f36 and bdfeefe. The VAL_FIX commit b7f8168 then changes `skills/` and `docs/` (exporter, SKILL.md, state-artifacts.md, four test files), yet the only post-fix evidence is the pytest run and one live `--check`. The regex secret scan was not re-run over the b7f8168 diff, and the exporter privacy live run was not repeated after `sharing_enabled()` changed. State explicitly that the Security `pass` covers bdfeefe only, or re-run the regex scan over `git diff bdfeefe b7f8168 -- skills/ docs/` and record it.",
+      "resolution": "VAL_FIX 7 (80747aa): regex secret scan re-run over the VAL_FIX diff bdfeefe..HEAD (skills/, docs/): no hits; recorded in the report",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 73,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "docs/guides/state-artifacts.md",
+      "spec_file": "/home/user/agentic-coding-tools/.claude/worktrees/agent-af75bf5eed6c999b2/openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "fingerprint": "3d7055a44f96f9c3",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "`test_disabled_sharing_ignores_the_file` (cited for 'Disabled sharing ignores the file' and for outcome 3) covers absent config and `enabled: false` only. The state-artifacts.md row now promises that `schema_version` other than `1` also makes 'the analysis ignore learnings.jsonl', and `analyze_failures.py` reaches that behaviour through the shared `sharing_enabled()`; the exporter side has `[wrong-schema]` but the analysis side has no case for it. Add a wrong-schema parameter to the analysis test so the doc claim is pinned on both consumers.",
+      "resolution": "VAL_FIX 7 (80747aa): test_disabled_sharing_ignores_the_file[wrong-schema] covers the analysis side of the schema_version rule",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 74,
+      "status": "addressed",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/improve-harness/SKILL.md",
+      "fingerprint": "5f842408ce164a62",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The new SKILL.md sentence cites 'review ledger 41'. SKILL.md is part of the installed payload and is read in consumer repositories where `.review-ledger/` does not exist, so the pointer is unresolvable for the audience that reads it there. Replace with a plain statement (or an issue/roadmap reference that survives install).",
+      "resolution": "VAL_FIX 7 (80747aa): improve-harness SKILL.md sentence no longer points at the review ledger (unresolvable in a consumer repository)",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 75,
+      "status": "addressed",
+      "axis": "resilience",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/validation-report.md",
+      "spec_file": "/home/user/agentic-coding-tools/.claude/worktrees/agent-af75bf5eed6c999b2/openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "fingerprint": "86594fec07724193",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Outcome 1 requires the stamp to be recorded in a *tracked* file. The evidence (test_install_stamp, live installs) proves the file is written and registered in state-artifacts.md; nothing proves or checks that it is tracked. A consumer whose `.gitignore` covers `.agentic-toolkit/` would have an unpinned team with a locally present stamp and `--check` would still say 'Pinned toolkit matches'. Either note in the report that trackedness is a human step the toolkit does not verify, or have `install.sh` warn when `git check-ignore` matches the stamp path.",
+      "resolution": "VAL_REVIEW post-merge verification 2026-10-10, VAL_FIX 9 (record-only): closed as addressed by report text (outcome-1 row, re-verified as ledger 87); the alternative remedy (install.sh warning on `git check-ignore`) is a code change outside this phase and is not pursued here.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 76,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "high",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/validation-report.md",
+      "spec_file": "/home/user/agentic-coding-tools/.claude/worktrees/agent-a298c4df1fa7e53d5/openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "fingerprint": "e4fafa7fcf3f04d6",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The rewritten report no longer maps the four ri-20 acceptance outcomes to evidence. The previous outcome table (the VAL_FIX 2 remedy for ledger 54) lived in the Validation Review section, which is now a `pending` placeholder, and the header states that nothing except the scenario-to-test mapping was carried over. The outcome table cannot simply be relied on from git history: its evidence was produced on bdfeefe/b7f8168/80747aa (rsync-mode scratch install hash c3d2feb6..., live checkout-drift at bdfeefe, the 59-file loose grep over an installed mirror), i.e. pre-merge commits, and the report claims every piece of evidence was re-run on e4d0b25. As written, the report proves 29 scenarios but does not answer question (a) of this round. Most of the needed evidence already exists in the new Smoke/Security/E2E sections (outcome 1: live stamp with toolkit_version and payload_hash plus test_state_artifacts_registration; outcome 2: the live runtime-drift message naming 0.2.0 @ e4d0b25 plus the drift tests; outcome 3: the opt-in and privacy tests plus the live stubbed export; outcome 4: the authoritative portability gate on both live installs and test_manifest_entry_points_run_without_source_checkout). VAL_FIX should restate the four-row outcome table citing this run's evidence, carry over the trackedness caveat (ledger 75) for outcome 1 and the D8 known limit for outcome 3, and either re-run or explicitly drop the loose-grep statement for outcome 4.",
+      "resolution": "VAL_REVIEW post-merge 2026-10-10: adjudicated by the conductor (single-vendor high judgment; no second lane under policy 479dcd9) as a genuine report-evidence gap and fixed by VAL_FIX 8 (VAL_FIX 8): the Validation Review section restates the four ri-20 outcome rows citing this run's evidence at HEAD (live stamp 44f6960 with the same payload hash as e4d0b25, runtime/invalid/unpinned flows re-run, exporter refusals re-run, portability gate on the live install, loose grep re-run: 61 hits, none in this change's files, no source-import form), carries the ledger-75 trackedness caveat (outcome 1) and the D8 known limit (outcome 3).",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 77,
+      "status": "addressed",
+      "axis": "compatibility",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/validation-report.md",
+      "fingerprint": "0ea3f583647fea6e",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The whole motivation for this re-validation was that `gate_logic.check_phase_status()` did not parse the previous report's `Result:` lines, and dispatch result g8 shows the gate still refusing with 'required section not passed: Spec Compliance (missing)' one lease generation later. The rewrite converts every section to `**Status**:` but introduces the value `not applicable` for Deploy, where the earlier report used `skip`. Nothing in the packet shows that `not applicable` is a recognised status token; if the parser recognises only pass/fail/skip (or similar), Deploy will read as missing or failed and the goal gate will refuse a third time for a purely textual reason. The report should use the documented vocabulary (or state, with the parser's accepted set quoted, that `not applicable` is accepted) and the Phase Summary row should use the same token as the section. The Phase Summary also carries a 'Test suites' row that has no corresponding section, which is harmless only if the parser ignores unknown rows.",
+      "resolution": "VAL_REVIEW post-merge 2026-10-10: evidence, not a fix: gate_logic.check_phase_status() recognises `**Status**: not applicable` (_NOT_APPLICABLE_STATUS_RE -> 'not_applicable') beside pass|fail|skipped and degraded; Deploy is not one of the goal gate's five required sections; the Phase Summary table is not parsed (sections are). check_phase_status at HEAD before this fix: Spec Compliance/Smoke/Security/E2E = pass, Deploy = not_applicable, Validation Review = missing (the `pending` placeholder). Recorded in the report by VAL_FIX 8 (VAL_FIX 8); the g8 refusal cited by the finding predates the rewrite (be36e3a).",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 78,
+      "status": "addressed",
+      "axis": "readability",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/validation-report.md",
+      "fingerprint": "ef2e7c9c234d409e",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The header `**Overall**: PASS` and the trailing Result section declare PASS and 'no defect found' while the Validation Review phase is `pending` in both its section and the Phase Summary. This is the same shape as ledger 53 (closed by VAL_FIX 2): an overall verdict stated beside an incomplete section. A reader or gate that trusts `Overall` will not notice that one required phase has not run. The Result section should either be written after VAL_REVIEW fills its section or be scoped explicitly ('PASS on the VALIDATE phases; Validation Review pending').",
+      "resolution": "VAL_REVIEW post-merge 2026-10-10: VAL_FIX 8 (VAL_FIX 8): Validation Review `**Status**: pass` replaces `pending`; Phase Summary row and the Result section are written after VAL_REVIEW and name the review round.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 79,
+      "status": "addressed",
+      "axis": "observability",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/validation-report.md",
+      "fingerprint": "18ae4ec67dd7f46e",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The same four test directories (install_sh, improve-harness, _shared, shared) produced 189 passed on 80747aa with rsync present in the previous report and 255 passed here, a jump of 66 tests on code the conductor verified byte-identical for skills/ and docs/ between e4d0b25 and the merged roadmap tip. The likely explanation is that the roadmap branch had absorbed other changes' tests between the pre-merge base and the rebase merge, but the report does not say so; a reader comparing the two reports cannot tell whether the suite ran against a different code state or whether tests were added. The sentence 'the 15 rsync-gated tests that skipped in the first run' also refers to the earlier report's run, which contradicts the header's statement that nothing from it was reused. State the baseline (e.g. test count on the roadmap tip without this change, or the merge-base commit) so the count is interpretable, and drop or reword the 'first run' reference.",
+      "resolution": "VAL_REVIEW post-merge 2026-10-10: VAL_FIX 8 (VAL_FIX 8): the report states the baseline: this change's six test files hold 67 tests; the other 189 (+1 skip) are pre-existing suites in skills/tests/shared and _shared that the roadmap branch gained from other merged changes between the PR base and the rebase merge (files listed); the 'first run' sentence now names the earlier report explicitly as a comparison, not reuse.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 80,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/validation-report.md",
+      "spec_file": "/home/user/agentic-coding-tools/.claude/worktrees/agent-a298c4df1fa7e53d5/openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "fingerprint": "0e34c9eb67cb90fc",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Both portability scenarios have a two-part THEN: the gate passes AND the script is listed in `smoke_entrypoints`. The Helper row cites only the module name and the live gate pass, and neither row cites evidence for the `smoke_entrypoints` listing itself. `test_manifest_entry_points_run_without_source_checkout` implies the listing (it runs each manifest entry point from the installed closure), but the table should say so for `payload_hash.py` as it does for the exporter, or cite the manifest entry directly, so the second half of the THEN is visibly covered.",
+      "resolution": "VAL_REVIEW post-merge 2026-10-10: VAL_FIX 8 (VAL_FIX 8): both portability rows cite the `smoke_entrypoints` entries in skills/install-manifest.json and test_manifest_entry_points_run_without_source_checkout, which iterates that list.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 81,
+      "status": "parked",
+      "axis": "resilience",
+      "type": "resilience",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/autopilot/scripts/goal_gate.py",
+      "fingerprint": "b9a6df85f0f3d8ba",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "out_of_change: switching `_report_time` to the author date (%aI) correctly fixes the rebase-merge false positive that parked g7 ('validate record predates report'), and the new test would fail under the old %cI code because it asserts `report_time == REPORT_MTIME` while the committer date is two hours later. The comment lists only `--amend` as a caveat; the author date is also reset by `git rebase --ignore-date`/`--reset-author-date` and by a GitHub squash merge, which this repo's conventions use for deps/automation PRs. Those paths would re-trigger the stale-report refusal. No code change needed for the rebase-for-agent-PRs policy, but the caveat is worth recording next to the amend note. The try/except around the git calls is unchanged, so no new unhandled exception path is introduced.",
+      "resolution": "VAL_REVIEW post-merge 2026-10-10: parked out_of_scope: skills/autopilot/scripts/goal_gate.py is orchestrator infrastructure (94bf202 / d1f65b25), not this change's code, and code is not edited in this phase. Forwarded to autopilot owners: note `--reset-author-date` / `--ignore-date` rebases and GitHub squash merges beside the amend caveat.",
+      "parked_reason": "out_of_scope",
+      "consensus_status": "disagreement"
+    },
+    {
+      "id": 82,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/validation-report.md",
+      "fingerprint": "8677cf064c4b4d3d",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The VAL_FIX 8 baseline paragraph for ledger 79 does not reconcile with the sentence two lines above it. It states the pre-merge run counted 189 passed + 1 skipped and derives this as 67 (this change) + 123 (pre-existing) = 190 collected. The same E2E section says the pre-merge VALIDATE run of 2026-10-10 'had skipped' the 15 rsync-gated tests. Both cannot hold for one run: 15 rsync skips plus the node_modules skip would give 16 skipped, so either the pre-merge total was 174 passed + 16 skipped (and 123 is wrong), or the 15 rsync tests were not skipped in the run whose count is 189 + 1, or the two sentences describe different pre-merge runs. Ledger 79 asked precisely for the 189 -> 255 delta to be explained; the explanation as written is internally contradictory. Fix: name which pre-merge run each number comes from, and give the pass/skip split that includes the rsync skips.",
+      "resolution": "VAL_REVIEW post-merge verification 2026-10-10, VAL_FIX 9 (record-only): E2E Tests names the two pre-merge runs (first VALIDATE run, rsync absent, skipped 15 rsync-gated tests; VAL_REVIEW run on 80747aa, rsync installed, 189 passed + 1 skipped = 190 collected = 67 this change + 123 pre-existing).",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 83,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/validation-report.md",
+      "fingerprint": "a6564baf2e7a9b4a",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The Security section still says 'One hit only' for a grep whose pattern list includes the literal `github_pat_` over `docs`, while the new Validation Review section admits that pattern hits twice in `docs/kanban-viz/README.md`. The reconciling gloss (the count is of token-shaped matches) lives only in the Validation Review section; a reader of the Security section, which is the section whose `**Status**` the goal gate parses, sees a claim that the Security section's own pattern list contradicts. Fix: amend the Security section itself to state one token-shaped hit plus two prose matches on `github_pat_` that are not tokens and are outside this change.",
+      "resolution": "VAL_REVIEW post-merge verification 2026-10-10, VAL_FIX 9 (record-only): the Security section itself now states one token-shaped hit plus two prose `github_pat_` matches in docs/kanban-viz/README.md (not tokens, outside this change); its **Status** line is unchanged and the edit is declared in the report.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 84,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/validation-report.md",
+      "spec_file": "/home/user/agentic-coding-tools/.claude/worktrees/agent-a298c4df1fa7e53d5/openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "fingerprint": "9d788976c7b199ca",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Outcome 4 evidence relies on a loose grep that now matches 61 files where the pre-merge round matched 59 ('the pre-merge 59-file loose grep re-run (61 files, same classification)'). The two additional files are not named, so 'same classification' is asserted rather than shown; the payload hash being byte-identical to e4d0b25 does not help because the pre-merge grep ran on an earlier commit (bdfeefe) before other changes were merged into the roadmap branch. Name the two new matches and their category (documentation string, repo-root marker, opt-in integration) so the outcome-4 claim does not rest on an unexplained delta.",
+      "resolution": "VAL_REVIEW post-merge verification 2026-10-10, VAL_FIX 9 (record-only): the 76 bullet names the five loose-grep hit files that changed between 80747aa and the merge (autopilot/SKILL.md, supervise/SKILL.md, review_dispatcher.py, cycle_state.py, execution.py; doc strings, comments, repo-root path markers) and states the other 56 are byte-identical to the pre-merge payload; no source import.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 85,
+      "status": "addressed",
+      "axis": "observability",
+      "type": "observability",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/validation-report.md",
+      "fingerprint": "2e7eefbf078d5d3d",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The Validation Review section sets its own `**Status**: pass` in the same VAL_FIX 8 commit that answers the round's findings, and records no verification round over that fix; it also calls VAL_FIX 8 'this commit' without naming the SHA (the header names e4d0b25 and 44f6960 only). After this verification round completes, the section should record its outcome and the VAL_FIX 8 commit SHA so the pass status is traceable to a round that reviewed the fixed text rather than only to the round whose findings it fixed.",
+      "resolution": "VAL_REVIEW post-merge verification 2026-10-10, VAL_FIX 9 (record-only): the Validation Review section records the verification round (103 s, 6 findings, 0 blocking, converged) and names VAL_FIX 8 as commit 0b945f5.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 86,
+      "status": "addressed",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/validation-report.md",
+      "fingerprint": "dd520833a07a946b",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The explanation for why `goal_gate.py` and its test appear in the packet ('which the three-dot diff shows only because the roadmap tip already carries that commit') reads as a contradiction: if the roadmap tip carried the commit and this branch descended from it, the merge base would include it and the three-dot diff would not show it. The report elsewhere states `git diff origin/openspec/roadmap-multiplayer-collaboration 44f6960 -- skills docs` is empty, which is consistent only if the fix was cherry-picked onto this branch from a merge base that predates it (the addendum's two SHAs, 94bf202 / d1f65b25, confirm this). Reword to say the merge base predates the goal-gate fix and both branches carry it as separate commits.",
+      "resolution": "VAL_REVIEW post-merge verification 2026-10-10, VAL_FIX 9 (record-only): packet explanation reworded: the merge base predates the goal-gate author-date fix and both branches carry it as separate commits (94bf202 / d1f65b25).",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 87,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/toolkit-consistency/validation-report.md",
+      "spec_file": "/home/user/agentic-coding-tools/.claude/worktrees/agent-a298c4df1fa7e53d5/openspec/changes/toolkit-consistency/specs/toolkit-distribution/spec.md",
+      "fingerprint": "ebe1597c60c318ff",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verification of open ledger 75: the outcome-1 row now states that trackedness is the consumer's act, that the installer writes the file and cannot commit it, and that proposal.md and docs/guides/skills.md make committing the stamp the declaration of the pin. This satisfies the first of the two remedies ledger 75 offered ('note in the report that trackedness is a human step the toolkit does not verify'). The item can be closed as addressed by report text; the alternative remedy (an `install.sh` warning on `git check-ignore`) remains a code change outside this phase.",
+      "resolution": "VAL_REVIEW post-merge verification 2026-10-10, VAL_FIX 9 (record-only): re-verification of 75; the outcome-1 row satisfies 75's first remedy (report states trackedness is the consumer's act the toolkit does not verify); 75 closed with it.",
+      "consensus_status": "unconfirmed"
+    }
+  ]
+}

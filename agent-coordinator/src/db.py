@@ -14,6 +14,7 @@ Usage:
     service = LockService(db=mock_client)
 """
 
+from datetime import timedelta
 from typing import Any, Protocol, runtime_checkable
 
 import httpx
@@ -122,7 +123,12 @@ class SupabaseClient:
         response = await self.client.post(
             f"{self.config.url}{self.config.rest_prefix}/rpc/{function_name}",
             headers=self._headers(),
-            json=params,
+            # INTERVAL parameters are passed as timedelta (what asyncpg binds);
+            # JSON has no such type, so send Postgres' "<n> seconds" literal.
+            json={
+                key: f"{value.total_seconds()} seconds" if isinstance(value, timedelta) else value
+                for key, value in params.items()
+            },
         )
         response.raise_for_status()
         return response.json()

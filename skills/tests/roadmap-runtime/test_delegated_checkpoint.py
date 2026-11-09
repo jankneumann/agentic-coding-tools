@@ -12,6 +12,7 @@ from jsonschema import Draft202012Validator
 
 from checkpoint import CheckpointManager
 from models import Checkpoint
+from shared import dispatch_contract
 
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -46,7 +47,8 @@ def _prepared_attempt() -> dict:
         "attempt": 1,
         "status": "prepared",
         "prepared_at": "2026-09-01T00:01:00Z",
-        "launch_token": "launch-token-0001",
+        # dispatch-contract D6: the checkpoint persists only the token digest.
+        "launch_digest": "sha256:" + "0" * 64,
         "launch_marker_path": ".supervised-dispatch/add-alpha-capability/ri-03-attempt-1.marker",
         "lease_generation": 1,
         "launch_history": [],
@@ -55,10 +57,12 @@ def _prepared_attempt() -> dict:
             "write_allow": ["skills/alpha/**"],
             "lock_keys": ["feature:add-alpha-capability"],
         },
+        # D7: host-portable isolation, never an absolute path.
         "isolation": {
             "mode": "managed_worktree",
-            "worktree_path": "/workspace/.git-worktrees/add-alpha-capability",
+            "worktree_ref": "add-alpha-capability",
             "branch": "openspec/add-alpha-capability",
+            "host_id": "host-a",
         },
         "context": {"router_vendor": "example-vendor"},
     }
@@ -191,7 +195,11 @@ def test_checkpoint_manager_rejects_duplicate_dispatch_identity(tmp_path: Path) 
                 status="parked",
                 outcome="parked",
                 resolved_at="2026-09-01T00:09:00Z",
-                parked={"kind": "pending_gate", "reason": "approval required"},
+                parked={
+                    "kind": "pending_gate",
+                    "gate": "pr_creation",
+                    "reason": "approval required",
+                },
                 lease={**attempt["lease"], "state": "uncertain"},
             ),
             "parked",
@@ -247,13 +255,16 @@ def test_checkpoint_schemas_publish_the_optional_attempt_ledger() -> None:
 
     assert installed == canonical
     assert "dispatch_attempts" not in canonical["required"]
+    # D2: the single attempt definition is the published contract schema.
     assert canonical["properties"]["dispatch_attempts"] == {
         "type": "array",
-        "items": {"$ref": "#/$defs/delegated_dispatch_attempt"},
+        "items": {
+            "$ref": "https://agentic-coding-tools.dev/contracts/delegated-dispatch-attempt.schema.json"
+        },
         "default": [],
     }
     Draft202012Validator.check_schema(canonical)
-    validator = Draft202012Validator(canonical)
+    validator = Draft202012Validator(canonical, registry=dispatch_contract.schema_registry())
     validator.validate(_legacy_checkpoint())
     validator.validate(
         {**_legacy_checkpoint(), "dispatch_attempts": [_prepared_attempt()]}
@@ -276,12 +287,15 @@ def test_checkpoint_schema_accepts_resume_hint_on_parked_attempt() -> None:
         resolved_at="2026-09-01T00:09:00Z",
         parked={
             "kind": "pending_gate",
+            "gate": "pr_creation",
             "reason": "approval required",
             "resume_hint": "approve the pending gate",
         },
         lease={**attempt["lease"], "state": "released"},
     )
-    validator = Draft202012Validator(json.loads(_CANONICAL_SCHEMA.read_text()))
+    validator = Draft202012Validator(
+        json.loads(_CANONICAL_SCHEMA.read_text()), registry=dispatch_contract.schema_registry()
+    )
 
     validator.validate(
         {**_legacy_checkpoint(), "dispatch_attempts": [attempt]}

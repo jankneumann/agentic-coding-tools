@@ -6,12 +6,14 @@ entries, plus load/save helpers that validate against the contract schemas.
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import logging
 import math
 import os
 import re
+import sys
 import tempfile
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -20,6 +22,14 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+
+# The dispatch contract (dispatch-contract D2) is a shared library; `shared` is
+# imported as a package, so the PARENT of `shared/` must be importable.
+_SKILLS_ROOT = Path(__file__).resolve().parents[2]
+if str(_SKILLS_ROOT) not in sys.path:
+    sys.path.insert(0, str(_SKILLS_ROOT))
+
+from shared import dispatch_contract  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -480,7 +490,7 @@ _ATTEMPT_REQUIRED = {
     "attempt",
     "status",
     "prepared_at",
-    "launch_token",
+    "launch_digest",
     "launch_marker_path",
     "lease_generation",
     "launch_history",
@@ -491,15 +501,24 @@ _ATTEMPT_REQUIRED = {
 _ATTEMPT_ALLOWED = _ATTEMPT_REQUIRED | {
     "application_journal",
     "continuation",
+    "degradations",
+    "execution_profile",
     "handoff_id",
     "launch_evidence",
     "launch_gate",
     "lease",
+    "needs_rebind",
     "outcome",
     "parked",
     "quarantine",
     "resolved_at",
+    "review_requirements",
+    "roadmap_approval_ref",
 }
+_PARKED_KINDS = {"pending_gate", "policy_pause", "permission_blocked", "capability_unavailable"}
+_ISOLATION_KEYS = {"mode", "worktree_ref", "branch", "host_id"}
+#: Host id recorded for a legacy attempt whose absolute path no root contains.
+LEGACY_UNKNOWN_HOST = "legacy-unknown-host"
 _SECRET_CONTEXT_KEY = re.compile(
     r"secret|token|password|credential|api[_-]?key|private[_-]?key|auth|cookie|"
     r"raw[_-]?response|transcript",
@@ -627,12 +646,20 @@ def validate_delegated_dispatch_attempt(attempt: dict[str, Any]) -> None:
     attempt_number = attempt["attempt"]
     if isinstance(attempt_number, bool) or not isinstance(attempt_number, int) or attempt_number < 1:
         raise ValueError("dispatch attempt number must be positive")
-    launch_token = attempt["launch_token"]
-    if not isinstance(launch_token, str) or not 16 <= len(launch_token) <= 256:
-        raise ValueError("dispatch attempt launch token must be bounded")
+    digest = attempt["launch_digest"]
+    if not isinstance(digest, str) or re.fullmatch(r"sha256:[0-9a-f]{64}", digest) is None:
+        raise ValueError("dispatch attempt launch_digest must be sha256:<64 hex>")
     marker_path = attempt["launch_marker_path"]
-    if not isinstance(marker_path, str) or not marker_path:
-        raise ValueError("dispatch attempt launch marker path must be non-empty")
+    if not dispatch_contract.is_portable_path(marker_path):
+        raise ValueError("dispatch attempt launch marker path must be a relative path")
+    isolation = attempt["isolation"]
+    if not isinstance(isolation, dict) or set(isolation) != _ISOLATION_KEYS:
+        raise ValueError(
+            "dispatch attempt isolation must contain exactly mode, worktree_ref, branch, host_id"
+        )
+    ref = isolation["worktree_ref"]
+    if ref is not None and not dispatch_contract.is_portable_path(ref):
+        raise ValueError("dispatch attempt worktree_ref must be relative or null")
     if attempt["phase"] != "autopilot":
         raise ValueError("dispatch attempt phase must be autopilot")
     generation = attempt["lease_generation"]
@@ -741,7 +768,7 @@ def validate_delegated_dispatch_attempt(attempt: dict[str, Any]) -> None:
             or gate_state.get("state") != "entered"
             or not all(gate_state.get(key) for key in ("handle", "go_released_at", "entered_at"))
             or outcome != "parked"
-            or attempt["parked"].get("kind") not in {"pending_gate", "policy_pause"}
+            or attempt["parked"].get("kind") not in _PARKED_KINDS
         ):
             raise ValueError("parked dispatch attempt must release a gate or policy pause")
     elif status == "completed":
@@ -769,13 +796,157 @@ def validate_delegated_dispatch_attempt(attempt: dict[str, Any]) -> None:
         or generation < 2
         or not isinstance(continuation, dict)
         or set(continuation) != {"kind", "approval_ref"}
-        or continuation.get("kind") not in {"pending_gate", "policy_pause"}
+        or continuation.get("kind") not in _PARKED_KINDS
         or not isinstance(continuation.get("approval_ref"), str)
         or not 1 <= len(continuation["approval_ref"]) <= 256
     ):
         raise ValueError(
             "active continuation requires parked kind and bounded approval reference"
         )
+    _validate_attempt_schema(attempt)
+
+
+def _validate_attempt_schema(attempt: dict[str, Any]) -> None:
+    """The published attempt definition (dispatch-contract D2) is authoritative;
+    the checks above are only the cross-field rules a schema cannot express."""
+    try:
+        import jsonschema  # noqa: F401
+    except ImportError:  # pragma: no cover - environment guard
+        return
+    try:
+        dispatch_contract.validate_attempt(attempt)
+    except dispatch_contract.DispatchContractError as exc:
+        raise ValueError(str(exc)) from exc
+
+
+# ---------------------------------------------------------------------------
+# Legacy attempt migration (dispatch-contract D6, D7)
+# ---------------------------------------------------------------------------
+
+
+def _legacy_relative(path: str, root: Path | None) -> str | None:
+    if root is None:
+        return None
+    return dispatch_contract.portable_ref(path, mode=None, repo_root=None, managed_root=root)
+
+
+def migrate_legacy_attempt(
+    attempt: dict[str, Any],
+    *,
+    repo_root: Path | None,
+    managed_root: Path | None,
+    host_id: str | None,
+) -> dict[str, Any]:
+    """Convert one pre-dispatch-contract attempt to the persisted v2 shape.
+
+    - a raw ``launch_token`` becomes ``launch_digest`` (its SHA-256) and the raw
+      value is dropped, so the next save never writes it (D6);
+    - an absolute ``isolation.worktree_path`` becomes ``worktree_ref`` relative to
+      the managed root (``managed_worktree``) or repo root (``harness_provided``)
+      and this host's ``host_id``; a path outside both marks ``needs_rebind`` (D7);
+    - a v1 ``application_journal.result`` is upgraded to v2 with its digest
+      recomputed, using the attempt's own legacy isolation.
+
+    Already-migrated attempts are returned unchanged.
+    """
+    migrated = copy.deepcopy(attempt)
+    if "launch_token" in migrated:
+        token = migrated.pop("launch_token")
+        if "launch_digest" not in migrated and isinstance(token, str) and token:
+            migrated["launch_digest"] = dispatch_contract.launch_digest(token)
+    isolation = migrated.get("isolation")
+    legacy_path: str | None = None
+    if isinstance(isolation, dict) and "worktree_path" in isolation:
+        legacy_path = str(isolation["worktree_path"])
+        mode = isolation.get("mode")
+        root = managed_root if mode == "managed_worktree" else repo_root
+        ref = _legacy_relative(legacy_path, root)
+        portable = {
+            "mode": mode,
+            "worktree_ref": ref,
+            "branch": isolation.get("branch"),
+            "host_id": (host_id or LEGACY_UNKNOWN_HOST) if ref is not None else LEGACY_UNKNOWN_HOST,
+        }
+        if ref is None:
+            migrated["needs_rebind"] = True
+        migrated["isolation"] = portable
+    journal = migrated.get("application_journal")
+    result = journal.get("result") if isinstance(journal, dict) else None
+    if isinstance(result, dict) and result.get("schema_version") == 1:
+        journal["result"] = _upgrade_legacy_journal_result(
+            result, legacy_path, migrated.get("isolation") or {}
+        )
+        canonical = json.dumps(
+            journal["result"], sort_keys=True, separators=(",", ":"), ensure_ascii=True,
+            allow_nan=False,
+        ).encode("utf-8")
+        journal["result_digest"] = hashlib.sha256(canonical).hexdigest()
+    return migrated
+
+
+def _upgrade_legacy_journal_result(
+    result: dict[str, Any], legacy_path: str | None, isolation: dict[str, Any]
+) -> dict[str, Any]:
+    """A pure string upgrade of an already-applied v1 result (history only)."""
+    upgraded = copy.deepcopy(result)
+    upgraded["schema_version"] = 2
+    upgraded.setdefault("degradations", [])
+    worktree_path = upgraded.pop("worktree_path", None)
+    if worktree_path is not None:
+        upgraded["worktree_ref"] = isolation.get("worktree_ref")
+        upgraded["host_id"] = isolation.get("host_id") or LEGACY_UNKNOWN_HOST
+    evidence = upgraded.get("evidence")
+    if isinstance(evidence, dict):
+        loop_path = str(evidence.get("loop_state_path", ""))
+        base = worktree_path or legacy_path
+        if not dispatch_contract.is_portable_path(loop_path) and base:
+            relative = dispatch_contract.portable_ref(
+                loop_path, mode=None, repo_root=None, managed_root=base
+            )
+            evidence["loop_state_path"] = relative or (
+                f"openspec/changes/{upgraded.get('change_id')}/loop-state.json"
+            )
+    parked = upgraded.get("parked")
+    if isinstance(parked, dict):
+        parked.setdefault("gate", None)
+    return upgraded
+
+
+def migrate_legacy_checkpoint_data(
+    data: dict[str, Any],
+    *,
+    repo_root: Path | None = None,
+    managed_root: Path | None = None,
+    host_id: str | None = None,
+) -> dict[str, Any]:
+    """Apply :func:`migrate_legacy_attempt` to every attempt of raw checkpoint data.
+
+    Defaults: ``managed_root`` is ``<repo_root>/.git-worktrees`` (the worktree
+    tooling's layout) and ``host_id`` is this host's
+    ``environment_profile.host_id()``.
+    """
+    attempts = data.get("dispatch_attempts")
+    if not isinstance(attempts, list) or not any(
+        isinstance(a, dict) and ("launch_token" in a or "worktree_path" in (a.get("isolation") or {})
+                                 or ((a.get("application_journal") or {}).get("result") or {}).get("schema_version") == 1)
+        for a in attempts
+    ):
+        return data
+    root = Path(repo_root) if repo_root is not None else None
+    managed = Path(managed_root) if managed_root is not None else (
+        root / ".git-worktrees" if root is not None else None
+    )
+    if host_id is None:
+        from shared.environment_profile import host_id as current_host_id
+
+        host_id = current_host_id()
+    migrated = dict(data)
+    migrated["dispatch_attempts"] = [
+        migrate_legacy_attempt(a, repo_root=root, managed_root=managed, host_id=host_id)
+        if isinstance(a, dict) else a
+        for a in attempts
+    ]
+    return migrated
 
 
 @dataclass
@@ -832,6 +1003,7 @@ class Checkpoint:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Checkpoint:
+        data = migrate_legacy_checkpoint_data(data)
         dispatch_attempts = data.get("dispatch_attempts", [])
         serial_indeterminate_items = data.get("serial_indeterminate_items", [])
         if (
@@ -969,7 +1141,11 @@ def validate_against_schema(data: dict[str, Any], schema_path: str, repo_root: P
         return []
 
     schema = _load_schema(schema_path, repo_root)
-    validator = jsonschema.Draft202012Validator(schema)
+    # The checkpoint $refs the published dispatch contract schemas (D2), which
+    # resolve only through the contract registry.
+    validator = jsonschema.Draft202012Validator(
+        schema, registry=dispatch_contract.schema_registry(repo_root)
+    )
     return [e.message for e in validator.iter_errors(data)]
 
 
@@ -1128,14 +1304,31 @@ def save_roadmap(roadmap: Roadmap, path: Path, *, overwrite: bool = False) -> No
     path.write_text(yaml.dump(roadmap.to_dict(), default_flow_style=False, sort_keys=False))
 
 
-def load_checkpoint(path: Path, repo_root: Path | None = None) -> Checkpoint:
-    """Load and validate a checkpoint.json file."""
+def load_checkpoint(
+    path: Path, repo_root: Path | None = None, *, managed_root: Path | None = None
+) -> Checkpoint:
+    """Load and validate a checkpoint.json file.
+
+    Legacy attempts (raw launch tokens, absolute worktree paths) are migrated in
+    memory before validation; the next save persists only the migrated shape.
+    """
     data = json.loads(path.read_text())
+    data = migrate_legacy_checkpoint_data(
+        data, repo_root=repo_root or _repo_root_for(path), managed_root=managed_root
+    )
     if repo_root:
         errors = validate_against_schema(data, CHECKPOINT_SCHEMA, repo_root)
         if errors:
             raise ValueError(f"Checkpoint validation failed: {'; '.join(errors)}")
     return Checkpoint.from_dict(data)
+
+
+def _repo_root_for(path: Path) -> Path | None:
+    """``<repo>`` for ``<repo>/openspec/roadmaps/<id>/checkpoint.json``, else None."""
+    parents = path.resolve().parents
+    if len(parents) > 3 and parents[1].name == "roadmaps" and parents[2].name == "openspec":
+        return parents[3]
+    return None
 
 
 def save_checkpoint(checkpoint: Checkpoint, path: Path) -> None:

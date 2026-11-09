@@ -265,3 +265,98 @@ Service read paths SHALL be exact: the gateway SHALL receive the sorted union of
 
 - **WHEN** a keyless endpoint agent is projected into a dispatch config
 - **THEN** its `principal_id` SHALL be null and `vendor_credentials` SHALL be empty
+
+### Requirement: Human Principal Registry Extension
+
+`agent-coordinator/agents.yaml` MAY declare a top-level `humans:` mapping of human principals.
+Each entry SHALL require `display_name` and MAY declare `github`, `email`, `domains`,
+`availability` (`timezone`, `hours`, `days`) and `description`; the schema SHALL reject unknown
+fields. Human ids SHALL share the principal namespace with agent names and follow the same slug
+pattern; a human id equal to an agent name SHALL be a load error naming both entries.
+`load_agents_config()` SHALL continue to return only agents; a separate
+`load_human_principals()` SHALL return `HumanEntry` records. Human principals SHALL NOT be
+projected into any agent runtime state: no `agent_profiles` row, no `agent_profile_assignments`
+row, no API-key identity, no dispatch config and no OpenBao AppRole, policy or data path. The
+inline human principal schema in `agents_config.py` SHALL equal
+`openspec/schemas/human-principals.schema.json` (ignoring schema metadata keys), and the
+Registry Projection Invariant SHALL assert that no human id appears in any projection.
+
+#### Scenario: Human principal declared without agent projection
+- **GIVEN** `agents.yaml` declares `humans: {jan: {display_name: "Jan Neumann", github: jankneumann}}`
+- **WHEN** `load_agents_config()`, `sync_profiles()`, `get_api_key_identities()`,
+  `get_dispatch_configs()` and `project_principals()` run
+- **THEN** none of their outputs SHALL contain the id `jan`
+- **AND** `load_human_principals()` SHALL return one `HumanEntry` with `name == "jan"`
+
+#### Scenario: Human id colliding with an agent name rejected
+- **GIVEN** `agents.yaml` declares agent `claude-local` and human `claude-local`
+- **WHEN** `load_agents_config()` runs
+- **THEN** it SHALL raise `ValueError` naming `claude-local` as both an agent and a human
+
+#### Scenario: Human entry missing display name rejected
+- **WHEN** a `humans:` entry omits `display_name`
+- **THEN** schema validation SHALL fail naming the entry and the missing field
+
+#### Scenario: Registry without humans unchanged
+- **GIVEN** an `agents.yaml` with no `humans:` block
+- **WHEN** `load_agents_config()` and `sync_profiles()` run
+- **THEN** their results SHALL be identical to the pre-change behavior
+- **AND** `load_human_principals()` SHALL return an empty list
+
+#### Scenario: Schema mirror pinned
+- **WHEN** `openspec/schemas/human-principals.schema.json` is loaded and its `$schema`, `$id`,
+  `title` and `description` keys are removed
+- **THEN** the result SHALL equal `HUMAN_PRINCIPAL_SCHEMA` in `agents_config.py`
+
+#### Scenario: Invariant catches a human projected as an agent
+- **GIVEN** a synced profile table into which a row named after a declared human is injected
+- **WHEN** the registry projection invariant checkers run
+- **THEN** the human-projection checker SHALL report a violation naming that id
+
+### Requirement: Declarative CLI Probe Block
+
+An agent's `cli` block in `agents.yaml` MAY declare a `probe` object with optional keys
+`version_args` (string list, default `["--version"]`), `help_args` (map of mode name to string
+list), `auth_status_args` (string list), `credential_files` (string list of paths), and
+`ignore_flags` (string list; each item starts with `-`). `AGENTS_SCHEMA` SHALL accept exactly these keys and reject others. Every declared list SHALL be
+non-empty, and it SHALL reject any probe argv — `version_args`, a `help_args` value, or
+`auth_status_args` — in which any token matches `print-api-key`, `print-bearer-token`,
+`--credentials`, `--show-token`, or `logout` (case-insensitive). Loading SHALL additionally fail — via `agents_config.validate`, because
+these rules are not expressible in JSON Schema — for an `auth_status_args` list whose
+last token is `login`, and for a `help_args` value none of whose tokens is exactly `--help`, `-h`, or `help` (whole-token
+match; `--helpful` does not count). `CliConfig` SHALL carry the block, and `get_dispatch_configs()` SHALL include
+`probe` in a lane's `cli` payload when, and only when, it is declared — a declared empty `{}`
+included (presence, not truthiness).
+
+#### Scenario: A credential-printing auth command is rejected at load
+- **WHEN** an agent declares `probe: {auth_status_args: ["auth", "print-api-key", "--provider", "openai"]}`
+- **THEN** loading `agents.yaml` SHALL fail schema validation naming the offending token
+
+#### Scenario: A credential-printing version command is rejected at load
+- **WHEN** an agent declares `probe: {version_args: ["auth", "print-api-key"]}`
+- **THEN** loading `agents.yaml` SHALL fail validation naming the offending token
+
+#### Scenario: A help override that is not a help command is rejected
+- **WHEN** an agent declares `probe: {help_args: {review: ["exec", "-s", "read-only"]}}`
+- **THEN** loading `agents.yaml` SHALL fail validation
+
+#### Scenario: An empty declared list is rejected
+- **WHEN** an agent declares `probe: {ignore_flags: []}` or `probe: {credential_files: []}`
+- **THEN** loading `agents.yaml` SHALL fail schema validation
+
+#### Scenario: A status subcommand under login is accepted, a bare login is not
+- **WHEN** one agent declares `probe: {auth_status_args: ["login", "status"]}` and another declares `probe: {auth_status_args: ["login"]}`
+- **THEN** the first SHALL validate and the second SHALL fail validation
+
+#### Scenario: An empty probe block survives the round-trip
+- **WHEN** an agent declares `probe: {}`
+- **THEN** `GET /agents/dispatch-configs` SHALL return `cli.probe` as `{}` for that lane, and the dispatcher's mirror `CliConfig.probe` SHALL be `{}`, not `None`
+
+#### Scenario: An unknown probe key is rejected
+- **WHEN** an agent declares `probe: {required_flags: ["--json-schema"]}`
+- **THEN** loading `agents.yaml` SHALL fail schema validation
+
+#### Scenario: The probe block round-trips through dispatch-configs
+- **WHEN** `claude-local` declares `probe: {auth_status_args: ["auth", "status"]}`
+- **THEN** `GET /agents/dispatch-configs` SHALL return that object under `claude-local`'s `cli.probe`, and a lane without a probe block SHALL have no `probe` key
+

@@ -59,6 +59,7 @@ def _run_install(install_target: Path, scripts_dir: Path) -> subprocess.Complete
     shared_dir = scripts_dir / "shared"
     shared_dir.mkdir(exist_ok=True)
     shutil.copy(SKILLS_ROOT / "shared" / "validate_install_manifest.py", shared_dir)
+    shutil.copy(SKILLS_ROOT / "shared" / "payload_hash.py", shared_dir)
     skill_names = sorted(
         path.parent.name for path in scripts_dir.glob("*/SKILL.md")
     )
