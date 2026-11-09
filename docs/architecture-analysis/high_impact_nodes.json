@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-10-05T04:46:06+00:00",
+  "generated_at": "2026-11-02T22:58:10+00:00",
   "threshold": 5,
-  "total_high_impact": 140,
+  "total_high_impact": 142,
   "high_impact_nodes": [
     {
       "id": "py:config.get_config",
@@ -33,7 +33,7 @@
     },
     {
       "id": "py:teams.CrewManifest.validate",
-      "dependent_count": 43
+      "dependent_count": 44
     },
     {
       "id": "py:config",
@@ -60,16 +60,24 @@
       "dependent_count": 34
     },
     {
+      "id": "py:agents_config._check_principal_namespace",
+      "dependent_count": 31
+    },
+    {
+      "id": "py:agents_config._check_probe_blocks",
+      "dependent_count": 31
+    },
+    {
+      "id": "py:agents_config._default_agents_path",
+      "dependent_count": 31
+    },
+    {
       "id": "py:coordination_api.authorize_operation",
       "dependent_count": 31
     },
     {
       "id": "py:db.create_db_client",
       "dependent_count": 31
-    },
-    {
-      "id": "py:agents_config._default_agents_path",
-      "dependent_count": 30
     },
     {
       "id": "py:agents_config._default_secrets_path",

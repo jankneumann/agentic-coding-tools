@@ -2291,6 +2291,50 @@ def test_three_workers_blocked_on_one_rule_produce_one_escalation(tmp_path: Path
     assert [e for e in _mirror_entries(repo) if e.get("dedupe_fingerprint")] == []
 
 
+def test_an_escalation_answer_carries_resume_at_to_every_relaunched_member(tmp_path: Path) -> None:
+    repo, workspace, adapter, _request = _parked_on(tmp_path, "pr_creation")
+    _write_repo_posture(repo, escalate_resume="block")
+    ids = _clone_parked(workspace, [dict(_BLOCKED), dict(_BLOCKED)])
+    for attempt in execution.CheckpointManager(workspace).load().dispatch_attempts:
+        gate_router.resolve_parked(
+            attempt, workspace=workspace, repo_root=repo, adapter=adapter, evaluator=_router_gate(repo)
+        )
+    fingerprint = [e for e in _mirror_entries(repo) if e.get("dedupe_fingerprint")][0]["dedupe_fingerprint"]
+
+    answered = gate_router.answer_escalation(
+        fingerprint, workspace=workspace, repo_root=repo, approved=True, adapter=adapter,
+        resume_at="IMPLEMENT", note="accept the reviewed plan",
+    )
+
+    assert sorted(r["dispatch_id"] for r in answered["resumed"]) == ids
+    assert {r["resume_at"] for r in answered["records"]} == {"IMPLEMENT"}
+    assert {r["note"] for r in answered["records"]} == {"accept the reviewed plan"}
+    for request in answered["resumed"]:
+        assert request["gate_answer"]["resume_at"] == "IMPLEMENT"
+
+
+@pytest.mark.parametrize("approved, resume_at", [(False, "IMPLEMENT"), (True, "PLAN")])
+def test_an_escalation_answer_refuses_resume_at_before_recording(
+    tmp_path: Path, approved: bool, resume_at: str
+) -> None:
+    repo, workspace, adapter, _request = _parked_on(tmp_path, "pr_creation")
+    _write_repo_posture(repo, escalate_resume="block")
+    _clone_parked(workspace, [dict(_BLOCKED)])
+    for attempt in execution.CheckpointManager(workspace).load().dispatch_attempts:
+        gate_router.resolve_parked(
+            attempt, workspace=workspace, repo_root=repo, adapter=adapter, evaluator=_router_gate(repo)
+        )
+    fingerprint = [e for e in _mirror_entries(repo) if e.get("dedupe_fingerprint")][0]["dedupe_fingerprint"]
+    before = (workspace / "checkpoint.json").read_bytes()
+
+    with pytest.raises(gate_router.GateRefusalError, match="resume_at"):
+        gate_router.answer_escalation(
+            fingerprint, workspace=workspace, repo_root=repo, approved=approved, adapter=adapter,
+            resume_at=resume_at,
+        )
+    assert (workspace / "checkpoint.json").read_bytes() == before
+
+
 def test_an_attempt_whose_generation_moved_is_skipped_and_reported(tmp_path: Path) -> None:
     repo, workspace, adapter, _request = _parked_on(tmp_path, "pr_creation")
     _write_repo_posture(repo, escalate_resume="block")

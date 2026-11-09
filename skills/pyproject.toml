@@ -41,7 +41,7 @@ test = [
     # (coordination-bridge/scripts/generate_bindings.py). Pinned exactly: its
     # output is checked in and `generate_bindings.py --check` gates CI, so a
     # floating version would turn a tool release into a stale-bindings failure.
-    "datamodel-code-generator==0.83.0",
+    "datamodel-code-generator==0.87.0",
 ]
 
 [tool.uv.sources]
@@ -63,6 +63,15 @@ override-dependencies = [
     # (pulled by the sdk extra); force the patched version until an upstream
     # parent floor covers it.
     "httplib2>=0.32.0",
+    # PYSEC-2026-4320: certifi < 2026.10.18 trusts the emSign ECC Root CA - G3,
+    # whose intermediates had their private keys compromised. 2026.10.19 keeps
+    # the unaffected emSign roots. Transitive; force the patched bundle until
+    # an upstream parent floor covers it.
+    "certifi>=2026.10.19",
+    # CVE-2026-114134: black < 26.10.1 lets its bundled GitHub Action install an
+    # unvalidated `required-version`. Not exploitable here (we do not use the
+    # action), but the audit gate flags the locked version. Transitive.
+    "black>=26.10.1",
 ]
 
 [tool.pytest.ini_options]

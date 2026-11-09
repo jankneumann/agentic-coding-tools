@@ -13,7 +13,7 @@ dependencies = [
     "pydantic>=2.13",
     "pyyaml>=6.0",
     "jinja2>=3.1.6",
-    "jsonpath-ng>=1.6",
+    "jsonpath-ng>=1.8.0",
     "httpx>=0.28",
 ]
 
@@ -21,7 +21,7 @@ dependencies = [
 # boundaries in the existing code; ``all`` is the union.
 [project.optional-dependencies]
 mcp = ["fastmcp>=2.0"]
-sdk = ["anthropic>=0.94", "openai>=1.50"]
+sdk = ["anthropic>=0.94", "openai>=3.19.0"]
 db = ["asyncpg>=0.29"]
 all = ["gen-eval[mcp,sdk,db]"]
 # Shared seam for calibrated System One (TypeSafe Jev) decisions
@@ -53,7 +53,7 @@ build-backend = "uv_build"
 dev = [
     "pytest>=8.3",
     "pytest-asyncio>=0.24",
-    "ruff>=0.6",
+    "ruff>=0.16.8",
     "mypy>=1.13",
     # Validates emitted reports/descriptors against the published JSON Schema
     # contract in tests/test_contract_schemas.py. Deliberately a dev dep, not a

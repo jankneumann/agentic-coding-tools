@@ -1,0 +1,3 @@
+{"phase": "IMPL_FIX", "outcome": "fix_callback", "at": "2026-10-30T15:45:12.168389+00:00", "sub_step": true, "blocking_count": 1, "ids": [13], "allowed_paths": ["skills/parallel-infrastructure/scripts/vendor_probe.py", "skills/tests/parallel-infrastructure/test_vendor_probe_cache.py"], "note": "post-adjudication fix of single-vendor high finding"}
+{"phase": "IMPL_FIX", "outcome": "fix_callback", "at": "2026-10-30T15:56:23.940552+00:00", "sub_step": true, "blocking_count": 5, "ids": [1, 2, 3, 5, 7], "note": "post-adjudication fix, verification pass 2"}
+{"phase": "IMPL_FIX", "outcome": "fix_callback", "at": "2026-10-30T16:15:59.342676+00:00", "sub_step": true, "blocking_count": 1, "ids": [17], "note": "post-adjudication fix, after verification pass 3"}

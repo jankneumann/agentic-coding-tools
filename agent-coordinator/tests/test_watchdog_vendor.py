@@ -357,3 +357,51 @@ def test_real_vendor_health_probe_loads_and_reports_every_lane(
     expected = {agent.name for agent in get_agents_config()}
     assert {v.agent_id for v in first.vendors} == expected
     assert {v.agent_id for v in second.vendors} == expected
+
+
+class TestVendorProbeOffEventLoop:
+    @pytest.mark.asyncio
+    @patch("src.watchdog.get_event_bus")
+    async def test_vendor_health_runs_through_to_thread(self, mock_get_bus):
+        mock_bus = MagicMock()
+        mock_bus.failed = False
+        mock_get_bus.return_value = mock_bus
+        svc = WatchdogService(db=_make_mock_db(), check_interval=60, time_fn=FakeTime(500.0))
+        svc._last_vendor_check = 0.0
+
+        calls = []
+
+        async def fake_to_thread(fn, *args, **kwargs):
+            calls.append(fn)
+            return None
+
+        with patch("src.watchdog.asyncio.to_thread", fake_to_thread):
+            await svc._check_vendor_health()
+
+        assert [c.__name__ for c in calls] == ["_load_vendor_health_report"]
+
+    def test_real_loader_runs_check_all_vendors_without_yaml(self, tmp_path, monkeypatch):
+        """watchdog's by-path load works with vendor_probe.py beside it, no PyYAML."""
+        import shutil
+        import sys
+
+        repo_scripts = (
+            Path(__file__).resolve().parents[2] / "skills" / "parallel-infrastructure" / "scripts"
+        )
+        scripts = tmp_path / "skills" / "parallel-infrastructure" / "scripts"
+        scripts.mkdir(parents=True)
+        for name in ("vendor_health.py", "vendor_probe.py"):
+            shutil.copy(repo_scripts / name, scripts / name)
+        monkeypatch.setenv("SKILLS_ROOT", str(tmp_path / "skills"))
+        monkeypatch.setenv("AGENTIC_PROBE_CACHE", str(tmp_path / "cache.json"))
+        monkeypatch.setitem(sys.modules, "yaml", None)  # `import yaml` raises
+        monkeypatch.delitem(sys.modules, "vendor_probe", raising=False)
+        monkeypatch.setenv("AGENTS_YAML", str(tmp_path / "missing.yaml"))
+        monkeypatch.delenv("COORDINATION_API_URL", raising=False)
+        monkeypatch.chdir(tmp_path)
+
+        svc = WatchdogService(db=_make_mock_db(), check_interval=60, time_fn=FakeTime(0.0))
+        report = svc._load_vendor_health_report()
+
+        assert report is not None
+        assert report.total_count == 0

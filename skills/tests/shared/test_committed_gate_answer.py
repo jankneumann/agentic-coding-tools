@@ -162,3 +162,11 @@ def test_a_rejection_after_a_relaunch_is_refused(repo: Path) -> None:
     _commit(repo, _checkpoint(_record(outcome="blocked", resolution="console_rejected"), generation=4))
 
     assert _read(repo, decision="rejected") is None
+
+
+def test_a_committed_implement_resume_target_must_be_relayed_exactly(repo: Path) -> None:
+    _commit(repo, _checkpoint(_record(resume_at="IMPLEMENT")))
+
+    assert _read(repo, resume_at="IMPLEMENT") is not None
+    assert _read(repo) is None
+    assert _read(repo, resume_at="VALIDATE") is None

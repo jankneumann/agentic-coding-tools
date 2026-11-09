@@ -118,7 +118,7 @@ carries no token.
 - **Cloud workers (no launch marker).** The supervisor relays its answer as a message
   naming `gate-decision:<id>`. Apply it only with `runner.py relayed-gate-answer
   <change-id> --gate <gate> --decision <decision> --approval-ref <ref>
-  [--resume-at VALIDATE]`. It fetches the roadmap branch and records the answer only if
+  [--resume-at VALIDATE|IMPLEMENT]`. It fetches the roadmap branch and records the answer only if
   that decision is committed there for this change and gate, is the latest one, and
   its attempt is where that decision leaves it (relaunched after an approval, still
   parked after a rejection); otherwise, or when the fetch fails, it exits 2 and
