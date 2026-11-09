@@ -564,7 +564,7 @@ dependencies = [
 requires-dist = [
     { name = "asyncpg", specifier = ">=0.29,<1" },
     { name = "cocoindex", extras = ["sentence-transformers"], marker = "extra == 'index'", specifier = ">=1.0.13,<1.1.0" },
-    { name = "cocoindex-code", marker = "extra == 'index'", specifier = "==0.2.37" },
+    { name = "cocoindex-code", marker = "extra == 'index'", specifier = "==0.2.42" },
     { name = "jsonschema", marker = "extra == 'dev'", specifier = ">=4,<5" },
     { name = "pathspec", specifier = ">=0.12,<2" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0.0" },
