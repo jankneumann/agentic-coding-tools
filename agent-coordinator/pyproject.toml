@@ -61,7 +61,7 @@ cedar = [
     "cedarpy>=4.8.7",
 ]
 sdk = [
-    "anthropic>=0.120.2",
+    "anthropic>=1.8.0",
     "openai>=2.53.0",
 ]
 analysis = [
