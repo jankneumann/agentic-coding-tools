@@ -1,0 +1,24 @@
+{
+  "attempt": 1,
+  "branch": "openspec/toolkit-consistency-closeout",
+  "change_id": "toolkit-consistency",
+  "degradations": [],
+  "dispatch_id": "batch-70e0f5a2192d3fc876eb9732:ri-20:attempt-1",
+  "evidence": {
+    "commit": "0fcab5a16f6de17eec0b72118dfefafdcbf3056e",
+    "loop_state_digest": "2dd6782d386ecb26520126495f2d61622f502541376b28a54e85f703300ee815",
+    "loop_state_path": "openspec/changes/toolkit-consistency/loop-state.json"
+  },
+  "host_id": "machine-dc39bf1e25efdf45",
+  "lease_generation": 7,
+  "outcome": "parked",
+  "parked": {
+    "deadline": null,
+    "gate": null,
+    "kind": "policy_pause",
+    "reason": "goal gate refused: validate record predates report",
+    "resume_hint": "previous_phase=SUBMIT_PR; answer escalate_resume to resume"
+  },
+  "schema_version": 2,
+  "worktree_ref": "toolkit-consistency"
+}

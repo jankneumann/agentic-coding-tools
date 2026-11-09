@@ -1,0 +1,266 @@
+{
+  "schema_version": 1,
+  "review_type": "plan",
+  "target": "standardize-port-leases",
+  "reviewers": [
+    {
+      "vendor": "antigravity",
+      "agent_id": "antigravity",
+      "success": true,
+      "findings_count": 7,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "grok",
+      "agent_id": "grok",
+      "success": true,
+      "findings_count": 12,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": true,
+  "quorum_requested": 2,
+  "quorum_received": 2,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "accept",
+      "description": "The OpenAPI schema for `PortAllocateRequest` (and `PortAllocation` / `PortStatusEntry`) omits the `host_id` property, even though `contracts/db/schema.sql` has a `host_id` column and `specs/agent-coordinator/spec.md` mandates that leases record `host_id` to scope `POST /ports/reconcile`. Because clients cannot send `host_id` during allocation, all leases will be stored with `host_id = NULL`, causing `POST /ports/reconcile` (which requires `host_id` and filters by it) to match zero active leases and fail to reconcile any host."
+    },
+    {
+      "id": 2,
+      "status": "confirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 3,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 2
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "security",
+      "agreed_axis": "security",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "fix",
+      "description": "`POST /ports/conflict` is specified to allow reports for unknown `session_id`s and block the slot containing the specified `port`. Because `GET /ports/status` is unauthenticated and port numbers are predictable (e.g. 10000, 10100...), any authenticated caller can pass an unknown `session_id` (or their own `session_id`) and specify target port numbers belonging to active leases owned by other agents or unallocated slots. This bypasses the `not_lease_owner` check, allowing an attacker to force all coordinator slots into a 30-minute cooling period and trigger total port pool exhaustion (`no_ports_available`)."
+    },
+    {
+      "id": 3,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "security",
+      "agreed_axis": "security",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "accept",
+      "description": "Critical: host_id scoping is incomplete and spoofable. Spec/DB/OpenAPI require leases to record host_id and require it on POST /ports/reconcile, but PortAllocateRequest has no host_id, task 2.10b only adds the column and reconcile field, seed.sql never sets it, and design/session-log leave provenance undecided. With NULL host_id on every allocated row, host-scoped reconcile cannot release orphans. If host_id is later taken as a client-supplied reconcile string with no bind-at-allocate or authenticated host identity, any API-key holder can pass another host's id and release that host's aged leases \u2014 recreating the fleet-wide DoS the host_id fix was meant to close."
+    },
+    {
+      "id": 4,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "OpenAPI `PortReconcileRequest` schema requires each item in `running_projects` to include `compose_project_name` AND either `slot` or `db_port`. However, `tasks.md` Task 3.7 specifies implementing reconcile using `docker compose ls --format json`, which only outputs compose project names (`Name`). Passing project names without `slot` or `db_port` will cause `POST /ports/reconcile` to return HTTP 422 Unprocessable Entity. Neither `spec.md` nor `tasks.md` specifies how `port-lease reconcile` inspects running project containers or port bindings to derive `slot` or `db_port`."
+    },
+    {
+      "id": 5,
+      "status": "confirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 4,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 4
+        }
+      ],
+      "match_score": 0.8,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "fix",
+      "description": "In `specs/coordinator-kanban-viz/spec.md`, Requirement 'Kanban dev server honours the leased UI port' states in requirement text (line 53) that kanban dev server addresses the coordinator at `API_BASE_URL` (offset +3, host-run API). However, the scenario directly below (line 58) and lines 11-12 explicitly mandate using `VITE_COORDINATOR_URL=http://localhost:10001` (`AGENT_COORDINATOR_REST_PORT` / offset +1, compose container REST port), creating an internal specification contradiction."
+    },
+    {
+      "id": 6,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "`specs/port-lease-client/spec.md` does not specify that `FileBackend` must prune expired lease entries from the on-disk registry file during `acquire()` or `reconcile()`. Because `FileBackend` allocates from a small slot range (`[PORT_ALLOC_FILE_SLOT_BASE, max_sessions)`, which defaults to 5 slots) and has no background daemon, uncleaned crashed client sessions will leave expired entries in the registry file, permanently exhausting the file slot range after 5 crashed runs."
+    },
+    {
+      "id": 7,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Critical: Release of another agent's lease simultaneously requires error not_lease_owner and that the response SHALL NOT reveal whether the named session exists. Unknown sessions return success:true (idempotent); not_lease_owner therefore reveals existence. OpenAPI release prose repeats both claims in one paragraph while examples emit not_lease_owner. Implementers cannot satisfy both; preferring the no-reveal reading would return success:true for not-owned releases and mute the ownership signal."
+    },
+    {
+      "id": 8,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Critical: port-lease-client Host reconciliation never mentions host_id. Coordinator reconcile now requires host_id and scopes by it, but the client capability, CLI reconcile scenarios, and bridge helper tasks do not require discovering/sending a host_id on acquire or reconcile. wp-skills-client can ship a reconcile that the coordinator always 422s or that omits scoping data."
+    },
+    {
+      "id": 9,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: Design Risks still mitigates concurrent file+coordinator outage overlap with Same arithmetic (D7) plus bind probe (D6) make an overlap fail loudly, which is exactly the reasoning D7's partition rewrite rejected. The decision body correctly requires PORT_ALLOC_FILE_SLOT_BASE; the risk table was not updated and will mislead implementers."
+    },
+    {
+      "id": 10,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: Design D3 still says cleanup_dead_agents releases leases for the agents it disconnects, i.e. agent-keyed language, after the plan switched reclaim to session_id (schema release_port_leases_for_sessions, Heartbeat requirement, task notes). Same file D2 still says session id primary key while contracts/db/schema.sql primary-keys slot and only UNIQUEs session_id, and D2's column list omits host_id."
+    },
+    {
+      "id": 11,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 8,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: The 1024-65535 port bound was applied to the env schema, PortConflictRequest.port, and reconcile db_port, but PortAllocation and PortStatusEntry port fields remain plain unbounded integers, so allocate/status can still describe privileged or unbindable ports that the env contract would reject."
+    },
+    {
+      "id": 12,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 9,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: seed.sql inserts active, expired, and blocked rows without host_id after host_id was added to the table. Host-scoping tests in 2.10a have no fixture for same-host vs cross-host leases, and NULL host_id rows are ambiguous under the new reconcile predicate."
+    },
+    {
+      "id": 13,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "In `specs/agent-coordinator/spec.md`, `PORT_ALLOC_FILE_SLOT_BASE` defaults to `floor(0.75 * max_sessions)`. If `max_sessions` is configured to `1`, the calculated default is `0`. However, the 'File slot base out of range' scenario mandates that `PORT_ALLOC_FILE_SLOT_BASE <= 0` triggers a fatal configuration error at startup. The spec lacks validation requiring `max_sessions >= 2` or clamping `PORT_ALLOC_FILE_SLOT_BASE` default to `max(1, ...)`."
+    },
+    {
+      "id": 14,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "In `work-packages.yaml`, `wp-consumers` lists `agent-coordinator/Makefile` under `locks.files` and modifies `make e2e-kanban` to invoke `port-lease acquire`. However, `wp-consumers` depends only on `wp-contracts` and is intended to run in parallel with `wp-skills-client`. If `make e2e-kanban` is invoked during `wp-consumers` before `wp-skills-client` (which implements `port-lease` in Task 3.3d) merges, `port-lease` will be missing."
+    },
+    {
+      "id": 15,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 10,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "readability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Nit: Design D7 names the pool PORT_ALLOC_SLOTS, while the agent-coordinator configuration scenarios and port-lease-client requirement use PORT_ALLOC_MAX_SESSIONS. Implementers following design alone will look for an env var that does not exist."
+    },
+    {
+      "id": 16,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 11,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Optional: Proposal reconcile text still matches compose projects on an ac-/validate- prefix, but every contract and spec locks compose_project_name to ^ac-[0-9a-f]{8}$. The validate- branch looks like leftover file-registry naming and can confuse client filter implementation."
+    },
+    {
+      "id": 17,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 12,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Disjoint PORT_ALLOC_FILE_SLOT_BASE ranges, session-keyed cleanup, and the mirrored REST-vs-API_PORT consumer split are clearly motivated and testable; those prior fixes are directionally right once the host_id allocate path, conflict unknown-session hole, and remaining cross-artifact contradictions above are closed."
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 17,
+    "confirmed_count": 2,
+    "unconfirmed_count": 15,
+    "disagreement_count": 0,
+    "blocking_count": 2
+  }
+}

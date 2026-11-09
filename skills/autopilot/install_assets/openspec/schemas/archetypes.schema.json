@@ -7,8 +7,8 @@
   "properties": {
     "schema_version": {
       "type": "integer",
-      "enum": [1, 2, 3],
-      "description": "Schema version. v1 = legacy; v2 enables phase_mapping; v3 adds model_aliases / tier models."
+      "enum": [1, 2, 3, 4],
+      "description": "Schema version. v1 = legacy; v2 enables phase_mapping; v3 adds model_aliases / tier models; v4 adds the optional per-archetype procedure_mode."
     },
     "local_host_class": {
       "type": ["object", "null"],
@@ -73,6 +73,11 @@
           "write_capable": {
             "type": "boolean",
             "description": "Whether this archetype may write files/artifacts. Required on every archetype (no implicit default)."
+          },
+          "procedure_mode": {
+            "type": "string",
+            "enum": ["verbatim", "guided", "goal-directed"],
+            "description": "How much of a skill's written procedure an agent under this archetype follows (schema_version 4, add-skill-audit D3). Optional; omitted means guided. Injected once, by the coordinator's resolve_archetype_for_phase."
           },
           "escalation": {
             "type": ["object", "null"],

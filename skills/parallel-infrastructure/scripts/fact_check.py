@@ -21,9 +21,19 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
+from types import ModuleType
 from typing import Any, Callable
 
 import file_selection
+
+# Per system_one_decisions.testing's documented stubbing rule: import the
+# module, never a pre-bound name, so a monkeypatched `decide` attribute is
+# what this code actually calls.
+system_one_decisions: ModuleType | None
+try:
+    import system_one_decisions
+except ImportError:
+    system_one_decisions = None
 
 PROMPTS_DIR = Path(__file__).parent / "prompts"
 SYSTEM_PROMPT = (PROMPTS_DIR / "fact_check_system.md").read_text(encoding="utf-8")
@@ -33,6 +43,9 @@ SCHEMA_VERSION = 1
 GROUND_A = "A_absent_from_subject_diff"
 GROUND_B = "B_contradicted_by_diff_line"
 _GROUNDS = {GROUND_A, GROUND_B}
+
+DEFAULT_GROUND_SCREEN_CONFIDENCE_FLOOR = 0.5
+_FACT_CHECK_JUDGMENT_CONFIG_PATH = Path(__file__).parent / "fact-check-judgment.json"
 
 # Caller signature: (system_prompt, user_prompt) -> raw response text.
 # May raise on any failure (timeout, network, subprocess error) — run()
@@ -212,6 +225,120 @@ def _evidence_line_in_subject_diff(
     return line in packet_diff
 
 
+def load_ground_screen_confidence_floor(config_path: Path | None = None) -> float:
+    """Read the optional sidecar JSON, falling back to the module default.
+
+    Mirrors gatekeeper_shadow/triage/implementation_strategy_selector/
+    vendor_review's threshold-loading precedent: a malformed or missing
+    sidecar degrades to the default rather than raising.
+    """
+    path = config_path or _FACT_CHECK_JUDGMENT_CONFIG_PATH
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return DEFAULT_GROUND_SCREEN_CONFIDENCE_FLOOR
+    if not isinstance(raw, dict):
+        return DEFAULT_GROUND_SCREEN_CONFIDENCE_FLOOR
+    try:
+        return float(raw.get("confidence_floor", DEFAULT_GROUND_SCREEN_CONFIDENCE_FLOOR))
+    except (TypeError, ValueError):
+        return DEFAULT_GROUND_SCREEN_CONFIDENCE_FLOOR
+
+
+def _answer_field(answer: Any, name: str, default: Any = None) -> Any:
+    """Read a field off a real SDK answer object or a plain dict/mapping."""
+    if isinstance(answer, dict):
+        return answer.get(name, default)
+    return getattr(answer, name, default)
+
+
+def _screen_findings(
+    findings: list[dict[str, Any]],
+    packet_diff: str,
+    dry_run: bool = False,
+) -> dict[str, dict[str, float]] | None:
+    """Ask one batched judgment screening every *finding* on both grounds.
+
+    One `decide()` call for the whole batch (docs/proposals/
+    jev-system-one-integration-assessment.md A5's "batched as many
+    questions... as state" shape), with two `Noul` questions per finding —
+    `ground_a_<id>` ("the code this finding describes is not in the
+    subject file's diff") and `ground_b_<id>` (a screen for "a line in
+    this diff directly contradicts the finding's central claim").
+
+    Returns `None` on any unavailability (module missing, `decide()`
+    returns no usable answer) — never raises. Callers fall back to sending
+    every finding through the existing (unmodified) stage-two prompt,
+    exactly as before this function existed. Never called for a finding
+    `protected_subject()` already vetoes (D2) — a verdict from either
+    ground can never override that veto, so no call is worth spending on
+    one.
+    """
+    if system_one_decisions is None:
+        return None
+    if not findings:
+        return None
+
+    questions: dict[str, Any] = {}
+    for f in findings:
+        fid = str(f.get("id"))
+        questions[f"ground_a_{fid}"] = {
+            "type": "noul",
+            "instructions": (
+                "The code this finding describes is not present in the "
+                "subject file's diff."
+            ),
+            "criteria": {
+                "true": "The diff contains no such code -- the finding's premise is absent.",
+                "false": "The diff does contain code matching the finding's premise.",
+            },
+        }
+        questions[f"ground_b_{fid}"] = {
+            "type": "noul",
+            "instructions": (
+                "A line in this diff directly contradicts this finding's "
+                "central claim."
+            ),
+            "criteria": {
+                "true": "A specific diff line plausibly contradicts the claim -- worth the full evidence-checked pass.",
+                "false": "No diff line looks like it contradicts the claim.",
+            },
+        }
+
+    state: dict[str, Any] = {
+        "packet_diff": packet_diff,
+        "findings": [
+            {
+                "id": str(f.get("id")),
+                "file_path": f.get("file_path"),
+                "description": f.get("description"),
+            }
+            for f in findings
+        ],
+    }
+
+    answers = system_one_decisions.decide(
+        state, questions, site="parallel-infrastructure.fact_check",
+        dry_run=dry_run,
+    )
+    if not answers:
+        return None
+
+    screen: dict[str, dict[str, float]] = {}
+    for f in findings:
+        fid = str(f.get("id"))
+        entry: dict[str, float] = {}
+        for ground_key, answer_key in (("ground_a", f"ground_a_{fid}"), ("ground_b", f"ground_b_{fid}")):
+            answer = answers.get(answer_key) if hasattr(answers, "get") else None
+            if answer is None:
+                continue
+            noul = _answer_field(answer, "noul")
+            if isinstance(noul, (int, float)):
+                entry[ground_key] = noul
+        screen[fid] = entry
+    return screen
+
+
 def run(
     *,
     vendor: str,
@@ -221,12 +348,26 @@ def run(
     caller: Caller | None,
     model: str | None = None,
     enabled: bool = True,
+    dry_run: bool = False,
 ) -> FactCheckOutcome:
     """Run the fact-check pass for one vendor's already-validated findings.
 
     Never raises: a disabled pass, no findings, no caller, a caller failure,
     or an unparsable response all result in ``status`` naming why and every
     finding kept. The protected-subject veto runs regardless of the verdict.
+
+    Stage one (judged, optional): screens every non-protected finding on
+    both grounds before stage two runs (D1). A confident Ground-A screen
+    removes the finding directly -- Ground A needs no quoted evidence line,
+    unlike Ground B. A confident Ground-B screen sends only that finding on
+    to stage two, where the existing evidence-line check still gates any
+    removal. A finding clearing neither ground is kept without ever
+    reaching stage two. When stage one is unavailable (module missing, no
+    usable answer), every finding falls through to stage two unmodified --
+    exactly this function's behavior before this screen existed. Protected
+    findings (D2) never enter stage one; they always reach stage two
+    unchanged, where the existing post-verdict veto protects them exactly
+    as before.
     """
     if not enabled:
         return FactCheckOutcome(
@@ -244,53 +385,94 @@ def run(
             kept_findings=list(findings), skip_reason="no_caller_available",
         )
 
-    system_prompt, user_prompt = render_prompts(findings, packet_diff)
-    try:
-        raw = caller(system_prompt, user_prompt)
-    except Exception as exc:  # noqa: BLE001 — any caller failure skips, never blocks
-        return FactCheckOutcome(
-            vendor=vendor, round_num=round_num, status="skipped",
-            kept_findings=list(findings),
-            skip_reason=f"{type(exc).__name__}: {exc}",
-        )
+    protected_findings = [f for f in findings if protected_subject(f) is not None]
+    screenable_findings = [f for f in findings if protected_subject(f) is None]
+    screen = _screen_findings(screenable_findings, packet_diff, dry_run=dry_run)
 
-    try:
-        tool, items = parse_verdict(raw)
-    except (ValueError, json.JSONDecodeError) as exc:
-        return FactCheckOutcome(
-            vendor=vendor, round_num=round_num, status="skipped",
-            kept_findings=list(findings),
-            skip_reason=f"unparsable_response: {exc}",
-            model=model,
-        )
+    stage_one_decisions: dict[str, Decision] = {}
+    stage_two_findings = findings
+    if screen is not None:
+        floor = load_ground_screen_confidence_floor()
+        stage_two_screenable: list[dict[str, Any]] = []
+        for f in screenable_findings:
+            fid = str(f.get("id"))
+            entry = screen.get(fid, {})
+            ground_a = entry.get("ground_a")
+            ground_b = entry.get("ground_b")
+            has_a = isinstance(ground_a, (int, float))
+            has_b = isinstance(ground_b, (int, float))
+            if has_a and ground_a >= floor:
+                stage_one_decisions[fid] = Decision(
+                    finding_id=fid, verdict="removed", ground=GROUND_A,
+                )
+            elif has_b and ground_b >= floor:
+                stage_two_screenable.append(f)
+            elif has_a and has_b:
+                # Both grounds answered and both confidently below the
+                # floor -- only then is skipping stage two justified.
+                stage_one_decisions[fid] = Decision(finding_id=fid, verdict="kept")
+            else:
+                # A partial or malformed per-finding answer (one or both
+                # grounds missing/non-numeric) is treated as unavailable
+                # for THIS finding -- fail safe to stage two rather than
+                # silently keep a finding that was never actually screened.
+                stage_two_screenable.append(f)
+        stage_two_findings = protected_findings + stage_two_screenable
 
-    by_id = {str(f.get("id")): f for f in findings}
     to_remove: dict[str, dict[str, Any]] = {}
-    if tool == "report_incorrect_comments":
-        for item in items:
-            fid = str(item.get("finding_id", ""))
-            ground = item.get("ground")
-            if fid not in by_id or ground not in _GROUNDS:
-                continue
-            evidence_line = item.get("evidence_line")
-            if ground == GROUND_B:
-                # The contracted evidence field is what makes a Ground B
-                # verdict falsifiable at all — a missing or fabricated line
-                # would let a malformed or hallucinated response silently
-                # discard a valid finding, so it is required and checked
-                # against the subject file's actual diff before removal.
-                if not isinstance(evidence_line, str):
+    if stage_two_findings:
+        system_prompt, user_prompt = render_prompts(stage_two_findings, packet_diff)
+        try:
+            raw = caller(system_prompt, user_prompt)
+        except Exception as exc:  # noqa: BLE001 — any caller failure skips, never blocks
+            return FactCheckOutcome(
+                vendor=vendor, round_num=round_num, status="skipped",
+                kept_findings=list(findings),
+                skip_reason=f"{type(exc).__name__}: {exc}",
+            )
+
+        try:
+            tool, items = parse_verdict(raw)
+        except (ValueError, json.JSONDecodeError) as exc:
+            return FactCheckOutcome(
+                vendor=vendor, round_num=round_num, status="skipped",
+                kept_findings=list(findings),
+                skip_reason=f"unparsable_response: {exc}",
+                model=model,
+            )
+
+        by_id = {str(f.get("id")): f for f in stage_two_findings}
+        if tool == "report_incorrect_comments":
+            for item in items:
+                fid = str(item.get("finding_id", ""))
+                ground = item.get("ground")
+                if fid not in by_id or ground not in _GROUNDS:
                     continue
-                if not _evidence_line_in_subject_diff(
-                    evidence_line, by_id[fid].get("file_path"), packet_diff,
-                ):
-                    continue
-            to_remove[fid] = item
+                evidence_line = item.get("evidence_line")
+                if ground == GROUND_B:
+                    # The contracted evidence field is what makes a Ground B
+                    # verdict falsifiable at all — a missing or fabricated line
+                    # would let a malformed or hallucinated response silently
+                    # discard a valid finding, so it is required and checked
+                    # against the subject file's actual diff before removal.
+                    if not isinstance(evidence_line, str):
+                        continue
+                    if not _evidence_line_in_subject_diff(
+                        evidence_line, by_id[fid].get("file_path"), packet_diff,
+                    ):
+                        continue
+                to_remove[fid] = item
 
     decisions: list[Decision] = []
     kept: list[dict[str, Any]] = []
     for f in findings:
         fid = str(f.get("id"))
+        if fid in stage_one_decisions:
+            decision = stage_one_decisions[fid]
+            decisions.append(decision)
+            if decision.verdict != "removed":
+                kept.append(f)
+            continue
         removal = to_remove.get(fid)
         if removal is None:
             decisions.append(Decision(finding_id=fid, verdict="kept"))

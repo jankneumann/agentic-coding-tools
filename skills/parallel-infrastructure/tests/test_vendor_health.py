@@ -128,7 +128,7 @@ class TestCheckVendor:
 
 
 class TestCheckAllVendors:
-    def test_skips_agents_without_cli(self, tmp_path):
+    def test_includes_every_lane_and_marks_missing_probe_unknown(self, tmp_path):
         yaml_content = """
 agents:
   agent-with-cli:
@@ -136,7 +136,7 @@ agents:
     cli:
       command: nonexistent-xyz
       dispatch_modes: {}
-  agent-without-cli:
+  agent-without-probe:
     type: test
     capabilities: [memory]
 """
@@ -144,8 +144,11 @@ agents:
         yaml_file.write_text(yaml_content)
 
         report = check_all_vendors(yaml_file)
-        assert report.total_count == 1
-        assert report.vendors[0].agent_id == "agent-with-cli"
+        assert report.total_count == 2
+        lanes = {vendor.agent_id: vendor for vendor in report.vendors}
+        assert lanes["agent-with-cli"].error != "no_probe_method"
+        assert lanes["agent-without-probe"].healthy is False
+        assert lanes["agent-without-probe"].error == "no_probe_method"
 
 
 class TestFormatTable:

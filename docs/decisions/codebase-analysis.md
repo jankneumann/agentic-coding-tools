@@ -5,11 +5,11 @@
 
 ---
 
-## 2026-09-16 — add-visual-code-explainer
+## 2026-09-16 — 2026-09-21-add-visual-code-explainer
 
 ### Phase: Implementation
 
 **stdlib atlas_tree over call-typed symbolEdges** — Reuses build_view_model adjacency; excludes import edges per D3
 
 - Status: `active`
-- Source: [openspec/changes/add-visual-code-explainer/session-log.md](/openspec/changes/add-visual-code-explainer/session-log.md) (D2)
+- Source: [openspec/changes/archive/2026-09-21-add-visual-code-explainer/session-log.md](/openspec/changes/archive/2026-09-21-add-visual-code-explainer/session-log.md) (D2)

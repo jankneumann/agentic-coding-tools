@@ -8,7 +8,7 @@ policy:
 items:
 - item_id: ri-01
   title: Add the shared system_one decision helper, fallback-only
-  status: approved
+  status: completed
   priority: 1
   effort: M
   depends_on: []
@@ -46,17 +46,19 @@ items:
     and needs_approval flagging for intents in the irreversible set.
 - item_id: ri-02
   title: Wire the live TypeSafe client, thresholds and telemetry
-  status: approved
+  status: completed
   priority: 1
   effort: M
   depends_on:
   - ri-01
   description: 'Add typesafe-sdk under a "live" optional extra of packages/system-one-decisions,
     have the package build the live client from TYPESAFE_API_KEY behind a token-budget
-    guard, and record site, latency, usage.input_tokens and the answered probabilities
-    to the existing Langfuse hook. Establish the per-site threshold convention: thresholds
-    live in architecture.config.yaml or the skill''s own config beside the rule they
-    replace, never as literals in a scoring module.'
+    guard, and give decide() an optional caller-supplied event_sink (mirroring decide_intent()''s
+    existing one) that receives site, latency, usage_input_tokens and the answered
+    probabilities on every completed call -- whether that reaches Langfuse is left
+    to the caller. Establish the per-site threshold convention: thresholds live in
+    a package-owned data file (packages/system-one-decisions/src/system_one_decisions/config/thresholds.json),
+    loaded by the package itself, never as literals in a scoring module.'
   rationale: 'Turns the fallback-only seam into a working integration while honouring
     the integration-seam constraints: SDK imported in exactly one package, PyPI-only
     cloud harness network policy respected via an optional extra so the fallback-only
@@ -69,24 +71,27 @@ items:
     it.
   - typesafe_sdk is imported inside packages/system-one-decisions and nowhere else
     in the repository, enforced by a grep-style guard test.
-  - decide returns None (never raises) when the key is absent, the network fails,
-    or serialized state plus the longest question exceeds the 32K-token budget, with
-    one test per branch.
-  - Each completed call emits one Langfuse record carrying site, latency_ms, usage.input_tokens
-    and the per-label probabilities.
+  - decide returns None (never raises) when the live extra isn't installed, the key
+    is absent, the network fails, or serialized state plus the longest question exceeds
+    the 32K-token budget, with one test per branch (four branches).
+  - Each completed call passes site, latency_ms, usage_input_tokens and the per-label
+    probabilities to decide()'s optional event_sink, exactly once; whether a caller
+    forwards that to Langfuse is that caller's own decision, made when it migrates
+    a call site.
   - A guard test asserts no float threshold literal is introduced into the package;
-    defaults resolve from architecture.config.yaml.
+    act_floor/approve_floor defaults resolve from a package-owned packages/system-one-decisions/src/system_one_decisions/config/thresholds.json.
 - item_id: ri-03
   title: Add the adapter-backed test substitute and dry-run policy
-  status: approved
-  priority: 2
+  status: completed
+  priority: 1
   effort: S
   depends_on:
   - ri-02
-  description: 'Stand up the testing convention for every later site: unit tests stub
-    decide/decide_intent, behavioural wiring tests use system-one-adapter (Anthropic
-    provider, llm_answer_mode="probabilities") with test names marking its probabilities
-    uncalibrated, and --dry-run paths make no API call.'
+  description: 'Stand up the testing convention for every later site: system_one_decisions.testing
+    exports reusable stub helpers for decide/decide_intent, behavioural wiring tests
+    use system-one-adapter (Anthropic provider, llm_answer_mode="probabilities") with
+    test names marking its probabilities uncalibrated, and decide()''s own dry_run
+    parameter guarantees --dry-run paths make no API call.'
   rationale: The proposal's integration seam requires a CI substitute because the
     repo's convention is no network in dry-run and CI. Landing the substitute and
     the naming rule once keeps every Group A/B/C item from re-inventing it and prevents
@@ -94,42 +99,59 @@ items:
     in test output.
   change_id: add-the-adapter-backed-test-substitute-and-dry-run-policy
   acceptance_outcomes:
-  - A reusable pytest fixture stubs decide/decide_intent and is exercised by at least
-    one test that asserts the caller's fallback rule still runs when the stub returns
-    None.
-  - Adapter-backed behavioural tests are skipped by default, run only when the adapter
-    env is present, and every such test name contains "uncalibrated".
-  - A test asserts that running any system_one-consuming script with --dry-run performs
-    zero client constructions.
+  - system_one_decisions.testing exports reusable stub helpers (stub_decide, stub_decide_intent)
+    for decide/decide_intent, exercised by at least one test that asserts the caller's
+    fallback rule still runs when the stub returns None.
+  - Adapter-backed behavioural tests are skipped unless both ANTHROPIC_API_KEY and
+    SYSTEM_ONE_ADAPTER_TESTS=1 are set, and every such test name contains "uncalibrated".
+  - decide() accepts an explicit dry_run parameter (default False, preserving existing
+    behavior) that guarantees zero client construction when True, verified by a test
+    asserting the client-construction seam is never reached -- the enforcement point
+    a future call-site migration's own --dry-run flag threads into, since no system_one-consuming
+    script exists yet to test end-to-end.
+  learning_refs:
+  - ri-02
 - item_id: ri-04
   title: Replace the gen-eval semantic judge with a calibrated Noul
-  status: approved
+  status: completed
   priority: 1
   effort: M
   depends_on:
   - ri-03
-  description: Rewrite gen_eval.semantic_judge.evaluate_semantic to ask one Noul("The
-    actual output satisfies the criteria") over {criteria, actual_output}, using noul
-    as the confidence that min_confidence already thresholds, and call the existing
-    LLM prompt only on failures that need a human-readable reasoning string.
+  description: 'Rewrite gen_eval.semantic_judge.evaluate_semantic to call system_one_decisions.decide(state={criteria,
+    actual_output}, questions={"satisfies": Noul(...)}, site="gen_eval.semantic_judge"),
+    gate pass/fail on the returned noul against the existing min_confidence threshold,
+    return the module''s existing skip result when decide() returns None (unavailable
+    extra, missing key, over budget, or any live-call error) or when system_one_decisions
+    itself isn''t installed, and invoke the existing LLM backend prompt only to produce
+    human-readable reasoning prose for items that fail the threshold. Cohen''s-kappa
+    validation against a human-labelled set is out of scope for this item (see rationale)
+    and is tracked as a follow-up once a real labelled or mined benchmark corpus exists.'
   rationale: 'Pilot step 1: the smallest surface in the proposal, already carrying
-    skip semantics when the backend is unavailable. It is also the site where the
-    active calibrate-llm-judge-against-human-labels change supplies a 40-item human-labelled
-    set, so this item is where the kappa bar is first paid rather than assumed.'
+    skip semantics when the backend is unavailable. The kappa-calibration bar originally
+    planned for this item is deferred per user decision (see this refinement''s own
+    rationale) since the human-labelled set it depends on does not yet exist; a mined-benchmark
+    follow-up is the intended real replacement.'
   change_id: replace-the-gen-eval-semantic-judge-with-a-calibrated-noul
   acceptance_outcomes:
-  - evaluate_semantic scores the 40-item human-labelled set from calibrate-llm-judge-against-human-labels
-    and reaches Cohen's kappa >= 0.7 on the judged dimension; the measured kappa is
-    recorded in the change's artifacts.
-  - min_confidence gates on noul with no signature change, and existing semantic_judge
-    tests pass unmodified.
-  - When the decision helper returns None the module still returns its existing skip
-    result, covered by a test.
-  - Reasoning prose is produced by an LLM only for items that fail the threshold,
-    asserted by a test counting LLM invocations on an all-pass batch (zero).
+  - evaluate_semantic calls system_one_decisions.decide() with one Noul question over
+    state={criteria, actual_output} and site="gen_eval.semantic_judge"; Cohen's-kappa
+    measurement against a human-labelled set is deferred, not an acceptance bar for
+    this item.
+  - min_confidence gates on the returned noul value with no signature change to evaluate_semantic;
+    its test suite is adapted using system_one_decisions.testing.stub_decide to stub
+    decide()'s return value for the pass/fail path (replacing the old backend-JSON-driven
+    mocks), and continues to cover a high-confidence pass, a below-threshold fail,
+    and an unavailable-backend skip.
+  - When decide() returns None -- whether from one of its own unavailability branches,
+    or because system_one_decisions is not installed at all -- evaluate_semantic returns
+    its existing skip result, covered by a test for each path.
+  - Reasoning prose is produced by the existing LLM backend prompt only for items
+    whose noul confidence fails the min_confidence threshold, asserted by a test counting
+    backend.run() invocations on an all-pass batch (zero).
 - item_id: ri-05
   title: Judge cross-vendor finding matching in consensus_synthesizer
-  status: approved
+  status: completed
   priority: 1
   effort: L
   depends_on:
@@ -144,33 +166,38 @@ items:
     whose match basis is judged regardless of its contributors'' classes, so a probabilistic
     match can never raise the blocking count; its output feeds adjudication and disagreement
     routing. Move MATCH_THRESHOLD into config.'
-  rationale: 'Pilot step 2 and the highest-value Group A site. The hand-tuned Jaccard
-    bands produced match_score 0.0 on all 23 findings of PR #484 including two real
-    defects phrased differently by two vendors. A calibrated same-defect probability
-    is also the signal rescope-review-convergence-disagreement-routing needs to tell
-    genuine disagreement from re-phrasing. Because _consensus_evidence_class today
-    makes a consensus finding deterministic when any contributor is deterministic,
-    the judged path must be kept out of the blocking count explicitly or it would
-    let a probability block a merge.'
+  rationale: 'Pilot step 2: cross-vendor finding matching is exactly the kind of paraphrase-tolerant
+    judgment a calibrated Noul is suited for, where token-overlap heuristics systematically
+    fail. The seeded-defect precision regression check is deferred (see this refinement''s
+    own rationale) since the harness it depends on does not exist yet.'
   change_id: judge-cross-vendor-finding-matching-in-consensus-synthesizer
   acceptance_outcomes:
-  - Replaying openspec/changes/add-orchestrator-adjudication-review-gate/fixtures/pr484-consensus.json
-    pairs the two real defects across vendors and routes them to adjudication rather
-    than leaving them unconfirmed.
+  - Reconstructing the two real per-vendor findings for the footer/percent-format
+    defect from fixtures/pr484-consensus.json (antigravity id 1, pi id 14) and replaying
+    them through match_score's judged path scores them as a match (today 0.0), moving
+    that pair from unconfirmed to confirmed or disagreement. The fixture's other named
+    real defect (pi id 12, "nodes that export returns") has no antigravity counterpart
+    anywhere in the fixture's 23 entries and is correctly left unconfirmed -- a genuine
+    single-vendor finding, which is what add-orchestrator-adjudication-review-gate's
+    own adjudication path (a different roadmap item) exists to handle, not cross-vendor
+    matching.
   - A consensus finding whose match basis is judged carries evidence_class "judgment"
     even when both contributing findings are deterministic, and blocking_count is
     unchanged by judged matches, asserted by a unit test on two deterministic scanner
     findings.
-  - Routing precision on the seeded-defect set from measure-validator-recall-seeded-defects
-    does not drop relative to the recorded band-only baseline, with both numbers in
-    the change artifacts.
+  - Routing-precision regression measurement against measure-validator-recall-seeded-defects's
+    40-defect set is deferred -- that change is an unimplemented scaffold on a different,
+    blocked roadmap (skill-rightsizing) with no manifest, harness, or recorded band-only
+    baseline to compare against. Tracked as a follow-up once that harness exists (same
+    precedent as ri-04's deferred kappa measurement).
   - Pairs resolved by the line-overlap or identical-snippet fast paths issue no call,
     asserted by a call-count test.
-  - MATCH_THRESHOLD is read from config by both consensus_synthesizer.py and review_ledger.py;
+  - MATCH_THRESHOLD is read from config (review-rules.json, alongside the existing
+    coverage_quorum_threshold) by both consensus_synthesizer.py and review_ledger.py;
     no threshold float literal remains in the scoring path.
 - item_id: ri-06
   title: Run the GATEKEEPER as a scored decision in shadow mode
-  status: approved
+  status: completed
   priority: 1
   effort: L
   depends_on:
@@ -201,7 +228,7 @@ items:
     tests passing unmodified.
 - item_id: ri-07
   title: Adjudicate phase outcomes in shadow mode
-  status: approved
+  status: completed
   priority: 1
   effort: L
   depends_on:
@@ -218,50 +245,27 @@ items:
     is allowed to act on the judgment.
   change_id: adjudicate-phase-outcomes-in-shadow-mode
   acceptance_outcomes:
-  - Each phase transition appends a record with claimed outcome, judged outcome, the
-    outcome distribution and the evidence Noul to loop-state.json phase_history.
+  - Each phase transition where a handoff record is available appends a record with
+    claimed outcome, judged outcome, the outcome distribution and the evidence Noul
+    to loop-state.json phase_history; expected_outcomes and the Choice question's
+    criteria come from phase_agent._expected_outcomes_for_phase(phase), the same source
+    build-dispatch already uses.
   - transition(state, outcome) still runs on the claimed outcome for the whole shadow
-    period, proven by a replay test showing identical phase sequences.
-  - The disagreement report attributes each disagreement to the side the next review
-    round vindicated, over at least one sprint of recorded autopilot runs.
-  - A degraded decision (helper returns None) is recorded via record_degraded and
-    leaves the existing behaviour unchanged, covered by a test.
-- item_id: ri-08
-  title: Promote shadow judgments to acting decisions
-  status: approved
-  priority: 2
-  effort: M
-  depends_on:
-  - ri-06
-  - ri-07
-  description: 'Using the shadow-period measurements, flip both sites to act: the
-    gate outcome is computed from the calibrated scores with operator-set thresholds,
-    and phase-outcome adjudication applies the switch rule (agreement above act_floor
-    proceeds; disagreement lets the judged label win above approve_floor, otherwise
-    escalate with both labels in the evidence). Retire the premium-tier gatekeeper
-    dispatch.'
-  rationale: 'This is the item that realises the proposal''s two headline returns:
-    the largest per-run cost saving (a premium-tier read-only judge replaced by a
-    sub-cent call) and the largest correctness gain (a fixer''s self-report no longer
-    trusted). Keeping it separate from the shadow items makes the flip an explicit,
-    evidence-gated decision rather than a side effect.'
-  change_id: promote-shadow-judgments-to-acting-decisions
-  acceptance_outcomes:
-  - Promotion is gated on the recorded shadow disagreement rate and vindication split,
-    both cited in the change's rationale with the thresholds chosen from them.
-  - A test asserts that claimed/judged disagreement below approve_floor transitions
-    to escalate with both labels present in the escalation evidence.
-  - The premium-tier GATEKEEPER archetype dispatch is removed from the autopilot run
-    path and complexity_gate.default_gate_verdict remains the headless fallback, covered
-    by a headless-run test.
-  - Per-run judged-call cost for a reference autopilot run is recorded and is under
-    one cent.
-  - Every promoted decision reaching a report carries evidence_class "judgment" and
-    its probability; no deterministic gate is bypassed, asserted by the scope-safety
-    floor tests.
+    period, proven by a replay test showing identical phase sequences even when the
+    judged outcome disagrees.
+  - A disagreement-attribution mechanism records which side (claimed or judged) the
+    next review round's findings vindicated, and is exercised by a fixture-constructed
+    shadow period with at least one disagreement of each kind; attributing disagreements
+    over a real sprint of recorded autopilot runs is deferred until that much production
+    shadow data exists.
+  - The adjudication helper being unavailable (module missing, decide() returns None,
+    or no handoff record and no other signal to adjudicate) records nothing and leaves
+    the claimed outcome and transition() unaffected, mirroring ri-06's own shadow-judgment
+    degradation precedent rather than GATEKEEPER's unrelated record_degraded acting-decision
+    marker; covered by a test.
 - item_id: ri-09
   title: Judge transcript struggle triage in collect-transcripts
-  status: approved
+  status: completed
   priority: 3
   effort: M
   depends_on:
@@ -278,17 +282,22 @@ items:
   change_id: judge-transcript-struggle-triage-in-collect-transcripts
   acceptance_outcomes:
   - flagged_for_deep_analysis is set from the corresponding Noul with a config-held
-    threshold; the weighted sum and its 5/10 buckets remain as the fallback and are
-    exercised by a test.
-  - State sent for triage contains only assistant/user/tool-result text from normalize.py's
-    compact event form, with a test asserting tool payloads are excluded and the state
-    stays under the token budget.
-  - The four counters are still computed deterministically and appear unchanged in
-    the triage output schema.
-  - Existing collect-transcripts triage tests pass with the helper stubbed to None.
+    threshold; the weighted sum and its 5/10 buckets remain as the fallback when the
+    helper is unavailable, and are exercised by a test.
+  - A new compaction helper -- not an existing one, normalize.py has none today --
+    filters a session's NormalizedEvents down to only user/assistant/tool-result text
+    content (excluding tool_use's tool_input payload dict), and that filtered state
+    is what is sent for triage; a test asserts tool payloads are excluded and the
+    state stays under the token budget.
+  - The four counters (_count_retries, _count_tool_errors, _count_scope_violations,
+    _count_user_corrections) are still computed deterministically by the same pure
+    functions and appear unchanged in the triage output schema.
+  - Existing collect-transcripts triage tests in skills/collect-transcripts/tests/test_triage.py
+    pass unchanged with the helper stubbed to None (module unavailable), since none
+    of them depend on system_one_decisions and TYPESAFE_API_KEY is unset in CI.
 - item_id: ri-10
   title: Judge implementation strategy selection in autopilot
-  status: approved
+  status: completed
   priority: 3
   effort: S
   depends_on:
@@ -306,15 +315,19 @@ items:
   acceptance_outcomes:
   - design_path is read and its matching design.md section forms part of the state,
     covered by a test using a package fixture.
-  - Confidence below the config-held floor yields lead_review, asserted by a stubbed-decision
-    test.
-  - The vendor-count gate still forces lead_review when fewer than three vendors are
-    available, regardless of the judged label.
+  - Confidence below the config-held floor yields lead_review (via the existing weighted-sum
+    fallback), asserted by a stubbed-decision test.
+  - Vendor availability is included in the judged call's state as context rather than
+    a new hard pre-judgment gate; the existing weighted-sum fallback's own treatment
+    of vendor count (one additive term among four, no hard floor) is left completely
+    unmodified, since two existing tests (test_fewer_than_3_vendors_reduces_score,
+    test_boundary_score_2_selects_alternatives) deliberately assert "alternatives"
+    is reachable with only 2 vendors when the sum still clears the threshold.
   - The existing weighted-sum selector remains reachable as the fallback and its current
-    tests pass unchanged.
+    tests -- including both vendor-count boundary tests above -- pass unchanged.
 - item_id: ri-11
   title: Judge multi-vendor review eligibility for pull requests
-  status: approved
+  status: completed
   priority: 3
   effort: M
   depends_on:
@@ -340,7 +353,7 @@ items:
     the risk score and its probability.
 - item_id: ri-12
   title: Judge decision-tag backfill in explore-feature
-  status: approved
+  status: completed
   priority: 4
   effort: S
   depends_on:
@@ -366,7 +379,7 @@ items:
     for agent review; no file is written by the script itself.
 - item_id: ri-13
   title: Judge fix-tier classification in fix-scrub
-  status: approved
+  status: completed
   priority: 4
   effort: S
   depends_on:
@@ -389,7 +402,7 @@ items:
     tests pass with the helper stubbed to None.
 - item_id: ri-14
   title: Route review convergence on per-finding dispositions
-  status: approved
+  status: completed
   priority: 2
   effort: L
   depends_on:
@@ -407,19 +420,28 @@ items:
   change_id: route-review-convergence-on-per-finding-dispositions
   acceptance_outcomes:
   - max_rounds remains a hard ceiling that no judged answer can extend, asserted by
-    a test where the round Noul stays high.
-  - A replay over recorded ledger trends shows fewer fix dispatches than the stall
-    rule for the same terminal blocking count, with both counts recorded.
-  - defer_to_followup and reject_out_of_scope go through the existing park_item and
-    reject_out_of_scope_fix paths, with no new ledger mutation surface.
-  - needs_human parks the item as a disagreement rather than dispatching a fix, covered
-    by a test.
-  - With the helper returning None the stall rule trend[-1] >= trend[-stall_window]
-    still governs, proven by existing convergence tests passing unchanged.
+    a test where the round Noul stays high across every round of a max_rounds-length
+    run.
+  - A replay over a fixture-constructed ledger trend sequence (recorded per-round
+    blocking counts and dispositions) shows fewer fix dispatches than the old stall
+    rule for the same terminal blocking count, with both counts recorded in the replay
+    output; comparing against genuine multi-round production trends is deferred until
+    autopilot persists real trend history from normal runs.
+  - defer_to_followup and reject_out_of_scope both route through the existing park_item(ledger,
+    item, reason=...) call -- the same function needs_human already uses for disagreement
+    -- distinguished only by the reason string passed in, so no new ledger mutation
+    surface is introduced; covered by a test asserting all three dispositions produce
+    a "parked" item via that one function.
+  - needs_human parks the item via park_item(..., reason="disagreement") rather than
+    dispatching a fix, covered by a test.
+  - With the helper returning None, every blocking item defaults to fix_now and the
+    stall rule trend[-1] >= trend[-stall_window] still governs exactly as before,
+    proven by the existing convergence tests in skills/autopilot/scripts/tests/test_convergence_loop.py
+    and skills/tests/autopilot/test_convergence_loop.py passing unchanged.
 - item_id: ri-15
   title: Screen fact-check grounds with a first-stage judged pass
-  status: approved
-  priority: 3
+  status: completed
+  priority: 2
   effort: L
   depends_on:
   - ri-05
@@ -442,10 +464,12 @@ items:
     where a protected subject is never sent.
   - Ground-A refutations from stage one reproduce the existing prompt's labels on
     a recorded fact-check batch, with the agreement rate recorded.
+  learning_refs:
+  - ri-12
 - item_id: ri-16
   title: Add a judged first stage to coordinator audit triage
-  status: approved
-  priority: 3
+  status: completed
+  priority: 2
   effort: M
   depends_on:
   - ri-05
@@ -467,9 +491,11 @@ items:
   - Stage-two findings are seeded with the stage-one failure_type and severity and
     still pass validate_finding unchanged.
   - The hot-path ring buffer write path is unmodified and its latency test is unchanged.
+  learning_refs:
+  - ri-12
 - item_id: ri-17
   title: Score supervise rubric stubs in one batched call
-  status: approved
+  status: completed
   priority: 4
   effort: M
   depends_on:
@@ -654,6 +680,51 @@ items:
   - A replay over recorded unknown-bucket changes shows no change previously classified
     deployable being downgraded unless its probability of altering a service is at
     or below the ceiling.
+- item_id: ri-08
+  title: Promote shadow judgments to acting decisions
+  status: approved
+  priority: 6
+  effort: M
+  depends_on:
+  - ri-06
+  - ri-07
+  description: 'Using the shadow-period measurements, flip both sites to act: the
+    gate outcome is computed from the calibrated scores with operator-set thresholds,
+    and phase-outcome adjudication applies the switch rule (agreement above act_floor
+    proceeds; disagreement lets the judged label win above approve_floor, otherwise
+    escalate with both labels in the evidence). Retire the premium-tier gatekeeper
+    dispatch.'
+  rationale: 'This is the item that realises the proposal''s two headline returns:
+    the largest per-run cost saving (a premium-tier read-only judge replaced by a
+    sub-cent call) and the largest correctness gain (a fixer''s self-report no longer
+    trusted). Keeping it separate from the shadow items makes the flip an explicit,
+    evidence-gated decision rather than a side effect. DEFERRED (2026-09-18, confirmed
+    with the user via AskUserQuestion): ri-06/ri-07 just merged, so no real production
+    shadow-period disagreement/vindication data exists yet to choose act_floor/approve_floor
+    from, as this item''s own acceptance outcomes require. RE-DEFERRED (2026-09-18,
+    same day, during ri-10''s bookkeeping): the item resurfaced after only one subsequent
+    completion because it was reordered past just ri-10, not past the whole remaining
+    batch; reordered again after ri-23 (the last item currently ready) since the underlying
+    blocker (no [live] extra installed anywhere, confirmed during ri-09) has not changed
+    and won''t resolve on its own as more items complete. Revisit once the [live]
+    extra question is resolved and a real shadow period has actually run -- not simply
+    once its dependencies clear again.'
+  change_id: promote-shadow-judgments-to-acting-decisions
+  acceptance_outcomes:
+  - Promotion is gated on the recorded shadow disagreement rate and vindication split,
+    both cited in the change's rationale with the thresholds chosen from them.
+  - A test asserts that claimed/judged disagreement below approve_floor transitions
+    to escalate with both labels present in the escalation evidence.
+  - The premium-tier GATEKEEPER archetype dispatch is removed from the autopilot run
+    path and complexity_gate.default_gate_verdict remains the headless fallback, covered
+    by a headless-run test.
+  - Per-run judged-call cost for a reference autopilot run is recorded and is under
+    one cent.
+  - Every promoted decision reaching a report carries evidence_class "judgment" and
+    its probability; no deterministic gate is bypassed, asserted by the scope-safety
+    floor tests.
+  learning_refs:
+  - ri-06
 - item_id: ri-24
   title: Classify human reply intent behind the approval floor
   status: approved
@@ -681,4 +752,264 @@ items:
     approve without meeting the floor.
   - The change carries a security review recording the trust-model impact, and every
     classified reply logs its distribution alongside the sender.
-updated_at: '2026-09-18T11:30:59.705544+00:00'
+updated_at: '2026-09-19T01:10:07.714949+00:00'
+refinements:
+- timestamp: '2026-09-18T13:11:30.873550+00:00'
+  actor: claude-code
+  source: codex-review-pr-584
+  rationale: 'Codex review on PR #584 correctly flagged that ri-02''s canonical description
+    and acceptance outcomes still named architecture.config.yaml and "the existing
+    Langfuse hook" -- both were corrected during ri-02''s own /iterate-on-plan (plan-findings.md
+    #1 and #2 of wire-the-live-typesafe-client-thresholds-and-telemetry) before any
+    code was written, but the canonical roadmap item''s text was never updated to
+    match what actually shipped (an event_sink parameter and a package-owned JSON
+    config file). Reconciling now so the telemetry and threshold-config requirements
+    don''t silently disappear from the roadmap''s own record of what ri-02 delivers,
+    and so a reader of roadmap.yaml alone sees the real contract without needing to
+    cross-reference the change''s plan-findings.md.'
+  base_sha256: 508c25b30c9d0b5b4ef81d791da50efb7785932ce8474a54948d69c8d3517d73
+  operations:
+  - edit:ri-02
+- timestamp: '2026-09-18T13:15:50.755918+00:00'
+  actor: claude-code
+  source: codex-review-pr-586
+  rationale: A second Codex review, this time on the PR reconciling ri-02's own contract
+    (#586, not yet merged), caught that my reconciliation text wrote "usage.input_tokens"
+    (a nested-looking dotted field) when decide()'s actual event_sink record uses
+    the flat key usage_input_tokens (confirmed directly against packages/system-one-decisions/src/system_one_decisions/_core.py
+    and specs/system-one-decisions/spec.md of wire-the-live-typesafe-client-thresholds-and-telemetry).
+    Fixing before this reconciliation itself merges, so a future caller wiring an
+    event_sink against this canonical description doesn't reach for the wrong key.
+  base_sha256: 82e77022a5d0858f7178da0b12dc935251acc8e4248878d4b6c61a2ad953724d
+  operations:
+  - edit:ri-02
+- timestamp: '2026-09-18T13:39:51.805856+00:00'
+  actor: claude-code
+  source: codex-review-pr-587
+  rationale: 'Codex review on PR #587 (marking ri-03 completed) correctly flagged
+    that ri-03''s canonical description and acceptance outcomes still described a
+    "reusable pytest fixture" and "a test asserting any system_one-consuming script
+    with --dry-run performs zero client constructions" -- but ri-03''s own /iterate-on-plan
+    pass (plan-findings.md #1 and #3 of add-the-adapter-backed-test-substitute-and-dry-run-policy)
+    had already reframed both before any code was written: the reusable stubs are
+    plain functions in system_one_decisions.testing (not a pytest @fixture), and no
+    system_one-consuming script exists yet to test end-to-end (call-site migration
+    doesn''t start until ri-09), so the dry-run guarantee was placed on decide() itself
+    via its own dry_run parameter. Fixing before this completion transition merges,
+    per Codex''s suggestion, rather than repeating the two-PR drift that happened
+    with ri-02''s contract.'
+  base_sha256: f14b34d0348094349542c7802b86f30185d4b5e0f59624b6e01b1bcf0269c395
+  operations:
+  - edit:ri-03
+- timestamp: '2026-09-18T17:30:17.174683+00:00'
+  actor: claude-code
+  source: user-request-do-1-defer-kappa
+  rationale: 'Escalated to the user: ri-04''s first acceptance outcome required scoring
+    a "40-item human-labelled set from calibrate-llm-judge-against-human-labels" and
+    reporting Cohen''s kappa >= 0.7, but that dataset does not exist -- calibrate-llm-judge-against-human-labels
+    is an unimplemented scaffold belonging to a different roadmap (skill-rightsizing),
+    itself blocked on that roadmap''s own ri-05, and no real cross-roadmap external_depends_on
+    edge was ever declared to gate on it. The user chose to implement ri-04''s Noul-based
+    rewrite now and defer the kappa measurement (tracked separately once a real labelled/benchmark
+    corpus exists), rather than fabricate a dataset or silently drop the calibration
+    requirement.
+
+    Separately, reading the real current gen_eval.semantic_judge.py and its test suite
+    (packages/gen-eval/tests/test_semantic_eval.py) before writing any code showed
+    the second acceptance outcome''s "existing semantic_judge tests pass unmodified"
+    is not achievable as worded: evaluate_semantic''s current tests drive pass/fail/confidence
+    entirely from the mocked backend.run() JSON response, but the rewrite makes system_one_decisions''s
+    noul (via decide()) the source of confidence and gates pass/fail on it -- the
+    backend is now called only to obtain reasoning prose on failures. The outcome
+    is corrected to describe adapting those tests with system_one_decisions.testing.stub_decide
+    (built in ri-03 for exactly this purpose) rather than claiming they are untouched.'
+  base_sha256: 2abaa8be54d9c852b3196ed0170fb44eb99794b705f3d666206e200054556d0f
+  operations:
+  - edit:ri-04
+- timestamp: '2026-09-18T18:10:35.117440+00:00'
+  actor: claude-code
+  source: fixture-and-baseline-grounding-before-implementation
+  rationale: 'Grounding ri-05''s scaffolded acceptance outcomes against the real fixture
+    and the real sibling change before writing any code (the same discipline applied
+    to ri-04) found two problems.
+
+    First, openspec/changes/add-orchestrator-adjudication-review-gate/fixtures/pr484-consensus.json
+    is a post-synthesis consensus-report fixture, not raw per-vendor findings, and
+    its 23 entries do not support the scaffolded claim that both named real defects
+    are cross-vendor pairs. Reading every entry''s full description: the "integer
+    footer percent" defect genuinely IS a cross-vendor pair scored 0.0 today -- antigravity''s
+    id 1 ("Critical: Spec contract mismatch between build_atlas.py --tree footer format
+    and explain-code grounding disclosure line") and pi''s id 14 ("Multi-language
+    disclosure footer format unspecified: ... Design shows ''python 14% / sql 37%
+    covered'' with slashes but spec uses ellipsis... format mismatch"). But the "nodes
+    that export returns" defect (pi''s id 12) has no antigravity counterpart anywhere
+    in the 23 entries -- it is a genuine single-vendor finding with nothing to pair
+    against. That is precisely the case add-orchestrator-adjudication-review-gate''s
+    own adjudication path (a different roadmap item entirely) exists to handle; cross-vendor
+    matching cannot manufacture a second vendor''s opinion where none was recorded.
+
+    Second, the seeded-defect-set acceptance outcome depends on measure-validator-recall-seeded-defects,
+    which -- like calibrate-llm-judge-against-human-labels before it -- is an unimplemented
+    scaffold on the skill-rightsizing roadmap with no manifest, no harness, and no
+    recorded band-only baseline to compare against. Deferred per the same precedent
+    established for ri-04 (source: user-request-do-1-defer-kappa): implement the judged-matching
+    feature now, defer the precision-regression measurement until that harness exists.'
+  base_sha256: 22d419f4c6b2a2f9754eeedb402b56ef9c536e5667f32af2a2b56d6ea647d406
+  operations:
+  - edit:ri-05
+- timestamp: '2026-09-18T19:38:51.516154+00:00'
+  actor: claude-code
+  source: autopilot-roadmap
+  rationale: 'Grounded ri-07 against the real code before implementation (same discipline
+    as ri-04/ri-05/ri-06). Two corrections: (1) the coordinator''s try_handoff_read()
+    only supports "latest handoff for this agent/session", not a lookup by a specific
+    handoff_id, so "the handoff record" degrades to the local-fallback JSON file when
+    present rather than a coordinator round-trip; degradation must not use record_degraded,
+    which is GATEKEEPER''s own acting-decision-unavailability marker (a different,
+    unrelated mechanism) -- the shadow judgment''s own "record nothing on unavailability"
+    precedent (established in ri-06) is the correct one. (2) "over at least one sprint
+    of recorded autopilot runs" cannot be delivered by this item alone -- this repo
+    has no real production shadow period yet, exactly the same grounding gap ri-04''s
+    kappa measurement and ri-06''s disagreement-rate had. The attribution *mechanism*
+    (which side a later review round vindicated) ships and is tested against a fixture-constructed
+    shadow period; the real-data measurement itself is deferred to whenever a sprint
+    of shadow data actually exists, consistent with how ri-04/ri-06''s own deferred
+    measurements were handled.'
+  base_sha256: 992fc51f6f4d8b2f9e9d53c32ae09fd52f208553eea73a1c6a3e2810b13b773a
+  operations:
+  - edit:ri-07
+- timestamp: '2026-09-18T20:11:54.948223+00:00'
+  actor: claude-code
+  source: autopilot-roadmap
+  rationale: 'ri-08 promotes shadow judgments to acting decisions -- retiring the
+    premium-tier GATEKEEPER dispatch and flipping phase-outcome adjudication to act
+    on judged labels -- with act_floor/approve_floor thresholds its own acceptance
+    outcomes require to be "chosen from" a recorded shadow disagreement rate and vindication
+    split. ri-06 and ri-07 (which land the shadow-recording machinery ri-08 depends
+    on) only just merged, so there is no real production shadow-period data yet --
+    not a peripheral measurement this item can defer while shipping an additive mechanism
+    (the ri-04/ri-06/ri-07 pattern), but the literal precondition for the behavior-changing
+    promotion this item''s whole purpose is. Confirmed with the user (AskUserQuestion)
+    rather than deferred unilaterally, since this is a materially higher-stakes call
+    than the prior shadow-only items: defer ri-08 in place (status untouched, fully
+    resumable once real data exists) and continue the roadmap with ri-09 onward.'
+  base_sha256: 8ba1dc66de77af4257851404c63c1197fd41b52908923ce753afd98f9c08ee21
+  operations:
+  - reorder:ri-08
+  - edit:ri-08
+- timestamp: '2026-09-18T20:34:21.661390+00:00'
+  actor: claude-code
+  source: autopilot-roadmap
+  rationale: 'Grounded ri-14 against the real convergence_loop.converge and review_ledger.py
+    before implementation (same discipline as ri-04/ri-05/ri-06/ri-07). Two corrections:
+    (1) the scaffolded "reject_out_of_scope go through the existing ... reject_out_of_scope_fix"
+    path names the wrong function -- the real reject_out_of_scope_fix(files_modified,
+    allowed) is a POST-fix scope check that raises ScopeViolation when an already-applied
+    diff strayed outside the cited paths; it takes no ledger item and cannot "reject"
+    a finding before a fix is ever attempted. The one existing mechanism generic enough
+    to shelve a finding pre-fix is park_item(ledger, item, reason=...), already used
+    for needs_human/disagreement -- reject_out_of_scope and defer_to_followup reuse
+    the same function with a distinct reason string, so all three "do not fix this
+    round" dispositions share one existing code path and genuinely add no new ledger
+    mutation surface, which the scaffolded text asserted but pointed at the wrong
+    function to prove it. (2) "recorded ledger trends" to replay against do not exist:
+    converge()''s round-by-round `trend` list is a local variable that is never persisted
+    anywhere in the codebase, and the only real ledger.json on disk (add-visual-code-explainer''s)
+    is a single end-state snapshot from an unrelated feature, not a multi-round trend
+    sequence -- the same "no real production data yet" gap ri-04''s kappa, ri-06''s
+    disagreement rate, and ri-07''s sprint measurement each hit. The disposition mechanism
+    and its replay-comparison harness ship and are tested against a fixture- constructed
+    ledger trend sequence; comparing against genuine multi-round production trends
+    is deferred until autopilot actually persists trend history from real runs (itself
+    a small addition this item can make since the data already exists in-memory, but
+    the *production-scale replay measurement* is what''s deferred, consistent with
+    how the prior items'' deferred measurements were handled).'
+  base_sha256: 06682d01a21b85580cfa8415ec2196758a83754325a41a5f0e6c789d16b863e5
+  operations:
+  - edit:ri-14
+- timestamp: '2026-09-18T20:45:25.582468+00:00'
+  actor: claude-code
+  source: autopilot-roadmap
+  rationale: Completing ri-14's bookkeeping ran replan() for the first time since
+    ri-06 completed (the manual grounding-driven bookkeeping for ri-06/ri-07/the ri-08
+    deferral never called it). replan() is a deterministic recommendation- text scanner
+    with no awareness of the user's confirmed decision -- it found ri-06's learning-entry
+    recommendation ("ri-08's promotion decision should read the real disagreement
+    rate ... once a real shadow period has run") mentions ri-08, and boosted ri-08's
+    priority 3 -> 2, which puts ri-08 back at the very top of the ready queue (ahead
+    of ri-09/ri-10/ri-11), silently undoing the deferral the user explicitly confirmed
+    via AskUserQuestion on 2026-09-18. The recommendation text is not new evidence
+    -- it is itself restating the exact precondition (real shadow-period data) the
+    deferral is waiting on -- so honoring the boost would be self-contradictory. Reverting
+    the priority back to 3 preserves the user's still-standing decision; the learning_refs
+    backlink replan() added is left in place since it is accurate context, not the
+    problem.
+  base_sha256: 6659a0aad74698d8043a3ad8a4716d027d51a10c6744efa889978cd1b60ef2d8
+  operations:
+  - edit:ri-08
+- timestamp: '2026-09-18T21:08:20.100353+00:00'
+  actor: claude-code
+  source: autopilot-roadmap
+  rationale: 'Grounded ri-09 against the real skills/collect-transcripts/scripts/triage.py
+    and normalize.py before implementation (same discipline as ri-04 through ri-14).
+    One correction: the scaffolded acceptance outcome says the compacted transcript
+    sent to triage comes "from normalize.py''s compact event form" as if that already
+    exists. It does not -- normalize.py defines NormalizedEvent/ ContentBlock/EventRole/ContentType
+    with no compaction helper anywhere in the module. Building that helper (filtering
+    to user/assistant/tool-result TEXT content, excluding tool_use''s tool_input payload
+    dict) is this item''s own work, not a reuse of existing machinery. Everything
+    else in the scaffolded outcomes checks out: the four counters (_count_retries/_count_tool_errors/
+    _count_scope_violations/_count_user_corrections) are untouched pure functions;
+    _classify_struggle''s weighted-sum + 5/10 bucket rule is exactly the fallback
+    shape needed (D4-style: unavailable helper -> today''s exact arithmetic, unchanged);
+    and the existing skills/collect-transcripts/tests/ test_triage.py suite calls
+    triage_session()/threshold directly with no system_one_decisions dependency, so
+    it will naturally exercise (and keep passing against) that fallback path since
+    TYPESAFE_API_KEY is unset in CI.'
+  base_sha256: 489811ec6a73144c1860474033765be42c01ae47b8dda54d310d119ba18a7282
+  operations:
+  - edit:ri-09
+- timestamp: '2026-09-18T21:49:00.889206+00:00'
+  actor: claude-code
+  source: autopilot-roadmap
+  rationale: 'Grounded ri-10 against the real implementation_strategy_selector.py
+    and its test suite before implementation (same discipline as ri-04 through ri-09).
+    One correction: the scaffolded acceptance outcome said "the vendor-count gate
+    still forces lead_review when fewer than three vendors are available, regardless
+    of the judged label" -- "still" implies this is existing behavior being preserved.
+    It is not: _compute_score treats vendor count as just one additive 0/1 term in
+    a four-term sum, with no hard floor anywhere, and two existing tests (test_fewer_than_3_vendors_reduces_score,
+    test_boundary_score_2_selects_alternatives) deliberately assert "alternatives"
+    is selected with only 2 vendors when the sum still clears the threshold. Implementing
+    outcome 3 literally (a new hard pre-judgment gate) directly breaks those two tests,
+    which the very next acceptance outcome (4) requires to "pass unchanged" -- the
+    two outcomes as scaffolded are mutually exclusive given real test-suite ground
+    truth, not just ambiguous. Resolved in favor of outcome 4 (never touch the deterministic
+    fallback or break a currently-passing test): vendor availability is passed into
+    the judged call''s state as context the judgment can weigh, not a new hard pre-check
+    that short-circuits before judgment. The existing _compute_score sum -- including
+    its current, deliberately-tested treatment of vendor count as an additive term,
+    not a gate -- remains the unmodified fallback exactly as outcome 4 already required.'
+  base_sha256: 804f1fa9f96d83f59ccd51631b06b947e31b968a365de1ad7c35a3c9029514a1
+  operations:
+  - edit:ri-10
+- timestamp: '2026-09-18T21:53:38.765408+00:00'
+  actor: claude-code
+  source: autopilot-roadmap
+  rationale: 'ri-08 (the shadow-to-acting promotion item, deferred 2026-09-18 pending
+    real shadow-period data) naturally resurfaced as the top ready item once ri-10
+    completed, since its earlier "reorder after ri-10" only pushed it past one item
+    rather than past the whole remaining batch -- its dependencies (ri-06, ri-07)
+    were already satisfied, so the mechanical readiness selector has no way to know
+    the human-policy block still holds. Nothing has changed since the original deferral:
+    ri-09''s own grounding work confirmed system-one-decisions'' [live] extra still
+    isn''t installed anywhere in this repo (skills/pyproject.toml, agent-coordinator/pyproject.toml
+    both lack it), so no real production shadow-period data can exist yet regardless
+    of how many more roadmap items complete. Reordering after the last currently -ready
+    item (ri-23) rather than just the next one, so this doesn''t need to be manually
+    re-deferred after every single subsequent item until the [live] extra question
+    itself gets resolved (see ri-09''s own learning-entry recommendation about that).'
+  base_sha256: 6fb7af69255ebf76541994df7dd246948b3e4cce99422683bae8d598b3f6f914
+  operations:
+  - reorder:ri-08
+  - edit:ri-08

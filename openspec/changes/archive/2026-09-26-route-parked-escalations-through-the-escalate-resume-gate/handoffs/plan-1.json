@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-08T03:34:56.393569+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "architect",
+    "session_id": null,
+    "summary": "Refined ri-06 into a post-persist policy-pause route through the existing supervise gate router. Exact-result application parks and releases the attempt before gate evaluation; policy pauses map to escalate_resume, while pending_gate and quarantine semantics remain unchanged.",
+    "completed_work": [
+      "proposal",
+      "design",
+      "supervise spec delta",
+      "TDD tasks",
+      "single-package coordinated work DAG"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Route after durable delegated apply",
+        "rationale": "The existing resolve_parked resume CAS requires a persisted parked attempt and released lease.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Reuse gate_router.resolve_parked",
+        "rationale": "Keeps TRUST_POSTURE evaluation, notification, audit, prior-record reuse, mirror projection, and authorized resume behind the one established seam.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "PLAN_ITERATE",
+      "vendor-diverse PLAN_REVIEW"
+    ],
+    "relevant_files": []
+  }
+}

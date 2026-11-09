@@ -1,0 +1,77 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "critical",
+      "description": "Critical: fresh-bundle recovery after cached-token expiry/revocation leaves the dead AppRole token on the hvac client. `_check_cached_token` / prior `ensure_session` set `self.client.token` to the expired or revoked session token; `_recover` then calls `_bootstrap`, which posts `/v1/sys/wrapping/lookup` and `sys.unwrap(token=...)` without clearing or replacing that client token. hvac always sends `X-Vault-Token` when `client.token` is set, and unwrap-with-body-token is third-party unwrap that requires a valid authorized client token\u2014not a dead AppRole token (hvac: \"Do not use the wrapping token in both locations\"). Long-lived recovery therefore fails against real OpenBao even when a digest-distinct fresh bundle is present; unit tests mock adapter/unwrap so they do not catch this. This breaks CFG-07 / D3 fresh-bundle recovery after revocation or lease expiry.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "In `_bootstrap`, before wrapping lookup/unwrap, set `self.client.token` to the wrapping token and call `unwrap()` with no `token=` argument (wrapping token as client token only), or clear `self.client.token` and authenticate the wrapping endpoints solely as the wrapping token. Add a regression test that asserts the client token used for lookup/unwrap equals the wrapping token (or is unset), especially on the revoked-session recovery path.",
+      "package_id": "wp-projection",
+      "file_path": "packages/openbao-credentials/src/openbao_credentials/adapter.py",
+      "line_range": {
+        "start": 337,
+        "end": 348
+      },
+      "evidence_class": "judgment",
+      "existing_code": "self.client.token = session.client_token\n...\nreturn self._recover(paths, session, principal_id, role_name)\n...\nlookup = self.client.adapter.post(\n    \"/v1/sys/wrapping/lookup\", json={\"token\": wrapped[\"token\"]}\n)\n...\nunwrapped = self.client.sys.unwrap(token=wrapped[\"token\"])"
+    },
+    {
+      "id": 2,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "Nit: after a successful `lookup_self`, renewal still keys only off local `lease_expires_at`, ignoring the server `ttl` already fetched in `_check_cached_token`. If local expiry and server TTL diverge (clock skew, external renew), the adapter can skip renew while server TTL is already inside the 60s window, then force a fresh-bundle recovery moments later instead of renewing the still-valid periodic token.",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "nit",
+      "resolution": "Prefer renew when `min(local_remaining, server_ttl) <= 60`, or update `lease_expires_at` from server TTL after lookup before applying the renew window.",
+      "package_id": "wp-projection",
+      "file_path": "packages/openbao-credentials/src/openbao_credentials/adapter.py",
+      "line_range": {
+        "start": 393,
+        "end": 405
+      },
+      "evidence_class": "judgment",
+      "existing_code": "ttl = data.get(\"ttl\")\nif not isinstance(ttl, int) or data.get(\"renewable\") is not True:\n    raise ValueError(\"invalid lookup\")\nif ttl <= 0:\n    raise BaoCredentialError(ErrorCode.TOKEN_EXPIRED, \"session\")"
+    },
+    {
+      "id": 3,
+      "type": "security",
+      "criticality": "low",
+      "description": "none: one-use bootstrap controls match the contracts: server-side wrapping `creation_path` is validated before unwrap (CFG-24), session cache stores `bootstrap_token_sha256`, and `_recover` refuses digest-equal consumed bundles before unwrap (CFG-05/CFG-07 / session-cache.schema.json).",
+      "disposition": "accept",
+      "axis": "security",
+      "severity": "none",
+      "resolution": "Keep the wrapping-lookup-before-unwrap and digest-gated recovery checks; fix finding 1 so recovery can actually exercise them against a live server.",
+      "package_id": "wp-projection",
+      "file_path": "packages/openbao-credentials/src/openbao_credentials/adapter.py",
+      "line_range": {
+        "start": 337,
+        "end": 426
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: explicit vendor declarations and Docker packaging comply with D1/D6 for this package: `credential_vendors` plus required per-keyed-agent `vendor_credentials`, legacy `openbao_role_id` rejected, exact KV-v2 `{api_key}` reads, Dockerfile COPY of `packages/openbao-credentials` before `uv sync --locked`, and CI smoke import of `openbao_credentials`.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "No change.",
+      "package_id": "wp-projection",
+      "file_path": "agent-coordinator/Dockerfile",
+      "line_range": {
+        "start": 42,
+        "end": 44
+      },
+      "evidence_class": "judgment"
+    }
+  ]
+}

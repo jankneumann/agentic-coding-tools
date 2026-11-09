@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://coordinator.rotkohl.ai/contracts/openbao/bootstrap-bundle.schema.json",
+  "title": "Per-principal OpenBao bootstrap bundle",
+  "description": "Secret delivery artifact. Write atomically beneath a mode-0700 directory as a mode-0600 file. Never print, log, or commit the bundle. The wrapped SecretID is single-use: after unwrap and AppRole login, the consumer must use and renew the issued client token; a subsequent login requires a new bootstrap bundle.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "principal_id", "role_name", "role_id", "wrapped_secret_id"],
+  "properties": {
+    "version": { "const": 1 },
+    "principal_id": { "type": "string", "pattern": "^spiffe://coordinator\\.rotkohl\\.ai/(agent|service)/[a-z][a-z0-9-]*$" },
+    "role_name": { "type": "string", "pattern": "^(agent|service)-[a-z][a-z0-9-]*$" },
+    "role_id": { "type": "string", "minLength": 1, "x-sensitive": true },
+    "wrapped_secret_id": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["token", "creation_path", "creation_time", "ttl_seconds"],
+      "properties": {
+        "token": { "type": "string", "minLength": 1, "x-sensitive": true },
+        "creation_path": { "type": "string", "pattern": "^auth/approle/role/(agent|service)-[a-z][a-z0-9-]*/secret-id$" },
+        "creation_time": { "type": "string", "format": "date-time" },
+        "ttl_seconds": { "type": "integer", "minimum": 1 }
+      }
+    }
+  }
+}

@@ -1,0 +1,97 @@
+schema_version: 4
+
+# Minimal roster: bare tier ids, {model, thinking} entries, one provider
+# (antigravity) missing `frontier`, one archetype with procedure_mode.
+model_aliases:
+  claude_code:
+    frontier: fable
+    premium:
+      model: fable
+      thinking: medium
+    standard: sonnet
+    economy: haiku
+  codex:
+    frontier:
+      model: gpt-5.6-sol
+      thinking: xhigh
+    premium:
+      model: gpt-5.6-sol
+      thinking: high
+    standard: gpt-5.6-terra
+    economy: gpt-5.6-luna
+  antigravity:
+    premium: gemini-3.8-flash-high
+    standard: gemini-3.6-flash-medium
+    economy: gemini-3.6-flash-low
+  local:
+    standard:
+      model: gpt-oss-120b
+      total_params_b: 117
+      active_params_b: 5.1
+      reviewed: "2026-08-16"
+    economy:
+      model: qwen3-coder-30b-a3b
+      total_params_b: 30.5
+      active_params_b: 3.3
+      reviewed: "2026-09-13"
+
+archetypes:
+  architect:
+    write_capable: true
+    model: frontier
+    procedure_mode: goal-directed
+    system_prompt: architect
+  analyst:
+    write_capable: false
+    model: standard
+    system_prompt: analyst
+  implementer:
+    write_capable: true
+    model: standard
+    system_prompt: implementer
+  reviewer:
+    write_capable: true
+    model: premium
+    system_prompt: reviewer
+  validator:
+    write_capable: true
+    model: standard
+    system_prompt: validator
+  runner:
+    write_capable: false
+    model: economy
+    procedure_mode: verbatim
+    system_prompt: runner
+  gatekeeper:
+    write_capable: false
+    model: premium
+    system_prompt: gatekeeper
+
+phase_mapping:
+  EXPLORE:
+    archetype: analyst
+    signals: []
+  PLAN:
+    archetype: architect
+    signals: []
+  PLAN_REVIEW:
+    archetype: reviewer
+    signals: []
+  IMPLEMENT:
+    archetype: implementer
+    signals: []
+  IMPL_REVIEW:
+    archetype: reviewer
+    signals: []
+  VALIDATE:
+    archetype: validator
+    signals: []
+  INIT:
+    archetype: runner
+    signals: []
+  GATEKEEPER:
+    archetype: gatekeeper
+    signals: []
+  SUBMIT_PR:
+    archetype: runner
+    signals: []

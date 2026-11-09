@@ -2126,6 +2126,486 @@
       ],
       "file": "039_projection_integrity_and_insert_events.sql",
       "line": 3
+    },
+    {
+      "name": "public.model_catalog",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "id",
+          "type": "BIGSERIAL",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "vendor",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "model",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "endpoint_kind",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "base_url",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "prompt_usd_per_mtok",
+          "type": "NUMERIC(12,6)",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "completion_usd_per_mtok",
+          "type": "NUMERIC(12,6)",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "context_window",
+          "type": "INTEGER",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "benchmark_priors",
+          "type": "JSONB",
+          "nullable": false,
+          "default": "'{}'::jsonb"
+        },
+        {
+          "name": "p50_latency_ms",
+          "type": "NUMERIC(10,2)",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "available",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "default": "TRUE"
+        },
+        {
+          "name": "quota_headroom_pct",
+          "type": "NUMERIC(5,2)",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "quota_reset_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "quota_source",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "refreshed_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": "now()"
+        },
+        {
+          "name": "stale",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "default": "FALSE"
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "file": "040_model_routing.sql",
+      "line": 3
+    },
+    {
+      "name": "public.model_posteriors",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "id",
+          "type": "BIGSERIAL",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "catalog_id",
+          "type": "BIGINT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "task_type",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "metric",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "value",
+          "type": "DOUBLE PRECISION",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "sample_size",
+          "type": "DOUBLE PRECISION",
+          "nullable": false,
+          "default": "0"
+        },
+        {
+          "name": "half_life_days",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": "30"
+        },
+        {
+          "name": "low_confidence",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "default": "FALSE"
+        },
+        {
+          "name": "updated_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": "now()"
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "file": "040_model_routing.sql",
+      "line": 28
+    },
+    {
+      "name": "public.routing_decisions",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "decision_id",
+          "type": "UUID",
+          "nullable": false,
+          "default": "gen_random_uuid()"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": "now()"
+        },
+        {
+          "name": "request",
+          "type": "JSONB",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "selected",
+          "type": "JSONB",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "alternatives",
+          "type": "JSONB",
+          "nullable": false,
+          "default": "'[]'::jsonb"
+        },
+        {
+          "name": "excluded",
+          "type": "JSONB",
+          "nullable": false,
+          "default": "'[]'::jsonb"
+        },
+        {
+          "name": "exploration",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "default": "FALSE"
+        },
+        {
+          "name": "fallback",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "default": "FALSE"
+        },
+        {
+          "name": "policy_version",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "budget_state",
+          "type": "JSONB",
+          "nullable": false,
+          "default": "'{}'::jsonb"
+        },
+        {
+          "name": "outcome_ref",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "retention",
+          "type": "JSONB",
+          "nullable": true,
+          "default": null
+        }
+      ],
+      "primary_key": [
+        "decision_id"
+      ],
+      "file": "040_model_routing.sql",
+      "line": 41
+    },
+    {
+      "name": "public.routing_spend_ledger",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "id",
+          "type": "BIGSERIAL",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "occurred_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": "now()"
+        },
+        {
+          "name": "decision_id",
+          "type": "UUID",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "vendor",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "model",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "endpoint_kind",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "prompt_tokens",
+          "type": "BIGINT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "completion_tokens",
+          "type": "BIGINT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "tokens_estimated",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "default": "FALSE"
+        },
+        {
+          "name": "actual_usd",
+          "type": "NUMERIC(12,6)",
+          "nullable": false,
+          "default": "0"
+        },
+        {
+          "name": "counterfactual_usd",
+          "type": "NUMERIC(12,6)",
+          "nullable": false,
+          "default": "0"
+        },
+        {
+          "name": "exploration",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "default": "FALSE"
+        },
+        {
+          "name": "generation_id",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "work_unit_ref",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "file": "040_model_routing.sql",
+      "line": 58
+    },
+    {
+      "name": "public.vendor_probe_state",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "agent_id",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "observation_id",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "status",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "source_agent_id",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "reason",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "observed_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "stale_after",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "metadata",
+          "type": "JSONB",
+          "nullable": false,
+          "default": "'{}'::jsonb"
+        }
+      ],
+      "primary_key": [
+        "agent_id"
+      ],
+      "file": "041_vendor_registry.sql",
+      "line": 3
+    },
+    {
+      "name": "public.vendor_rate_limits",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "observation_id",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "agent_id",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "scope",
+          "type": "TEXT",
+          "nullable": false,
+          "default": "'lane'"
+        },
+        {
+          "name": "model",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "reason",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "source_agent_id",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "observed_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "reset_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "payload_hash",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "metadata",
+          "type": "JSONB",
+          "nullable": false,
+          "default": "'{}'::jsonb"
+        }
+      ],
+      "primary_key": [
+        "observation_id"
+      ],
+      "file": "041_vendor_registry.sql",
+      "line": 16
     }
   ],
   "foreign_keys": [
@@ -2272,6 +2752,30 @@
       ],
       "constraint_name": "",
       "on_delete": "CASCADE"
+    },
+    {
+      "from_table": "public.model_posteriors",
+      "from_columns": [
+        "catalog_id"
+      ],
+      "to_table": "public.model_catalog",
+      "to_columns": [
+        "id"
+      ],
+      "constraint_name": "",
+      "on_delete": "CASCADE"
+    },
+    {
+      "from_table": "public.routing_spend_ledger",
+      "from_columns": [
+        "decision_id"
+      ],
+      "to_table": "public.routing_decisions",
+      "to_columns": [
+        "decision_id"
+      ],
+      "constraint_name": "",
+      "on_delete": "NO ACTION"
     }
   ],
   "indexes": [
@@ -2859,6 +3363,51 @@
         "(input_data ->> 'transition_sequence')"
       ],
       "unique": true
+    },
+    {
+      "name": "idx_model_catalog_routable",
+      "table": "public.model_catalog",
+      "columns": [
+        "available",
+        "endpoint_kind",
+        "vendor",
+        "model"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_routing_decisions_created",
+      "table": "public.routing_decisions",
+      "columns": [
+        "created_at"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_spend_ledger_month",
+      "table": "public.routing_spend_ledger",
+      "columns": [
+        "date_trunc('month', occurred_at AT TIME ZONE 'UTC')",
+        "endpoint_kind"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_spend_ledger_occurred_at",
+      "table": "public.routing_spend_ledger",
+      "columns": [
+        "occurred_at"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_vendor_rate_limits_active",
+      "table": "public.vendor_rate_limits",
+      "columns": [
+        "agent_id",
+        "reset_at"
+      ],
+      "unique": false
     }
   ],
   "stored_functions": [
@@ -3753,6 +4302,237 @@
       "parameters": [],
       "return_type": "trigger",
       "referenced_tables": []
+    },
+    {
+      "name": "public.upsert_vendor_probe_state",
+      "file": "041_vendor_registry.sql",
+      "line": 33,
+      "language": "sql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_AGENT_ID TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_OBSERVATION_ID TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_STATUS TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_SOURCE_AGENT_ID TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_REASON TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_OBSERVED_AT TIMESTAMPTZ"
+        },
+        {
+          "name": "",
+          "type": "P_STALE_AFTER TIMESTAMPTZ"
+        },
+        {
+          "name": "",
+          "type": "P_METADATA JSONB DEFAULT '{}'"
+        },
+        {
+          "name": "",
+          "type": "::JSONB"
+        }
+      ],
+      "return_type": "SETOF vendor_probe_state",
+      "referenced_tables": [
+        "public.set",
+        "public.vendor_probe_state"
+      ]
+    },
+    {
+      "name": "public.record_vendor_rate_limit",
+      "file": "041_vendor_registry.sql",
+      "line": 65,
+      "language": "sql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_OBSERVATION_ID TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_AGENT_ID TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_SCOPE TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_MODEL TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_REASON TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_SOURCE_AGENT_ID TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_OBSERVED_AT TIMESTAMPTZ"
+        },
+        {
+          "name": "",
+          "type": "P_RESET_AT TIMESTAMPTZ"
+        },
+        {
+          "name": "",
+          "type": "P_PAYLOAD_HASH TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_METADATA JSONB DEFAULT '{}'"
+        },
+        {
+          "name": "",
+          "type": "::JSONB"
+        }
+      ],
+      "return_type": "table",
+      "referenced_tables": [
+        "public.inserted",
+        "public.vendor_rate_limits"
+      ]
+    },
+    {
+      "name": "public.compact_vendor_rate_limits",
+      "file": "041_vendor_registry.sql",
+      "line": 99,
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_CUTOFF TIMESTAMPTZ"
+        }
+      ],
+      "return_type": "",
+      "referenced_tables": [
+        "public.vendor_rate_limits"
+      ]
+    },
+    {
+      "name": "public.record_routing_decision_with_audit",
+      "file": "044_routing_decision_retention.sql",
+      "line": 28,
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_DECISION JSONB"
+        },
+        {
+          "name": "",
+          "type": "P_AUDIT_LINK JSONB"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.audit_log",
+        "public.routing_decisions",
+        "public.v_expected_link"
+      ]
+    },
+    {
+      "name": "public.submit_claimed_task",
+      "file": "043_atomic_submit_claim.sql",
+      "line": 3,
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_TASK_TYPE TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_DESCRIPTION TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_AGENT_ID TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_INPUT_DATA JSONB DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_PRIORITY INTEGER DEFAULT 5"
+        },
+        {
+          "name": "",
+          "type": "P_DEADLINE TIMESTAMPTZ DEFAULT NULL"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.v_id",
+        "public.work_queue"
+      ]
+    },
+    {
+      "name": "public.persist_vendor_probe_state",
+      "file": "045_persist_vendor_probe_state.sql",
+      "line": 23,
+      "language": "sql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_AGENT_ID TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_OBSERVATION_ID TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_STATUS TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_SOURCE_AGENT_ID TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_REASON TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_OBSERVED_AT TIMESTAMPTZ"
+        },
+        {
+          "name": "",
+          "type": "P_STALE_AFTER TIMESTAMPTZ"
+        },
+        {
+          "name": "",
+          "type": "P_METADATA JSONB DEFAULT '{}'"
+        },
+        {
+          "name": "",
+          "type": "::JSONB"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.set",
+        "public.upserted",
+        "public.vendor_probe_state"
+      ]
     }
   ],
   "triggers": [
@@ -3918,13 +4698,27 @@
       "columns": [
         "task_id"
       ]
+    },
+    {
+      "from": "public.model_posteriors",
+      "to": "public.model_catalog",
+      "columns": [
+        "catalog_id"
+      ]
+    },
+    {
+      "from": "public.routing_spend_ledger",
+      "to": "public.routing_decisions",
+      "columns": [
+        "decision_id"
+      ]
     }
   ],
   "summary": {
-    "total_tables": 29,
-    "total_columns": 302,
-    "total_foreign_keys": 12,
-    "total_indexes": 70,
+    "total_tables": 35,
+    "total_columns": 371,
+    "total_foreign_keys": 14,
+    "total_indexes": 75,
     "most_referenced_tables": [
       {
         "table": "public.work_queue",
@@ -3953,6 +4747,14 @@
       {
         "table": "public.code_search_registry",
         "references": 1
+      },
+      {
+        "table": "public.model_catalog",
+        "references": 1
+      },
+      {
+        "table": "public.routing_decisions",
+        "references": 1
       }
     ],
     "widest_tables": [
@@ -3969,8 +4771,16 @@
         "column_count": 16
       },
       {
+        "table": "public.model_catalog",
+        "column_count": 16
+      },
+      {
         "table": "public.work_queue",
         "column_count": 16
+      },
+      {
+        "table": "public.routing_spend_ledger",
+        "column_count": 14
       },
       {
         "table": "public.approval_queue",
@@ -3986,14 +4796,6 @@
       },
       {
         "table": "public.handoff_documents",
-        "column_count": 12
-      },
-      {
-        "table": "public.memory_episodic",
-        "column_count": 12
-      },
-      {
-        "table": "public.verification_results",
         "column_count": 12
       }
     ]

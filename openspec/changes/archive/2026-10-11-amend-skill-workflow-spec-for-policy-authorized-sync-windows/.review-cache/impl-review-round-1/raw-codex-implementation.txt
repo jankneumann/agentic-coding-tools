@@ -1,0 +1,40 @@
+{
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Critical: The trust-posture requirement states that the scheduler SHALL refuse a cadence whose values it cannot schedule, but no WHEN/THEN scenario exercises an invalid yet shape-valid cadence such as `99 * * * *`. Add a scheduler-facing acceptance scenario so this deferred ri-13 obligation remains testable.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical"
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Critical: `openspec/schemas/trust-posture.schema.json` accepts only literal spaces between cadence fields, while the specification and Python loader accept arbitrary whitespace through `str.split()`. A valid tab-separated cadence can therefore pass the authoritative loader but fail the declarative schema. Make both contracts use the same whitespace rule and add a parity test.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "critical"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Nit: `TestPrOriginsVocabulary.test_every_classified_origin_is_declared_and_folds` only asserts that `seen` is non-empty, not that the fixtures cover exactly `PR_ORIGINS`. Adding an unused or accidentally over-broad origin to the authorization vocabulary would leave this test green. Assert `seen == gc.PR_ORIGINS` so the claimed closed-vocabulary coverage is enforced.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "nit"
+    },
+    {
+      "id": 4,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "Nit: Open ledger item 6 remains unresolved: `work-packages.yaml` registers `contracts/README.md` as the primary OpenAPI contract even though that file explicitly says OpenAPI does not apply. This misclassifies a prose applicability record as a machine-readable API contract and can mislead contract-review tooling.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "nit"
+    }
+  ]
+}

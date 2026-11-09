@@ -283,3 +283,47 @@ def test_build_phase_dispatch_kwargs_cache_overwritten_on_second_call(
     cache = json.loads(cache_path.read_text())
     assert cache["phase"] == "PLAN_ITERATE"
     assert cache["archetype"] == "architect"
+
+
+_RESOLVED_CROSS_VENDOR: dict[str, Any] = {
+    "model": "qwen/qwen3-coder",
+    "system_prompt": "You are an implementer.",
+    "archetype": "implementer",
+    "provider": "openrouter",
+    "reasons": ["adaptive routing selected an openrouter model"],
+}
+
+
+def test_dispatch_provider_follows_the_adaptively_selected_vendor(
+    chdir_tmp: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Taking the model without the provider yields an undispatchable pair.
+
+    Adaptive routing ranks the whole catalog and can cross vendors, so the
+    coordinator rewrites `provider` to the vendor that owns the selected model.
+    Consuming only `model` produced combinations like provider="codex" with
+    model="qwen/qwen3-coder", which no provider adapter can dispatch.
+    """
+    monkeypatch.setenv("AUTOPILOT_PROVIDER", "codex")
+    _stub_bridge(monkeypatch, _RESOLVED_CROSS_VENDOR)
+    _seed_loop_state(chdir_tmp, "demo-change", current_phase="IMPLEMENT")
+
+    result = phase_agent.build_phase_dispatch_kwargs("IMPLEMENT", "demo-change")
+
+    assert result["model"] == "qwen/qwen3-coder"
+    assert result["provider"] == "openrouter"
+
+
+def test_static_provider_stands_when_the_coordinator_omits_one(
+    chdir_tmp: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Older coordinators omit `provider`; that must not blank the dispatch."""
+    monkeypatch.setenv("AUTOPILOT_PROVIDER", "codex")
+    _stub_bridge(monkeypatch, _RESOLVED_IMPLEMENTER)
+    _seed_loop_state(chdir_tmp, "demo-change", current_phase="IMPLEMENT")
+
+    result = phase_agent.build_phase_dispatch_kwargs("IMPLEMENT", "demo-change")
+
+    assert result["provider"] == "codex"

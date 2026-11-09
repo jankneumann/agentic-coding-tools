@@ -1,0 +1,238 @@
+schema_version: 1
+
+feature:
+  id: scope-active-agent-guard-to-overlap
+  title: "Scope the active-agent guard to overlapping work"
+  plan_revision: 1
+  created_by: claude-code
+  # No deployable surface: a shared skills helper, four skill scripts, the
+  # coordinator's read-only sync_points status module, specs, and docs.
+  deployable: false
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/scope-active-agent-guard-to-overlap/design.md"
+    files:
+      - "openspec/changes/scope-active-agent-guard-to-overlap/design.md"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 90
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-predicate
+    title: "Overlap scope, posture mode, and resolve_guard in skills/shared"
+    task_type: backend
+    description: |
+      Tasks 1.1-1.3 and 2.5: OverlapScope and scope-aware check_no_active_agents,
+      the sync_point.active_agent_guard posture key with schema, validation and
+      digest coverage, resolve_guard, the dependency-free active_agents_core
+      module vendored into agent-coordinator/src with a byte-parity test, and
+      the sync_points.py consumer.
+    role: implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "skills/shared/active_agents.py"
+        - "skills/shared/active_agents_core.py"
+        - "skills/shared/trust_posture.py"
+        - "openspec/schemas/trust-posture.schema.json"
+        - "agent-coordinator/src/active_agents_core.py"
+        - "agent-coordinator/src/sync_points.py"
+      keys:
+        - "contract:trust-posture-schema"
+        - "contract:active-agent-guard"
+      ttl_minutes: 120
+      reason: "Shared guard predicate and the posture loader that selects its mode"
+    scope:
+      write_allow:
+        - "openspec/changes/scope-active-agent-guard-to-overlap/**"
+        - "skills/shared/**"
+        - "skills/tests/_shared/**"
+        - "openspec/schemas/trust-posture.schema.json"
+        - "agent-coordinator/src/active_agents_core.py"
+        - "agent-coordinator/src/sync_points.py"
+        - "agent-coordinator/tests/test_sync_points.py"
+        - "agent-coordinator/Dockerfile"
+      read_allow:
+        - "**"
+      deny:
+        - "TRUST_POSTURE.md"
+    worktree:
+      name: scope-active-agent-guard-to-overlap--predicate
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "shared helper tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/shared/tests skills/tests/_shared -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["shared_tests_pass"]
+        - name: "coordinator sync_points tests and docker import coverage"
+          kind: command
+          command: ".venv/bin/python -m pytest tests/test_sync_points.py -q && .venv/bin/python scripts/check_docker_imports.py --data-dir cedar --data-dir profiles"
+          cwd: "agent-coordinator"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["coordinator_tests_pass"]
+        - name: "live posture validates"
+          kind: command
+          command: ".venv/bin/python -m shared.trust_posture validate ../TRUST_POSTURE.md"
+          cwd: "skills"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["live_posture_valid"]
+    metadata:
+      loc_estimate: 400
+      complexity: medium
+      package_kind: algorithm
+    inputs: {}
+    outputs:
+      result_keys: ["shared_tests_pass", "coordinator_tests_pass", "live_posture_valid"]
+      artifacts: []
+
+  - package_id: wp-call-sites
+    title: "Route every sync-point call site through resolve_guard"
+    task_type: backend
+    description: |
+      Tasks 2.1-2.4 and 5.1: execution_safety.default_sync_point_guard,
+      execute_plan.py, main_convergence.converge, expedite.py, and the
+      end-to-end overlap fixture test.
+    role: implementer
+    priority: 2
+    depends_on: ["wp-predicate"]
+    locks:
+      files:
+        - "skills/merge-pull-requests/scripts/execution_safety.py"
+        - "skills/merge-pull-requests/scripts/execute_plan.py"
+        - "skills/merge-pull-requests/scripts/main_convergence.py"
+        - "skills/expedite/scripts/expedite.py"
+      keys:
+        - "contract:sync-point-guard"
+      ttl_minutes: 120
+      reason: "Sync-point kernels that call the guard"
+    scope:
+      write_allow:
+        - "skills/merge-pull-requests/scripts/**"
+        - "skills/expedite/scripts/**"
+        - "skills/tests/merge-pull-requests/test_execution_safety.py"
+        - "skills/tests/merge-pull-requests/test_execute_plan_guard.py"
+        - "skills/tests/merge-pull-requests/test_convergence_outcomes.py"
+        - "skills/tests/merge-pull-requests/test_convergence_locking.py"
+        - "skills/tests/merge-pull-requests/test_guard_overlap_e2e.py"
+        - "skills/tests/expedite/**"
+      read_allow:
+        - "**"
+      deny:
+        - "TRUST_POSTURE.md"
+    worktree:
+      name: scope-active-agent-guard-to-overlap--call-sites
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "merge and expedite skill tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/merge-pull-requests skills/tests/expedite -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["merge_skill_tests_pass"]
+    metadata:
+      loc_estimate: 300
+      complexity: medium
+      package_kind: algorithm
+    inputs: {}
+    outputs:
+      result_keys: ["merge_skill_tests_pass"]
+      artifacts: []
+
+  - package_id: wp-docs-and-prototype
+    title: "Posture contract, SKILL.md guard text, prototype unpin, decisions"
+    task_type: docs
+    description: |
+      Tasks 3.1 and 4.1-4.4: TRUST_POSTURE.md and template, the three
+      sync-point SKILL.md guard sections and their test, prototype-feature
+      unpin on pick, capability timeline entries, and install.sh sync.
+    role: implementer
+    priority: 3
+    depends_on: ["wp-predicate"]
+    locks:
+      files:
+        - "TRUST_POSTURE.md"
+        - "TRUST_POSTURE.template.md"
+        - "skills/merge-pull-requests/SKILL.md"
+        - "skills/update-specs/SKILL.md"
+        - "skills/cleanup-feature/SKILL.md"
+      keys:
+        - "contract:trust-posture-live"
+      ttl_minutes: 60
+      reason: "Posture contract and the SKILL.md text that quotes the guard"
+    scope:
+      write_allow:
+        - "TRUST_POSTURE.md"
+        - "TRUST_POSTURE.template.md"
+        - "skills/merge-pull-requests/SKILL.md"
+        - "skills/update-specs/SKILL.md"
+        - "skills/cleanup-feature/SKILL.md"
+        - "skills/prototype-feature/**"
+        - "skills/tests/merge-pull-requests/test_skill_md.py"
+        - "skills/tests/prototype-feature/**"
+        - "docs/decisions/skill-workflow.md"
+        - "docs/decisions/trust-posture.md"
+        - ".claude/skills/**"
+        - ".agents/skills/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: scope-active-agent-guard-to-overlap--docs
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "SKILL.md and prototype tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/merge-pull-requests/test_skill_md.py skills/tests/prototype-feature -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["skill_md_tests_pass"]
+        - name: "openspec strict validation"
+          kind: command
+          command: "openspec validate scope-active-agent-guard-to-overlap --strict"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["openspec_valid"]
+    metadata:
+      loc_estimate: 200
+      complexity: low
+      package_kind: config
+    inputs: {}
+    outputs:
+      result_keys: ["skill_md_tests_pass", "openspec_valid"]
+      artifacts: []

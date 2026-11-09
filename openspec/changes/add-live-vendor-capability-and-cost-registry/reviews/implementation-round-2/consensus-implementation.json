@@ -1,0 +1,270 @@
+{
+  "schema_version": 1,
+  "review_type": "implementation",
+  "target": "add-live-vendor-capability-and-cost-registry",
+  "reviewers": [
+    {
+      "vendor": "antigravity",
+      "agent_id": "antigravity",
+      "success": true,
+      "findings_count": 9,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "grok",
+      "agent_id": "grok",
+      "success": true,
+      "findings_count": 9,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": true,
+  "quorum_requested": 2,
+  "quorum_received": 2,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: `select_registry_lane` never consults `policy.default_action`. With the model default `PolicyAction.WAIT`, a registry-driven vendor-limit path always returns `switch` when any eligible alternate lane exists. Legacy `evaluate_policy` still honors WAIT, but the orchestrator now calls only `select_registry_lane`, and roadmap tests force SWITCH, so the default wait posture is silently abandoned.",
+      "eligible_vendors": 2
+    },
+    {
+      "id": 2,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "observability",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: Spec Scenario Snapshot write fails requires the failure to be audited and logged. Watchdog isolates per-lane `persist_probe` exceptions and logs them, but does not emit a durable AuditService record for the failed lane, so D10 persistence-failure audit is incomplete for probe writes.",
+      "eligible_vendors": 2
+    },
+    {
+      "id": 3,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Verified remediation 1: `report_vendor_rate_limit` is derived at trust level 3 under `TRUST_DERIVED_OPERATIONS` without being added to `ADMIN_ACTIONS`, allowing elevated agents to report cross-lane observations while preserving least privilege for admin-only operations.",
+      "eligible_vendors": 2
+    },
+    {
+      "id": 4,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "observability",
+      "agreed_axis": "observability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Verified remediation 2: Both the production API singleton (`get_vendor_registry()`) and the watchdog registry property (`WatchdogService.vendor_registry`) explicitly inject `audit=get_audit_service()`, ensuring coordinator-side operations are durably logged to the audit service.",
+      "eligible_vendors": 2
+    },
+    {
+      "id": 5,
+      "status": "confirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 3,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 3
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Verified remediation 3: When any configured model fallback fails exact unique catalog lookup due to a missing row or ambiguous multi-row match, `_cost_projection` marks the overall lane cost `known: false` and emits a durable `vendor_catalog_projection_miss` audit event with the model, reason, and match count.",
+      "eligible_vendors": 2
+    },
+    {
+      "id": 6,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Verified remediation 4: `dispatch_phase` reports terminal capacity exhaustion exactly once via `_report_terminal_capacity` in a best-effort try-except block, guaranteeing reporting failures never mask or alter the underlying dispatch outcome.",
+      "eligible_vendors": 2
+    },
+    {
+      "id": 7,
+      "status": "confirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 5,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 4
+        }
+      ],
+      "match_score": 0.6090909090909091,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Verified remediation 5: SDK, sync CLI, and async CLI adapters invoke capacity callbacks only for intermediate model attempts prior to successful fallback; the shared orchestrator collector exclusively owns reporting terminal lane capacity, preventing duplicate reports during multi-model or single-model exhaustion.",
+      "eligible_vendors": 2
+    },
+    {
+      "id": 8,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Verified remediation 6: `_execute_item_phases` accepts provider carrier `agent_id` alongside `dispatch_agent_id`, executes a `while True` loop per phase so `vendor_limit` retries the same failed phase rather than advancing, and preserves `selected_agent_id` across both `dispatch_agent_id` and `agent_id` context fields.",
+      "eligible_vendors": 2
+    },
+    {
+      "id": 9,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "observability",
+      "agreed_axis": "observability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Verified remediation 7: Roadmap policy provenance tracks exact report status (`persisted`, `failed`, `skipped`, `skipped_ambiguous`, or `delegated_unconfirmed`) without claiming unverified persistence, and `select_registry_lane` logs a warning when `cost_ceiling_usd` is configured but cost deltas cannot be computed.",
+      "eligible_vendors": 2
+    },
+    {
+      "id": 10,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 8,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "observability",
+      "agreed_axis": "observability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Verified remediation 8: Lifecycle audit events durably record accepted, duplicate, rejected (with specific validation error reasons), catalog-miss, and compaction outcomes using non-secret audit payloads.",
+      "eligible_vendors": 2
+    },
+    {
+      "id": 11,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 9,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Watchdog snapshot persistence isolates per-lane failures, seeds snapshot state on first poll with `stale_after` ttl, and runs periodic compaction. `GET /vendors` and `GET /vendors/{id}/availability` enforce RFC7807 problem contracts, typed lane queries, deterministic six-decimal ROUND_HALF_UP cost quotes, and SQL atomic RPC idempotency without duplicate cost stores.",
+      "eligible_vendors": 2
+    },
+    {
+      "id": 12,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Remediations 6\u20137 verified: orchestrator accepts `dispatch_agent_id` or provider-carrier `agent_id`, retries the same phase, and injects selected lane as both `dispatch_agent_id` and `agent_id`; provenance uses `capacity_report_status` (`persisted`/`failed`/`skipped`) or `delegated_unconfirmed`/`skipped_ambiguous`, never claims persistence from lane id alone; configured USD ceiling with unknown quote logs `cost_guard unavailable`.",
+      "eligible_vendors": 2
+    },
+    {
+      "id": 13,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: GET `/vendors` and GET `/vendors/{agent_id}/availability` match OpenAPI filters/auth (Bearer, X-API-Key, X-Coordinator-API-Key), return typed lane identity (`agent_id`, `vendor_type`, `policy_vendor`, `catalog_vendor`, explicit `location`, capabilities, dispatch_modes), and use RFC7807 problem types for 404/503; no pagination is contracted or required by the vendor-registry spec for the configured roster size.",
+      "eligible_vendors": 2
+    },
+    {
+      "id": 14,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: SQL RPCs provide atomic probe upsert, rate-limit insert/identical-replay/conflict, and compaction; tables have no price columns; reads batch one probe, one active-limit, and one catalog query; model-scoped limits leave the lane available while marking only that model unavailable; quotes use Decimal ROUND_HALF_UP to six places per choices.json; registry outage fail-closes unless an explicit agents.yaml fallback is injected, with no hardcoded orchestrator vendor roster.",
+      "eligible_vendors": 2
+    },
+    {
+      "id": 15,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 8,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Watchdog first poll persists every lane snapshot with `stale_after = observed_at + 2\u00d7interval` and skips transitions; `no_probe_method` maps to unknown; per-lane persist failures are isolated so sibling writes and legacy transition events continue; compaction is scheduled from `run_once`.",
+      "eligible_vendors": 2
+    },
+    {
+      "id": 16,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 9,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Finding 12 remains correctly non-actionable: OpenAPI leaves POST 400 unbound to Problem, so `urn:vendor-registry:invalid-observation` is not schema drift under the current contract. No new contract evidence reverses that triage.",
+      "eligible_vendors": 2
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 16,
+    "confirmed_count": 2,
+    "unconfirmed_count": 14,
+    "disagreement_count": 0,
+    "blocking_count": 0,
+    "advisory_count": 16
+  }
+}

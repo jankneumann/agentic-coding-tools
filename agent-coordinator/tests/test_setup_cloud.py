@@ -36,6 +36,7 @@ _spec.loader.exec_module(setup_cloud)
 
 
 CUSTOM_REGISTRY = """
+credential_vendors: []
 agents:
   zeta-local:
     type: zeta

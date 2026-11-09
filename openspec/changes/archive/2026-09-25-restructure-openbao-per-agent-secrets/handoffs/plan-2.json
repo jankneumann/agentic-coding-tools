@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-24T23:51:47.831594+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Approach 1 was approved at Gate 1. Completed a contract-first plan for registry-derived agent and service OpenBao principals, protected one-use bootstrap, typed credential access, atomic coordinator identity reload, and scoped dispatch; Gate 2 approval remains pending.",
+    "completed_work": [
+      "Recorded Gate 1 approval of Approach 1.",
+      "Produced proposal, design, three strict delta specs, eight machine-readable contract files, TDD-ordered tasks, and six work packages.",
+      "Completed two independent vendor review rounds, resolved actionable findings, and validated all 53 spec scenarios have task references.",
+      "Strict OpenSpec and package scope validation passed."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Project principals from the registry",
+        "rationale": "A single validated topology and explicit vendor catalog make provisioner, coordinator, and dispatch agree on names and access paths.",
+        "capability": "agent-identity",
+        "supersedes": null
+      },
+      {
+        "title": "Separate internal and principal OpenBao configurations",
+        "rationale": "The existing coordinator-internal loader keeps its flat secret and dynamic database contracts under renamed internal credentials; agent and vendor access uses typed principal adapters.",
+        "capability": "configuration",
+        "supersedes": null
+      },
+      {
+        "title": "Use bounded identity snapshot reload",
+        "rationale": "Install complete snapshots atomically every 30 seconds, allow at most 120 seconds of last-known-good authentication, then deny new keys until recovery.",
+        "capability": "agent-coordinator",
+        "supersedes": null
+      },
+      {
+        "title": "Freeze protected bootstrap and dispatch contracts",
+        "rationale": "Role-derived bundle, cache, and lock names plus explicit dispatch principal and vendor fields let independent work packages implement one wire contract.",
+        "capability": "configuration",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "After Gate 2 approval, seed coordinator tasks and invoke implement-feature for restructure-openbao-per-agent-secrets.",
+      "Begin with wp-contracts and wp-projection; do not implement before Gate 2 approval."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/restructure-openbao-per-agent-secrets/proposal.md",
+        "description": "Selected approach and scope"
+      },
+      {
+        "path": "openspec/changes/restructure-openbao-per-agent-secrets/design.md",
+        "description": "Architecture decisions"
+      },
+      {
+        "path": "openspec/changes/restructure-openbao-per-agent-secrets/tasks.md",
+        "description": "Implementation sequence"
+      },
+      {
+        "path": "openspec/changes/restructure-openbao-per-agent-secrets/work-packages.yaml",
+        "description": "Package ownership and verification"
+      },
+      {
+        "path": "openspec/changes/restructure-openbao-per-agent-secrets/reviews/resolution-ledger.md",
+        "description": "Review dispositions"
+      }
+    ]
+  }
+}

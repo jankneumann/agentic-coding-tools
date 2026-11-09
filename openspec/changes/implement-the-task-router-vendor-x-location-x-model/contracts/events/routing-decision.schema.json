@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.local/contracts/routing-audit-link-v1.schema.json",
+  "title": "Durable routing decision audit link",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "decision_id",
+    "selected_agent_id",
+    "selected_model",
+    "routing_policy_version",
+    "routing_policy_checksum",
+    "source",
+    "success"
+  ],
+  "properties": {
+    "decision_id": {"type": "string", "format": "uuid"},
+    "selected_agent_id": {"type": "string", "maxLength": 128},
+    "selected_model": {"type": "string", "maxLength": 256},
+    "routing_policy_version": {"type": "string", "maxLength": 64},
+    "routing_policy_checksum": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "source": {"const": "coordinator"},
+    "success": {"const": true}
+  }
+}

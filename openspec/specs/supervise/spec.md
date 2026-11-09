@@ -206,6 +206,14 @@ The supervise skill SHALL evaluate every gate it raises — `roadmap_approval` a
 - **AND** after `gate-answer --roadmap R --gate roadmap_approval --decision approved` the next rehydrate shows no such entry and a standing decision `roadmap_approval:proceed` scoped to R
 - **AND** a subsequent `gate-check --roadmap R` that reuses the decision leaves the mirror's `written_at` unchanged
 
+For `escalate_resume`, the prior-record subject and resume authorization SHALL include the parked `lease_generation` in addition to the existing gate, roadmap, and dispatch correlation. A generationless legacy record SHALL be reusable for the matching current parked dispatch only; later generations SHALL require a new decision. Other gates retain the existing subject identity.
+
+#### Scenario: Resume rejects a generation-blind stale reference
+
+- **WHEN** a dispatch has later parked after a prior-generation `escalate_resume` proceed
+- **THEN** `require_approval_ref` SHALL reject that prior reference for the later parked generation
+- **AND** a matching legacy generationless record SHALL be reused without duplicate filing
+
 ### Requirement: Candidate-Work Digest
 
 The `/supervise` skill SHALL maintain a ranked candidate-work backlog conforming to the stable runtime `digest.schema.json`. Fresh post-dedupe stubs SHALL be merged with retained pending/deferred store files, persisted byte-stably at `openspec/supervise/candidates/<encoded-stub-key>.json`, and represented in `back_edge.digested_stubs`. Keys SHALL be accepted only as `change:<valid-change-id>` or `prov:<hex32>` and SHALL be encoded reversibly before path construction.
@@ -372,4 +380,162 @@ Approving a stub into an existing roadmap SHALL use `digest.py stub-to-request <
 - **WHEN** the operator approves it
 - **THEN** the skill SHALL invoke `/plan-roadmap --new <slug> "<pitch>" --draft`
 - **AND** SHALL record `{decision: approved, route: plan-roadmap, roadmap_ref: null}`
+
+### Requirement: Immediate Policy-Pause Escalation Has One Authoritative Commit
+
+After complete durable application of a named delegated batch, the supervise runtime SHALL route each parked `policy_pause` through `escalate_resume`. It SHALL use a process-safe generation subject lock for external evaluation and a short shared checkpoint transaction for fresh authority updates. The transaction SHALL serialize the gate-decision ledger with checkpoint state and, for proceed, SHALL atomically record the decision and advance only the matching parked attempt to its next generation. It SHALL NOT hold the checkpoint transaction across approval-service I/O, notification polling, or host callbacks. Supervisor mirror and handoff state SHALL be derived from the committed ledger, never authority for resume.
+
+#### Scenario: Complete batch routes exactly once
+
+- **WHEN** every named-batch attempt is terminal with application journal state `effects_applied` and one is parked as `policy_pause`
+- **THEN** the runtime SHALL evaluate or reuse exactly one `escalate_resume` decision for that dispatch and parked generation
+- **AND** a proceed SHALL create its generation G+1 continuation in the same authoritative transaction
+- **AND** a blocked decision SHALL leave the attempt parked and project one normalized pending gate after that transaction
+
+#### Scenario: Partial batch cannot route
+
+- **WHEN** any member of the named batch is not terminal with application journal state `effects_applied`
+- **THEN** route operation SHALL refuse before evaluation, notification, projection, or resume
+- **AND** application recovery SHALL remain replayable without a second host callback
+
+#### Scenario: Approval wait preserves concurrent authority
+
+- **WHEN** routing waits for an approval decision while a different execution transition commits in the same workspace
+- **THEN** the unrelated transition SHALL remain durable after routing commits
+- **AND** the workspace transaction SHALL not be held during the wait
+- **AND** the committed checkpoint SHALL never expose the new state without its decision ledger update
+
+#### Scenario: Stale and concurrent routing are safe
+
+- **WHEN** the routed attempt changes state or generation while a candidate decision waits
+- **THEN** the stale candidate SHALL not append a record, alter the mirror, or resume the attempt
+- **AND** when automatic and manual resolution race for the same generation, only one authoritative decision and optional resume SHALL occur
+- **AND** concurrent blocked decisions for different subjects SHALL preserve both normalized mirror entries
+
+### Requirement: Escalate Resume Correlation Is Generation-Safe and Sanitized
+
+New `escalate_resume` records SHALL carry the parked positive integer `lease_generation`; prior generationless records SHALL remain reusable for the matching currently parked dispatch. Every policy-pause resolver, including manual reconciliation, SHALL use only the allowlisted context `dispatch_id`, `change_id`, `item_id`, `lease_generation`, `verb: resume`, and fixed retry-budget reason. Approval references SHALL authorize the same parked generation only.
+
+#### Scenario: Legacy and later generations remain distinct
+
+- **WHEN** a current parked dispatch has a generationless legacy escalation record
+- **THEN** the router SHALL reuse it without filing a duplicate approval
+- **AND** when that dispatch later parks at a higher generation, it SHALL create a new decision and retire older same-dispatch pending mirror entries
+- **AND** a prior-generation proceed reference SHALL be rejected
+
+#### Scenario: Manual and automatic context are identical
+
+- **WHEN** either automatic post-apply routing or manual reconciliation resolves a policy pause
+- **THEN** its request context SHALL contain exactly the six allowlisted fields and fixed reason
+- **AND** no child-provided reason, transcript, raw approval response, or additional key SHALL be persisted or returned
+
+#### Scenario: Answer selects a generation safely
+
+- **WHEN** an operator answers `escalate_resume` with only a dispatch ID
+- **THEN** the router SHALL select the newest blocked generation
+- **AND** an optional explicit generation SHALL select only that blocked generation
+
+#### Scenario: Authoritative decision repairs a failed mirror projection
+
+- **WHEN** a blocked escalation decision commits but its post-commit mirror projection fails
+- **THEN** the checkpoint ledger SHALL remain authoritative and durable
+- **AND** rehydrate SHALL idempotently rebuild the normalized pending gate from that ledger before exposing pending gates to an operator
+
+#### Scenario: Proceed clears the prior generation journal atomically
+
+- **WHEN** an `escalate_resume` proceed authorizes a parked generation G
+- **THEN** the same shared checkpoint transaction SHALL record the decision, clear generation-G terminal fields including `application_journal`, and create the prepared G+1 continuation
+- **AND** the resumed attempt SHALL be included in the current unapplied apply cohort
+
+### Requirement: Dispatch Result Closure
+
+For every `(outcome class, parked.kind, parked.gate)` combination that `dispatch-result.schema.json` permits, the supervisor SHALL have exactly one answer or resume path, declared in a single table `gate_router.ANSWER_PATHS`. A contract test SHALL derive the permitted combinations from the schema itself (not from a hand-written list) and SHALL fail when any combination lacks an entry or an entry names a combination the schema forbids. A parked branch whose `kind` or `gate` is not a `const` or `enum` SHALL fail the enumeration rather than be read as `null`. The table SHALL include the `pending_gate` / `escalate_resume` path merged from `openspec/supervise-pending-escalate-answer`. Before applying a version-2 `success` or `parked` result, `ExecutionAdapter.apply` SHALL re-derive the result from its evidenced loop state through `dispatch_contract.result_from_loop_state` and SHALL refuse the batch when the outcome, the success `handoff_id`, the parked `kind`, a `pending_gate`'s `gate`, or a capability park's dedupe fingerprint differs.
+
+#### Scenario: A result the loop state does not map to is refused
+- **WHEN** a version-2 result claims `success` but its evidenced loop state is `DONE` with `goal_gate.verdict: abandoned`
+- **THEN** `apply` SHALL raise naming the expected outcome, and the attempt SHALL be unchanged
+
+#### Scenario: Every permitted combination has a path
+- **WHEN** the closure test enumerates the schema's `parked` `oneOf` branches and their `kind` / `gate` enums, plus the `success`, `failed:*`, and `vendor_limit:*` outcome classes
+- **THEN** each combination SHALL map to an entry in `ANSWER_PATHS`, and the test SHALL report the full list of missing combinations when any is absent
+
+#### Scenario: Adding a kind without a path fails the test
+- **WHEN** a test fixture copy of the result schema adds a parked kind `example_kind` with no `ANSWER_PATHS` entry and the closure check runs against that copy
+- **THEN** the check SHALL fail naming `("parked", "example_kind", null)`
+
+#### Scenario: pending_gate with escalate_resume is answerable
+- **WHEN** a child returns `parked/pending_gate` with `gate: escalate_resume`
+- **THEN** `resolve_parked` SHALL evaluate `escalate_resume` for that dispatch generation and, on `proceed`, resume it
+
+### Requirement: Typed Gate Answers With Provenance
+
+Every gate-decision record the router writes SHALL carry `provenance`, either `{source: "posture", posture_digest}` or `{source: "human", approval_ref}`. When resolving a parked attempt, the router SHALL re-evaluate a prior `posture`-provenance block whose `posture_digest` differs from the current posture digest, and SHALL treat a `human`-provenance decision as final for its subject. A resume request SHALL carry the decision to the child only as `gate_answer: {gate, decision, approval_ref}`; the supervisor SHALL NOT write any file in a child worktree other than the launch marker.
+
+#### Scenario: A posture-derived block clears after a posture change
+- **GIVEN** an attempt parked `pending_gate/proposal_approval` whose supervisor record has `resolution: posture_block` and `provenance.posture_digest` D1
+- **WHEN** the operator changes `TRUST_POSTURE.md` so `proposal_approval` is `auto` (digest D2) and `resolve_parked` runs for the attempt, whose persisted `roadmap_approval_ref` was verified at prepare
+- **THEN** a new `proceed` record with `provenance: {source: posture, posture_digest: D2}` SHALL be written and the attempt SHALL be resumed with `gate_answer.decision: approved`
+- **AND** the child applying that answer SHALL leave `PLAN` without parking again
+
+#### Scenario: A human rejection survives a posture change
+- **GIVEN** a prior record for the same subject with `resolution: console_rejected` and `provenance.source: human`
+- **WHEN** the posture changes the gate to `auto` and `resolve_parked` runs
+- **THEN** no new record SHALL be written, the attempt SHALL stay parked, and the router SHALL return the existing blocked entry
+
+#### Scenario: An unchanged posture does not re-evaluate
+- **WHEN** `resolve_parked` runs for a `posture_block` record whose `posture_digest` equals the current digest
+- **THEN** the prior record SHALL be reused and no approval SHALL be filed
+
+#### Scenario: A prose-only posture edit is not a posture change
+- **WHEN** only the Markdown body of `TRUST_POSTURE.md` changes and its front matter is unchanged
+- **THEN** the posture digest SHALL be unchanged
+
+### Requirement: Execution Profile and Review Requirements
+
+Before launching a batch, the supervisor SHALL resolve an `execution_profile` (verified lanes per mode `review`, `alternative`, `quick`; `location`; isolation mode; and `probe_command`, the only probe a worker may run) by invoking `review_dispatcher.py --check-vendors --json`, and `review_requirements` (`min_quorum` per review phase, default 2 and overridable by router context `review_min_quorum`, and `counting_lanes` ordered by the `cost_policy.tiers` ladder of `agent-coordinator/routing.yaml`), and SHALL place both in every request. The worker protocol in `skills/autopilot/SKILL.md` SHALL forbid reading environment variables or credentials to discover capabilities. `ExecutionAdapter.apply` SHALL persist the result's `degradations` on the checkpoint attempt and SHALL return them in its summary.
+
+#### Scenario: Request carries a resolved profile
+- **WHEN** `prepare` returns a batch
+- **THEN** every request SHALL validate against `dispatch-request.schema.json` with non-empty `execution_profile.lanes.review`, `execution_profile.probe_command`, and `review_requirements.min_quorum` keyed by review phase
+
+#### Scenario: Profile resolution failure blocks launch
+- **WHEN** `--check-vendors --json` prints output that does not parse as JSON, or JSON carrying an `error` field
+- **THEN** `prepare` SHALL raise without writing any attempt, and the error SHALL name the probe failure
+
+#### Scenario: Below-quorum availability still launches with an honest profile
+- **WHEN** `--check-vendors --json` exits 2 (below quorum) with valid JSON and no `error` field
+- **THEN** `prepare` SHALL succeed, and each request's `execution_profile.lanes.review` SHALL list only the verified lanes, so the child parks `capability_unavailable` at its first review phase
+
+#### Scenario: The per-environment quorum is resolved from data
+- **WHEN** the quorum policy data declares an active `cloud_container` entry with `min_quorum` 1 that applies below 2 verified review lanes, and `prepare` runs in a cloud container where one review lane verifies
+- **THEN** every request's `review_requirements.min_quorum` SHALL be 1 for each review phase and `review_requirements.quorum_policy` SHALL name the environment, the policy entry, and its sunset condition
+- **AND** on a host, or in a container where two or more review lanes verify, `min_quorum` SHALL stay 2
+
+#### Scenario: Degradations reach the checkpoint
+- **WHEN** a success result carries `degradations: [{code: single_vendor_review, phase: PLAN_REVIEW, detail: "codex not dispatchable"}]`
+- **THEN** after `apply` the checkpoint attempt's outcome metadata and the `apply` return value SHALL both contain that entry unchanged
+
+#### Scenario: Worker protocol forbids env probing
+- **WHEN** a guard test scans `skills/autopilot/SKILL.md` and `skills/supervise/SKILL.md`
+- **THEN** neither SHALL contain an instruction to run `env`, `printenv`, or to read API key variables for vendor discovery
+
+### Requirement: Single Escalation Per Capability Park
+
+The router SHALL map `permission_blocked` and `capability_unavailable` parks to an `escalate_resume` subject keyed by a dedupe fingerprint — `sha256(tool, rule, classifier_reason)` for `permission_blocked`, `sha256(phase, sorted(missing_lanes))` for `capability_unavailable` — and SHALL project exactly one `pending_gates` entry per fingerprint listing every parked dispatch that shares it. One `proceed` answer SHALL resume each listed attempt through its own generation-checked compare-and-swap. The stored redacted command SHALL be the output of `sanitize_session_log.sanitize()` (secret-pattern and high-entropy redaction) truncated to 256 characters.
+
+#### Scenario: Three workers blocked on one rule produce one escalation
+- **WHEN** three attempts park `permission_blocked` with tool `Bash`, rule `Bash(env *)`, and the same classifier reason
+- **THEN** the supervisor record SHALL contain one `pending_gates` entry whose dispatch list has all three IDs
+
+#### Scenario: One answer resumes every attempt in the entry
+- **WHEN** the operator answers that entry `approved`
+- **THEN** each of the three attempts SHALL be resumed once with a distinct new generation, and an attempt whose generation changed since projection SHALL be skipped and reported, not resumed
+
+#### Scenario: Different missing lanes are separate escalations
+- **WHEN** one attempt parks `capability_unavailable` missing `{codex}` and another missing `{codex, gemini}` for the same phase
+- **THEN** two `pending_gates` entries SHALL exist
+
+#### Scenario: A secret in the blocked command is redacted
+- **WHEN** a `permission_blocked` park reports command `curl -H "Authorization: Bearer abc123..."`
+- **THEN** the persisted command SHALL not contain `abc123` and SHALL contain a `[REDACTED:` marker
 

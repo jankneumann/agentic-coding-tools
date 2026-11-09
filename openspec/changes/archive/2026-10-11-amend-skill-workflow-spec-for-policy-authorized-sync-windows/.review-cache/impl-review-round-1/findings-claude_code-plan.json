@@ -1,0 +1,147 @@
+{
+  "review_type": "plan",
+  "target": "amend-skill-workflow-spec-for-policy-authorized-sync-windows",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "severity": "critical",
+      "axis": "correctness",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/specs/skill-workflow/spec.md",
+      "existing_code": "- **THEN** the trigger MUST NOT start the skill without naming a sync window id\n- **AND** a skill started with a sync window id MUST call the trust posture\n  sync-window authorization check before touching main, and MUST refuse to\n  touch main when that check fails\n- **AND** user invocation MUST remain the only path by which the skill runs",
+      "description": "Scenario 'No sync window declared keeps the user-invoked default' is internally inconsistent. Its WHEN is 'posture absent or declares no sync_windows', yet the first two THEN clauses describe the general scheduled path (trigger names a window id, skill calls the check) that is not conditional on that WHEN, and the final clause says user invocation 'MUST remain the only path by which the skill runs' even though the preceding clause allows the skill to be started by a trigger and then refuse. The obligations on the trigger and on the skill to call the authorization check are the core new contract and currently have no scenario of their own; they are only reachable through this no-window scenario. Split into (a) a general 'Scheduled invocation must name a window and call the authorization check' scenario and (b) a no-window scenario whose THEN is simply that the check fails and main is untouched.",
+      "resolution": "Add a dedicated scenario for the trigger/check obligations and reduce the no-window scenario to: the authorization check fails for every id, the skill does not touch main, user invocation is the only effective path.",
+      "line_range": {
+        "start": 38,
+        "end": 42
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "severity": "critical",
+      "axis": "architecture",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/specs/skill-workflow/spec.md",
+      "existing_code": "- **AND** every trust posture gate disposition that applies to the same action\n  (including the `merge` gate) MUST still be evaluated as it would be for that\n  action without a window",
+      "description": "The scenario 'Sync window does not override gate dispositions' names the `merge` gate as applying to a scheduled sync-point action, but the proposal's own Out-of-scope section says the `merge` gate governs autopilot's SUBMIT_PR -> DONE edge, and the base trust-posture spec defines gates only for autopilot phases. No gate today is evaluated by `/merge-pull-requests`, `/update-specs` or `/cleanup-feature`, so 'as it would be for that action without a window' has no defined baseline. The D8 intent (window is necessary, not sufficient) is sound, but the spec should either state which gates a scheduled sync-point skill evaluates, or explicitly delegate that mapping to ri-12 and drop the parenthetical that implies the `merge` gate already applies.",
+      "resolution": "Reword to 'every trust posture gate that ri-12 defines as applying to the action' or add a sentence stating that gate applicability for sync-point skills is defined by the headless-merge change; remove '(including the merge gate)' or justify it against the base spec's gate scoping.",
+      "line_range": {
+        "start": 88,
+        "end": 90
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 3,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "severity": "nit",
+      "axis": "architecture",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/work-packages.yaml",
+      "existing_code": "      write_allow:\n        - \"openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/**\"\n        - \"skills/shared/trust_posture.py\"",
+      "description": "The package write scope omits `docs/decisions/skill-workflow.md` and `docs/decisions/trust-posture.md`, yet this very diff writes both via the session-log decision projection, and the implement/validate phases will append further phase records there. A scope check against `write_allow` will flag those writes as out-of-scope during implementation.",
+      "resolution": "Add `docs/decisions/skill-workflow.md` and `docs/decisions/trust-posture.md` (or `docs/decisions/**`) to `write_allow`.",
+      "line_range": {
+        "start": 51,
+        "end": 53
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 4,
+      "type": "spec_gap",
+      "criticality": "low",
+      "severity": "nit",
+      "axis": "correctness",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/specs/trust-posture/spec.md",
+      "existing_code": "The loader SHALL reject, as a validation error, a `sync_windows` value that is\nnot a list, an entry that is not a mapping,",
+      "description": "The requirement says any `sync_windows` value that is not a list is a validation error, then two sentences later says `null` declares no windows. `null` is not a list, so the two sentences conflict as written; the 'Malformed sync_windows container is rejected' scenario inherits the ambiguity.",
+      "resolution": "Write 'a `sync_windows` value that is neither `null` nor a list'.",
+      "line_resolution": "unresolved"
+    },
+    {
+      "id": 5,
+      "type": "spec_gap",
+      "criticality": "low",
+      "severity": "nit",
+      "axis": "correctness",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/specs/trust-posture/spec.md",
+      "existing_code": "The loader SHALL expose an authorization check that, given a window id and a\nsync-point skill, returns the declared window only when the window exists and\nlists that skill, and otherwise fails with an error naming the missing\ndeclaration.",
+      "description": "Design D6 and task 2.1 specify that an unknown skill name raises `ValueError` (closed set), a different failure from `SyncWindowNotAuthorized`, but the spec text says the check 'otherwise fails with an error naming the missing declaration' and no scenario covers the closed-skill-set rejection. Also, scenario 'Absent sync windows declare nothing' covers 'no contract file exists', so the check must accept the `present=False` absent-posture object (or `None`, as `posture_digest` does); neither spec nor design says which.",
+      "resolution": "Add an AND clause or scenario for 'an unknown sync-point skill name is a usage error distinct from not-authorized', and state that the check accepts the absent-posture default.",
+      "line_range": {
+        "start": 33,
+        "end": 36
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 6,
+      "type": "style",
+      "criticality": "low",
+      "severity": "optional",
+      "axis": "readability",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/work-packages.yaml",
+      "existing_code": "contracts:\n  revision: 1\n  openapi:\n    primary: \"openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/contracts/README.md\"",
+      "description": "The contracts block files a Markdown README under the `openapi` sub-type while the README itself says OpenAPI does not apply. The validator accepts it, but the label is misleading for anyone reading the package for API surface.",
+      "resolution": "Accept, or point `contracts` at the real machine-readable contract `openspec/schemas/trust-posture.schema.json` if the schema permits a non-openapi sub-type.",
+      "line_range": {
+        "start": 9,
+        "end": 12
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 7,
+      "type": "architecture",
+      "criticality": "low",
+      "severity": "optional",
+      "axis": "architecture",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/specs/trust-posture/spec.md",
+      "existing_code": "- `allowed_sources`: a non-empty list of PR origins drawn from `openspec`,",
+      "description": "`allowed_sources` and `auto_merge_ceiling` are mandatory and non-empty for every window, including a window that lists only `update-specs` or `cleanup-feature`, which never select PRs. Operators will have to declare meaningless source lists for those windows. The skill-workflow scenario already bounds the fields to 'whenever it selects, remediates, or merges pull requests', so the inconsistency is only ergonomic.",
+      "resolution": "Accept for now; note in the template that non-PR skills ignore these fields, or allow them to be omitted when `skills` contains no PR-selecting skill in a follow-up.",
+      "line_range": {
+        "start": 13,
+        "end": 13
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 8,
+      "type": "observability",
+      "criticality": "low",
+      "severity": "fyi",
+      "axis": "observability",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/loop-state.json",
+      "existing_code": "    \"has_proposal\": false,\n    \"has_security_signal\": false,\n    \"has_specs\": false,\n    \"has_tasks\": false,",
+      "description": "`gate_signals` still reflect the GATEKEEPER snapshot (no proposal, specs or tasks) although all three now exist, and `degradations` records an `audit_sink_failed` for the auto proposal_approval decision. Neither blocks review, but the gate decision for this change has no durable audit record outside loop-state.",
+      "resolution": "Informational; confirm the audit sink is reachable before the SUBMIT_PR gate so the merge-side decision is recorded.",
+      "line_range": {
+        "start": 45,
+        "end": 48
+      },
+      "line_resolution": "hunk_new"
+    }
+  ]
+}

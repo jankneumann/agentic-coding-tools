@@ -1,0 +1,187 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Round-1 blockers on apply/route separation are closed: `ExecutionAdapter.apply` keeps its exact return shape, `route_parked_escalations` is a separately retryable post-apply/error-cleanup operation, and recovery is forbidden from replaying `apply` or `dispatch_fn`.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "resolution": "No change. Treat D1/D6, contracts/README.md, and the routing-failure / already_routed scenarios as the binding retry contract.",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/design.md",
+      "line_range": {
+        "start": 9,
+        "end": 31
+      }
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Round-1 nested-`flock` deadlock is closed: one workspace serialization boundary owns route, and proceed resume uses a private already-locked helper through a narrow facade rather than public `@_serialized_transition` `resume`.",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "none",
+      "resolution": "No change. Implement D2/task 2.3 and keep the timeout-guarded concurrency test as the deadlock proof.",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/design.md",
+      "line_range": {
+        "start": 13,
+        "end": 15
+      }
+    },
+    {
+      "id": 3,
+      "type": "security",
+      "criticality": "low",
+      "description": "Round-1 unbounded auto-resume loop is closed on the automatic path: `escalate_resume` prior-record identity includes `lease_generation`, same-generation retries reuse one decision, and a later exhaustion after resume is a new subject.",
+      "disposition": "accept",
+      "axis": "security",
+      "severity": "none",
+      "resolution": "No change for the resolve_parked/route path. Keep tasks 1.7 and 2.4 as the generation-scoping proof.",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/design.md",
+      "line_range": {
+        "start": 17,
+        "end": 19
+      }
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Round-1 resumed-generation dead end is closed: authorized resume clears the prior `application_journal`, and the plan requires an end-to-end park \u2192 route \u2192 resume \u2192 child-start/acknowledge/enter \u2192 apply proof with a fresh journal.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "No change. D7 plus tasks 1.6/2.4 are sufficient against the current resume field-pop list in execution.py.",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/design.md",
+      "line_range": {
+        "start": 33,
+        "end": 35
+      }
+    },
+    {
+      "id": 5,
+      "type": "observability",
+      "criticality": "low",
+      "description": "Round-1 blocked-handoff gap is closed: blocked routing relies on synchronous mirror projection, stale/missing-handoff rehydrate prefers the newer mirror, and the next normal supervisor handoff retains the pending gate/deadline.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "none",
+      "resolution": "No change. D8 plus tasks 1.3/3.1/3.4 make the execute-time durability path executable without a new handoff writer.",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/design.md",
+      "line_range": {
+        "start": 37,
+        "end": 39
+      }
+    },
+    {
+      "id": 6,
+      "type": "security",
+      "criticality": "low",
+      "description": "Round-1 notification/output scrubbing is closed: route entries are exact/allowlisted/bounded, and policy-pause notification context uses fixed reason text with no transcript, raw approval payload, or child-provided reason.",
+      "disposition": "accept",
+      "axis": "security",
+      "severity": "none",
+      "resolution": "No change. Keep D5/contracts/README.md and task 2.5 as the response and notification contract.",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/contracts/README.md",
+      "line_range": {
+        "start": 3,
+        "end": 3
+      }
+    },
+    {
+      "id": 7,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "Partial-batch and post-route failure handling is closed: earlier durable pauses are routed from error cleanup, already committed proceeds report as `already_routed` without duplicate notify/audit/resume, and still-parked pauses remain the only resume candidates.",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "none",
+      "resolution": "No change. Spec scenarios plus tasks 1.8/2.6 cover both the method behavior and host retry protocol.",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/specs/supervise/spec.md",
+      "line_range": {
+        "start": 48,
+        "end": 59
+      }
+    },
+    {
+      "id": 8,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Work-package scope and validation can implement and prove the stated requirements: the single package writes the needed supervise seams/tests/docs, and tasks 1.x\u20134.x plus WP verification cover routing, orchestration recovery, and strict OpenSpec validation.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "resolution": "No change. Proceed to implementation under wp-escalation-routing.",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/work-packages.yaml",
+      "line_range": {
+        "start": 26,
+        "end": 98
+      }
+    },
+    {
+      "id": 9,
+      "type": "compatibility",
+      "criticality": "medium",
+      "description": "Nit: D3 generation-scopes `escalate_resume` subject keys, but the plan never says how console `gate_router.answer` / `cycle_state gate-answer` locates that prior. Pending-gate projection still omits `dispatch_id`/`lease_generation`, and gate-answer only accepts `--dispatch-id`, so a generation-aware `_matches_subject` can raise \"no parked record\" on the existing console-answer surface even though `resolve_parked` itself has the attempt.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "nit",
+      "resolution": "Extend D3/tasks so escalate_resume console answers resolve lease_generation from the parked attempt (when `--dispatch-id` is supplied) or carry it on the pending-gate projection/CLI. Do not weaken generation matching.",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/design.md",
+      "line_range": {
+        "start": 17,
+        "end": 19
+      }
+    },
+    {
+      "id": 10,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "Nit: Task 2.1 says the scan is limited to the named batch's persisted `policy_pause` attempts, which can be read as parked-only, while D1/D6 and the already_routed scenario also require detecting prepared `continuation.kind=policy_pause` members after a crash between resume and return.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "Reword task 2.1 to scan named-batch parked policy pauses for routing and prepared policy-pause continuations for `already_routed` only.",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/tasks.md",
+      "line_range": {
+        "start": 16,
+        "end": 16
+      }
+    },
+    {
+      "id": 11,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Optional: D3 requires lease_generation in recorded escalate_resume correlation, but does not name the late-answer branch in `gate_router._apply_prior_record` that recopies only a fixed allowlist of correlation keys. Omitting lease_generation there can drop generation from a newly built same-subject record and break later prior matching.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "optional",
+      "resolution": "When implementing task 2.4, add lease_generation to the late-answer correlation copy list alongside dispatch_id/roadmap_id, or cite that call site in the task text.",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/design.md",
+      "line_range": {
+        "start": 17,
+        "end": 19
+      }
+    },
+    {
+      "id": 12,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "Optional: Task 3.1 requires host instructions for partial-apply error-cleanup routing, but task 3.4's executable documentation guards list apply-before-route, no-apply-retry, mirror-first rehydrate, and prose-free gate names without explicitly pinning the error-cleanup call.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "optional",
+      "resolution": "Add the partial-apply error-cleanup host sequencing sentence to the task 3.4 guard list, or accept reliance on task 1.8 behavioral coverage alone.",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/tasks.md",
+      "line_range": {
+        "start": 25,
+        "end": 28
+      }
+    }
+  ]
+}

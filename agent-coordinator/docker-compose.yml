@@ -23,7 +23,7 @@ services:
 
   # OpenBao secret manager (dev mode — auto-unsealed, ephemeral storage)
   openbao:
-    image: quay.io/openbao/openbao:latest
+    image: quay.io/openbao/openbao@sha256:11fd73a2102cda9c55d5d881a8c3210303146a7ec1e8ac76f526e175c6d24641
     # No container_name — same reason as postgres above
     ports:
       - "${AGENT_COORDINATOR_BAO_PORT:-8200}:8200"
