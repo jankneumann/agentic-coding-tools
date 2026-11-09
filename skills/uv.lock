@@ -9,6 +9,8 @@ resolution-markers = [
 
 [manifest]
 overrides = [
+    { name = "black", specifier = ">=26.10.1" },
+    { name = "certifi", specifier = ">=2026.10.19" },
     { name = "cryptography", specifier = ">=50.0.0" },
     { name = "httplib2", specifier = ">=0.32.0" },
 ]
@@ -326,7 +328,7 @@ version = "0.83.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "argcomplete" },
-    { name = "black", marker = "sys_platform != 'emscripten'" },
+    { name = "black" },
     { name = "genson" },
     { name = "inflect" },
     { name = "isort", marker = "sys_platform != 'emscripten'" },

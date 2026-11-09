@@ -10,10 +10,13 @@ resolution-markers = [
 
 [manifest]
 overrides = [
+    { name = "authlib", specifier = ">=1.9.1" },
+    { name = "certifi", specifier = ">=2026.10.19" },
     { name = "cryptography", specifier = ">=50.0.0" },
+    { name = "dnspython", specifier = ">=2.9.0" },
     { name = "httplib2", specifier = ">=0.32.0" },
-    { name = "joserfc", specifier = ">=1.6.8" },
-    { name = "mcp", specifier = ">=1.28.1" },
+    { name = "joserfc", specifier = ">=1.7.6" },
+    { name = "mcp", specifier = ">=1.30.0,<2" },
     { name = "python-multipart", specifier = ">=0.0.31" },
 ]
 
@@ -97,7 +100,7 @@ requires-dist = [
     { name = "code-search-pkg", directory = "../packages/code-search" },
     { name = "email-validator", specifier = ">=2.3.0" },
     { name = "fastapi", marker = "extra == 'api'", specifier = ">=0.141.1" },
-    { name = "fastmcp", specifier = ">=3.4.4,<4.0" },
+    { name = "fastmcp", specifier = ">=3.4.10,<4.0" },
     { name = "gen-eval", extras = ["mcp"], directory = "../packages/gen-eval" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "hvac", specifier = ">=2.4.0" },
@@ -108,10 +111,10 @@ requires-dist = [
     { name = "mypy", marker = "extra == 'test'", specifier = ">=2.1.0" },
     { name = "openai", marker = "extra == 'sdk'", specifier = ">=2.53.0" },
     { name = "openbao-credentials", directory = "../packages/openbao-credentials" },
-    { name = "opentelemetry-api", marker = "extra == 'observability'", specifier = ">=1.44.0" },
-    { name = "opentelemetry-exporter-otlp", marker = "extra == 'observability'", specifier = ">=1.44.0" },
+    { name = "opentelemetry-api", marker = "extra == 'observability'", specifier = ">=1.45.1" },
+    { name = "opentelemetry-exporter-otlp", marker = "extra == 'observability'", specifier = ">=1.45.1" },
     { name = "opentelemetry-exporter-prometheus", marker = "extra == 'observability'", specifier = ">=0.65b0" },
-    { name = "opentelemetry-sdk", marker = "extra == 'observability'", specifier = ">=1.44.0" },
+    { name = "opentelemetry-sdk", marker = "extra == 'observability'", specifier = ">=1.45.1" },
     { name = "prometheus-client", marker = "extra == 'observability'", specifier = ">=0.26.0" },
     { name = "psycopg2-binary", marker = "extra == 'analysis'", specifier = ">=2.9.0" },
     { name = "pydantic", specifier = ">=2.13.4" },
