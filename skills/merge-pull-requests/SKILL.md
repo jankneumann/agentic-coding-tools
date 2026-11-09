@@ -66,7 +66,7 @@ The skill automatically selects a merge backend based on environment capabilitie
 | Priority | Backend | Condition | Behavior |
 |----------|---------|-----------|----------|
 | 1 | **Coordinator Train** | Coordinator available + `CAN_QUEUE_WORK` | Speculative parallel testing via `compose_train` |
-| 2 | **GitHub Merge Queue** | GitHub merge queue enabled | Batched merging via `gh pr merge --merge-queue` |
+| 2 | **GitHub Merge Queue** | Default branch has a `merge_queue` rule (read from `gh api repos/:owner/:repo/rules/branches/<branch>`) | Plain `gh pr merge <n>` (no strategy flag) enqueues the PR; the script then polls until it merges or leaves the queue |
 | 3 | **Direct Merge** | Fallback | Single PR via `gh pr merge` (existing behavior) |
 
 Detection is automatic via `detect_merge_backend()` in `merge_backend.py`. Solo-dev repos without coordinator or GitHub queue use Direct Merge — all existing behavior is preserved.
@@ -615,7 +615,7 @@ python3 <agent-skills-dir>/merge-pull-requests/scripts/merge_pr.py merge <pr_num
 
 The script validates CI status (distinguishing failed from pending), draft status, merge conflicts, and mergeability before merging. It handles:
 - **Fork PRs**: Automatically skips `--delete-branch`
-- **Merge queue repos**: If direct merge fails because a merge queue is required, automatically retries with `--merge-queue`
+- **Merge queue repos**: When the base branch has a `merge_queue` rule the script runs `gh pr merge <n>` without a strategy flag (`gh` has no `--merge-queue` switch; the queue's own settings pick the method), then polls until the PR merges, closes, or is removed from the queue. A removed PR is reported as failed and is never merged directly. If required checks are still running, `gh` arms auto-merge and the result is `auto_merge_pending`
 - **Branch deletion failure**: Detects when merge succeeded but branch deletion failed, reports as warning
 - **Merge conflicts**: Surfaces `CONFLICTING` status with specific guidance to rebase or merge the base branch
 - **Stale approvals**: Warns if commits were pushed after the last approval
@@ -1070,7 +1070,7 @@ Output a full report:
 - **Merge conflicts**: Surface `CONFLICTING` status with guidance to rebase or merge base branch
 - **CI checks pending**: Distinguish from failed — offer to wait
 - **CI checks failed**: Show failing checks, offer to re-run failed workflow runs
-- **Merge queue required**: Automatically retry with `--merge-queue` when direct merge is rejected
+- **Merge queue required**: Enqueue with plain `gh pr merge <n>` and wait up to `MERGE_QUEUE_POLL_SECONDS` (default 300) for the outcome; a PR still queued at the deadline returns `enqueued` (non-terminal) so dependents stay blocked
 - **Branch deletion failure**: Detect and report as warning (merge still succeeded)
 - **Post-merge cleanup declined**: Leave local OpenSpec worktrees/branches intact and record the declined cleanup command in the merge log
 - **Post-merge cleanup failure**: Stop the cleanup pass and surface the failure; do not continue deleting local remnants for later changes without operator direction
