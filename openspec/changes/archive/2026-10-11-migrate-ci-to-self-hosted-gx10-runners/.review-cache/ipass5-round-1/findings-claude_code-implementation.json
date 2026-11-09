@@ -1,0 +1,139 @@
+{
+  "review_type": "implementation",
+  "target": "migrate-ci-to-self-hosted-gx10-runners",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "architecture",
+      "criticality": "medium",
+      "description": "Three tests pin the lane census to literal counts: test_manifest_completeness.test_job_counts asserts 25 ci.yml / 3 security.yml jobs and test_hosted_jobs_use_literal_hosted_label asserts exactly 5 hosted jobs; test_routing_expression.test_every_routed_job_uses_canonical_expression asserts exactly 23 routed jobs. The set-equality checks already catch unclassified and stale entries, so these counts add no protection, but they turn every legitimate manifest move (the O6 `amd64-only` move, an O8 `measured-slower` move, any new job added by a concurrent change) into a mandatory test edit \u2014 contradicting D2/D8's promise that reclassification is a manifest-only change. Drop the literal counts or derive them from the manifest.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "nit",
+      "evidence_class": "judgment",
+      "file_path": "skills/tests/ci_runners/test_manifest_completeness.py",
+      "existing_code": "def test_job_counts(manifest):\n    assert len(manifest[\"workflows\"][\"ci.yml\"][\"jobs\"]) == 25\n    assert len(manifest[\"workflows\"][\"security.yml\"][\"jobs\"]) == 3",
+      "line_range": {
+        "start": 35,
+        "end": 37
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "commands_in() stops scanning a segment at the first non-watched word, so a disallowed command that follows a shell keyword or wrapper is never seen: `if test -f x; then docker build .; fi`, `for f in *; do podman load < $f; done`, `time docker run`, `exec sudo ...`, `timeout 60 apt-get ...`, `xargs docker rm`. Only `sudo` and `env` are treated as pass-through prefixes. This matches the letter of D10 but a routed job can be written (even accidentally) to call a container engine in a form the gate misses, and the O6 dry run is then the only backstop. Extend the pass-through set with at least then/do/else/elif/time/exec/timeout/nohup/xargs (and `!`).",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "optional",
+      "evidence_class": "judgment",
+      "file_path": "skills/tests/ci_runners/test_tool_parity.py",
+      "existing_code": "                if head in (\"sudo\", \"env\"):\n                    words = words[1:]\n                    while head == \"env\" and words and \"=\" in words[0]:\n                        words = words[1:]\n                    continue\n                break",
+      "line_range": {
+        "start": 41,
+        "end": 46
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "test_runbook_uses_only_flags_the_cli_accepts captures `ci_wallclock.py <cmd>([^\\n`]*)`, so flags on a backslash-continued line are never checked. The O8 `compare` invocation puts `--workflow`, `--event` and `--head-sha` on the continuation line and the two `median` invocations put `--since`/`--until`/`--limit` there too; a typo in any of those would pass this test. Join `\\\\\\n` continuations before matching.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "optional",
+      "evidence_class": "judgment",
+      "file_path": "skills/tests/ci_runners/test_runbook.py",
+      "existing_code": "    for m in re.finditer(r\"ci_wallclock\\.py\\s+([a-z-]+)([^\\n`]*)\", runbook):",
+      "line_range": {
+        "start": 80,
+        "end": 80
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 4,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "The mint budget clock (`start_us`) starts after the sweep, but TimeoutStartSec=900 bounds the whole ExecStartPre. Sweep worst case is 10 listing GETs plus N DELETEs, each with `--max-time 30`; a slow-but-responding API (not an outage, which fails fast with 000 on page 1) can spend several minutes there, after which the full 600 s mint budget (plus up to 30 s of in-flight request) can push past 900 s. systemd then kills the script mid-backoff and restarts every RestartSec=10 \u2014 the exact hammering D5 sets out to avoid. Start the budget clock before the sweep, or cap sweep time against the same budget.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "optional",
+      "evidence_class": "judgment",
+      "file_path": "deploy/gx10-runner/mint-jitconfig.sh",
+      "existing_code": "budget_us=\"$(awk -v s=\"$max_elapsed\" 'BEGIN { printf \"%d\", s * 1000000 }')\"\nstart_us=\"$(now_us)\"",
+      "line_range": {
+        "start": 138,
+        "end": 139
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 5,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "compare() indexes `r[\"id\"]` in lane_of/select while the sibling code uses `r.get(\"id\")`, and _workflow_jobs() assumes the parsed workflow is a mapping; a run without an `id`, or a workflow fetched at head_sha that parses to a list/scalar (e.g. a stub or a non-workflow file at that ref), raises KeyError/AttributeError. KeyError is caught by main(), AttributeError is not, so the CLI would print a traceback instead of the `error:` line the test test_cli_reports_bad_input_files_without_traceback promises. Guard the definition shape (`isinstance(..., dict)`) and use consistent id access.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "fyi",
+      "evidence_class": "judgment",
+      "file_path": "scripts/ci/ci_wallclock.py",
+      "existing_code": "def _workflow_jobs(workflow: dict[str, Any]) -> dict[str, Any]:\n    return (workflow or {}).get(\"jobs\") or {}",
+      "line_range": {
+        "start": 73,
+        "end": 74
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 6,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "The unit runs `podman run` in the foreground under `Type=simple`. Podman's documented systemd integration (and `podman generate systemd`/Quadlet) uses `Type=notify` with `--sdnotify=conmon` so the unit is only `active` once the container is actually running, and `--cgroups=split` so the container's processes stay inside the service cgroup for `systemctl stop`/KillMode. With `simple`, O10's `is-active gx10-runner@1` can report `active` while the container is still being created, and a container whose conmon landed in a sibling cgroup may outlive the unit's SIGKILL (mitigated here by `--rm --replace`). Acceptable for an 8-instance pool; recorded so a future unit change picks the notify form deliberately.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "fyi",
+      "evidence_class": "judgment",
+      "file_path": "deploy/gx10-runner/systemd/gx10-runner@.service",
+      "existing_code": "Type=simple\nRestart=always\nRestartSec=10",
+      "line_range": {
+        "start": 19,
+        "end": 21
+      },
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 7,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "Requirement 'Routed Jobs Default To The Hosted Lane' states the expression resolves to ubuntu-latest for 'never any other event', but no scenario exercises an event outside {push, pull_request, merge_group, workflow_dispatch}. The test table covers `schedule` and the fork-guard test covers `pull_request_target`, so the behaviour is pinned in code but the normative text has no WHEN/THEN for it. Add a scenario (e.g. a `schedule` event with CI_RUNNER_LANE=self-hosted resolves to ubuntu-latest).",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "fyi",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/specs/ci-runner-infrastructure/spec.md",
+      "existing_code": "Under that expression a job SHALL resolve to `ubuntu-latest` unless the event is eligible \u2014 a `push`, a `workflow_dispatch`, or a same-repository `pull_request` (never a fork `pull_request`, never `merge_group`, never any other event)",
+      "line_resolution": "unresolved"
+    },
+    {
+      "id": 8,
+      "type": "style",
+      "criticality": "low",
+      "description": "`install-units.sh -h` prints header lines 2-9, which document `--prefix` only; `--instances N` (and the `GX10_INSTANCES` env fallback) are accepted but undocumented in the help text and the header comment.",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "nit",
+      "evidence_class": "judgment",
+      "file_path": "deploy/gx10-runner/install-units.sh",
+      "existing_code": "# Usage: install-units.sh [--prefix DIR]",
+      "line_range": {
+        "start": 4,
+        "end": 4
+      },
+      "line_resolution": "hunk_new"
+    }
+  ]
+}

@@ -283,6 +283,18 @@ TELEGRAM_BOT_TOKEN=...                   # Optional: Telegram Bot API token
 TELEGRAM_CHAT_ID=...                     # Optional: Telegram chat to notify
 WEBHOOK_URL=https://ntfy.sh/my-topic     # Optional: generic webhook endpoint
 WATCHDOG_INTERVAL_SECONDS=60             # Watchdog check frequency (default 60)
+
+# Adaptive model routing
+ROUTING_ADAPTIVE=off                     # CLIENT side: on/true/1/yes delegates phase model resolution
+                                         # to POST /routing/select_model; unset/off = static tiers
+ROUTING_ADAPTIVE_TIMEOUT_SECONDS=2       # CLIENT side: bound on the router call (max 2); timeout = static
+ROUTING_INCUMBENT_MARGIN=0.05            # SERVER side: utility lead an evidenced challenger needs over
+                                         # the static incumbent. Evidence = posterior samples >= 1 or a
+                                         # benchmark prior > 0; with none, the static model is kept.
+                                         # Every decision records retention.reason: no-evidence,
+                                         # below-margin, challenger-evidenced-above-margin,
+                                         # incumbent-unresolved, incumbent-infeasible-evidenced-alternative,
+                                         # incumbent-infeasible-no-evidenced-alternative, exploration-evidenced
 ```
 
 ## Current Implementation Status

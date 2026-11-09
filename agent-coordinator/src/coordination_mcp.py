@@ -97,8 +97,13 @@ async def select_model_for_task(
     objective_profile: str | None = None,
     weight_overrides: dict[str, float] | None = None,
     allow_exploration: bool = True,
+    incumbent: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Select a feasible model using the coordinator's adaptive router.
+
+    ``incumbent`` (``{"vendor": <catalog vendor or null>, "model": ...}``) is the
+    caller's static choice; when given, the router keeps it unless an evidenced
+    challenger beats it by ``ROUTING_INCUMBENT_MARGIN``.
 
     This is the MCP mirror of ``POST /routing/select_model``. Direct-DB mode
     and HTTP-proxy mode intentionally share the same request model and service.
@@ -110,6 +115,7 @@ async def select_model_for_task(
             objective_profile=objective_profile,
             weight_overrides=weight_overrides,
             allow_exploration=allow_exploration,
+            incumbent=incumbent,
         )
 
     from pydantic import ValidationError
@@ -128,6 +134,7 @@ async def select_model_for_task(
                 "objective_profile": objective_profile,
                 "weight_overrides": weight_overrides,
                 "allow_exploration": allow_exploration,
+                "incumbent": incumbent,
             }
         )
     except ValidationError as exc:

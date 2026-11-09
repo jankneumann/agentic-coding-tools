@@ -5,36 +5,80 @@
 
 ---
 
-## 2026-09-25 — restructure-openbao-per-agent-secrets
+## 2026-09-25 — 2026-09-25-restructure-openbao-per-agent-secrets
 
 ### Phase: Implementation
 
 **Atomic identity reload** — The coordinator installs only complete key snapshots, preserves a bounded last-good grace, and reports identity readiness separately.
 
 - Status: `active`
-- Source: [openspec/changes/restructure-openbao-per-agent-secrets/session-log.md](/openspec/changes/restructure-openbao-per-agent-secrets/session-log.md) (D3)
+- Source: [openspec/changes/archive/2026-09-25-restructure-openbao-per-agent-secrets/session-log.md](/openspec/changes/archive/2026-09-25-restructure-openbao-per-agent-secrets/session-log.md) (D3)
 
 ---
 
-## 2026-09-24 — restructure-openbao-per-agent-secrets
+## 2026-09-24 — 2026-09-25-restructure-openbao-per-agent-secrets
 
 ### Phase: Plan Handoff
 
 **Use bounded last-known-good identity reload** — The operator approved a 30-second refresh cadence, at most 120 seconds of stale acceptance, audited degradation, then denial of new authentication.
 
 - Status: `active`
-- Source: [openspec/changes/restructure-openbao-per-agent-secrets/session-log.md](/openspec/changes/restructure-openbao-per-agent-secrets/session-log.md) (D1)
+- Source: [openspec/changes/archive/2026-09-25-restructure-openbao-per-agent-secrets/session-log.md](/openspec/changes/archive/2026-09-25-restructure-openbao-per-agent-secrets/session-log.md) (D1)
 
 ---
 
-## 2026-09-24 — restructure-openbao-per-agent-secrets
+## 2026-09-24 — 2026-09-25-restructure-openbao-per-agent-secrets
 
 ### Phase: Plan
 
 **Use bounded identity snapshot reload** — Install complete snapshots atomically every 30 seconds, allow at most 120 seconds of last-known-good authentication, then deny new keys until recovery.
 
 - Status: `active`
-- Source: [openspec/changes/restructure-openbao-per-agent-secrets/session-log.md](/openspec/changes/restructure-openbao-per-agent-secrets/session-log.md) (D3)
+- Source: [openspec/changes/archive/2026-09-25-restructure-openbao-per-agent-secrets/session-log.md](/openspec/changes/archive/2026-09-25-restructure-openbao-per-agent-secrets/session-log.md) (D3)
+
+---
+
+## 2026-09-03 — standardize-port-leases
+
+### Phase: Plan
+
+**Persist leases in Postgres, in-memory remains standalone mode** — A coordinator restart must not forget leases while compose stacks still hold the ports. Write-through to a port_leases table shaped like file_locks; standalone mode unchanged.
+
+- Status: `active`
+- Source: [openspec/changes/standardize-port-leases/session-log.md](/openspec/changes/standardize-port-leases/session-log.md) (D2)
+
+---
+
+## 2026-09-03 — standardize-port-leases
+
+### Phase: Plan
+
+**Leases belong to agent sessions** — cleanup_dead_agents releases leases and reports ports_released; heartbeat refreshes; TTL is only a backstop. One staleness definition, not two clocks.
+
+- Status: `active`
+- Source: [openspec/changes/standardize-port-leases/session-log.md](/openspec/changes/standardize-port-leases/session-log.md) (D3)
+
+---
+
+## 2026-09-03 — standardize-port-leases
+
+### Phase: Plan
+
+**Isolation gate is client-reported and downgrade-only** — The coordinator does not know a session's environment; the client sends isolation_provided from EnvironmentProfile.detect(). Once true it cannot be lowered. Worktree is not isolation for ports.
+
+- Status: `active`
+- Source: [openspec/changes/standardize-port-leases/session-log.md](/openspec/changes/standardize-port-leases/session-log.md) (D4)
+
+---
+
+## 2026-09-03 — standardize-port-leases
+
+### Phase: Plan
+
+**Five-port block with ui_port at offset +4** — Lets the kanban dev server origin be leased and derived into CORS instead of hardcoded 5173.
+
+- Status: `active`
+- Source: [openspec/changes/standardize-port-leases/session-log.md](/openspec/changes/standardize-port-leases/session-log.md) (D5)
 
 ---
 

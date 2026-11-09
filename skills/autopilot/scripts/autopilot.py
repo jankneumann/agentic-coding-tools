@@ -77,7 +77,7 @@ from shared.approval_gate import (  # noqa: E402
 )
 from shared.trust_posture import Gate  # noqa: E402
 
-LOOP_STATE_SCHEMA_VERSION = 5
+LOOP_STATE_SCHEMA_VERSION = 6
 
 
 # ---------------------------------------------------------------------------
@@ -99,6 +99,7 @@ class LoopState:
         5 — adds gate_decisions, pending_gate, goal_gate (trust-posture gates
             and the DONE evidence check; OpenSpec
             encode-autopilot-gates-and-goal-gate-in-code, design D7)
+        6 — adds park and degradations (OpenSpec dispatch-contract, D11)
     """
 
     schema_version: int = LOOP_STATE_SCHEMA_VERSION
@@ -157,6 +158,13 @@ class LoopState:
     gate_decisions: list[dict[str, Any]] = field(default_factory=list)
     pending_gate: dict[str, Any] | None = None
     goal_gate: dict[str, Any] | None = None
+    # NEW (v6, dispatch-contract D11): why a run stopped before reaching a gate
+    # (`permission_blocked` / `capability_unavailable`), and the closed-code
+    # degradations the dispatch result reports. `runner.py park` and
+    # `runner.py record-degradation` are the only writers; `_apply_transition`
+    # refuses while `park` is set.
+    park: dict[str, Any] | None = None
+    degradations: list[dict[str, Any]] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -175,9 +183,10 @@ def load_state(path: str | Path) -> LoopState:
     """Deserialize a LoopState from the JSON file at *path*.
 
     Migrates older snapshots forward (D7): a v4 file loads with
-    ``gate_decisions = []``, ``pending_gate = None`` and ``goal_gate = None``
-    while every field it did carry (``phase_history`` included) is preserved;
-    the migration is persisted on the next ``save_state`` call.
+    ``gate_decisions = []``, ``pending_gate = None`` and ``goal_gate = None``,
+    and a v5 file with ``park = None`` and ``degradations = []``, while every
+    field it did carry (``phase_history`` included) is preserved; the
+    migration is persisted on the next ``save_state`` call.
     """
     data = json.loads(Path(path).read_text())
     state = LoopState(**{k: v for k, v in data.items() if k in LoopState.__dataclass_fields__})
@@ -244,6 +253,10 @@ def _project_saved_state(
 # Transition table
 # ---------------------------------------------------------------------------
 
+# Outcome applied only by an operator-approved escalate_resume carrying
+# resume_at=IMPLEMENT; never returned by a phase handler or phase agent.
+OPERATOR_ACCEPT = "operator_accept"
+
 TRANSITIONS: dict[str, dict[str, str]] = {
     "INIT": {"next": "GATEKEEPER_OR_PLAN"},
     "GATEKEEPER": {
@@ -253,7 +266,17 @@ TRANSITIONS: dict[str, dict[str, str]] = {
     },
     "PLAN": {"exists": "PLAN_ITERATE", "created": "PLAN_ITERATE", "failed": "ESCALATE"},
     "PLAN_ITERATE": {"complete": "PLAN_REVIEW_OR_IMPLEMENT", "failed": "ESCALATE"},
-    "PLAN_REVIEW": {"converged": "IMPLEMENT", "not_converged": "PLAN_FIX", "max_iter": "ESCALATE"},
+    # "operator_accept" exists only for an operator-approved escalate_resume
+    # that names resume_at=IMPLEMENT: the operator accepts a reviewed plan
+    # that did not reach quorum convergence. It is recorded under its own name
+    # so phase_history never claims a convergence that did not happen, and the
+    # runner refuses it on the agent-callable `transition` subcommand.
+    "PLAN_REVIEW": {
+        "converged": "IMPLEMENT",
+        "not_converged": "PLAN_FIX",
+        "max_iter": "ESCALATE",
+        "operator_accept": "IMPLEMENT",
+    },
     "PLAN_FIX": {"fixed": "PLAN_REVIEW", "stuck": "ESCALATE"},
     "IMPLEMENT": {"complete": "IMPL_ITERATE", "failed": "ESCALATE"},
     "IMPL_ITERATE": {"complete": "IMPL_REVIEW_OR_VALIDATE", "failed": "ESCALATE"},
@@ -263,7 +286,17 @@ TRANSITIONS: dict[str, dict[str, str]] = {
     "VAL_REVIEW": {"converged": "SUBMIT_PR", "not_converged": "VAL_FIX", "max_iter": "ESCALATE"},
     "VAL_FIX": {"fixed": "VALIDATE", "stuck": "ESCALATE"},
     "SUBMIT_PR": {"created": "DONE"},
-    "ESCALATE": {"resolved": "_previous_phase", "abandoned": "DONE"},
+    # "revalidate" exists only for an operator-approved escalate_resume that
+    # names resume_at=VALIDATE: evidence the goal gate refused is regenerated
+    # by this run instead of being edited after the fact.
+    # From ESCALATE, "operator_accept" is legal only when the escalation came
+    # out of PLAN_REVIEW (enforced in transition()).
+    "ESCALATE": {
+        "resolved": "_previous_phase",
+        "revalidate": "VALIDATE",
+        "operator_accept": "IMPLEMENT",
+        "abandoned": "DONE",
+    },
 }
 
 
@@ -279,6 +312,11 @@ def transition(state: LoopState, outcome: str) -> str:
     target = table.get(outcome)
     if target is None:
         raise ValueError(f"Invalid outcome {outcome!r} for phase {phase!r}")
+    if outcome == OPERATOR_ACCEPT and phase == "ESCALATE" and state.previous_phase != "PLAN_REVIEW":
+        raise ValueError(
+            "operator_accept from ESCALATE requires previous_phase PLAN_REVIEW, "
+            f"got {state.previous_phase!r}"
+        )
 
     # Dynamic resolution
     if target == "GATEKEEPER_OR_PLAN":
@@ -328,6 +366,19 @@ class GatePending(RuntimeError):
     def __init__(self, gate: str) -> None:
         self.gate = gate
         super().__init__(f"gate {gate!r} is pending; the loop cannot transition")
+
+
+class ParkActive(RuntimeError):
+    """Raised by ``_apply_transition`` while ``state.park`` is set (D11).
+
+    Same enforcement point as :class:`GatePending`: a parked child stopped
+    before reaching a gate and no phase may move until the supervisor's
+    ``escalate_resume`` answer clears the park.
+    """
+
+    def __init__(self, kind: str) -> None:
+        self.kind = kind
+        super().__init__(f"run is parked ({kind!r}); the loop cannot transition")
 
 
 class GoalGateRefused(RuntimeError):
@@ -383,7 +434,28 @@ def _build_gate_evaluator(change_id: str, repo_root: Path) -> GateEvaluator:
     return build_default_gate(
         agent_id=f"autopilot:{change_id}" if change_id else "autopilot",
         repo_root=str(repo_root),
+        marker_reader=launch_marker_reader(change_id, repo_root),
     )
+
+
+def launch_marker_reader(change_id: str, repo_root: Path) -> Callable[[dict[str, Any]], Any]:
+    """The gate's marker seam for this run (D8, D10a): this worktree's launch
+    marker for ``change_id``, read through ``dispatch_contract`` only. The
+    evaluation context plays no part, so no caller can assert a scope.
+
+    A cloud worker never receives the host-local marker; it falls back to the
+    roadmap scope in the checkpoint committed at HEAD, which carries no
+    ``gate_answer`` or ``owner_nonce``."""
+
+    def read(_context: dict[str, Any]) -> Any:
+        from shared import dispatch_contract
+
+        marker = dispatch_contract.read_launch_marker(change_id, repo_root=repo_root)
+        if marker is not None:
+            return marker
+        return dispatch_contract.read_committed_dispatch_scope(change_id, repo_root=repo_root)
+
+    return read
 
 
 def _scalar_context(context: dict[str, Any]) -> dict[str, Any]:
@@ -424,6 +496,10 @@ def build_gate_request(
             "posture_present": decision.posture_present,
         },
     }
+    provenance = decision.provenance or {}
+    if provenance.get("source") == "posture" and provenance.get("posture_digest"):
+        # D5: a standalone gate-check re-evaluates when the posture moved.
+        request["posture"]["posture_digest"] = provenance["posture_digest"]
     if edge is not None:
         request["edge"] = dict(edge)
     return request
@@ -684,6 +760,8 @@ def apply_outcome_or_escalate(
         raw.setdefault("gate_decisions", [])
         raw.setdefault("pending_gate", None)
         raw.setdefault("goal_gate", None)
+        raw.setdefault("park", None)
+        raw.setdefault("degradations", [])
         raw["schema_version"] = LOOP_STATE_SCHEMA_VERSION
         # Retry-safe: an apply-outcome retry while already parked must publish
         # the same generation and retain its original resume target. This
@@ -830,6 +908,7 @@ def _apply_transition(
     status_fn: Callable[[LoopState, str, str, bool], None] | None = None,
     *,
     change_dir: str | Path | None = None,
+    operator_authorized: bool = False,
 ) -> LoopState:
     """Compute and apply the transition, updating bookkeeping fields.
 
@@ -841,12 +920,38 @@ def _apply_transition(
        human question is outstanding.
     2. resolved target is DONE (and the edge is not ESCALATE/abandoned) → the
        goal gate must find its evidence, or ``GoalGateRefused``.
+
+    ``operator_accept`` is refused (``ValueError``) unless the caller passes
+    ``operator_authorized=True``. Only ``runner.py gate-answer`` does, and only
+    for an approved escalate_resume whose recorded answer names
+    resume_at=IMPLEMENT; every agent-reachable path (``transition``,
+    ``apply-outcome``, run_loop) leaves it False.
     """
+    if outcome == OPERATOR_ACCEPT and not operator_authorized:
+        raise ValueError(
+            "operator_accept is applied only by gate-answer for an approved "
+            "escalate_resume with resume_at=IMPLEMENT"
+        )
     if state.pending_gate:
         raise GatePending(str(state.pending_gate.get("gate", "unknown")))
+    if state.park:
+        raise ParkActive(str(state.park.get("kind", "unknown")))
 
     old_phase = state.current_phase
     next_phase = transition(state, outcome)
+    if outcome == OPERATOR_ACCEPT:
+        # No phase handler produced this outcome, so nothing else logs it: the
+        # history must show that the operator, not quorum review, moved the plan on.
+        state.phase_history.append(
+            {"phase": old_phase, "outcome": OPERATOR_ACCEPT, "at": _now_iso()}
+        )
+    if old_phase == "GATEKEEPER" and outcome in _GATEKEEPER_OUTCOMES:
+        # The host-driven path (`runner.py transition`) applies the judge's
+        # verdict here, so its review scheduling must be applied here too —
+        # not only in run_loop's GATEKEEPER handler.
+        state.gate_verdict = outcome
+        if outcome == "proceed_with_review":
+            state.val_review_enabled = True
 
     if next_phase == "DONE":
         _check_done_evidence(state, old_phase, outcome, change_dir)

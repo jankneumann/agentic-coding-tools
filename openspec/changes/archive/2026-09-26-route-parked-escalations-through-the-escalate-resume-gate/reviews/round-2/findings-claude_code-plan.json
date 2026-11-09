@@ -1,0 +1,127 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "critical",
+      "axis": "correctness",
+      "severity": "critical",
+      "disposition": "fix",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/design.md",
+      "line_range": {
+        "start": 17,
+        "end": 19
+      },
+      "description": "Critical: D3 makes the `escalate_resume` subject key generation-scoped, which silently destroys the only human path out of a blocked escalation. `gate_router.answer` resolves its prior record with the same `_subject_key`/`_matches_subject`/`_latest_record_for_subject` helpers `evaluate` uses (gate_router.py:152-180, 571-588), and for every non-`roadmap_approval` gate it raises `GateRefusalError(\"has no parked record to answer\")` when that lookup returns `None` (gate_router.py:585-588; pinned by test_gate_router.py:262-270). The only caller, `cycle_state.py _cmd_gate_answer`, builds its context from `{\"verb\": \"cycle\"}` plus an optional `--dispatch-id` (cycle_state.py:1209-1211) and the parser exposes no generation flag at all (cycle_state.py:1280-1287). Once the key is `(gate, roadmap_id, dispatch_id, lease_generation)`, the console lookup can never reconstruct key[3], so `supervise gate-answer --gate escalate_resume --dispatch-id D --decision approved` is refused for every parked escalation. That is precisely the disposition this change makes reachable at every phase-failure boundary: SKILL.md:238-241 documents `gate-answer` as 'the only way forward' for a terminal block, and SKILL.md:305 documents `block` as waiting on `gate-answer`. Worse, if the operator got a record filed some other way, it would carry no `lease_generation`, so the next `route_parked_escalations` would not match it as prior, would re-evaluate, and would re-file/re-notify \u2014 ignoring the human answer. No task, no spec scenario, and no test in the plan covers `answer()`; D3's claim that 'other gate subject keys remain backward compatible' addresses the wrong gate. Compounding this, `skills/supervise/scripts/cycle_state.py` is absent from wp-escalation-routing's `locks.files` and `scope.write_allow` (work-packages.yaml:36-55), so the implementer is scoped out of the file the fix requires.",
+      "resolution": "Extend D3 to state the full generation-scoped contract, not just the router-internal half: (a) `_correlation_extra` must stamp `lease_generation` on `escalate_resume` records; (b) `answer()` must accept it and, when the console supplies only `--dispatch-id`, resolve the newest blocked `escalate_resume` record for that dispatch and answer *that* generation rather than refusing; (c) add `--lease-generation` to `cycle_state.py gate-answer` and pass it through. Add a spec scenario ('A blocked escalation stays answerable from the console') and a RED test asserting `gate-answer --gate escalate_resume --dispatch-id D` records a console_approved decision for the parked generation and that a following route call reuses it and resumes without re-filing. Add `skills/supervise/scripts/cycle_state.py` to the package's `locks.files` and `scope.write_allow`."
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "critical",
+      "axis": "resilience",
+      "severity": "critical",
+      "disposition": "fix",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/design.md",
+      "line_range": {
+        "start": 9,
+        "end": 11
+      },
+      "description": "Critical: D1's fix for round-1 finding 5 (route from apply's error-cleanup path) collides with D7's fix for round-1 finding 6 (resume increments `lease_generation` and clears `application_journal`), and the combination strands the un-applied members of a partially applied batch. Take the exact case spec.md:53 mandates: a two-member batch where A's `policy_pause` is durably parked and `effects_applied` (orchestrator.py:722-758) and B then raises inside the same loop. Error cleanup routes A; under an `auto` posture `resolve_parked` proceeds and `adapter.resume` sets A to `status=prepared`, `lease_generation=2`, journal cleared (execution.py:889-905 plus the D7 change). B was never applied, so the host must retry `apply` \u2014 and now cannot. `ExecutionAdapter.apply` re-validates every supplied result against its attempt and raises `ValueError(\"lease_generation mismatch\")` for A's generation-1 result (execution.py:927-929), and `apply_delegated_batch` independently requires the result set to equal the *whole* batch's dispatch ids (orchestrator.py:636-638) and re-checks the same field (orchestrator.py:556-558). There is no result for A at generation 2 yet, so the batch is unappliable until A's resumed child completes an entire new Autopilot run \u2014 and if the host instead obeys D6's 'retries only route, never apply', B stays `launched` forever, which puts B's item in `_UNRESOLVED_ATTEMPT_STATUSES` (orchestrator.py:162-169) and permanently excludes it from every future batch (orchestrator.py:247-260). Without the resume this retry works cleanly (A is terminal + `effects_applied`, so the loop hits `continue` at orchestrator.py:722 and the 'already applied' guard at 625-630 does not trip because B is not terminal), so the damage comes entirely from resuming out of the cleanup path. Test-strategy item 4 would not catch it: it pairs the partial-batch case with a routing-error scenario, and a `notify_with_timeout`/blocked posture leaves A parked at generation 1 and passes.",
+      "resolution": "Split routing from resuming when the batch is not fully applied. In D1/D6 and spec.md:53, require `route_parked_escalations` to check whether every member of the named batch is terminal with `application_journal.state == \"effects_applied\"`; when it is not, evaluate and project the gate (so the notification and pending-gate deadline still happen at the failure boundary) but suppress `adapter.resume`, returning `blocked`/`deferred` and leaving the attempt parked at its current generation. The generation-scoped prior-record rule then makes the resume happen on the first route call after a successful apply retry, with no second filing. Add the missing sequencing statement to D6 ('a partial *apply* failure is retried by rerunning apply; only a *routing* failure is retried by rerunning route alone'), and make test-strategy item 4's partial-batch case run under an `auto` posture and assert that the batch re-applies successfully afterwards."
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "high",
+      "axis": "observability",
+      "severity": "critical",
+      "disposition": "fix",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/design.md",
+      "line_range": {
+        "start": 37,
+        "end": 39
+      },
+      "description": "Critical: generation-scoping leaks the previous generation's blocked pending-gate entry into the supervisor mirror and every downstream handoff, permanently. `_project` removes exactly two decision ids from `pending_gates` \u2014 the record it is writing and `prior_decision_id`, the prior record *for the same subject key* (gate_router.py:304-310, 416-418, 437-441). Today, with the key `(gate, roadmap_id, dispatch_id)`, a later escalate_resume decision for the same dispatch always finds the earlier blocked record as its prior and clears its entry. After D3, generation N+1 is a different subject, so `prior` is `None`, `stale_ids` holds only the new decision id, and generation N's blocked entry survives. Nothing else retires it: a PROCEED for a non-`roadmap_approval` gate appends nothing and clears nothing (gate_router.py:313-328), `_clean_pending_gate` preserves entries regardless of an elapsed `deadline` (cycle_state.py:236-273), and `_durable_sections` expires standing decisions but never pending gates (cycle_state.py:390-404). The concrete result contradicts this change's own acceptance surface: a dispatch that blocked at generation 1, was answered/resumed, and then proceeded at generation 2 leaves a stale `escalate_resume` pending gate with an expired deadline in `openspec/supervise/supervisor-record.json`, which D8's mirror-first rehydrate faithfully carries into the next cycle's handoff and digest \u2014 an operator-visible 'needs a decision' item for an escalation that is already resolved, and (given finding 1) one they cannot answer away.",
+      "resolution": "Extend D3/D8 with a retirement rule: when routing records a decision for `escalate_resume` at generation G, `_project`'s `stale_ids` must also include the `decision_id` of every earlier `escalate_resume` record for the same `(roadmap_id, dispatch_id)` at a lower `lease_generation`. Those records are already in `checkpoint.gate_decisions`, so the scan stays inside `gate_router.py` and needs no mirror-schema or `_clean_pending_gate` change. Add an assertion to the second-exhaustion test (task 1.7) that after the generation-2 decision the mirror contains exactly one `escalate_resume` pending entry (or none on proceed), not two."
+    },
+    {
+      "id": 4,
+      "type": "resilience",
+      "criticality": "medium",
+      "axis": "resilience",
+      "severity": "nit",
+      "disposition": "fix",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/design.md",
+      "line_range": {
+        "start": 13,
+        "end": 15
+      },
+      "description": "Nit: D2 and D9 are individually sound but jointly move a multi-minute network wait inside the workspace-wide advisory lock, which the plan never says out loud. D2 requires 'one workspace `_serialized_transition` boundary covering candidate re-read, gate evaluation persistence, and optional resume' for the whole batch, and D9 accepts that the batch cost is the sum of the per-attempt `notify_with_timeout` windows. `_state_lock` is a single per-workspace `flock` shared by `prepare`, `child_start`, `heartbeat_waiting`, `acknowledge`, `enter`, `reconcile`, `resume`, and `apply` (execution.py:116-141), so for the full sum of those windows no other adapter operation on that roadmap can run \u2014 including the second concurrent router the plan's own concurrency scenario (spec.md:36-40) contemplates, and any `prepare`/`reconcile` from another supervise session. Today the coordinator poll happens outside any lock (the host calls `resolve_parked` directly per SKILL.md:387-393, and only `resume` takes the lock, briefly), so this is a hold-time regression the change introduces rather than inherits. Task 1.5's timeout-guarded test proves absence of deadlock, not bounded hold time.",
+      "resolution": "Narrow the boundary in D2 to one lock acquisition *per attempt* (re-read, resolve, optional resume), which still admits exactly one decision per subject and one resume, and caps the hold at a single gate window instead of the batch sum. State the residual contract explicitly in D9 and in the SKILL.md text task 3.1 adds: under `notify_with_timeout` or `block`, routing holds the workspace serialization boundary for up to `timeout_seconds` per parked escalation, during which no other durable dispatch operation on that roadmap can proceed."
+    },
+    {
+      "id": 5,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "axis": "observability",
+      "severity": "nit",
+      "disposition": "fix",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/contracts/README.md",
+      "line_range": {
+        "start": 3,
+        "end": 3
+      },
+      "description": "Nit: the response contract is exact about which keys may appear but ambiguous about the one value that now carries decision identity. A `proceed` entry 'may add only `lease_generation`', but D3 has just made the gate decision subject the *parked* generation while `adapter.resume` returns a request stamped with the *incremented* one (execution.py:891, 906). A host that logs the returned `lease_generation` and then looks up the `escalate_resume` gate-decision record for that generation finds nothing, because the record was filed against G and the response reports G+1. The `already_routed` entry carries no generation at all, so a retry after a crash cannot report which generation was authorized \u2014 exactly the correlation the retry scenario (spec.md:55-59) exists to make safe. `blocked` is unambiguous only because the projected `pending_gate` is stripped to the `_clean_pending_gate` allowlist (cycle_state.py:236-273), which has no generation field either.",
+      "resolution": "Pin the semantics in contracts/README.md and D5: state that `lease_generation` on a `proceed` entry is the resumed (post-increment) generation, and add the decision-subject generation to both `proceed` and `already_routed` under a distinct name (e.g. `decided_lease_generation`) so every entry correlates 1:1 with the gate-decision record. Assert the exact key set and both generation values in the guard test (test-strategy item 7)."
+    },
+    {
+      "id": 6,
+      "type": "architecture",
+      "criticality": "medium",
+      "axis": "compatibility",
+      "severity": "nit",
+      "disposition": "fix",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/work-packages.yaml",
+      "line_range": {
+        "start": 36,
+        "end": 98
+      },
+      "description": "Nit: the single package cannot prove the plan it implements. Three of tasks.md's six validation steps have no counterpart in `verification.steps`: 4.3 (Ruff on changed Python), 4.5 (the deterministic context-drift gate against the roadmap base), and 4.6 (scope checking after mirror synchronization) \u2014 and 4.6 is the guard round-1 finding 17 was accepted *on the strength of*, so leaving it out of the machine-checked contract reopens the disposition it closed. `write_allow` also omits `skills/supervise/scripts/cycle_state.py`, which findings 1 and 3 show is on the critical path, and omits any path for a `docs/decisions/` ADR beyond the directory itself (that one is allowed). Finally, `loc_estimate: 320` covers eight RED test groups (tasks 1.1-1.8, including an end-to-end park\u2192route\u2192resume\u2192apply cycle and a concurrency test) plus `execution.py`, `gate_router.py`, and SKILL.md changes in one `complexity: medium` package; the estimate is optimistic enough that a retry_budget of 2 may be consumed by scope, not by defects.",
+      "resolution": "Add `Ruff`, `validate-packages` scope check, and the context-drift gate as `verification.steps` with their own `result_keys`, add `skills/supervise/scripts/cycle_state.py` to `locks.files` and `scope.write_allow`, and raise `loc_estimate` to reflect the eight test groups (or split the TDD tests and the implementation into two sequenced packages under the same lock keys)."
+    },
+    {
+      "id": 7,
+      "type": "correctness",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "none",
+      "disposition": "accept",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/design.md",
+      "line_range": {
+        "start": 33,
+        "end": 39
+      },
+      "description": "Five round-1 dispositions are genuinely closed by the revised plan, verified against the code rather than the disposition table. (a) D7 is exactly right and load-bearing: `resume` today pops `lease`, `launch_evidence`, `launch_gate`, `parked`, `quarantine`, `outcome`, `resolved_at`, `handoff_id` but leaves `application_journal` (execution.py:893-903), and `_bound_application_journal` compares the stored journal's `result` and `result_digest` against the new result (orchestrator.py:522-535), so without the clearing D7 mandates the resumed generation would raise 'bound dispatch result mismatch' on its first apply; with it, `journal is None` takes the fresh-bind branch (orchestrator.py:676-680). (b) D2's private already-locked resume helper is the correct shape: `_state_lock` re-opens a new descriptor on every entry (execution.py:116-131) and flock is held per open file description, so a decorated route calling the decorated public `resume` through `resolve_parked` (gate_router.py:654-658) would self-deadlock. (c) D2's 'never save the scan-time checkpoint, re-read before each resolution' is necessary and sufficient: `gate_router.evaluate` and `resume` each load and rewrite the whole checkpoint independently, so a retained scan object would clobber the gate-decision record routing just wrote. (d) D4's exclusions are structural: filtering on `status == \"parked\"` plus `parked.kind == \"policy_pause\"` cannot reach a `pending_gate`, a `failed`, or a `quarantined` attempt, and `resume` refuses quarantine outright (execution.py:871-872). (e) D5's fixed policy-pause reason closes round-1 finding 12 at the right seam \u2014 `resolve_parked` currently forwards the child's raw `parked.reason` into the evaluation context (gate_router.py:641-647), and that is the only child-authored value on the outbound path. Independently, the plan's retry-safety argument has a second, pre-existing guarantee behind it: the application journal already makes `dispatch_fn` at-most-once per generation (orchestrator.py:682-695, 722-723).",
+      "resolution": "No change required. Consider citing (a)'s `_bound_application_journal` trace directly in D7 so the implementer knows the clearing is required for correctness, not tidiness."
+    },
+    {
+      "id": 8,
+      "type": "observability",
+      "criticality": "low",
+      "axis": "compatibility",
+      "severity": "fyi",
+      "disposition": "accept",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/contracts/README.md",
+      "line_range": {
+        "start": 3,
+        "end": 3
+      },
+      "description": "FYI: 'This change adds no new wire, database, or event schema' is literally true only because `gate-decision.schema.json` sets `additionalProperties: true` (openspec/schemas/gate-decision.schema.json:7). D3's `lease_generation` correlation will therefore validate while being the one correlation field on an `escalate_resume` record that the schema does not describe \u2014 unlike `dispatch_id`, `item_id`, `roadmap_fingerprint`, and `timeout_seconds`, each of which is documented with the reason it exists (lines 128-158). Downstream readers of the audit trail (`gate_router.gate_log`, the `gate-log` subcommand) have no way to learn the field is meaningful. The supervisor-record side needs no work: `escalate_resume` is already in the `gate` enum of both supervisor-record.schema.json and supervisor-record-mirror.schema.json, and `_clean_pending_gate` preserves `deadline`, `disposition`, `approval_id`, and `decision_id` (cycle_state.py:251-273).",
+      "resolution": "Add an optional `lease_generation` property to gate-decision.schema.json with a one-line description ('the parked dispatch generation this escalate_resume decision authorizes; absent on every other gate'), and note in contracts/README.md that this is a documentation-only addition to an open schema."
+    }
+  ]
+}

@@ -1,0 +1,305 @@
+{
+  "schema_version": 1,
+  "review_type": "plan",
+  "target": "add-model-usage-ledger",
+  "reviewers": [
+    {
+      "vendor": "antigravity",
+      "agent_id": "antigravity",
+      "success": true,
+      "findings_count": 7,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "grok",
+      "agent_id": "grok",
+      "success": true,
+      "findings_count": 15,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": true,
+  "quorum_requested": 2,
+  "quorum_received": 2,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "confirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 3,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 1
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "security",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "fix",
+      "description": "All /usage/* GET routes were updated to require API keys and principal scoping in openapi/v1.yaml. However, specs/usage-accounting/spec.md (lines 202-207) and specs/agent-coordinator/spec.md (lines 29-32) still describe GET /usage/summary, GET /usage/by-phase, GET /usage/by-model, GET /usage/mismatches, and GET /usage/events as unauthenticated GET routes, contradicting openapi/v1.yaml."
+    },
+    {
+      "id": 2,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "accept",
+      "description": "Critical: The session_overhead fix is specified in usage-accounting (orchestrator agent_id=null usage MUST appear under a distinct session_overhead bucket; per-phase rows + session_overhead MUST equal /usage/summary) but OpenAPI GET /usage/by-phase only returns { rows: PhaseUsageRow[] }. PhaseUsageRow requires dispatch_id/intended_model/mismatch flags and cannot represent that bucket, so the field the spec requires has no response schema that can supply it \u2014 and generated clients cannot consume it."
+    },
+    {
+      "id": 3,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "The session_overhead bucket was introduced to report orchestrator-session usage in GET /usage/by-phase. However, PhaseUsageRow in openapi/v1.yaml requires dispatch_id and intended_model as non-nullable string fields. Because session_overhead represents usage not associated with any phase dispatch, it has no dispatch_id or intended_model. Emitting null or omitting these fields for session_overhead violates the PhaseUsageRow schema in OpenAPI and generated types."
+    },
+    {
+      "id": 4,
+      "status": "confirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 2,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 7
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "high",
+      "recommended_disposition": "fix",
+      "description": "POST /usage/dispatch requestBody in openapi/v1.yaml references DispatchRecordPatch only instead of supporting initial creation (oneOf: [DispatchRecordCreate, DispatchRecordPatch]). Furthermore, DispatchRecordCreate omits dispatched_at required by contracts/events/dispatch-record.schema.json, and DispatchRecord inherits DispatchRecordPatch, omitting change_id, phase, intended_model, and session_id from its required properties."
+    },
+    {
+      "id": 5,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Critical: DispatchRecordUpsert was split into DispatchRecordCreate and DispatchRecordPatch, but POST /usage/dispatch still declares requestBody schema DispatchRecordPatch only. DispatchRecordCreate is unused. A create body of {\"dispatch_id\":\"d1\"} validates against the wire contract yet cannot satisfy DB NOT NULL columns (change_id, phase, intended_model, session_id) or the event schema's stored-row required set \u2014 the split's whole point is not enforced on the route."
+    },
+    {
+      "id": 6,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Critical: The record_kind fix is wired to the wrong producer. Task 4.4a sets state_only for INIT/SUBMIT_PR inside build_phase_dispatch_kwargs, but those phases (and PLAN) go through record_state_only_archetype / runner record-state-only-archetype and never call build_phase_dispatch_kwargs. skill-workflow requires state-only phases to write a dispatch record with record_kind=state_only, yet no task updates record_state_only_archetype to POST that record. Result: either state-only rows are never written, or they are only written if someone mistakenly routes them through the dispatch helper \u2014 and PLAN is state_only in skill-workflow but omitted from task 4.4a / DB comments / the mismatches scenario (INIT+SUBMIT_PR only)."
+    },
+    {
+      "id": 7,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Critical: After the non-Claude agent_id fix, the (session_id, agent_id) join still cannot be satisfied from the stated producers. D2/spec join on (session_id, agent_id); dispatch.session_id is the orchestrator session; sidechain discovery only requires stamping agent_id and parent_session_id (not forcing usage.session_id = parent/orchestrator); non-Claude usage naturally uses the vendor session as session_id while agent_id is also set to that vendor session id. Nothing requires usage.session_id == dispatch.session_id, so Claude sidechains and all non-Claude vendors remain systematically unattributed despite the agent_id patch."
+    },
+    {
+      "id": 8,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Critical: Task 4.4c (exclude record_kind=state_only from /usage/mismatches, plus the zero-mismatch test) lives under Phase 4 / wp-dispatch, but the behavior is implemented in coordinator usage_ledger query code. wp-dispatch write scope denies agent-coordinator/src/**, so the package cannot legally implement or verify the exclusion it owns."
+    },
+    {
+      "id": 9,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Task 4.4b in tasks.md explicitly requires modifying skills/shared/provider_dispatch.py to thread sub-agent IDs on the return path. However, wp-dispatch scope.write_allow in work-packages.yaml omits skills/shared/**, causing isolated worktrees or scope validators to reject modifications to skills/shared/provider_dispatch.py."
+    },
+    {
+      "id": 10,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "contracts/generated/models.py retains the obsolete DispatchRecordUpsert model and lacks DispatchRecordCreate and DispatchRecordPatch defined in openapi/v1.yaml. Task 1.4 requires regenerating models.py from OpenAPI, but the checked-in stub in generated/models.py is stale."
+    },
+    {
+      "id": 11,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "observability",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "contracts/db/schema.sql specifies a 30-day retention purge for usage_ingest_state cursor rows. However, specs/agent-coordinator/spec.md and Task 3.10 only specify purging transcript_events and omit the usage_ingest_state retention requirement."
+    },
+    {
+      "id": 12,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "TokenTotals in openapi/v1.yaml mandates non-nullable pricing_version: string. In db/schema.sql, ck_usage_cost_provenance allows cost_usd and pricing_version to be NULL when unpriced. Requiring pricing_version to be a non-null string in TokenTotals causes validation failures when returning unpriced aggregate totals."
+    },
+    {
+      "id": 13,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 8,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "security",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: Principal server-derivation was marked readOnly on OpenAPI UsageRecord, but contracts/events/usage-record.schema.json still lists principal as a normal client-supplied property (additionalProperties:false inventory), and generated/models.py still accepts principal on ingest. Collectors following the event schema will keep sending a field the server must ignore/overwrite, and the three contracts disagree on who owns the value."
+    },
+    {
+      "id": 14,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 9,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: usage-accounting requires each usage record to carry host, the event schema and DB column include host, and the cloud-parity scenario asserts host on stored records \u2014 but OpenAPI UsageRecord has no host property (host exists only on IngestBatch). The producer contract that must supply per-row host cannot do so through the OpenAPI ingest item schema, and no requirement says the server copies batch.host onto each row."
+    },
+    {
+      "id": 15,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 10,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "security",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: OpenAPI states reads are principal-scoped unless the caller's profile grants cross-principal visibility, but no delta spec defines that grant, which profile operation enables it, or a test scenario. agent-metrics --usage also has no requirement to present the API key now required by every GET /usage/* route, so the report package can implement against an auth model the contracts no longer allow."
+    },
+    {
+      "id": 16,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 11,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: db/schema.sql documents that the retention job SHALL purge usage_ingest_state rows older than USAGE_INGEST_STATE_RETENTION_DAYS (default 30), but usage-accounting, agent-coordinator, design D6, and tasks 3.9/3.10 only require purging transcript_events. Cloud ephemeral hosts will accumulate orphan cursor rows with no implementing requirement."
+    },
+    {
+      "id": 17,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 12,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Nit: OpenAPI DispatchRecord (response) is allOf DispatchRecordPatch + timestamps, so it omits record_kind; the event schema and DB both persist record_kind. Clients reading POST /usage/dispatch responses cannot observe the field that mismatch accounting depends on. OpenAPI phase is also an unconstrained string while the event schema enums NON_TERMINAL_PHASES."
+    },
+    {
+      "id": 18,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 13,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Nit: agent-coordinator migration scenario still says \"GIVEN a coordinator database at migration 034\" then \"migration 037 SHALL apply\", left stale by the 035\u2192037 renumber after 035 landed. Current tree already has 035_audit_log_delegated_from.sql, so the scenario's baseline is wrong."
+    },
+    {
+      "id": 19,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 14,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "style",
+      "agreed_axis": "readability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Optional: dispatch-record.schema.json record_kind description refers to \"'judge' records that run in-process\" as needing exclusion, but the enum is only dispatched|state_only and skill-workflow/GATEKEEPER treat the gatekeeper as a real sub-agent dispatch. The prose invents a third kind the schema cannot represent."
+    },
+    {
+      "id": 20,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 15,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The Create/Patch split, server-side record_hash recompute, estimated IS TRUE provenance check, and NON_TERMINAL_PHASES-aligned phase enum are coherent load-bearing fixes when taken in isolation \u2014 the residual risk is incomplete propagation into specs, route wiring, tasks, and join-key producers rather than the design intent of those fixes themselves."
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 20,
+    "confirmed_count": 2,
+    "unconfirmed_count": 18,
+    "disagreement_count": 0,
+    "blocking_count": 2
+  }
+}

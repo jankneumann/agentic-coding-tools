@@ -1,0 +1,610 @@
+{
+  "schema_version": 2,
+  "change_id": "multiplayer-simulation-harness",
+  "round": 1,
+  "body_path": "review-packet.md",
+  "sha256": "227b38b6e41ba261f392a418d7adc8f4134cbf89fd7a6f0fb3defd71ae32aa50",
+  "char_length": 216946,
+  "budget_chars": 320000,
+  "tools_overflow": false,
+  "includes_ledger": true,
+  "diff_kind": "full",
+  "selection": {
+    "per_file_token_ceiling": 64000,
+    "selected": [
+      {
+        "path": ".github/workflows/ci.yml",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 113
+      },
+      {
+        "path": "openspec/changes/multiplayer-simulation-harness/design.md",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 919
+      },
+      {
+        "path": "openspec/changes/multiplayer-simulation-harness/loop-state.json",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1534
+      },
+      {
+        "path": "openspec/changes/multiplayer-simulation-harness/session-log.md",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 972
+      },
+      {
+        "path": "openspec/changes/multiplayer-simulation-harness/tasks.md",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 3095
+      },
+      {
+        "path": "openspec/contracts/README.md",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 274
+      },
+      {
+        "path": "openspec/contracts/multiplayer-simulation/cli/mpsim.yaml",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1202
+      },
+      {
+        "path": "openspec/contracts/multiplayer-simulation/schemas/sim-report.schema.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1612
+      },
+      {
+        "path": "skills/autopilot/scripts/convergence_loop.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 780
+      },
+      {
+        "path": "skills/pyproject.toml",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 230
+      },
+      {
+        "path": "skills/tests/autopilot/test_convergence_loop.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1154
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/README.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1177
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/bin/mpsim",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 131
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/conftest.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 538
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/evaluation/descriptor.yaml",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 991
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/evaluation/scenarios/blocked.yaml",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 927
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/evaluation/scenarios/collision.yaml",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 651
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/evaluation/scenarios/usage.yaml",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1038
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/fixtures/different-requirement-control/principals/alice/plan/openspec/changes/sim-alice-notes/proposal.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 164
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/fixtures/different-requirement-control/principals/alice/plan/openspec/changes/sim-alice-notes/specs/sim-notes/spec.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 207
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/fixtures/different-requirement-control/principals/bob/plan/openspec/changes/sim-bob-notes/proposal.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 160
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/fixtures/different-requirement-control/principals/bob/plan/openspec/changes/sim-bob-notes/specs/sim-notes/spec.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 203
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/fixtures/different-requirement-control/scenario.yaml",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 187
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/fixtures/different-requirement-control/seed/openspec/specs/sim-notes/spec.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 255
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/fixtures/independent-principals-control/principals/retrieval-owner/plan/openspec/changes/sim-retrieval-api/proposal.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 157
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/fixtures/independent-principals-control/principals/storage-owner/plan/openspec/changes/sim-memory-store-core/proposal.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 159
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/fixtures/independent-principals-control/scenario.yaml",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 360
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/fixtures/independent-principals-control/seed/proposal.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 104
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/fixtures/independent-principals-control/seed/roadmap.yaml",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 202
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/fixtures/memory-store-blocked-dependency/principals/retrieval-owner/plan/openspec/changes/sim-retrieval-api/proposal.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 158
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/fixtures/memory-store-blocked-dependency/principals/storage-owner/plan/openspec/changes/sim-memory-store-core/proposal.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 160
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/fixtures/memory-store-blocked-dependency/scenario.yaml",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 361
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/fixtures/memory-store-blocked-dependency/seed/proposal.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 105
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/fixtures/memory-store-blocked-dependency/seed/roadmap.yaml",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 205
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/fixtures/same-requirement-collision/principals/alice/plan/openspec/changes/sim-alice-notes/proposal.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 161
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/fixtures/same-requirement-collision/principals/alice/plan/openspec/changes/sim-alice-notes/specs/sim-notes/spec.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 205
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/fixtures/same-requirement-collision/principals/bob/plan/openspec/changes/sim-bob-notes/proposal.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 157
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/fixtures/same-requirement-collision/principals/bob/plan/openspec/changes/sim-bob-notes/specs/sim-notes/spec.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 201
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/fixtures/same-requirement-collision/scenario.yaml",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 184
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/fixtures/same-requirement-collision/seed/openspec/specs/sim-notes/spec.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 252
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/mpsim/__init__.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 85
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/mpsim/__main__.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 614
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/mpsim/agents.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 667
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/mpsim/applier.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 615
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/mpsim/clock.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 176
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/mpsim/errors.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 130
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/mpsim/fixture.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1029
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/mpsim/model.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 503
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/mpsim/oracle.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 354
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/mpsim/paths.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 167
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/mpsim/probes/__init__.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1177
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/mpsim/report.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 590
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/mpsim/runner.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 799
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/mpsim/scenarios/__init__.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 323
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/mpsim/scenarios/blocked.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1995
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/mpsim/scenarios/collision.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1053
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/mpsim/world.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 2159
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/test_agents.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1398
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/test_archive_stability.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 645
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/test_blocked_scenarios.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1598
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/test_cli.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1688
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/test_collision_scenarios.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 967
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/test_contracts.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 976
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/test_descriptor_drift.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 392
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/test_gen_eval_pack.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1089
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/test_oracle.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 500
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/test_probes.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1387
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/test_report.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 827
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/test_scaffold.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 481
+      },
+      {
+        "path": "skills/tests/multiplayer-simulation/test_world.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1666
+      }
+    ],
+    "excluded": [
+      {
+        "path": "skills/uv.lock",
+        "status": "modified",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 23771
+      }
+    ],
+    "truncated": []
+  },
+  "rule_groups": [
+    {
+      "group_id": 1,
+      "source": "default",
+      "pattern": "(default)",
+      "files": [
+        ".github/workflows/ci.yml",
+        "openspec/changes/multiplayer-simulation-harness/design.md",
+        "openspec/changes/multiplayer-simulation-harness/loop-state.json",
+        "openspec/changes/multiplayer-simulation-harness/session-log.md",
+        "openspec/changes/multiplayer-simulation-harness/tasks.md",
+        "openspec/contracts/README.md",
+        "openspec/contracts/multiplayer-simulation/cli/mpsim.yaml",
+        "openspec/contracts/multiplayer-simulation/schemas/sim-report.schema.json",
+        "skills/pyproject.toml"
+      ]
+    },
+    {
+      "group_id": 2,
+      "source": "default",
+      "pattern": "skills/*/scripts/*.py",
+      "files": [
+        "skills/autopilot/scripts/convergence_loop.py"
+      ]
+    },
+    {
+      "group_id": 3,
+      "source": "default",
+      "pattern": "skills/tests/**",
+      "files": [
+        "skills/tests/autopilot/test_convergence_loop.py",
+        "skills/tests/multiplayer-simulation/README.md",
+        "skills/tests/multiplayer-simulation/bin/mpsim",
+        "skills/tests/multiplayer-simulation/conftest.py",
+        "skills/tests/multiplayer-simulation/evaluation/descriptor.yaml",
+        "skills/tests/multiplayer-simulation/evaluation/scenarios/blocked.yaml",
+        "skills/tests/multiplayer-simulation/evaluation/scenarios/collision.yaml",
+        "skills/tests/multiplayer-simulation/evaluation/scenarios/usage.yaml",
+        "skills/tests/multiplayer-simulation/fixtures/different-requirement-control/principals/alice/plan/openspec/changes/sim-alice-notes/proposal.md",
+        "skills/tests/multiplayer-simulation/fixtures/different-requirement-control/principals/alice/plan/openspec/changes/sim-alice-notes/specs/sim-notes/spec.md",
+        "skills/tests/multiplayer-simulation/fixtures/different-requirement-control/principals/bob/plan/openspec/changes/sim-bob-notes/proposal.md",
+        "skills/tests/multiplayer-simulation/fixtures/different-requirement-control/principals/bob/plan/openspec/changes/sim-bob-notes/specs/sim-notes/spec.md",
+        "skills/tests/multiplayer-simulation/fixtures/different-requirement-control/scenario.yaml",
+        "skills/tests/multiplayer-simulation/fixtures/different-requirement-control/seed/openspec/specs/sim-notes/spec.md",
+        "skills/tests/multiplayer-simulation/fixtures/independent-principals-control/principals/retrieval-owner/plan/openspec/changes/sim-retrieval-api/proposal.md",
+        "skills/tests/multiplayer-simulation/fixtures/independent-principals-control/principals/storage-owner/plan/openspec/changes/sim-memory-store-core/proposal.md",
+        "skills/tests/multiplayer-simulation/fixtures/independent-principals-control/scenario.yaml",
+        "skills/tests/multiplayer-simulation/fixtures/independent-principals-control/seed/proposal.md",
+        "skills/tests/multiplayer-simulation/fixtures/independent-principals-control/seed/roadmap.yaml",
+        "skills/tests/multiplayer-simulation/fixtures/memory-store-blocked-dependency/principals/retrieval-owner/plan/openspec/changes/sim-retrieval-api/proposal.md",
+        "skills/tests/multiplayer-simulation/fixtures/memory-store-blocked-dependency/principals/storage-owner/plan/openspec/changes/sim-memory-store-core/proposal.md",
+        "skills/tests/multiplayer-simulation/fixtures/memory-store-blocked-dependency/scenario.yaml",
+        "skills/tests/multiplayer-simulation/fixtures/memory-store-blocked-dependency/seed/proposal.md",
+        "skills/tests/multiplayer-simulation/fixtures/memory-store-blocked-dependency/seed/roadmap.yaml",
+        "skills/tests/multiplayer-simulation/fixtures/same-requirement-collision/principals/alice/plan/openspec/changes/sim-alice-notes/proposal.md",
+        "skills/tests/multiplayer-simulation/fixtures/same-requirement-collision/principals/alice/plan/openspec/changes/sim-alice-notes/specs/sim-notes/spec.md",
+        "skills/tests/multiplayer-simulation/fixtures/same-requirement-collision/principals/bob/plan/openspec/changes/sim-bob-notes/proposal.md",
+        "skills/tests/multiplayer-simulation/fixtures/same-requirement-collision/principals/bob/plan/openspec/changes/sim-bob-notes/specs/sim-notes/spec.md",
+        "skills/tests/multiplayer-simulation/fixtures/same-requirement-collision/scenario.yaml",
+        "skills/tests/multiplayer-simulation/fixtures/same-requirement-collision/seed/openspec/specs/sim-notes/spec.md",
+        "skills/tests/multiplayer-simulation/mpsim/__init__.py",
+        "skills/tests/multiplayer-simulation/mpsim/__main__.py",
+        "skills/tests/multiplayer-simulation/mpsim/agents.py",
+        "skills/tests/multiplayer-simulation/mpsim/applier.py",
+        "skills/tests/multiplayer-simulation/mpsim/clock.py",
+        "skills/tests/multiplayer-simulation/mpsim/errors.py",
+        "skills/tests/multiplayer-simulation/mpsim/fixture.py",
+        "skills/tests/multiplayer-simulation/mpsim/model.py",
+        "skills/tests/multiplayer-simulation/mpsim/oracle.py",
+        "skills/tests/multiplayer-simulation/mpsim/paths.py",
+        "skills/tests/multiplayer-simulation/mpsim/probes/__init__.py",
+        "skills/tests/multiplayer-simulation/mpsim/report.py",
+        "skills/tests/multiplayer-simulation/mpsim/runner.py",
+        "skills/tests/multiplayer-simulation/mpsim/scenarios/__init__.py",
+        "skills/tests/multiplayer-simulation/mpsim/scenarios/blocked.py",
+        "skills/tests/multiplayer-simulation/mpsim/scenarios/collision.py",
+        "skills/tests/multiplayer-simulation/mpsim/world.py",
+        "skills/tests/multiplayer-simulation/test_agents.py",
+        "skills/tests/multiplayer-simulation/test_archive_stability.py",
+        "skills/tests/multiplayer-simulation/test_blocked_scenarios.py",
+        "skills/tests/multiplayer-simulation/test_cli.py",
+        "skills/tests/multiplayer-simulation/test_collision_scenarios.py",
+        "skills/tests/multiplayer-simulation/test_contracts.py",
+        "skills/tests/multiplayer-simulation/test_descriptor_drift.py",
+        "skills/tests/multiplayer-simulation/test_gen_eval_pack.py",
+        "skills/tests/multiplayer-simulation/test_oracle.py",
+        "skills/tests/multiplayer-simulation/test_probes.py",
+        "skills/tests/multiplayer-simulation/test_report.py",
+        "skills/tests/multiplayer-simulation/test_scaffold.py",
+        "skills/tests/multiplayer-simulation/test_world.py"
+      ]
+    }
+  ]
+}

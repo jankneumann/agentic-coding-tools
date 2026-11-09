@@ -1,0 +1,37 @@
+{
+ "phase": "VAL_REVIEW",
+ "pass": 2,
+ "round": 1,
+ "adjudicator": "orchestrator (claude_code VAL_REVIEW sub-agent)",
+ "at": "2026-10-11T04:44:12.095144+00:00",
+ "decisions": [
+  {
+   "id": 115,
+   "vendor": "codex",
+   "criticality": "high",
+   "verdict": "valid contract mismatch; severity overstated (gate_logic requires Smoke Tests/E2E Tests only for deployable surfaces, and this change is non-deployable, so neither the goal gate nor DONE was blocked)",
+   "action": "fixed",
+   "rationale": "Headings renamed to the canonical `## Smoke Tests` / `## E2E Tests`; gate_logic.check_phase_status now reads not_applicable for both."
+  },
+  {
+   "id": 116,
+   "vendor": "codex",
+   "criticality": "medium",
+   "verdict": "valid per validate-feature SKILL (no deployable surface => Security not applicable)",
+   "action": "fixed",
+   "rationale": "Security recorded as not applicable; missing scanners kept as context, explicitly not a pass."
+  }
+ ],
+ "also_fixed": [
+  113
+ ],
+ "confirmed_by_vendor": {
+  "106": "mint single time budget re-verified (claude_code)",
+  "107": "isolation unit + user@ Requires drop-in re-verified (claude_code)",
+  "104": "unlabelled-job placement check re-verified (claude_code, as 112)",
+  "114": "report honesty: O1-O12 pending-operator, never passes (claude_code)"
+ },
+ "notes": {
+  "102": "report now states the 'unrelated' classification is inferred from the isolation control, not proven against a main baseline"
+ }
+}

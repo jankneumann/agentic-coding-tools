@@ -77,3 +77,35 @@ def choose(
         idx = r.randrange(1, len(ranked))
         return Selection(ranked[idx], True, "explore:epsilon")
     return Selection(top, False, "exploit:epsilon")
+
+
+def choose_evidenced(
+    base: ScoredCandidate,
+    ranked: list[ScoredCandidate],
+    *,
+    allow_exploration: bool = True,
+    premium_ineligible: bool = False,
+    budget: ExplorationBudget | None = None,
+    epsilon: float = DEFAULT_EPSILON,
+    rng: random.Random | None = None,
+) -> Selection:
+    """Explore only among evidenced candidates, anchored on the retained ``base``.
+
+    Used when the caller supplied an incumbent: ``base`` is the retention outcome
+    and stays the exploit choice. Unevidenced candidates are never explored, and
+    with fewer than two evidenced candidates exploration does not fire at all, so
+    an empty catalog cannot produce a random pick. ``choose`` itself is unchanged.
+    """
+    others = [c for c in ranked if c.evidenced and c != base]
+    if len(others) + (1 if base.evidenced else 0) < 2:
+        return Selection(base, False, "exploit:insufficient-evidence")
+    selection = choose(
+        [base, *others],
+        allow_exploration=allow_exploration,
+        premium_ineligible=premium_ineligible,
+        budget=budget,
+        epsilon=epsilon,
+        rng=rng,
+    )
+    assert selection is not None  # the pool always contains base
+    return selection

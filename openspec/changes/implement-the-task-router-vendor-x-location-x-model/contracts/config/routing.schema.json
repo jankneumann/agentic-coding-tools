@@ -23,6 +23,7 @@
       "type": "array",
       "items": {"$ref": "#/$defs/rule"}
     },
+    "cost_policy": {"$ref": "#/$defs/costPolicy"},
     "fallback": {
       "type": "object",
       "additionalProperties": false,
@@ -53,6 +54,36 @@
     "location": {"type": "string", "enum": ["local", "cloud", "unknown"]},
     "isolation": {"type": "string", "enum": ["none", "worktree", "sandbox"]},
     "dispatchMode": {"type": "string", "enum": ["review", "alternative", "quick", "sdk"]},
+    "costPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tiers"],
+      "properties": {
+        "tiers": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "prefixItems": [
+            {"$ref": "#/$defs/localSubscriptionTier"},
+            {"$ref": "#/$defs/cloudSubscriptionTier"},
+            {"$ref": "#/$defs/meteredTier"}
+          ]
+        }
+      }
+    },
+    "localSubscriptionTier": {"$ref": "#/$defs/costTier", "properties": {"id": {"const": "subscription-local"}}},
+    "cloudSubscriptionTier": {"$ref": "#/$defs/costTier", "properties": {"id": {"const": "subscription-cloud"}}},
+    "meteredTier": {"$ref": "#/$defs/costTier", "properties": {"id": {"const": "metered-api"}}},
+    "costTier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "location", "endpoint_kinds"],
+      "properties": {
+        "id": {"enum": ["subscription-local", "subscription-cloud", "metered-api"]},
+        "location": {"$ref": "#/$defs/location"},
+        "endpoint_kinds": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"enum": ["vendor-cli", "vendor-sdk", "openrouter", "local"]}}
+      }
+    },
     "rule": {
       "type": "object",
       "additionalProperties": false,

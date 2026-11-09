@@ -21,7 +21,7 @@ are min-max normalized across the feasible candidate set at scoring time.
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from typing import Any, Literal
 
@@ -134,6 +134,95 @@ class ScoredCandidate:
     posterior_sample_size: float
     stale_catalog: bool = False
     assignment: RoutingAssignment | None = None
+    # Whether the score rests on any evidence at all (``has_evidence``). Not
+    # part of the response payload; retention and exploration read it.
+    evidenced: bool = False
+
+
+@dataclass(frozen=True)
+class IncumbentIdentity:
+    """The caller's static resolution, offered as the incumbent.
+
+    ``vendor`` is the catalog vendor, or None when the caller could not name
+    one; a None vendor never matches a candidate (reason ``incumbent-unresolved``).
+    """
+
+    vendor: str | None
+    model: str
+
+
+@dataclass(frozen=True)
+class RetentionDecision:
+    """Outcome of ``apply_incumbent_retention``.
+
+    ``selected`` is None when the incumbent is kept but has no feasible catalog
+    row to represent it — the caller keeps its static resolution as-is.
+    """
+
+    selected: ScoredCandidate | None
+    retained: bool
+    reason: str
+    margin: float
+    incumbent_score: float | None
+
+
+def has_evidence(cand: CandidateInput) -> bool:
+    """True when a candidate's score rests on data rather than defaults.
+
+    These are exactly the two inputs ``blend_quality`` reads. With neither, the
+    candidate's quality is the 0.0 default and its score says nothing about the
+    model, so it must never displace an incumbent.
+    """
+    return cand.posterior.sample_size >= 1 or cand.benchmark_prior > 0
+
+
+def apply_incumbent_retention(
+    ranked: Sequence[ScoredCandidate],
+    excluded_identities: Iterable[tuple[str, str]],
+    incumbent: IncumbentIdentity,
+    margin: float,
+) -> RetentionDecision:
+    """Keep the incumbent unless an evidenced challenger beats it by ``margin``.
+
+    ``ranked`` is ``score_and_rank`` output (best first); ``excluded_identities``
+    are the ``(vendor, model)`` pairs dropped as infeasible. Identity is exact on
+    ``(vendor, model)``; when several rows match, the incumbent's best-scoring row
+    represents it. Ties and sub-margin leads go to the incumbent.
+    """
+    key = (incumbent.vendor, incumbent.model)
+    challengers = [
+        c for c in ranked if (c.vendor, c.model) != key and c.evidenced
+    ]
+    best_challenger = challengers[0] if challengers else None
+    matches = [c for c in ranked if (c.vendor, c.model) == key]
+
+    if matches:
+        held = max(matches, key=lambda c: c.score)
+        if best_challenger is None:
+            return RetentionDecision(held, True, "no-evidence", margin, held.score)
+        if best_challenger.score - held.score > margin:
+            return RetentionDecision(
+                best_challenger,
+                False,
+                "challenger-evidenced-above-margin",
+                margin,
+                held.score,
+            )
+        return RetentionDecision(held, True, "below-margin", margin, held.score)
+
+    if incumbent.vendor is not None and key in set(excluded_identities):
+        if best_challenger is not None:
+            return RetentionDecision(
+                best_challenger,
+                False,
+                "incumbent-infeasible-evidenced-alternative",
+                margin,
+                None,
+            )
+        return RetentionDecision(
+            None, True, "incumbent-infeasible-no-evidenced-alternative", margin, None
+        )
+    return RetentionDecision(None, True, "incumbent-unresolved", margin, None)
 
 
 def build_feasible_assignments(
@@ -483,6 +572,7 @@ def score_and_rank(
                 posterior_sample_size=c.posterior.sample_size,
                 stale_catalog=c.stale_catalog,
                 assignment=c.assignment,
+                evidenced=has_evidence(c),
             )
         )
     if any(item.assignment is not None for item in scored):

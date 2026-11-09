@@ -1,0 +1,111 @@
+# The list command and the usage-error surface (design D8, exit code 64).
+#
+# Each flag scenario fails if the flag is removed from its args: without it the
+# command exits 0 (or, for --fixture-dir, a different outcome), so the flag is
+# exercised rather than merely parsed.
+
+- id: list-prints-the-four-scenarios
+  name: mpsim list prints the built-in scenario ids, sorted
+  description: >
+    The list command is the discovery surface; its output must name every built-in
+    scenario so a consumer can enumerate them without reading the source.
+  category: usage
+  priority: 2
+  interfaces: ["cli:list"]
+  tags: [list, multiplayer-simulation]
+  steps:
+    - id: list
+      transport: cli
+      command: list
+      expect:
+        exit_code: 0
+        body:
+          result:
+            - different-requirement-control
+            - independent-principals-control
+            - memory-store-blocked-dependency
+            - same-requirement-collision
+      timeout_seconds: 60
+
+- id: unknown-probe-is-a-usage-error
+  name: --probe with an unregistered id exits 64
+  description: >
+    Without --probe the same command exits 0, so the flag is what produces the
+    usage error.
+  category: usage
+  priority: 2
+  interfaces: ["cli:--probe"]
+  tags: [flags, usage-errors, multiplayer-simulation]
+  steps:
+    - id: unknown-probe
+      transport: cli
+      command: run
+      args: ["--scenario", "same-requirement-collision", "--probe", "does-not-exist"]
+      expect:
+        exit_code: 64
+        error_contains: "does-not-exist"
+      timeout_seconds: 60
+
+- id: tick-budget-below-one-is-a-usage-error
+  name: --tick-budget 0 exits 64
+  description: >
+    A budget below 1 is a semantic usage error (EX_USAGE), not an argparse error, so
+    it exits 64 rather than 2 and names the flag on stderr.
+  category: usage
+  priority: 2
+  interfaces: ["cli:--tick-budget"]
+  tags: [flags, usage-errors, multiplayer-simulation]
+  steps:
+    - id: zero-budget
+      transport: cli
+      command: run
+      args: ["--scenario", "memory-store-blocked-dependency", "--tick-budget", "0"]
+      expect:
+        exit_code: 64
+        error_contains: "tick-budget"
+      timeout_seconds: 60
+
+- id: missing-fixture-dir-is-a-usage-error
+  name: --fixture-dir naming a missing directory exits 64
+  description: >
+    A fixture directory that does not exist is a semantic usage error naming the flag.
+  category: usage
+  priority: 2
+  interfaces: ["cli:--fixture-dir"]
+  tags: [flags, usage-errors, multiplayer-simulation]
+  steps:
+    - id: missing-fixture
+      transport: cli
+      command: run
+      args: ["--scenario", "same-requirement-collision", "--fixture-dir", "no/such/fixture"]
+      expect:
+        exit_code: 64
+        error_contains: "fixture-dir"
+      timeout_seconds: 60
+
+- id: fixture-dir-replaces-the-built-in-fixture
+  name: --fixture-dir swaps the fixture, so a control fails loudly on a colliding one
+  description: >
+    The control scenario given the colliding fixture finds a collision it must not
+    have and exits 1 with an error report. Without --fixture-dir it exits 0, so the
+    flag is what changes the outcome. Paths are relative to the harness root, the
+    working directory of the gen-eval run.
+  category: usage
+  priority: 2
+  interfaces: ["cli:--fixture-dir"]
+  tags: [flags, multiplayer-simulation]
+  steps:
+    - id: colliding-fixture-in-a-control
+      transport: cli
+      command: run
+      args:
+        - "--scenario"
+        - "different-requirement-control"
+        - "--fixture-dir"
+        - "fixtures/same-requirement-collision"
+      expect:
+        exit_code: 1
+        body:
+          scenario_id: different-requirement-control
+        error_contains: "unexpected collision"
+      timeout_seconds: 60

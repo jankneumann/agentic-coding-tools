@@ -51,9 +51,12 @@ from src.agents_config import (
     UNMANAGED_PROFILES,
     AgentEntry,
     DuplicateApiKeyError,
+    HumanEntry,
     ProfileSyncError,
     get_api_key_identities,
+    get_dispatch_configs,
     load_agents_config,
+    load_human_principals,
     sync_profiles,
 )
 from src.config import reset_config
@@ -774,3 +777,113 @@ def test_openbao_topology_matches_bundled_registry() -> None:
     keyed = {agent.name for agent in load_agents_config() if agent.api_key}
     projected = {p.name for p in topology.principals if p.kind == "agent"}
     assert keyed == projected
+
+
+# ---------------------------------------------------------------------------
+# Rule 6 — human principals are never projected as agents (ownership-map, D1/D12)
+# ---------------------------------------------------------------------------
+
+
+def _strings_in(obj: Any) -> set[str]:
+    """Every string reachable in *obj* (dataclasses, mappings, sequences)."""
+    import dataclasses
+
+    found: set[str] = set()
+    if isinstance(obj, str):
+        found.add(obj)
+    elif dataclasses.is_dataclass(obj) and not isinstance(obj, type):
+        for f in dataclasses.fields(obj):
+            found |= _strings_in(getattr(obj, f.name))
+    elif isinstance(obj, dict):
+        for key, value in obj.items():
+            found |= _strings_in(key) | _strings_in(value)
+    elif isinstance(obj, (list, tuple, set, frozenset)):
+        for item in obj:
+            found |= _strings_in(item)
+    elif hasattr(obj, "to_dict"):
+        found |= _strings_in(obj.to_dict())
+    return found
+
+
+def _human_projection_violations(
+    humans: list[HumanEntry],
+    *,
+    rows: list[dict[str, Any]],
+    assignments: list[dict[str, Any]],
+    identities: dict[str, dict[str, str]],
+    dispatch: dict[str, Any],
+    principals: Any,
+) -> list[str]:
+    """Rule 6 — no human id appears in any agent runtime projection."""
+    surfaces: dict[str, Any] = {
+        "agent_profiles rows": rows,
+        "agent_profile_assignments": assignments,
+        "API-key identity map": identities,
+        "dispatch configs": dispatch,
+        "OpenBao principal projection": principals,
+    }
+    violations: list[str] = []
+    for human in humans:
+        for label, surface in surfaces.items():
+            if human.name in _strings_in(surface):
+                violations.append(
+                    f"human principal {human.name!r} appears in the {label} — humans "
+                    f"are principals, not agents, and must never be projected."
+                )
+    return violations
+
+
+class TestHumanProjectionInvariant:
+    """Rule 6, against the real registry and against a broken world."""
+
+    async def test_no_declared_human_is_projected_as_an_agent(
+        self, registry: list[AgentEntry]
+    ) -> None:
+        from openbao_credentials import project_principals
+
+        db = await _synced_db(registry)
+        violations = _human_projection_violations(
+            load_human_principals(),
+            rows=db.rows,
+            assignments=db.assignments,
+            identities=get_api_key_identities(registry),
+            dispatch=get_dispatch_configs(registry),
+            principals=project_principals(
+                {
+                    "credential_vendors": ["anthropic", "openai", "openrouter", "xai"],
+                    "agents": {a.name: {} for a in registry},
+                }
+            ),
+        )
+        assert not violations, _report(violations)
+
+    async def test_human_named_profile_row_is_reported(
+        self, registry: list[AgentEntry]
+    ) -> None:
+        """Negative: inject a human-named profile row and the checker fires."""
+        jan = HumanEntry(name="jan", display_name="Jan Neumann")
+        db = await _synced_db(registry)
+        rows = [*db.rows, _row("jan", agent_type="human", trust_level=2)]
+        violations = _human_projection_violations(
+            [jan],
+            rows=rows,
+            assignments=db.assignments,
+            identities={},
+            dispatch={},
+            principals=None,
+        )
+        assert any("'jan'" in v and "agent_profiles rows" in v for v in violations), (
+            _report(violations)
+        )
+
+    def test_human_named_assignment_is_reported(self) -> None:
+        jan = HumanEntry(name="jan", display_name="Jan Neumann")
+        violations = _human_projection_violations(
+            [jan],
+            rows=[],
+            assignments=[_assignment("jan", "claude_code_local")],
+            identities={},
+            dispatch={},
+            principals=None,
+        )
+        assert any("agent_profile_assignments" in v for v in violations)
