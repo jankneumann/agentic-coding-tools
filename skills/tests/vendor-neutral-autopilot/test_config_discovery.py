@@ -14,6 +14,7 @@ import review_dispatcher
 def _agents_yaml(tmp_path: Path) -> Path:
     path = tmp_path / "agents.yaml"
     path.write_text(textwrap.dedent("""\
+        credential_vendors: []
         agents:
           codex-local:
             type: codex

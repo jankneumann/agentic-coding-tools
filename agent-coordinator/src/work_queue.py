@@ -22,6 +22,14 @@ logger = logging.getLogger(__name__)
 
 MAX_PAGE_SIZE = 100
 
+
+def _metric_task_type(task_type: str) -> str:
+    """Return a bounded label for queue metrics."""
+    if task_type.startswith("vendor-dispatch-"):
+        return "vendor-dispatch"
+    return task_type
+
+
 # ---------------------------------------------------------------------------
 # Lazy metric instruments — created on first use, None when OTel is disabled
 # ---------------------------------------------------------------------------
@@ -440,10 +448,10 @@ class WorkQueueService:
                 )
                 claim_result = ClaimResult.from_dict(result)
                 if claim_result.success:
-                    task_type_label = claim_result.task_type or "unknown"
+                    task_type_label = _metric_task_type(claim_result.task_type or "unknown")
                 else:
                     outcome = "empty"
-                    task_type_label = claim_result.task_type or "unknown"
+                    task_type_label = _metric_task_type(claim_result.task_type or "unknown")
             except Exception:
                 outcome = "error"
                 duration_ms = (time.monotonic() - t0) * 1000
@@ -653,7 +661,7 @@ class WorkQueueService:
             try:
                 task_obj = await self.get_task(task_id)
                 if task_obj is not None:
-                    task_type_label = task_obj.task_type
+                    task_type_label = _metric_task_type(task_obj.task_type)
                     claimed_at_snapshot = task_obj.claimed_at
             except Exception:
                 logger.debug("Failed to fetch task for duration metric", exc_info=True)
@@ -733,6 +741,9 @@ class WorkQueueService:
         agent_requirements: dict[str, Any] | None = None,
         projection_key: ProjectionKey | dict[str, Any] | None = None,
         projection_labels: list[str] | None = None,
+        claim_immediately: bool = False,
+        claimant_agent_id: str | None = None,
+        claimant_agent_type: str | None = None,
     ) -> SubmitResult:
         """Submit a new task to the work queue.
 
@@ -765,9 +776,34 @@ class WorkQueueService:
                 success=False, created=False, reason="invalid_projection_labels"
             )
 
+        if claim_immediately:
+            if not claimant_agent_id or not claimant_agent_type:
+                return SubmitResult(
+                    success=False,
+                    created=False,
+                    reason="missing_claim_identity",
+                )
+            if (
+                parsed_projection is not None
+                or projection_labels is not None
+                or depends_on
+                or agent_requirements is not None
+            ):
+                return SubmitResult(
+                    success=False,
+                    created=False,
+                    reason="atomic_claim_incompatible_options",
+                )
+
         config = get_config()
-        resolved_agent_id = config.agent.agent_id
-        resolved_agent_type = config.agent.agent_type
+        resolved_agent_id = (
+            claimant_agent_id if claim_immediately else config.agent.agent_id
+        )
+        resolved_agent_type = (
+            claimant_agent_type if claim_immediately else config.agent.agent_type
+        )
+        assert resolved_agent_id is not None
+        assert resolved_agent_type is not None
 
         _, _, _, submit_counter, _ = _ensure_instruments()
 
@@ -855,26 +891,39 @@ class WorkQueueService:
                 _json.dumps(agent_requirements) if agent_requirements is not None else None
             )
 
-            result = await self.db.rpc(
-                "submit_task",
-                {
-                    "p_task_type": task_type,
-                    "p_description": description,
-                    "p_input_data": input_data,
-                    "p_priority": priority,
-                    "p_depends_on": depends_on_str,
-                    "p_deadline": deadline_str,
-                    "p_agent_requirements": agent_req_json,
-                    "p_projection_labels": projection_labels,
-                },
-            )
+            if claim_immediately:
+                result = await self.db.rpc(
+                    "submit_claimed_task",
+                    {
+                        "p_task_type": task_type,
+                        "p_description": description,
+                        "p_agent_id": resolved_agent_id,
+                        "p_input_data": input_data,
+                        "p_priority": priority,
+                        "p_deadline": deadline_str,
+                    },
+                )
+            else:
+                result = await self.db.rpc(
+                    "submit_task",
+                    {
+                        "p_task_type": task_type,
+                        "p_description": description,
+                        "p_input_data": input_data,
+                        "p_priority": priority,
+                        "p_depends_on": depends_on_str,
+                        "p_deadline": deadline_str,
+                        "p_agent_requirements": agent_req_json,
+                        "p_projection_labels": projection_labels,
+                    },
+                )
 
             submit_result = SubmitResult.from_dict(result)
 
             # Record submit counter metric
             try:
                 if submit_counter is not None:
-                    submit_counter.add(1, {"task_type": task_type})
+                    submit_counter.add(1, {"task_type": _metric_task_type(task_type)})
             except Exception:
                 logger.debug("Failed to record submit counter metric", exc_info=True)
 

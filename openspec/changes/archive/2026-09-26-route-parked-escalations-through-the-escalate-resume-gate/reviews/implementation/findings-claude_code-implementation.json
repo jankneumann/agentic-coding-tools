@@ -1,0 +1,98 @@
+{
+  "review_type": "implementation",
+  "target": "route-parked-escalations-through-the-escalate-resume-gate",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "In `answer()` the ESCALATE_RESUME branch computes `selected = _newest_blocked_escalate_record(...)` but never uses it beyond the None guard; the answer is bound to the *current parked attempt's* generation via `_subject_key`, not to the selected record. The spec scenario 'Answer selects a generation safely' says a dispatch-only answer selects the newest blocked generation and an explicit generation selects only that blocked generation. The implementation instead selects the current parked generation and refuses any explicit generation that differs (decorator: 'does not match the current parked generation'). This is the safer, fail-closed reading, but it is not what the spec text says, and the unused `selected` value suggests the newest-blocked selection was intended to drive the record choice. Either use `selected` (e.g. bind `lease_generation` from it and pass it as the prior record) or drop the helper's return value and align the spec wording to 'current parked generation only'.",
+      "disposition": "escalate",
+      "axis": "correctness",
+      "severity": "nit",
+      "file_path": "skills/supervise/scripts/gate_router.py",
+      "line_range": "715-735",
+      "evidence_class": "judgment",
+      "resolution": "Decide whether 'newest blocked generation' or 'current parked generation' is authoritative; then either consume `selected` or remove the dead value and amend the spec scenario."
+    },
+    {
+      "id": 2,
+      "type": "resilience",
+      "criticality": "medium",
+      "description": "Legacy parked attempts that predate lease tracking (no `lease_generation` key) crash instead of refusing. The decorator reads `attempt.get(\"lease_generation\")` (None), takes the subject lock with generation None, and the inner re-check passes because `lease_generation=None` disables the filter; then `generation = current_attempt[\"lease_generation\"]` raises KeyError, which the CLI's GateRefusalError handler will not catch. The spec requires new records to carry a positive integer generation; a missing or non-positive generation on the attempt should be a GateRefusalError, not a traceback.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "nit",
+      "file_path": "skills/supervise/scripts/gate_router.py",
+      "line_range": "723",
+      "evidence_class": "judgment",
+      "resolution": "Validate `isinstance(generation, int) and generation > 0` in the decorator (and/or `_current_parked_policy_pause_attempt`) and raise GateRefusalError otherwise; add a test for an attempt without `lease_generation`."
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "The new `--lease-generation` CLI flag and the decorator's explicit-generation paths are untested: there is no test that an explicit matching generation is accepted, that a mismatched explicit generation is refused with 'does not match the current parked generation', or that the CLI plumbs `--lease-generation` into the context. Only the dispatch-only paths are covered.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "file_path": "skills/tests/supervise/test_gate_router.py",
+      "line_range": "935-975",
+      "resolution": "Add tests: explicit generation == parked generation succeeds and records that generation; explicit generation != parked generation raises GateRefusalError without appending a record; CLI `gate-answer --lease-generation` reaches `gate_router.answer` context.",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "`gate-answer --lease-generation` is accepted for every gate and unconditionally copied into `context`, so a caller can pass it with `--gate roadmap_approval` and it flows into `_subject_key(..., lease_generation=ctx.get(\"lease_generation\"))`. Depending on how `_subject_key` treats it for non-escalate gates, this can silently change the subject identity for other gates. The spec restricts generation correlation to `escalate_resume` ('Other gates retain the existing subject identity').",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "file_path": "skills/supervise/scripts/cycle_state.py",
+      "line_range": "1268-1269",
+      "evidence_class": "judgment",
+      "resolution": "Reject `--lease-generation` unless `--gate escalate_resume` (argparse error or explicit check in `_cmd_gate_answer`)."
+    },
+    {
+      "id": 5,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "`resolve_parked` now emits the fixed reason 'supervised phase retry budget exhausted'. The spec requires manual and automatic resolvers to produce identical context including the fixed reason. The packet shows only this resolver; if the post-complete-batch automatic router (task 3.2, still unchecked) or roadmap-runtime still emits the old 'retry budget exhausted' string, contexts diverge. The reason is not part of the subject key so this would not cause duplicate filings, but it would violate the 'identical context' scenario. Cannot be verified from the packet.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "fyi",
+      "file_path": "skills/supervise/scripts/gate_router.py",
+      "line_range": "819",
+      "evidence_class": "judgment",
+      "resolution": "Centralize the reason in a single module-level constant and have every policy-pause resolver import it; confirm no other emitter of the old string remains."
+    },
+    {
+      "id": 6,
+      "type": "style",
+      "criticality": "low",
+      "description": "Two style issues in the new tests: (a) `test_policy_pause_uses_the_fixed_sanitized_retry_reason` is followed by two blank lines inside the class body before the next method (E303); (b) `test_escalate_resume_answer_rejects_a_noncurrent_parked_attempt` is misnamed: the fixture is built with `include_attempt=False`, so it exercises the *absent* attempt case, not a non-current (e.g. status != parked, or different generation) attempt, and no test covers the genuinely non-current cases.",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "nit",
+      "file_path": "skills/tests/supervise/test_gate_router.py",
+      "line_range": "650-668",
+      "resolution": "Remove the extra blank line; rename the test to `..._rejects_when_no_parked_attempt_exists` and add a sibling that includes an attempt with `status: \"resolved\"` or a `parked.kind` other than `policy_pause`.",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 7,
+      "type": "style",
+      "criticality": "low",
+      "description": "`tasks.md` ticks 2.1 (shared checkpoint transaction) and 3.1 (delegated apply cohort) but the diff contains no code for either; they are presumably delivered in earlier commits on the branch. Meanwhile this diff implements pieces of 3.2 (legacy generation selection, approval-ref matching, allowlisted context) yet 3.2 remains unticked. Task status and diff content are out of step, which makes the packet harder to audit.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "fyi",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/tasks.md",
+      "line_range": "24-40",
+      "evidence_class": "judgment",
+      "resolution": "Tick tasks in the same commit that lands their code, or note in the change summary which commits satisfy 2.1 and 3.1."
+    }
+  ]
+}

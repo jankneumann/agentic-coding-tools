@@ -1,0 +1,274 @@
+schema_version: 1
+feature:
+  id: implement-the-task-router-vendor-x-location-x-model
+  title: "dg-04 routing assignment dimensions"
+  plan_revision: 5
+  created_by: codex
+  deployable: true
+contracts:
+  revision: 4
+  openapi:
+    primary: "openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/openapi/v1.1.yaml"
+    files:
+      - "openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/openapi/v1.1.yaml"
+      - "openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/config/routing.schema.json"
+      - "openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/events/routing-decision.schema.json"
+      - "openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/events/routing-decision-record.schema.json"
+      - "openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/README.md"
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 120
+  retry_budget: 1
+  verification_tier_required: B
+  min_trust_level: 2
+packages:
+  - package_id: wp-contract-config
+    title: "Additive routing contracts and versioned policy"
+    task_type: contracts
+    description: "TDD static OpenAPI/JSON-Schema contracts, strict routing policy schema/config, and container packaging; runtime parity follows in dependent packages."
+    role: contracts-author
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "agent-coordinator/routing.yaml"
+        - "agent-coordinator/Dockerfile"
+      keys:
+        - "contract:routing-assignment"
+        - "api:POST /routing/select_model"
+        - "contract:routing-policy"
+      ttl_minutes: 120
+      reason: "Canonical dg-04 contract and configuration boundary"
+    scope:
+      write_allow:
+        - "openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/**"
+        - "agent-coordinator/routing.yaml"
+        - "agent-coordinator/Dockerfile"
+        - "agent-coordinator/tests/model_routing/test_task_routing_contracts.py"
+        - "agent-coordinator/tests/model_routing/test_routing_policy_config.py"
+        - "agent-coordinator/tests/test_dockerfile_routing_config.py"
+      read_allow: ["**"]
+    context_impact: {surfaces: [apis, capabilities, documentation, semantic_code]}
+    worktree: {name: dg04-contract-config, mode: isolated}
+    timeout_minutes: 150
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: C
+      steps:
+        - name: "Routing contract and config tests"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/model_routing/test_task_routing_contracts.py agent-coordinator/tests/model_routing/test_routing_policy_config.py agent-coordinator/tests/test_dockerfile_routing_config.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence: {artifacts: [], result_keys: [contract_config_tests_passed]}
+        - name: "Contract and config lint"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m ruff check agent-coordinator/tests/model_routing/test_task_routing_contracts.py agent-coordinator/tests/model_routing/test_routing_policy_config.py agent-coordinator/tests/test_dockerfile_routing_config.py"
+          cwd: "."
+          expect_exit_code: 0
+          evidence: {artifacts: [], result_keys: [contract_config_lint_passed]}
+    metadata: {loc_estimate: 500, complexity: medium, package_kind: config}
+    inputs: {}
+    outputs: {result_keys: [contract_config_tests_passed, contract_config_lint_passed]}
+
+  - package_id: wp-policy-service
+    title: "Registry feasibility and single utility pipeline"
+    task_type: backend
+    description: "TDD pure rules, exact lane/catalog association, feasibility-before-utility, service persistence, and deterministic lane ordering."
+    role: backend-implementer
+    archetype: implementer
+    priority: 2
+    depends_on: [wp-contract-config]
+    locks:
+      files:
+        - "agent-coordinator/src/model_routing/resolver.py"
+        - "agent-coordinator/src/model_routing/catalog.py"
+        - "agent-coordinator/src/model_routing/api.py"
+        - "agent-coordinator/database/migrations/042_atomic_routing_audit.sql"
+        - "agent-coordinator/agents.yaml"
+        - "agent-coordinator/src/vendor_registry.py"
+        - "agent-coordinator/src/watchdog.py"
+      keys:
+        - "feature:task-routing:policy"
+        - "feature:task-routing:service"
+        - "db:schema:routing_decisions"
+        - "contract:routing-audit-atomicity"
+        - "contract:configured-catalog-association"
+      ttl_minutes: 240
+      reason: "Owns single resolver composition and authoritative decision persistence"
+    scope:
+      write_allow:
+        - "agent-coordinator/agents.yaml"
+        - "agent-coordinator/src/agents_config.py"
+        - "agent-coordinator/src/vendor_registry.py"
+        - "agent-coordinator/src/watchdog.py"
+        - "agent-coordinator/src/model_routing/configured_catalog.py"
+        - "agent-coordinator/src/model_routing/routing_policy.py"
+        - "agent-coordinator/src/model_routing/resolver.py"
+        - "agent-coordinator/src/model_routing/catalog.py"
+        - "agent-coordinator/src/model_routing/api.py"
+        - "agent-coordinator/src/audit.py"
+        - "agent-coordinator/database/migrations/042_atomic_routing_audit.sql"
+        - "agent-coordinator/tests/test_agents_config.py"
+        - "agent-coordinator/tests/test_vendor_registry.py"
+        - "agent-coordinator/tests/test_watchdog.py"
+        - "agent-coordinator/tests/model_routing/test_catalog_watchdog.py"
+        - "agent-coordinator/tests/model_routing/test_configured_catalog.py"
+        - "agent-coordinator/tests/model_routing/test_routing_policy.py"
+        - "agent-coordinator/tests/model_routing/test_resolver.py"
+        - "agent-coordinator/tests/model_routing/test_catalog.py"
+        - "agent-coordinator/tests/model_routing/test_service.py"
+        - "agent-coordinator/tests/model_routing/test_routing_audit.py"
+        - "agent-coordinator/tests/test_migrations.py"
+        - "agent-coordinator/tests/integration/postgres/test_routing_audit_atomic.py"
+      read_allow: ["**"]
+    context_impact: {surfaces: [apis, capabilities, architecture, semantic_code]}
+    worktree: {name: dg04-policy-service, mode: isolated}
+    timeout_minutes: 270
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Routing policy and service tests"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_agents_config.py agent-coordinator/tests/test_vendor_registry.py agent-coordinator/tests/test_watchdog.py agent-coordinator/tests/model_routing/test_catalog_watchdog.py agent-coordinator/tests/model_routing/test_configured_catalog.py agent-coordinator/tests/model_routing/test_routing_policy.py agent-coordinator/tests/model_routing/test_resolver.py agent-coordinator/tests/model_routing/test_catalog.py agent-coordinator/tests/model_routing/test_service.py agent-coordinator/tests/model_routing/test_routing_audit.py agent-coordinator/tests/test_migrations.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence: {artifacts: [], result_keys: [policy_service_tests_passed]}
+        - name: "Routing policy and service static checks"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m ruff check agent-coordinator/src/model_routing agent-coordinator/src/audit.py agent-coordinator/tests/model_routing"
+          cwd: "."
+          expect_exit_code: 0
+          evidence: {artifacts: [], result_keys: [policy_service_ruff_passed]}
+    metadata: {loc_estimate: 1100, complexity: high, package_kind: integration}
+    inputs: {}
+    outputs: {result_keys: [policy_service_tests_passed, policy_service_ruff_passed]}
+
+  - package_id: wp-transports-fallback
+    title: "HTTP/MCP/bridge parity and honest local fallback"
+    task_type: integration
+    description: "TDD additive transport args/responses, proxy/bridge parity, configuration-derived local fallback, and exact dg-00 equality."
+    role: backend-implementer
+    archetype: implementer
+    priority: 2
+    depends_on: [wp-contract-config, wp-policy-service]
+    locks:
+      files:
+        - "agent-coordinator/src/coordination_mcp.py"
+        - "agent-coordinator/src/http_proxy.py"
+        - "skills/coordination-bridge/scripts/coordination_bridge.py"
+      keys:
+        - "feature:task-routing:transports"
+        - "feature:task-routing:fallback"
+      ttl_minutes: 240
+      reason: "Owns public transport mirrors and local degradation path"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/coordination_mcp.py"
+        - "agent-coordinator/src/http_proxy.py"
+        - "agent-coordinator/tests/model_routing/test_api.py"
+        - "agent-coordinator/tests/test_http_proxy.py"
+        - "agent-coordinator/tests/model_routing/test_delegation.py"
+        - "skills/coordination-bridge/scripts/coordination_bridge.py"
+        - "skills/coordination-bridge/scripts/routing_fallback.py"
+        - "skills/coordination-bridge/scripts/tests/test_coordination_bridge.py"
+        - "skills/coordination-bridge/scripts/tests/test_routing_fallback.py"
+      read_allow: ["**"]
+    context_impact: {surfaces: [apis, capabilities, semantic_code]}
+    worktree: {name: dg04-transports-fallback, mode: isolated}
+    timeout_minutes: 270
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Routing transport and fallback tests"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/model_routing/test_api.py agent-coordinator/tests/test_http_proxy.py agent-coordinator/tests/model_routing/test_delegation.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence: {artifacts: [], result_keys: [transport_tests_passed]}
+        - name: "Bridge fallback tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest -c skills/pyproject.toml skills/coordination-bridge/scripts/tests/test_coordination_bridge.py skills/coordination-bridge/scripts/tests/test_routing_fallback.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence: {artifacts: [], result_keys: [bridge_fallback_tests_passed]}
+    metadata: {loc_estimate: 850, complexity: high, package_kind: integration}
+    inputs: {}
+    outputs: {result_keys: [transport_tests_passed, bridge_fallback_tests_passed]}
+
+  - package_id: wp-integration
+    title: "Integration, panel convergence, and roadmap evidence"
+    task_type: integration
+    description: "Merge packages, prove DB/config/container behavior, run complete gates and panel review, then reconcile roadmap state."
+    role: validator
+    archetype: validator
+    priority: 3
+    depends_on: [wp-policy-service, wp-transports-fallback]
+    locks:
+      files: []
+      keys: ["feature:task-routing:integration"]
+      ttl_minutes: 300
+      reason: "Final dg-04 validation and durable roadmap reconciliation"
+    scope:
+      write_allow:
+        - "openspec/changes/implement-the-task-router-vendor-x-location-x-model/**"
+        - "openspec/roadmaps/dispatch-governance/roadmap.yaml"
+        - "openspec/roadmaps/dispatch-governance/checkpoint.json"
+        - "openspec/roadmaps/dispatch-governance/learning-log.md"
+        - "openspec/roadmaps/dispatch-governance/learnings/dg-04.md"
+      read_allow: ["**"]
+    context_impact: {surfaces: [apis, capabilities, architecture, decisions, documentation, semantic_code]}
+    worktree: {name: dg04-integration, mode: isolated}
+    timeout_minutes: 360
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: A
+      steps:
+        - name: "Coordinator regression"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests -m 'not e2e and not integration' -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence: {artifacts: [], result_keys: [coordinator_regression_passed]}
+        - name: "PostgreSQL routing audit atomicity"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/integration/postgres/test_routing_audit_atomic.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence: {artifacts: [], result_keys: [postgres_atomicity_passed]}
+        - name: "Affected skills regression"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest -c skills/pyproject.toml skills/coordination-bridge/scripts/tests -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence: {artifacts: [], result_keys: [skills_regression_passed]}
+        - name: "Strict OpenSpec"
+          kind: command
+          command: "openspec validate implement-the-task-router-vendor-x-location-x-model --strict"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: ["openspec/changes/implement-the-task-router-vendor-x-location-x-model/validation-report.md"]
+            result_keys: [openspec_strict_passed]
+        - name: "Repository lint"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m ruff check agent-coordinator/src agent-coordinator/tests"
+          cwd: "."
+          expect_exit_code: 0
+          evidence: {artifacts: [], result_keys: [ruff_passed]}
+        - name: "Strict typing"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m mypy --strict agent-coordinator/src/model_routing agent-coordinator/src/coordination_mcp.py agent-coordinator/src/http_proxy.py agent-coordinator/src/audit.py"
+          cwd: "."
+          expect_exit_code: 0
+          evidence: {artifacts: [], result_keys: [mypy_passed]}
+    metadata: {loc_estimate: 300, complexity: high, package_kind: integration}
+    inputs: {}
+    outputs: {result_keys: [coordinator_regression_passed, postgres_atomicity_passed, skills_regression_passed, openspec_strict_passed, ruff_passed, mypy_passed]}

@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "change_id": "migrate-ci-to-self-hosted-gx10-runners",
+  "review_type": "implementation",
+  "created_at": "2026-10-11T03:16:17Z",
+  "target": "migrate-ci-to-self-hosted-gx10-runners",
+  "dispatches": [
+    {
+      "vendor": "claude_code",
+      "success": true,
+      "model_used": "fable",
+      "models_attempted": [
+        "fable"
+      ],
+      "elapsed_seconds": 441.653418273665,
+      "error": null,
+      "error_class": null
+    },
+    {
+      "vendor": "codex",
+      "success": false,
+      "model_used": "gpt-5.6-sol",
+      "models_attempted": [
+        "gpt-5.6-sol"
+      ],
+      "elapsed_seconds": 248.12044955976307,
+      "error": "{\n  \"findings\": [\n    {\n      \"id\": \"R1-001\",\n      \"type\": \"security\",\n      \"criticality\": \"high\",\n      \"description\": \"deploy/gx10-runner/Containerfile does not reliably remove the upstream runner user's passwordless-sudo grant. `sed -i '/NOPASSWD/d' /etc/sudoers` ignores grants in included files such as `/etc/sudoers.d/*`, which is the usual location for image-specific grants. The accompanying test only proves that this Containerfile does not add a grant; it cannot detect an inherited grant",
+      "error_class": "auth_required"
+    },
+    {
+      "vendor": "pi",
+      "success": false,
+      "model_used": "nvidia/nemotron-3-ultra-550b-a55b",
+      "models_attempted": [
+        "nvidia/nemotron-3-ultra-550b-a55b"
+      ],
+      "elapsed_seconds": 107.89078913535923,
+      "error": "{\"type\":\"session\",\"version\":3,\"id\":\"01a128ef-542b-7265-b0b9-3df68b2d1de4\",\"timestamp\":\"2026-10-11T03:08:55.723Z\",\"cwd\":\"/home/jankneumann/Coding/agentic-coding-tools/.git-worktrees/migrate-ci-to-self-hosted-gx10-runners\"}\n{\"type\":\"agent_start\"}\n{\"type\":\"turn_start\"}\n{\"type\":\"message_start\",\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"## Review Round 1\\n\\nThe packet is complete; do not explore the repo for missing artifacts.\\n\\nReview the attached artifacts for correctness, complete",
+      "error_class": "auth_required"
+    }
+  ],
+  "quorum_requested": 3,
+  "quorum_received": 1,
+  "vendors": [
+    {
+      "name": "claude_code",
+      "findings_path": "findings-claude_code-implementation.json",
+      "finding_count": 11,
+      "unanchored_findings": 0
+    }
+  ]
+}

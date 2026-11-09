@@ -63,15 +63,23 @@ from review_ledger import (  # noqa: E402
     is_blocking_item,
     load_or_create as load_or_create_ledger,
     merge_findings,
+    open_item_ids,
     park_item,
     parked_items,
     reject_out_of_scope_fix,
+    retire_unreported,
     save as save_ledger,
     scoped_fix_payload,
     mark_addressed,
 )
 from review_packet import build_review_packet  # noqa: E402
 import fact_check as fact_check_module  # noqa: E402
+
+from convergence_disposition import (  # noqa: E402
+    DEFAULT_DISPOSITION,
+    PARK_REASON_BY_DISPOSITION,
+    classify_round,
+)
 
 # Module-level aliases so tests can monkeypatch the checkpoint helpers via
 # ``convergence_loop.cf_write_vendor_findings``. The bare imports also make
@@ -115,6 +123,10 @@ class ConvergenceResult:
     escalate_findings: list[dict[str, Any]] | None = None
     validation_errors: list[str] | None = None
     checkpoint_dir: Path | None = None
+    # dispatch-contract D10: with reason="capability_unavailable", the counting
+    # lanes that were not verified. The caller records the park through
+    # `runner.py park`; this loop never writes loop state.
+    missing_lanes: list[str] | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -528,6 +540,23 @@ def _untracked_paths(worktree_path: Path) -> set[str]:
     }
 
 
+def _repo_relative(path: str, worktree_path: Path) -> str:
+    """Express a write-allow path the way ``_changed_paths`` reports edits.
+
+    ``derive_spec_file`` joins onto ``artifacts_dir``, which is absolute when
+    the caller passes an absolute change dir, while git names changed files
+    relative to the worktree. Left absolute, a cited spec never matches its
+    own edit and every spec fix is rejected as out of scope.
+    """
+    candidate = Path(path)
+    if not candidate.is_absolute():
+        return candidate.as_posix()
+    try:
+        return candidate.resolve().relative_to(Path(worktree_path).resolve()).as_posix()
+    except ValueError:
+        return path
+
+
 def _changed_paths(
     worktree_path: Path,
     pre_fix_rev: str | None = None,
@@ -558,6 +587,25 @@ def _changed_paths(
         untracked -= pre_untracked
     names |= untracked
     return sorted(names)
+
+
+#: converge()'s own bookkeeping under ``artifacts_dir``: the review ledger and
+#: the per-round packet/checkpoint cache. converge writes them itself
+#: (``save_ledger`` runs before the pre-fix snapshot), never a fix callback.
+_BOOKKEEPING_DIRS = (".review-ledger", ".review-cache")
+
+
+def _without_bookkeeping(
+    changed: list[str], *, worktree_path: Path, artifacts_dir: Path,
+) -> list[str]:
+    """``changed`` minus converge's own ``artifacts_dir`` bookkeeping paths, so
+    the post-fix scope check sees only the fix callback's edits."""
+    try:
+        base = Path(artifacts_dir).resolve().relative_to(Path(worktree_path).resolve())
+    except ValueError:
+        return changed  # artifacts outside the worktree never appear in git output
+    prefixes = tuple(f"{(base / name).as_posix()}/" for name in _BOOKKEEPING_DIRS)
+    return [path for path in changed if not path.startswith(prefixes)]
 
 
 def _compute_vendor_agreement_rate(
@@ -677,8 +725,17 @@ def converge(
     blocking_criticalities: set[str] | None = None,
     stall_window: int = _DEFAULT_STALL_WINDOW,
     fact_check: bool = True,
+    verified_lanes: list[str] | None = None,
+    counting_lanes: list[str] | None = None,
+    base_ref: str | None = None,
 ) -> ConvergenceResult:
     """Run the review-fix convergence loop.
+
+    Honest quorum (dispatch-contract D10): when ``verified_lanes`` is given and
+    holds fewer lanes than ``min_quorum``, the loop returns
+    ``reason="capability_unavailable"`` with ``missing_lanes`` (the
+    ``counting_lanes`` not verified) before dispatching anything. It never
+    lowers the quorum and writes no loop state.
 
     Args:
         change_id: OpenSpec change identifier.
@@ -712,11 +769,31 @@ def converge(
             CLI adapter being resolvable, the normal case for a mocked or
             minimal orchestrator) skips the pass for that vendor and keeps
             every finding. Set False to disable entirely.
+        base_ref: Ref the review packet diffs against. ``None`` (default)
+            keeps the packet builder's ``DEFAULT_BASE_REF``; a stacked branch
+            passes its PR base (e.g. ``origin/openspec/<parent>``).
 
     Returns:
         ConvergenceResult with convergence status and details.
     """
     start_time = time.monotonic()
+
+    # 0. Pre-dispatch quorum guard (D10).
+    if verified_lanes is not None:
+        verified = sorted(set(verified_lanes))
+        if len(verified) < min_quorum:
+            missing = sorted(set(counting_lanes or []) - set(verified))
+            logger.warning(
+                "Convergence for %s not dispatched: %d verified review lane(s) %s, "
+                "quorum %d; missing %s",
+                change_id, len(verified), verified, min_quorum, missing,
+            )
+            return ConvergenceResult(
+                converged=False,
+                rounds=0,
+                reason="capability_unavailable",
+                missing_lanes=missing,
+            )
 
     # 1. Create orchestrator
     if orchestrator is None:
@@ -744,7 +821,10 @@ def converge(
             compact_ledger(ledger, worktree_path)
             save_ledger(ledger, artifacts_dir)
 
-        # 2a. Pack the review input, then dispatch.
+        # 2a. Pack the review input, then dispatch. The packet lists every
+        # open item for re-verification; remember which, so step 2f.5 can
+        # retire the ones this review no longer raises.
+        reverify_ids = open_item_ids(ledger)
         checkpoint_dir = artifacts_dir / ".review-cache" / f"round-{round_num}"
         packet_path, _packet_meta = build_review_packet(
             change_id=change_id,
@@ -754,6 +834,7 @@ def converge(
             output_dir=checkpoint_dir,
             last_fix_diff=last_fix_diff if round_num > 1 else None,
             ledger=ledger,
+            **({"base_ref": base_ref} if base_ref is not None else {}),
         )
         prompt = packet_path.read_text(encoding="utf-8")
         dispatch_kwargs: dict[str, Any] = {
@@ -942,6 +1023,7 @@ def converge(
         agreed_findings = [
             cf for cf in all_findings if cf.get("status") != "disagreement"
         ]
+        reported_items: list[dict[str, Any]] = []
         if disagreement_findings:
             logger.info(
                 "Parking %d disagreement findings in round %d",
@@ -951,6 +1033,7 @@ def converge(
                 ledger, disagreement_findings, round_num,
                 artifacts_dir=artifacts_dir,
             )
+            reported_items.extend(parked)
             for item in parked:
                 park_item(ledger, item)
                 dispositions: dict[str, str] = {}
@@ -976,10 +1059,22 @@ def converge(
                     "disagreements — continuing"
                 )
 
-        merge_findings(
+        reported_items.extend(merge_findings(
             ledger, agreed_findings, round_num,
             artifacts_dir=artifacts_dir,
-        )
+        ))
+
+        # 2f.5. Reconcile against this review, not the persisted entry: an
+        # open item the quorum review was asked to re-verify and did not
+        # re-raise is resolved (retired, record kept). compact() alone
+        # reopens fixed items whose tokens survive the fix.
+        resolved = retire_unreported(ledger, reverify_ids, reported_items, round_num)
+        if resolved:
+            logger.info(
+                "Round %d: retired %d ledger item(s) not re-raised on "
+                "re-verification: %s",
+                round_num, len(resolved), [item["id"] for item in resolved],
+            )
         save_ledger(ledger, artifacts_dir)
 
         # 2g. Blocking set is the ledger after compact+merge (D3).
@@ -1091,10 +1186,87 @@ def converge(
                 )))
             return stall_result
 
-        # 2k. Dispatch scoped fixes for current blocking items only (D7).
+        # 2j.5. Per-finding disposition (design D1-D4): classify each
+        # blocking item as fix_now / defer_to_followup / reject_out_of_scope
+        # / needs_human. Only fix_now items are dispatched below; the other
+        # three park via the existing park_item(..., reason=...) call --
+        # no new ledger mutation surface. Unavailable/empty classification
+        # defaults every item to fix_now, reproducing today's unconditional
+        # dispatch bit for bit. The stall check above already ran against
+        # the pre-disposition `blocking`, so this is safe to happen after it.
+        dispositions = classify_round(
+            blocking,
+            trend=trend,
+            last_fix_diff=last_fix_diff,
+            change_id=change_id,
+        )
+        dispatch_items: list[dict[str, Any]] = []
+        any_parked = False
+        for item in blocking:
+            item_id = item.get("id")
+            disposition = (
+                dispositions.get(int(item_id), DEFAULT_DISPOSITION)
+                if item_id is not None
+                else DEFAULT_DISPOSITION
+            )
+            if disposition == DEFAULT_DISPOSITION:
+                dispatch_items.append(item)
+                continue
+            park_item(
+                ledger,
+                item,
+                reason=PARK_REASON_BY_DISPOSITION.get(
+                    disposition, "disagreement",
+                ),
+            )
+            any_parked = True
+
+        # Re-derive the ledger's true blocking set after parking: a
+        # last-round park can retire every remaining blocker, and `blocking`
+        # otherwise stays stale for the "Max rounds exhausted" fallback below
+        # (Codex P1) -- it would report reason="max_rounds" with parked,
+        # no-longer-blocking items as escalate_findings even though nothing
+        # is left open. Cheap and a no-op when nothing was parked; the next
+        # round's own step 2g recomputes it again regardless.
+        if any_parked:
+            blocking = ledger_blocking_items(
+                ledger, blocking_criticalities=blocking_criticalities,
+            )
+            if not blocking:
+                # Disposition parked every remaining blocker this round --
+                # mirror step 2i's own "no blocking -> converged" return
+                # rather than falling through to "Max rounds exhausted"
+                # below with a stale, no-longer-blocking escalation. Persist
+                # the parking before returning -- this exits before the
+                # save_ledger() call step 2k would otherwise reach.
+                save_ledger(ledger, artifacts_dir)
+                logger.info(
+                    "Converged in round %d after disposition parked all "
+                    "remaining blockers", round_num,
+                )
+                if memory_callback:
+                    memory_callback(json.dumps(_build_convergence_metrics(
+                        rounds_completed=round_num,
+                        findings_per_round=trend,
+                        convergence_status="converged",
+                        total_time_seconds=time.monotonic() - start_time,
+                        consensus_dict=consensus_dict,
+                        escalation_count=0,
+                    )))
+                return ConvergenceResult(
+                    converged=True,
+                    rounds=round_num,
+                    reason=None,
+                    consensus=consensus_dict,
+                    escalate_findings=parked_items(ledger) or None,
+                    validation_errors=all_validation_errors or None,
+                    checkpoint_dir=latest_checkpoint_dir,
+                )
+
+        # 2k. Dispatch scoped fixes for current fix_now items only (D7).
         payloads = [
             scoped_fix_payload(item, artifacts_dir=artifacts_dir)
-            for item in blocking
+            for item in dispatch_items
         ]
         by_id = {
             int(p["id"]): p for p in payloads if p.get("id") is not None
@@ -1104,25 +1276,32 @@ def converge(
             if payload and payload.get("spec_file"):
                 item["spec_file"] = payload["spec_file"]
         save_ledger(ledger, artifacts_dir)
-        if fix_callback is not None:
+        if fix_callback is not None and payloads:
             logger.info(
                 "Dispatching fixes for %d blocking findings", len(payloads),
             )
             pre_rev = _snapshot_rev(worktree_path)
             pre_untracked = _untracked_paths(worktree_path)
             fix_callback(payloads, worktree_path)
-            changed = _changed_paths(worktree_path, pre_rev, pre_untracked)
+            changed = _without_bookkeeping(
+                _changed_paths(worktree_path, pre_rev, pre_untracked),
+                worktree_path=worktree_path,
+                artifacts_dir=artifacts_dir,
+            )
             allowed: list[str] = []
             seen_allowed: set[str] = set()
             for payload in payloads:
-                for path in payload.get("allowed_paths") or []:
+                for raw in payload.get("allowed_paths") or []:
+                    path = _repo_relative(raw, worktree_path)
                     if path not in seen_allowed:
                         seen_allowed.add(path)
                         allowed.append(path)
             if changed:
                 reject_out_of_scope_fix(changed, allowed)
             last_fix_diff = _last_fix_diff(worktree_path, pre_rev)
-            mark_addressed(ledger, [int(item["id"]) for item in blocking])
+            mark_addressed(
+                ledger, [int(item["id"]) for item in dispatch_items], touched_paths=changed,
+            )
             save_ledger(ledger, artifacts_dir)
 
             # 2l. Post-fix validation (optional)

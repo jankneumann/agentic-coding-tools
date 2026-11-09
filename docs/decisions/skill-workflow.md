@@ -5,80 +5,157 @@
 
 ---
 
-## 2026-09-16 — add-visual-code-explainer
+## 2026-10-11 — 2026-10-11-amend-skill-workflow-spec-for-policy-authorized-sync-windows
+
+### Phase: Plan Iteration 1
+
+**Also MODIFY 'Merge Conductor Invokes Iterate Skills'** — Its sentence 'The merge skill remains the user-invoked sync-point' would contradict the amended sync-point requirement once a scheduled merge exists
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-10-11-amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md](/openspec/changes/archive/2026-10-11-amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md) (D1)
+
+---
+
+## 2026-10-11 — 2026-10-11-amend-skill-workflow-spec-for-policy-authorized-sync-windows
+
+### Phase: Plan
+
+**Absent/empty sync_windows fails closed; scheduled runs never use the force escape hatch** — Mirrors absent-file all-block invariant; only an explicit operator may force past the active-agent guard
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-10-11-amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md](/openspec/changes/archive/2026-10-11-amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md) (D2)
+
+---
+
+## 2026-10-11 — 2026-10-11-amend-skill-workflow-spec-for-policy-authorized-sync-windows
+
+### Phase: Plan Iteration 1
+
+**Sync window is necessary, never sufficient (D8)** — A window authorizes starting a sync point unattended; it does not imply auto for any gate. Fail-closed reading; the alternative widens two controls with one edit
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-10-11-amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md](/openspec/changes/archive/2026-10-11-amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md) (D2)
+
+---
+
+## 2026-10-11 — 2026-10-11-amend-skill-workflow-spec-for-policy-authorized-sync-windows
+
+### Phase: Validation Review
+
+**VAL_FIX the validation report's coverage claim (ledger 30)** — The report now states the verification boundary from design D6 instead of claiming every scenario is covered
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-10-11-amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md](/openspec/changes/archive/2026-10-11-amend-skill-workflow-spec-for-policy-authorized-sync-windows/session-log.md) (D2)
+
+---
+
+## 2026-10-09 — 2026-10-10-dispatch-contract
+
+### Phase: Plan Review
+
+**Quorum park happens in the worker protocol, not convergence_loop** — below quorum the SKILL.md probe skips review entirely, so convergence_loop never runs; `runner.py park` stays the only writer.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-10-10-dispatch-contract/session-log.md](/openspec/changes/archive/2026-10-10-dispatch-contract/session-log.md) (D4)
+
+---
+
+## 2026-09-25 — 2026-09-25-restructure-openbao-per-agent-secrets
+
+### Phase: Implementation
+
+**Scoped dispatch credentials** — SDK and OpenAI-compatible dispatch authorize principal/vendor grants before Bao reads; CLI processes retain ambient credentials and non-Bao development uses configured environment keys.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-25-restructure-openbao-per-agent-secrets/session-log.md](/openspec/changes/archive/2026-09-25-restructure-openbao-per-agent-secrets/session-log.md) (D4)
+
+---
+
+## 2026-09-16 — 2026-09-21-add-visual-code-explainer
 
 ### Phase: Implementation
 
 **Inline package implementation after workflow blocked** — workflow tool cannot launch from a subagent; used managed package worktrees instead of silent main-checkout work
 
 - Status: `active`
-- Source: [openspec/changes/add-visual-code-explainer/session-log.md](/openspec/changes/add-visual-code-explainer/session-log.md) (D1)
+- Source: [openspec/changes/archive/2026-09-21-add-visual-code-explainer/session-log.md](/openspec/changes/archive/2026-09-21-add-visual-code-explainer/session-log.md) (D1)
 
 ---
 
-## 2026-09-16 — add-visual-code-explainer
+## 2026-09-16 — 2026-09-21-add-visual-code-explainer
 
 ### Phase: Implementation Review
 
 **Slim review packet under MAX_ARG_STRLEN** — Excluded ledger/handoffs/session-log/docs noise and capped BUDGET_CHARS=100000 so argv vendors (codex/pi/agy) can dispatch; stdin vendors already worked.
 
 - Status: `active`
-- Source: [openspec/changes/add-visual-code-explainer/session-log.md](/openspec/changes/add-visual-code-explainer/session-log.md) (D1)
+- Source: [openspec/changes/archive/2026-09-21-add-visual-code-explainer/session-log.md](/openspec/changes/archive/2026-09-21-add-visual-code-explainer/session-log.md) (D1)
 
 ---
 
-## 2026-09-16 — add-visual-code-explainer
+## 2026-09-16 — 2026-09-21-add-visual-code-explainer
 
 ### Phase: Validation
 
 **Mark container phases not applicable** — gate_logic --describe-surface deployable=false; issue #432 requires not applicable not skipped.
 
 - Status: `active`
-- Source: [openspec/changes/add-visual-code-explainer/session-log.md](/openspec/changes/add-visual-code-explainer/session-log.md) (D1)
+- Source: [openspec/changes/archive/2026-09-21-add-visual-code-explainer/session-log.md](/openspec/changes/archive/2026-09-21-add-visual-code-explainer/session-log.md) (D1)
 
 ---
 
-## 2026-09-16 — add-visual-code-explainer
+## 2026-09-16 — 2026-09-21-add-visual-code-explainer
 
 ### Phase: Implementation Review
 
 **Recover pi findings via string-id coercion** — pi emitted valid findings with string ids; schema rejected them as auth_required. Coerced ids and enriched evidence_class=judgment to restore quorum with grok.
 
 - Status: `active`
-- Source: [openspec/changes/add-visual-code-explainer/session-log.md](/openspec/changes/add-visual-code-explainer/session-log.md) (D2)
+- Source: [openspec/changes/archive/2026-09-21-add-visual-code-explainer/session-log.md](/openspec/changes/archive/2026-09-21-add-visual-code-explainer/session-log.md) (D2)
 
 ---
 
-## 2026-09-16 — add-visual-code-explainer
+## 2026-09-16 — 2026-09-21-add-visual-code-explainer
 
 ### Phase: Validation
 
 **Skip Gen-Eval and Evidence work-queue audit** — Only unrelated agent-coordinator descriptor exists; no work-queue-result artifacts from sequential implement.
 
 - Status: `active`
-- Source: [openspec/changes/add-visual-code-explainer/session-log.md](/openspec/changes/add-visual-code-explainer/session-log.md) (D2)
+- Source: [openspec/changes/archive/2026-09-21-add-visual-code-explainer/session-log.md](/openspec/changes/archive/2026-09-21-add-visual-code-explainer/session-log.md) (D2)
 
 ---
 
-## 2026-09-16 — add-visual-code-explainer
+## 2026-09-16 — 2026-09-21-add-visual-code-explainer
 
 ### Phase: Implementation
 
 **Task 2.8 harness-absent** — No trajectory-scenario harness in checkout; deterministic behavioural tests cover the three behaviours
 
 - Status: `active`
-- Source: [openspec/changes/add-visual-code-explainer/session-log.md](/openspec/changes/add-visual-code-explainer/session-log.md) (D3)
+- Source: [openspec/changes/archive/2026-09-21-add-visual-code-explainer/session-log.md](/openspec/changes/archive/2026-09-21-add-visual-code-explainer/session-log.md) (D3)
 
 ---
 
-## 2026-09-16 — add-visual-code-explainer
+## 2026-09-16 — 2026-09-21-add-visual-code-explainer
 
 ### Phase: Implementation Review
 
 **Advisory judgment does not block IMPL_REVIEW** — Recovered consensus: 24 advisory / 0 blocking. Medium unconfirmed judgment findings (spec scenario gaps, proposal wording) stay advisory unless confirmed high/critical or deterministic.
 
 - Status: `active`
-- Source: [openspec/changes/add-visual-code-explainer/session-log.md](/openspec/changes/add-visual-code-explainer/session-log.md) (D3)
+- Source: [openspec/changes/archive/2026-09-21-add-visual-code-explainer/session-log.md](/openspec/changes/archive/2026-09-21-add-visual-code-explainer/session-log.md) (D3)
+
+---
+
+## 2026-09-16 — add-skill-audit
+
+### Phase: Implementation
+
+**Ran local-parallel tier, not coordinated, and said so** — check_coordinator reports CAN_LOCK true but the lock endpoint rejects this session's API key, as try_recall did at plan time. The coordinated protocol is built on lock claims, so running it would have meant reporting a coordinated run that never claimed a lock.
+
+- Status: `active`
+- Source: [openspec/changes/add-skill-audit/session-log.md](/openspec/changes/add-skill-audit/session-log.md) (D1)
 
 ---
 

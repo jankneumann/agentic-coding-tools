@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "feature_id": "restructure-openbao-per-agent-secrets",
+  "package_id": "wp-integration",
+  "plan_revision": 10,
+  "contracts_revision": 6,
+  "status": "completed",
+  "locks": {
+    "files": [
+      "docs/openbao-secret-management.md"
+    ],
+    "keys": [
+      "feature:pca02:integration"
+    ]
+  },
+  "scope": {
+    "write_allow": [
+      ".github/workflows/**",
+      "agent-coordinator/tests/integration/**",
+      "skills/bao-vault/scripts/tests/integration/**",
+      "skills/bao-vault/scripts/langfuse_env.sh",
+      "skills/bao-vault/scripts/tests/test_langfuse_env.py",
+      "agent-coordinator/docker-compose.yml",
+      "docs/openbao-secret-management.md",
+      "agent-coordinator/.secrets.yaml.example",
+      "agent-coordinator/README.md",
+      "agent-coordinator/CLAUDE.md",
+      "docs/guides/**",
+      "openspec/changes/restructure-openbao-per-agent-secrets/validation/**",
+      "openspec/changes/restructure-openbao-per-agent-secrets/tasks.md"
+    ],
+    "read_allow": [
+      "**"
+    ],
+    "deny": []
+  },
+  "files_modified": [
+    ".github/workflows/ci.yml",
+    "agent-coordinator/.secrets.yaml.example",
+    "agent-coordinator/CLAUDE.md",
+    "agent-coordinator/README.md",
+    "agent-coordinator/docker-compose.yml",
+    "docs/openbao-secret-management.md",
+    "openspec/changes/restructure-openbao-per-agent-secrets/tasks.md",
+    "openspec/changes/restructure-openbao-per-agent-secrets/validation/wp-integration.md",
+    "skills/bao-vault/scripts/langfuse_env.sh",
+    "skills/bao-vault/scripts/tests/integration/concurrent_client.py",
+    "skills/bao-vault/scripts/tests/integration/run_live_matrix.sh",
+    "skills/bao-vault/scripts/tests/integration/test_live_openbao.py",
+    "skills/bao-vault/scripts/tests/test_langfuse_env.py"
+  ],
+  "scope_check": {
+    "passed": true,
+    "violations": []
+  },
+  "git": {
+    "base": {
+      "ref": "d042f770"
+    },
+    "head": {
+      "commit": "73500e9c",
+      "branch": "openspec/restructure-openbao-per-agent-secrets--wp-integration",
+      "worktree": "/home/jankneumann/Coding/agentic-coding-tools/.git-worktrees/restructure-openbao-per-agent-secrets--wp-integration"
+    }
+  },
+  "verification": {
+    "tier": "A",
+    "passed": true,
+    "steps": [
+      {
+        "name": "Strict OpenSpec validation",
+        "kind": "command",
+        "command": "openspec validate restructure-openbao-per-agent-secrets --strict",
+        "exit_code": 0,
+        "passed": true,
+        "evidence": {
+          "artifacts": [
+            "openspec/changes/restructure-openbao-per-agent-secrets/validation/wp-integration.md"
+          ],
+          "metrics": {}
+        }
+      },
+      {
+        "name": "Live OpenBao matrix",
+        "kind": "command",
+        "command": "bash skills/bao-vault/scripts/tests/integration/run_live_matrix.sh",
+        "exit_code": 0,
+        "passed": true,
+        "evidence": {
+          "artifacts": [
+            "openspec/changes/restructure-openbao-per-agent-secrets/validation/wp-integration.md"
+          ],
+          "metrics": {
+            "test_count": 8
+          }
+        }
+      }
+    ]
+  },
+  "escalations": [],
+  "notes": "Pinned OpenBao v2.6.2 live matrix passed 8/8, including two-process one-use bootstrap contention, policy isolation, wrapping failure, coordinator rotation/recovery, and periodic renewal past 5s auth-mount max TTL. Seeder/Langfuse focused tests 32/32; CI coverage guard 135/135 after feature-level Dependabot follow-up. Ruff and strict OpenSpec passed; review quorum 3/4, actionable findings fixed in followup, and independent final audit found no blockers. context_impact declaration is unmigrated."
+}

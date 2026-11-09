@@ -8,16 +8,46 @@ when coordinator access is unavailable.
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import logging
 import os
 import re
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib import error as url_error
 from urllib import parse as url_parse
 from urllib import request as url_request
 
+if TYPE_CHECKING:
+    # Python 3.11+ syntax (NotRequired/TypeAlias): type-checking only, never at
+    # runtime, because skills run this module with bare python3 (design D3).
+    from _generated.features_models import (
+        FeatureConflictsRequest,
+        FeatureDeregisterRequest,
+        FeatureRegisterRequest,
+    )
+
 logger = logging.getLogger(__name__)
+
+
+def _load_generated(name: str) -> Any:
+    """Load a module from ``_generated/`` beside this file.
+
+    Loaded by file location rather than ``import _generated...`` because many
+    callers load this bridge by path without putting its directory on
+    ``sys.path``. Regenerate with ``generate_bindings.py``; never edit by hand.
+    """
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "_generated", f"{name}.py")
+    spec = importlib.util.spec_from_file_location(f"_generated.{name}", path)
+    assert spec is not None and spec.loader is not None, path
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+# operationId -> Operation(method, path, path_params, requires_api_key, ...),
+# generated from openspec/contracts/agent-coordinator/openapi/features.yaml.
+_FEATURE_OPERATIONS: dict[str, Any] = _load_generated("features_operations").OPERATIONS
 
 DEFAULT_TIMEOUT_SECONDS = float(os.environ.get("COORDINATION_HTTP_TIMEOUT", "1.5"))
 
@@ -60,7 +90,13 @@ _CAPABILITY_PROBES: dict[str, list[tuple[str, str, dict[str, Any] | None]]] = {
     "CAN_HANDOFF": [("POST", "/handoffs/write", {})],
     "CAN_MEMORY": [("POST", "/memory/query", {})],
     "CAN_GUARDRAILS": [("POST", "/guardrails/check", {})],
-    "CAN_FEATURE_REGISTRY": [("GET", "/features/active", None)],
+    "CAN_FEATURE_REGISTRY": [
+        (
+            _FEATURE_OPERATIONS["listActiveFeatures"].method,
+            _FEATURE_OPERATIONS["listActiveFeatures"].path,
+            None,
+        )
+    ],
     "CAN_MERGE_QUEUE": [("GET", "/merge-queue", None)],
     # Read-only list with empty filter — returns 200 on healthy deployments,
     # 404 when the issues feature isn't deployed.
@@ -481,10 +517,23 @@ def _normalize_operation_response(
             state=state,
         )
     if status_code in (401, 403):
+        # 401 and 403 mean different things and want different fixes: a
+        # rejected credential versus a valid credential doing something it may
+        # not. Collapsing both into "unauthorized" is why a 403 reading "API
+        # key is not permitted to act as requested agent_id" reached operators
+        # as "coordinator lock skipped (unauthorized)" and went undiagnosed for
+        # days. Carry the server's own explanation through.
+        detail = None
+        data = response.get("data")
+        if isinstance(data, dict):
+            raw_detail = data.get("detail")
+            if isinstance(raw_detail, str) and raw_detail:
+                detail = raw_detail[:200]
         return _skipped_operation(
             operation=operation,
-            reason="unauthorized",
+            reason="unauthorized" if status_code == 401 else "forbidden",
             state=state,
+            extra={"status_code": status_code, **({"detail": detail} if detail else {})},
         )
     if 200 <= status_code < 300:
         payload = response.get("data")
@@ -558,6 +607,144 @@ def _execute_single_endpoint_operation(
     )
 
 
+def _execute_vendor_registry_operation(
+    *,
+    operation: str,
+    method: str,
+    path: str,
+    payload: dict[str, Any] | None = None,
+    http_url: str | None = None,
+    api_key: str | None = None,
+) -> dict[str, Any]:
+    """Execute a registry route without pretending errors are empty success."""
+    state = detect_coordination(http_url=http_url, api_key=api_key)
+    if not state["COORDINATOR_AVAILABLE"]:
+        return _skipped_operation(
+            operation=operation,
+            reason="coordinator_unavailable",
+            state=state,
+        )
+    response = _http_request(
+        method=method,
+        path=path,
+        payload=payload,
+        http_url=state.get("http_url"),
+        api_key=_resolve_api_key(api_key),
+    )
+    data = response.get("data")
+    status_code = response.get("status_code")
+    if isinstance(status_code, int) and status_code >= 500:
+        return {
+            "status": "error",
+            "operation": operation,
+            "reason": "server_error",
+            "COORDINATOR_AVAILABLE": True,
+            "COORDINATION_TRANSPORT": state.get("COORDINATION_TRANSPORT", "http"),
+            "status_code": status_code,
+            "response": data,
+            "error": response.get("error"),
+        }
+    if isinstance(status_code, int) and 200 <= status_code < 300 and not isinstance(
+        data, dict
+    ):
+        return {
+            "status": "error",
+            "operation": operation,
+            "reason": "malformed_response",
+            "COORDINATOR_AVAILABLE": True,
+            "COORDINATION_TRANSPORT": state.get("COORDINATION_TRANSPORT", "http"),
+            "status_code": status_code,
+            "response": data,
+            "error": "Coordinator returned a non-object registry payload",
+        }
+    if status_code == 404 and isinstance(data, dict):
+        detail = data.get("detail")
+        if detail == "unknown_vendor_lane":
+            return {
+                "status": "error",
+                "operation": operation,
+                "COORDINATOR_AVAILABLE": True,
+                "COORDINATION_TRANSPORT": state.get("COORDINATION_TRANSPORT", "http"),
+                "status_code": 404,
+                "response": data,
+                "error": detail,
+            }
+    return _normalize_operation_response(
+        operation=operation,
+        response=response,
+        state=state,
+    )
+
+
+def try_list_vendors(
+    *,
+    capability: str | None = None,
+    archetype: str | None = None,
+    dispatch_mode: str | None = None,
+    location: str | None = None,
+    available_only: bool = False,
+    http_url: str | None = None,
+    api_key: str | None = None,
+) -> dict[str, Any]:
+    """Return configured vendor lanes through the native operation envelope."""
+    params: list[tuple[str, str]] = []
+    for name, value in (
+        ("capability", capability),
+        ("archetype", archetype),
+        ("dispatch_mode", dispatch_mode),
+        ("location", location),
+    ):
+        if value is not None:
+            params.append((name, value))
+    if available_only:
+        params.append(("available_only", "true"))
+    query = url_parse.urlencode(params)
+    path = f"/vendors?{query}" if query else "/vendors"
+    return _execute_vendor_registry_operation(
+        operation="list_vendors",
+        method="GET",
+        path=path,
+        http_url=http_url,
+        api_key=api_key,
+    )
+
+
+def try_get_vendor_availability(
+    agent_id: str,
+    *,
+    http_url: str | None = None,
+    api_key: str | None = None,
+) -> dict[str, Any]:
+    """Return one exact lane's availability without provider-name inference."""
+    quoted_agent_id = url_parse.quote(agent_id, safe="")
+    return _execute_vendor_registry_operation(
+        operation="get_vendor_availability",
+        method="GET",
+        path=f"/vendors/{quoted_agent_id}/availability",
+        http_url=http_url,
+        api_key=api_key,
+    )
+
+
+def try_report_vendor_rate_limit(
+    agent_id: str,
+    observation: dict[str, Any],
+    *,
+    http_url: str | None = None,
+    api_key: str | None = None,
+) -> dict[str, Any]:
+    """Report a capacity observation for an exact configured lane."""
+    quoted_agent_id = url_parse.quote(agent_id, safe="")
+    return _execute_vendor_registry_operation(
+        operation="report_vendor_rate_limit",
+        method="POST",
+        path=f"/vendors/{quoted_agent_id}/rate-limit-observations",
+        payload=observation,
+        http_url=http_url,
+        api_key=api_key,
+    )
+
+
 def _execute_multi_endpoint_operation(
     *,
     operation: str,
@@ -614,6 +801,68 @@ def _execute_multi_endpoint_operation(
     )
 
 
+#: The coordinator's exact wording when an API key is bound to one identity and
+#: the request names another. Matching it keeps the retry below narrow: any
+#: other 403 is a real authorization failure and must not be retried.
+_IDENTITY_REFUSED = "not permitted to act as requested"
+
+
+def _identity_was_refused(result: dict[str, Any]) -> bool:
+    return result.get("reason") == "forbidden" and _IDENTITY_REFUSED in str(
+        result.get("detail") or ""
+    )
+
+
+def _lock_request(
+    *,
+    operation: str,
+    path: str,
+    payload: dict[str, Any],
+    identity: dict[str, Any],
+    http_url: str | None,
+    api_key: str | None,
+) -> dict[str, Any]:
+    """Send a lock request, retrying once without identity if it is refused.
+
+    Two deployment shapes have to work, and the client cannot tell them apart:
+
+    * a key listed in ``COORDINATION_API_KEY_IDENTITIES`` is *bound*, and
+      ``resolve_identity`` 403s on any request naming a different identity. The
+      caller cannot know the bound name, so it must send none.
+    * a key in ``COORDINATION_API_KEYS`` with no identity entry is *unbound*,
+      and the request's own identity is all the server has. Sending none there
+      collapses every agent to the ``cloud-agent`` default, so two agents could
+      release each other's locks.
+
+    Blanking unconditionally fixes the first and breaks the second. So the
+    caller's identity goes first, which is correct for an unbound key, and a
+    refusal -- the one error that means "you are bound" -- triggers a single
+    retry without it. Each deployment pays at most one extra round trip, and
+    only when the server has said the first attempt was wrong.
+    """
+    attempt = _execute_single_endpoint_operation(
+        operation=operation,
+        capability_flag="CAN_LOCK",
+        method="POST",
+        path=path,
+        payload={**payload, **identity},
+        http_url=http_url,
+        api_key=api_key,
+    )
+    if not _identity_was_refused(attempt):
+        return attempt
+    blanked = dict.fromkeys(identity, "")
+    return _execute_single_endpoint_operation(
+        operation=operation,
+        capability_flag="CAN_LOCK",
+        method="POST",
+        path=path,
+        payload={**payload, **blanked},
+        http_url=http_url,
+        api_key=api_key,
+    )
+
+
 def try_lock(
     *,
     file_path: str,
@@ -626,19 +875,16 @@ def try_lock(
     api_key: str | None = None,
 ) -> dict[str, Any]:
     """Acquire a coordinator lock when lock capability is available."""
-    return _execute_single_endpoint_operation(
+    return _lock_request(
         operation="try_lock",
-        capability_flag="CAN_LOCK",
-        method="POST",
         path="/locks/acquire",
         payload={
             "file_path": file_path,
-            "agent_id": agent_id,
-            "agent_type": agent_type,
             "session_id": session_id,
             "reason": reason,
             "ttl_minutes": ttl_minutes,
         },
+        identity={"agent_id": agent_id, "agent_type": agent_type},
         http_url=http_url,
         api_key=api_key,
     )
@@ -652,15 +898,13 @@ def try_unlock(
     api_key: str | None = None,
 ) -> dict[str, Any]:
     """Release a coordinator lock when lock capability is available."""
-    return _execute_single_endpoint_operation(
+    # Same binding rule as acquire: a release naming an identity the key is not
+    # bound to is refused, stranding the lock until its TTL expires.
+    return _lock_request(
         operation="try_unlock",
-        capability_flag="CAN_LOCK",
-        method="POST",
         path="/locks/release",
-        payload={
-            "file_path": file_path,
-            "agent_id": agent_id,
-        },
+        payload={"file_path": file_path},
+        identity={"agent_id": agent_id},
         http_url=http_url,
         api_key=api_key,
     )
@@ -675,6 +919,7 @@ def try_submit_work(
     depends_on: list[str] | None = None,
     projection_key: dict[str, Any] | None = None,
     projection_labels: list[str] | None = None,
+    claim_immediately: bool = False,
     http_url: str | None = None,
     api_key: str | None = None,
     _coordination_state: dict[str, Any] | None = None,
@@ -694,6 +939,7 @@ def try_submit_work(
             "input_data": input_data,
             "priority": priority,
             "depends_on": depends_on,
+            **({"claim_immediately": True} if claim_immediately else {}),
             **({"projection_key": projection_key} if projection_key is not None else {}),
             **(
                 {"projection_labels": projection_labels}
@@ -810,8 +1056,8 @@ def try_reconcile_work_projection(
 
 def try_get_work(
     *,
-    agent_id: str,
-    agent_type: str,
+    agent_id: str | None,
+    agent_type: str | None,
     task_types: list[str] | None = None,
     http_url: str | None = None,
     api_key: str | None = None,
@@ -823,8 +1069,8 @@ def try_get_work(
         method="POST",
         path="/work/claim",
         payload={
-            "agent_id": agent_id,
-            "agent_type": agent_type,
+            **({"agent_id": agent_id} if agent_id is not None else {}),
+            **({"agent_type": agent_type} if agent_type is not None else {}),
             "task_types": task_types,
         },
         http_url=http_url,
@@ -835,7 +1081,7 @@ def try_get_work(
 def try_complete_work(
     *,
     task_id: str,
-    agent_id: str,
+    agent_id: str | None,
     success: bool,
     result: dict[str, Any] | None = None,
     error_message: str | None = None,
@@ -850,7 +1096,7 @@ def try_complete_work(
         path="/work/complete",
         payload={
             "task_id": task_id,
-            "agent_id": agent_id,
+            **({"agent_id": agent_id} if agent_id is not None else {}),
             "success": success,
             "result": result,
             "error_message": error_message,
@@ -1010,6 +1256,31 @@ def try_check_guardrails(
     )
 
 
+def _execute_feature_operation(
+    *,
+    operation: str,
+    operation_id: str,
+    payload: dict[str, Any] | None = None,
+    path_values: dict[str, str] | None = None,
+    http_url: str | None,
+    api_key: str | None,
+) -> dict[str, Any]:
+    """Run a feature-registry operation whose method and path come from the contract."""
+    op = _FEATURE_OPERATIONS[operation_id]
+    path = op.path
+    for name in op.path_params:
+        path = path.replace("{" + name + "}", url_parse.quote((path_values or {})[name], safe=""))
+    return _execute_single_endpoint_operation(
+        operation=operation,
+        capability_flag="CAN_FEATURE_REGISTRY",
+        method=op.method,
+        path=path,
+        payload=payload,
+        http_url=http_url,
+        api_key=api_key,
+    )
+
+
 def try_register_feature(
     *,
     feature_id: str,
@@ -1022,21 +1293,23 @@ def try_register_feature(
     http_url: str | None = None,
     api_key: str | None = None,
 ) -> dict[str, Any]:
-    """Register a feature with resource claims via HTTP."""
-    return _execute_single_endpoint_operation(
+    """Register a feature with resource claims via HTTP.
+
+    On ``ok``, ``data`` is a ``FeatureRegisterResult``.
+    """
+    payload: FeatureRegisterRequest = {
+        "feature_id": feature_id,
+        "resource_claims": resource_claims,
+        "title": title,
+        "agent_id": agent_id,
+        "branch_name": branch_name,
+        "merge_priority": merge_priority,
+        "metadata": metadata,
+    }
+    return _execute_feature_operation(
         operation="try_register_feature",
-        capability_flag="CAN_FEATURE_REGISTRY",
-        method="POST",
-        path="/features/register",
-        payload={
-            "feature_id": feature_id,
-            "resource_claims": resource_claims,
-            "title": title,
-            "agent_id": agent_id,
-            "branch_name": branch_name,
-            "merge_priority": merge_priority,
-            "metadata": metadata,
-        },
+        operation_id="registerFeature",
+        payload=dict(payload),
         http_url=http_url,
         api_key=api_key,
     )
@@ -1049,16 +1322,80 @@ def try_deregister_feature(
     http_url: str | None = None,
     api_key: str | None = None,
 ) -> dict[str, Any]:
-    """Deregister a feature (mark completed/cancelled) via HTTP."""
-    return _execute_single_endpoint_operation(
+    """Deregister a feature (mark completed/cancelled) via HTTP.
+
+    On ``ok``, ``data`` is a ``FeatureDeregisterResult``.
+    """
+    payload: FeatureDeregisterRequest = {
+        "feature_id": feature_id,
+        "status": status,  # type: ignore[typeddict-item]  # validated server-side
+    }
+    return _execute_feature_operation(
         operation="try_deregister_feature",
-        capability_flag="CAN_FEATURE_REGISTRY",
-        method="POST",
-        path="/features/deregister",
-        payload={
-            "feature_id": feature_id,
-            "status": status,
-        },
+        operation_id="deregisterFeature",
+        payload=dict(payload),
+        http_url=http_url,
+        api_key=api_key,
+    )
+
+
+def try_get_feature(
+    *,
+    feature_id: str,
+    http_url: str | None = None,
+    api_key: str | None = None,
+) -> dict[str, Any]:
+    """Get one feature's details via HTTP.
+
+    On ``ok``, ``data`` is a ``FeatureDetail``. An unknown ``feature_id`` (404)
+    returns a non-``ok`` envelope; it never raises.
+    """
+    return _execute_feature_operation(
+        operation="try_get_feature",
+        operation_id="getFeature",
+        path_values={"feature_id": feature_id},
+        http_url=http_url,
+        api_key=api_key,
+    )
+
+
+def try_list_active_features(
+    *,
+    http_url: str | None = None,
+    api_key: str | None = None,
+) -> dict[str, Any]:
+    """List active features by merge priority via HTTP.
+
+    On ``ok``, ``data`` is an ``ActiveFeaturesEnvelope`` (``features``, ``count``,
+    ``truncated``).
+    """
+    return _execute_feature_operation(
+        operation="try_list_active_features",
+        operation_id="listActiveFeatures",
+        http_url=http_url,
+        api_key=api_key,
+    )
+
+
+def try_analyze_feature_conflicts(
+    *,
+    candidate_feature_id: str,
+    candidate_claims: list[str],
+    http_url: str | None = None,
+    api_key: str | None = None,
+) -> dict[str, Any]:
+    """Analyze a candidate's resource conflicts against active features via HTTP.
+
+    On ``ok``, ``data`` is a ``ConflictReport``.
+    """
+    payload: FeatureConflictsRequest = {
+        "candidate_feature_id": candidate_feature_id,
+        "candidate_claims": candidate_claims,
+    }
+    return _execute_feature_operation(
+        operation="try_analyze_feature_conflicts",
+        operation_id="analyzeFeatureConflicts",
+        payload=dict(payload),
         http_url=http_url,
         api_key=api_key,
     )
@@ -1753,9 +2090,19 @@ def try_resolve_archetype_for_phase(
     timeout, non-200 status, malformed response). Failures emit a structured
     WARNING via the module logger and never raise.
 
+    Only the four keys above are required. Any further key the coordinator
+    sends (``provider``, ``write_capable``, ``thinking``, ``procedure_mode``)
+    is passed through unchanged. ``procedure_mode`` (OpenSpec add-skill-audit,
+    D3) is optional: an older coordinator omits it and callers treat the mode
+    as ``guided``. The bridge never injects the mode sentence itself; the
+    coordinator has already appended it to ``system_prompt`` when the mode is
+    not ``guided``, so forwarding ``system_prompt`` as-is is sufficient.
+
     Spec: openspec/changes/add-per-phase-archetype-resolution/specs/
           agent-coordinator/spec.md -- Phase Archetype Resolution Bridge Helper.
-    Design decisions: D4 (bridge helper), D9 (failure mode).
+          openspec/changes/add-skill-audit/specs/agent-archetypes/spec.md --
+          Procedure Mode Prompt Injection ("Bridge tolerates an older coordinator").
+    Design decisions: D4 (bridge helper), D9 (failure mode); add-skill-audit D3.
     """
     resolved_url = _resolve_http_url(http_url)
     if not resolved_url:
@@ -1816,6 +2163,142 @@ def try_resolve_archetype_for_phase(
         return None
 
     return data
+
+
+_SELECT_MODEL_REQUIRED_FIELDS = ("decision_id", "selected", "fallback")
+
+
+def try_select_model_for_task(
+    task_signals: dict[str, Any],
+    *,
+    routing_profile: dict[str, Any] | None = None,
+    objective_profile: str | None = None,
+    weight_overrides: dict[str, Any] | None = None,
+    allow_exploration: bool = True,
+    static_provider: str | None = None,
+    static_model: str | None = None,
+    http_url: str | None = None,
+    api_key: str | None = None,
+    timeout: float = DEFAULT_TIMEOUT_SECONDS,
+    repo_root: Any = None,
+) -> dict[str, Any] | None:
+    """Select a model/lane for a task, falling back to a local static route.
+
+    Tries ``POST /routing/select_model`` first. Local fallback triggers ONLY
+    when the coordinator is genuinely unreachable -- missing/disallowed URL,
+    network error, or timeout, all of which ``_http_request`` reports as
+    ``status_code=None`` -- or when it returns a 200 with a malformed body. A
+    concrete HTTP error the coordinator actually returned (422 for an invalid
+    typed profile, 503 "no feasible candidate", etc.) is its real,
+    authoritative answer: routing locally after one would silently mask a
+    caller error or contradict a semantic "no candidate" verdict with a
+    fabricated local one, defeating the point of the typed validation
+    boundary. Design D8 restricts fallback to "transport timeout/
+    unreachability" for exactly this reason (Codex review on PR #605). This
+    helper never surfaces the coordinator's error body -- callers that need
+    it should call the HTTP API directly.
+
+    Local fallback also requires the caller to have supplied its own
+    already-resolved ``static_provider``/``static_model``. Returns the
+    coordinator's response dict on success; the local
+    ``routing_fallback.local_static_route`` result (``source="local-static"``,
+    ``fallback=True``) only when unreachable; and ``None`` otherwise -- no
+    static provider/model, a concrete coordinator answer, or no exact local
+    lane -- the same "no signal, use harness defaults" contract as
+    ``try_resolve_archetype_for_phase``. Never raises.
+
+    Spec: openspec/changes/implement-the-task-router-vendor-x-location-x-model/
+          specs/task-routing/spec.md -- Requirement: Honest local fallback.
+    Design decisions: D6 (additive assignment/provenance), D8 (local fallback).
+    """
+    payload: dict[str, Any] = {"task_signals": task_signals}
+    if routing_profile is not None:
+        payload["routing_profile"] = routing_profile
+    if objective_profile is not None:
+        payload["objective_profile"] = objective_profile
+    if weight_overrides is not None:
+        payload["weight_overrides"] = weight_overrides
+    payload["allow_exploration"] = allow_exploration
+
+    resolved_url = _resolve_http_url(http_url)
+    if not resolved_url:
+        logger.warning(
+            "try_select_model_for_task failed: missing_http_url; falling back "
+            "to local-static routing when a static provider/model was supplied"
+        )
+    else:
+        response = _http_request(
+            method="POST",
+            path="/routing/select_model",
+            payload=payload,
+            http_url=resolved_url,
+            api_key=_resolve_api_key(api_key),
+            timeout=timeout,
+        )
+        status = response.get("status_code")
+        data = response.get("data")
+        if status == 200 and isinstance(data, dict) and all(
+            k in data for k in _SELECT_MODEL_REQUIRED_FIELDS
+        ):
+            return data
+        if status is not None and status != 200:
+            # The coordinator is reachable and gave a concrete, authoritative
+            # answer -- even an error -- never second-guess it with a locally
+            # fabricated assignment.
+            logger.warning(
+                "try_select_model_for_task coordinator returned HTTP status=%s "
+                "error=%s; treating as authoritative, not falling back to "
+                "local-static routing",
+                status,
+                response.get("error"),
+            )
+            return None
+        if status == 200:
+            # 200 with a malformed body is not an authoritative answer -- it's
+            # a broken response, so it degrades the same as unreachability.
+            logger.warning(
+                "try_select_model_for_task coordinator returned a malformed "
+                "200 response: %r; falling back to local-static routing when "
+                "a static provider/model was supplied",
+                data,
+            )
+        else:
+            logger.warning(
+                "try_select_model_for_task coordinator unreachable: error=%s; "
+                "falling back to local-static routing when a static "
+                "provider/model was supplied",
+                response.get("error"),
+            )
+
+    if not static_provider or not static_model:
+        logger.warning(
+            "try_select_model_for_task: no static_provider/static_model supplied; "
+            "cannot fall back to local-static routing"
+        )
+        return None
+
+    try:
+        import routing_fallback
+    except ImportError:
+        logger.warning("try_select_model_for_task: routing_fallback module unavailable")
+        return None
+
+    try:
+        return routing_fallback.local_static_route(
+            task_signals,
+            static_provider=static_provider,
+            static_model=static_model,
+            routing_profile=routing_profile,
+            repo_root=repo_root,
+        )
+    except routing_fallback.LocalRoutingFallbackError as exc:
+        logger.warning("try_select_model_for_task: local-static fallback failed: %s", exc)
+        return None
+    except (FileNotFoundError, ValueError) as exc:
+        logger.warning(
+            "try_select_model_for_task: local-static config invalid or missing: %s", exc
+        )
+        return None
 
 
 def _main(argv: list[str] | None = None) -> int:

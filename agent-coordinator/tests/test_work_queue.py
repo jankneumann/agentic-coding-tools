@@ -7,7 +7,19 @@ import pytest
 from httpx import Response
 
 from src.policy_engine import PolicyDecision
-from src.work_queue import ClaimResult, CompleteResult, SubmitResult, Task, WorkQueueService
+from src.work_queue import (
+    ClaimResult,
+    CompleteResult,
+    SubmitResult,
+    Task,
+    WorkQueueService,
+    _metric_task_type,
+)
+
+
+def test_metric_task_type_collapses_vendor_correlation_ids() -> None:
+    assert _metric_task_type("vendor-dispatch-1234-unique") == "vendor-dispatch"
+    assert _metric_task_type("review") == "review"
 
 
 class TestWorkQueueService:
@@ -114,6 +126,41 @@ class TestWorkQueueService:
 
         assert result.success is True
         assert result.task_id is not None
+
+    @pytest.mark.asyncio
+    async def test_submit_and_claim_uses_one_atomic_rpc(
+        self, mock_supabase, db_client
+    ):
+        task_id = UUID(int=42)
+        mock_supabase.post(
+            "https://test.supabase.co/rest/v1/rpc/submit_claimed_task"
+        ).mock(
+            return_value=Response(
+                200,
+                json={
+                    "success": True,
+                    "task_id": str(task_id),
+                    "status": "claimed",
+                    "created": True,
+                },
+            )
+        )
+
+        service = WorkQueueService(db_client)
+        result = await service.submit(
+            task_type="vendor-dispatch-correlation",
+            description="Track an async vendor dispatch",
+            priority=5,
+            claim_immediately=True,
+            claimant_agent_id="dispatcher-7",
+            claimant_agent_type="codex",
+        )
+
+        assert result.success is True
+        assert result.status == "claimed"
+        request = mock_supabase.calls.last.request
+        assert request.url.path.endswith("/rpc/submit_claimed_task")
+        assert json.loads(request.content)["p_agent_id"] == "dispatcher-7"
 
     @pytest.mark.asyncio
     async def test_submit_task_with_dependencies(

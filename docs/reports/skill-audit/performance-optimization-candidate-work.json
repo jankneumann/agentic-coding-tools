@@ -1,0 +1,344 @@
+[
+  {
+    "description": "Improve the harness capability: rightsize performance-optimization: contract_unpinned in SKILL.md#03-the-optimization-workflow.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F002"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/performance-optimization-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-performance-optimization-contract-unpinned-skill-md-03-the-optimization-workflow",
+    "tags": [
+      "source-rank-2"
+    ],
+    "title": "rightsize performance-optimization: contract_unpinned in SKILL.md#03-the-optimization-workflow"
+  },
+  {
+    "description": "Improve the harness capability: rightsize performance-optimization: contract_unpinned in SKILL.md#05-backend-latency-budgets.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F003"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/performance-optimization-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-performance-optimization-contract-unpinned-skill-md-05-backend-latency-budgets",
+    "tags": [
+      "source-rank-3"
+    ],
+    "title": "rightsize performance-optimization: contract_unpinned in SKILL.md#05-backend-latency-budgets"
+  },
+  {
+    "description": "Improve the harness capability: rightsize performance-optimization: contract_unpinned in SKILL.md#06-frontend.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F004"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/performance-optimization-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-performance-optimization-contract-unpinned-skill-md-06-frontend",
+    "tags": [
+      "source-rank-4"
+    ],
+    "title": "rightsize performance-optimization: contract_unpinned in SKILL.md#06-frontend"
+  },
+  {
+    "description": "Improve the harness capability: rightsize performance-optimization: contract_unpinned in SKILL.md#07-backend.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F005"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/performance-optimization-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-performance-optimization-contract-unpinned-skill-md-07-backend",
+    "tags": [
+      "source-rank-5"
+    ],
+    "title": "rightsize performance-optimization: contract_unpinned in SKILL.md#07-backend"
+  },
+  {
+    "description": "Improve the harness capability: rightsize performance-optimization: contract_unpinned in SKILL.md#08-explain-analyze-workflow.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F006"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/performance-optimization-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-performance-optimization-contract-unpinned-skill-md-08-explain-analyze-workflow",
+    "tags": [
+      "source-rank-6"
+    ],
+    "title": "rightsize performance-optimization: contract_unpinned in SKILL.md#08-explain-analyze-workflow"
+  },
+  {
+    "description": "Improve the harness capability: rightsize performance-optimization: contract_unpinned in SKILL.md#09-step-2-identify-the-bottleneck.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F007"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/performance-optimization-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-performance-optimization-contract-unpinned-skill-md-09-step-2-identify-the-bottleneck",
+    "tags": [
+      "source-rank-7"
+    ],
+    "title": "rightsize performance-optimization: contract_unpinned in SKILL.md#09-step-2-identify-the-bottleneck"
+  },
+  {
+    "description": "Improve the harness capability: rightsize performance-optimization: contract_unpinned in SKILL.md#11-n-1-queries-the-single-most-common-backe.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F008"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/performance-optimization-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-performance-optimization-contract-unpinned-skill-md-11-n-1-queries-the-single-most-common-b",
+    "tags": [
+      "source-rank-8"
+    ],
+    "title": "rightsize performance-optimization: contract_unpinned in SKILL.md#11-n-1-queries-the-single-most-common-backe"
+  },
+  {
+    "description": "Improve the harness capability: rightsize performance-optimization: contract_unpinned in SKILL.md#12-missing-or-wrong-indexes.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F009"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/performance-optimization-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-performance-optimization-contract-unpinned-skill-md-12-missing-or-wrong-indexes",
+    "tags": [
+      "source-rank-9"
+    ],
+    "title": "rightsize performance-optimization: contract_unpinned in SKILL.md#12-missing-or-wrong-indexes"
+  },
+  {
+    "description": "Improve the harness capability: rightsize performance-optimization: contract_unpinned in SKILL.md#13-connection-pool-sizing.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F010"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/performance-optimization-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-performance-optimization-contract-unpinned-skill-md-13-connection-pool-sizing",
+    "tags": [
+      "source-rank-10"
+    ],
+    "title": "rightsize performance-optimization: contract_unpinned in SKILL.md#13-connection-pool-sizing"
+  },
+  {
+    "description": "Improve the harness capability: rightsize performance-optimization: contract_unpinned in SKILL.md#14-async-profiling-python.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F011"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/performance-optimization-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-performance-optimization-contract-unpinned-skill-md-14-async-profiling-python",
+    "tags": [
+      "source-rank-11"
+    ],
+    "title": "rightsize performance-optimization: contract_unpinned in SKILL.md#14-async-profiling-python"
+  },
+  {
+    "description": "Improve the harness capability: rightsize performance-optimization: contract_unpinned in SKILL.md#15-unbounded-data-fetching.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F012"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/performance-optimization-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-performance-optimization-contract-unpinned-skill-md-15-unbounded-data-fetching",
+    "tags": [
+      "source-rank-12"
+    ],
+    "title": "rightsize performance-optimization: contract_unpinned in SKILL.md#15-unbounded-data-fetching"
+  },
+  {
+    "description": "Improve the harness capability: rightsize performance-optimization: contract_unpinned in SKILL.md#16-image-optimization-frontend-lcp-fix.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F013"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/performance-optimization-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-performance-optimization-contract-unpinned-skill-md-16-image-optimization-frontend-lcp-fix",
+    "tags": [
+      "source-rank-13"
+    ],
+    "title": "rightsize performance-optimization: contract_unpinned in SKILL.md#16-image-optimization-frontend-lcp-fix"
+  },
+  {
+    "description": "Improve the harness capability: rightsize performance-optimization: contract_unpinned in SKILL.md#17-unnecessary-re-renders-react.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F014"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/performance-optimization-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-performance-optimization-contract-unpinned-skill-md-17-unnecessary-re-renders-react",
+    "tags": [
+      "source-rank-14"
+    ],
+    "title": "rightsize performance-optimization: contract_unpinned in SKILL.md#17-unnecessary-re-renders-react"
+  },
+  {
+    "description": "Improve the harness capability: rightsize performance-optimization: contract_unpinned in SKILL.md#18-bundle-splitting.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F015"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/performance-optimization-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-performance-optimization-contract-unpinned-skill-md-18-bundle-splitting",
+    "tags": [
+      "source-rank-15"
+    ],
+    "title": "rightsize performance-optimization: contract_unpinned in SKILL.md#18-bundle-splitting"
+  },
+  {
+    "description": "Improve the harness capability: rightsize performance-optimization: contract_unpinned in SKILL.md#19-caching.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F016"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/performance-optimization-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-performance-optimization-contract-unpinned-skill-md-19-caching",
+    "tags": [
+      "source-rank-16"
+    ],
+    "title": "rightsize performance-optimization: contract_unpinned in SKILL.md#19-caching"
+  },
+  {
+    "description": "Improve the harness capability: rightsize performance-optimization: contract_unpinned in SKILL.md#20-performance-budget.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F017"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/performance-optimization-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-performance-optimization-contract-unpinned-skill-md-20-performance-budget",
+    "tags": [
+      "source-rank-17"
+    ],
+    "title": "rightsize performance-optimization: contract_unpinned in SKILL.md#20-performance-budget"
+  },
+  {
+    "description": "Improve the harness capability: rightsize performance-optimization: constraint_without_reason in SKILL.md#02-when-to-use.",
+    "effort": "S",
+    "priority": 3,
+    "provenance": {
+      "finding_ids": [
+        "F001"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/performance-optimization-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity medium.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-performance-optimization-constraint-without-reason-skill-md-02-when-to-use",
+    "tags": [
+      "source-rank-1"
+    ],
+    "title": "rightsize performance-optimization: constraint_without_reason in SKILL.md#02-when-to-use"
+  },
+  {
+    "description": "Improve the harness capability: rightsize performance-optimization: convention_drift in SKILL.md.",
+    "effort": "S",
+    "priority": 3,
+    "provenance": {
+      "finding_ids": [
+        "F018"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/performance-optimization-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity medium.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-performance-optimization-convention-drift-skill-md",
+    "tags": [
+      "source-rank-18"
+    ],
+    "title": "rightsize performance-optimization: convention_drift in SKILL.md"
+  }
+]

@@ -10,14 +10,17 @@ from __future__ import annotations
 import logging
 import os
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import yaml
-from jsonschema import validate
+from jsonschema import ValidationError, validate
+from openbao_credentials import agent_principal_id, project_principals
 
+from src.isolation_contract import ISOLATION_MODES, IsolationMode, validate_isolation
 from src.profile_loader import _INTERPOLATION_RE, _load_secrets_file, interpolate
 from src.trust_levels import MAX_TRUST, MIN_TRUST, TrustLevel
 
@@ -74,40 +77,43 @@ DEFAULT_LOCAL_HOST_CLASS: dict[str, Any] = {
 _REVIEWED_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 # Emergency fallback ONLY — used when archetypes.yaml cannot be loaded.
-# The authored tier→model map lives solely in archetypes.yaml::model_aliases.
-# get_provider_model_map() prefers that YAML; do not edit roster values here
-# to "keep in sync". Tests must derive expectations from the loaded YAML.
+# The authored tier→model map lives in archetypes.yaml::model_aliases.
+# get_provider_model_map() prefers that YAML. These values mirror that file
+# so a failed load does not dispatch the previous generation, and so tests
+# that read this dict agree with resolution against the YAML. Tune the YAML
+# first, then copy the resulting tier entries here.
 DEFAULT_PROVIDER_MODEL_MAP: dict[str, Any] = {
     "schema_version": 2,
     "tiers": list(ALL_MODEL_TIERS),
     "providers": {
         "claude_code": {
-            "frontier": "fable",
-            "premium": {"model": "fable", "thinking": "medium"},
-            "standard": "sonnet",
-            "economy": "haiku",
+            "frontier": {"model": "claude-opus-5-5", "thinking": "high"},
+            "premium": {"model": "claude-opus-5-5", "thinking": "high"},
+            "standard": {"model": "claude-sonnet-5-5", "thinking": "medium"},
+            "economy": {"model": "claude-haiku-5-5", "thinking": "low"},
         },
         "codex": {
-            "frontier": {"model": "gpt-5.6-sol", "thinking": "xhigh"},
-            "premium": {"model": "gpt-5.6-sol", "thinking": "high"},
-            "standard": "gpt-5.6-terra",
-            "economy": "gpt-5.6-luna",
+            "frontier": {"model": "gpt-6-astra", "thinking": "high"},
+            "premium": {"model": "gpt-6-sol", "thinking": "high"},
+            "standard": {"model": "gpt-6-sol", "thinking": "medium"},
+            "economy": {"model": "gpt-6-luna", "thinking": "low"},
         },
         "antigravity": {
             "premium": "gemini-3.8-flash-high",
-            "standard": "gemini-3.6-flash-medium",
-            "economy": "gemini-3.6-flash-low",
+            "standard": "gemini-3.8-flash-medium",
+            "economy": "gemini-3.8-flash-low",
         },
         "grok": {
-            "premium": {"model": "grok-4.5", "thinking": "high"},
-            "standard": {"model": "grok-4.5", "thinking": "medium"},
-            "economy": {"model": "grok-4.5", "thinking": "low"},
+            "frontier": {"model": "grok-4.7", "thinking": "xhigh"},
+            "premium": {"model": "grok-4.7", "thinking": "high"},
+            "standard": {"model": "grok-4.7", "thinking": "medium"},
+            "economy": {"model": "grok-4.7", "thinking": "low"},
         },
         "pi": {
             "frontier": "moonshotai/kimi-k3",
-            "premium": "nvidia/nemotron-3-ultra-550b-a55b",
+            "premium": "qwen/qwen3.8-max-0902",
             "standard": "qwen/qwen3-coder",
-            "economy": "qwen/qwen3-coder-flash",
+            "economy": "qwen/qwen3.8-flash",
         },
         "local": {
             "standard": "gpt-oss-120b",
@@ -224,6 +230,33 @@ NON_TERMINAL_PHASES: tuple[str, ...] = (
 )
 
 # ---------------------------------------------------------------------------
+# Procedure mode (OpenSpec change add-skill-audit, design D3)
+#
+# How much of a skill's written procedure an agent running under an archetype
+# is expected to follow. It is a property of the archetype (the role), not of
+# the tier it escalates to. `guided` is the default and appends nothing, so a
+# roster that never declares the field resolves byte-identically to before.
+# The sentences are defined once, here, and injected at exactly one place:
+# resolve_archetype_for_phase. Tests import these constants rather than
+# restating the text.
+# ---------------------------------------------------------------------------
+
+PROCEDURE_MODES: tuple[str, ...] = ("verbatim", "guided", "goal-directed")
+DEFAULT_PROCEDURE_MODE = "guided"
+PROCEDURE_MODE_SENTENCES: dict[str, str] = {
+    "verbatim": (
+        "Follow the skill's written procedure step by step; do not skip, "
+        "reorder, or merge steps."
+    ),
+    "goal-directed": (
+        "Satisfy the skill's acceptance probes by whatever route is sound; "
+        "where you deviate from the written procedure, record each deviation "
+        "as a session-log Decision with capability `skill-procedure-deviation`."
+    ),
+}
+
+
+# ---------------------------------------------------------------------------
 # JSON Schema for archetypes.yaml validation
 # ---------------------------------------------------------------------------
 
@@ -232,11 +265,12 @@ ARCHETYPES_SCHEMA: dict[str, Any] = {
     "required": ["schema_version", "archetypes"],
     "properties": {
         # schema_version selects optional structure: v2 enables phase_mapping (OpenSpec
-        # add-per-phase-archetype-resolution), v3 adds model_aliases / tier models. Note:
+        # add-per-phase-archetype-resolution), v3 adds model_aliases / tier models, v4
+        # adds the optional per-archetype `procedure_mode` (add-skill-audit D3). Note:
         # `write_capable` is REQUIRED on every archetype regardless of version (fail-loud,
         # design D3 — no implicit default). A pre-existing v1 file that omits it must add
         # `write_capable` on migration; the version does NOT grandfather the field away.
-        "schema_version": {"type": "integer", "enum": [1, 2, 3]},
+        "schema_version": {"type": "integer", "enum": [1, 2, 3, 4]},
         # Host class of the machine serving the `local` provider. Optional:
         # absent means the GB10 defaults apply (DEFAULT_LOCAL_HOST_CLASS).
         "local_host_class": _LOCAL_HOST_CLASS_SCHEMA,
@@ -283,6 +317,12 @@ ARCHETYPES_SCHEMA: dict[str, Any] = {
                     # on every archetype (design D3 / D3.1 — no implicit default;
                     # a missing field fails schema validation, i.e. fail-loud).
                     "write_capable": {"type": "boolean"},
+                    # Optional; omitted means DEFAULT_PROCEDURE_MODE. Any other
+                    # value fails validation naming the archetype and the value.
+                    "procedure_mode": {
+                        "type": "string",
+                        "enum": list(PROCEDURE_MODES),
+                    },
                     "escalation": {
                         "type": ["object", "null"],
                         "properties": {
@@ -342,16 +382,160 @@ ARCHETYPES_SCHEMA: dict[str, Any] = {
 # ---------------------------------------------------------------------------
 
 VALID_TRANSPORTS = {"mcp", "http"}
-VALID_ISOLATION_MODES = {"worktree", "sandbox", "none"}
+VALID_ISOLATION_MODES = frozenset(ISOLATION_MODES)
+VALID_ENDPOINT_KINDS = {"vendor-cli", "vendor-sdk", "openrouter", "local"}
+VALID_LOCATIONS = {"local", "cloud", "unknown"}
 VALID_CAPABILITIES = {
     "lock", "queue", "memory", "guardrails", "handoff", "discover", "audit",
-    "feature_registry",
+    "feature_registry", "vendor_limit_reporter",
 }
+
+#: Slug pattern shared by agent names and human principal ids (one namespace).
+PRINCIPAL_ID_PATTERN = r"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+
+#: One ``humans:`` entry. Mirrors ``openspec/schemas/human-principals.schema.json``
+#: minus its ``$schema``/``$id``/``title``/``description`` metadata; a test pins
+#: the two equal (design D2 of change ownership-map).
+HUMAN_PRINCIPAL_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["display_name"],
+    "properties": {
+        "display_name": {"type": "string", "minLength": 1, "maxLength": 200},
+        "github": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 39,
+            "pattern": r"^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$",
+            "description": (
+                "GitHub login without the leading `@`. Required for any principal "
+                "that appears in an emitted CODEOWNERS owner set (design D8)."
+            ),
+        },
+        "email": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 254,
+            "pattern": r"^[^@\s]+@[^@\s]+$",
+            "description": (
+                "Declared for commit-author attribution in later roadmap items "
+                "(ri-03); not consumed by ri-02 (design D5). Optional: omit it if "
+                "you prefer not to publish it."
+            ),
+        },
+        "domains": {
+            "type": "array",
+            "uniqueItems": True,
+            "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128,
+                "pattern": r"^[a-z0-9][a-z0-9._-]*$",
+            },
+            "description": (
+                "Advisory area-of-expertise slugs. Nothing routes on them in ri-02; "
+                "ri-06 is the first consumer and may tighten them to capability names."
+            ),
+        },
+        "availability": {
+            "type": "object",
+            "additionalProperties": False,
+            "description": "Declared so later items can consume it; not interpreted by ri-02.",
+            "properties": {
+                "timezone": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64,
+                    "description": "IANA time zone name, e.g. Europe/Berlin.",
+                },
+                "hours": {
+                    "type": "string",
+                    "pattern": r"^([01]\d|2[0-3]):[0-5]\d-([01]\d|2[0-3]):[0-5]\d$",
+                    "description": "Working hours in the declared time zone, HH:MM-HH:MM.",
+                },
+                "days": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 7,
+                    "uniqueItems": True,
+                    "items": {
+                        "type": "string",
+                        "enum": ["mon", "tue", "wed", "thu", "fri", "sat", "sun"],
+                    },
+                },
+            },
+        },
+        "description": {"type": "string", "maxLength": 1000},
+    },
+}
+
+# --- cli.probe block (add-local-agent-probe; contracts/cli-probe-block.schema.json) ---
+# JSON Schema patterns are ECMA-262, so case-insensitivity is spelled with
+# explicit character classes rather than an inline (?i) flag.
+def _ci(word: str) -> str:
+    return "".join(f"[{c.upper()}{c.lower()}]" if c.isalpha() else c for c in word)
+
+
+_PROBE_DENIED_PATTERN = "|".join(
+    _ci(w)
+    for w in (
+        "print-api-key",
+        "print-bearer-token",
+        "--credentials",
+        "--show-token",
+        "logout",
+    )
+)
+_PROBE_ARGV_SCHEMA: dict[str, Any] = {
+    "type": "array",
+    "minItems": 1,
+    "items": {
+        "type": "string",
+        "minLength": 1,
+        "not": {"pattern": _PROBE_DENIED_PATTERN},
+    },
+}
+_PROBE_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "version_args": _PROBE_ARGV_SCHEMA,
+        "help_args": {
+            "type": "object",
+            "minProperties": 1,
+            "additionalProperties": _PROBE_ARGV_SCHEMA,
+        },
+        "auth_status_args": _PROBE_ARGV_SCHEMA,
+        "credential_files": {
+            "type": "array",
+            "minItems": 1,
+            "items": {"type": "string", "minLength": 1},
+        },
+        "ignore_flags": {
+            "type": "array",
+            "minItems": 1,
+            "items": {"type": "string", "pattern": "^-"},
+        },
+    },
+}
+_PROBE_HELP_TOKENS = frozenset({"--help", "-h", "help"})
+
 
 AGENTS_SCHEMA: dict[str, Any] = {
     "type": "object",
-    "required": ["agents"],
+    "required": ["agents", "credential_vendors"],
     "properties": {
+        # Human principals: principals, not agents. Never projected (design D1).
+        "humans": {
+            "type": "object",
+            "propertyNames": {"type": "string", "maxLength": 64, "pattern": PRINCIPAL_ID_PATTERN},
+            "additionalProperties": HUMAN_PRINCIPAL_SCHEMA,
+        },
+        "credential_vendors": {
+            "type": "array",
+            "uniqueItems": True,
+            "items": {"type": "string", "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"},
+        },
         "policies": {
             "type": "object",
             "additionalProperties": {
@@ -393,8 +577,20 @@ AGENTS_SCHEMA: dict[str, Any] = {
                         "type": "string",
                         "enum": sorted(VALID_ISOLATION_MODES),
                     },
-                    "api_key": {"type": "string"},
-                    "openbao_role_id": {"type": "string", "minLength": 1},
+                    "api_key": {"type": "string", "minLength": 1},
+                    "vendor_credentials": {
+                        "type": "array",
+                        "uniqueItems": True,
+                        "items": {"type": "string", "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"},
+                    },
+                    "endpoint_kind": {
+                        "type": "string",
+                        "enum": sorted(VALID_ENDPOINT_KINDS),
+                    },
+                    "base_url": {"type": "string", "format": "uri"},
+                    "location": {"type": "string", "enum": sorted(VALID_LOCATIONS)},
+                    "policy_vendor": {"type": "string", "minLength": 1},
+                    "catalog_vendor": {"type": ["string", "null"], "minLength": 1},
                     "capabilities": {
                         "type": "array",
                         "minItems": 1,
@@ -445,21 +641,24 @@ AGENTS_SCHEMA: dict[str, Any] = {
                                             "minItems": 1,
                                         },
                                         "async": {"type": "boolean"},
+                                        "isolation": {
+                                            "type": "string",
+                                            "enum": list(ISOLATION_MODES),
+                                        },
                                         "poll": {
                                             "type": "object",
                                             "required": [
                                                 "command_template",
-                                                "task_id_pattern",
-                                                "success_pattern",
+                                                "result_protocol",
                                             ],
                                             "properties": {
                                                 "command_template": {
                                                     "type": "array",
                                                     "items": {"type": "string"},
                                                 },
-                                                "task_id_pattern": {"type": "string"},
-                                                "success_pattern": {"type": "string"},
-                                                "failure_pattern": {"type": "string"},
+                                                "result_protocol": {
+                                                    "const": "vendor-envelope-v1"
+                                                },
                                                 "interval_seconds": {"type": "integer"},
                                                 "timeout_seconds": {"type": "integer"},
                                             },
@@ -487,10 +686,19 @@ AGENTS_SCHEMA: dict[str, Any] = {
                             # env). Availability checks treat the binary as
                             # unavailable when the var is unset (issue #383).
                             "api_key_env": {"type": "string", "minLength": 1},
+                            # Token-free local probe declarations
+                            # (vendor_probe.py; agent-identity spec).
+                            "probe": _PROBE_SCHEMA,
                         },
                         "additionalProperties": False,
                     },
                 },
+                "allOf": [
+                    {
+                        "if": {"required": ["api_key"]},
+                        "then": {"required": ["vendor_credentials"]},
+                    },
+                ],
                 "additionalProperties": False,
             },
         },
@@ -505,18 +713,10 @@ AGENTS_SCHEMA: dict[str, Any] = {
 
 @dataclass
 class PollConfig:
-    """Polling configuration for async dispatch modes.
-
-    The dispatcher extracts a task ID from the dispatch command's output
-    using ``task_id_pattern``, substitutes it into ``command_template``,
-    and polls until ``success_pattern`` or ``failure_pattern`` matches
-    or ``timeout_seconds`` is reached.
-    """
+    """Polling configuration for versioned JSON vendor envelopes."""
 
     command_template: list[str]
-    task_id_pattern: str
-    success_pattern: str
-    failure_pattern: str = "failed|error"
+    result_protocol: str = "vendor-envelope-v1"
     interval_seconds: int = 30
     timeout_seconds: int = 600
 
@@ -528,6 +728,7 @@ class ModeConfig:
     args: list[str]
     async_dispatch: bool = False
     poll: PollConfig | None = None
+    isolation: IsolationMode | None = None
 
 
 @dataclass
@@ -552,6 +753,9 @@ class CliConfig:
     # OPENROUTER_API_KEY). A present binary with this var unset cannot serve
     # a request, so availability checks fail closed on it (issue #383).
     api_key_env: str = ""
+    # Declarative probe block (vendor_probe.py). ``None`` = not declared; a
+    # declared empty ``{}`` is distinct (presence, not truthiness).
+    probe: dict[str, Any] | None = None
 
 
 @dataclass
@@ -582,12 +786,34 @@ class AgentEntry:
     transport: str
     capabilities: list[str]
     description: str
-    isolation: str = "none"
+    isolation: IsolationMode = "none"
     api_key: str | None = None
-    openbao_role_id: str | None = None
+    vendor_credentials: tuple[str, ...] = ()
+    endpoint_kind: str | None = None
+    base_url: str | None = None
+    location: str = "unknown"
+    policy_vendor: str | None = None
+    catalog_vendor: str | None = None
     archetypes: list[str] = field(default_factory=list)
     cli: CliConfig | None = None
     sdk: SdkConfig | None = None
+
+
+@dataclass
+class HumanEntry:
+    """A human principal from the ``humans:`` block of ``agents.yaml``.
+
+    Deliberately not an :class:`AgentEntry`: humans are never projected into
+    profiles, identities, dispatch configs or OpenBao principals.
+    """
+
+    name: str
+    display_name: str
+    github: str | None = None
+    email: str | None = None
+    domains: list[str] = field(default_factory=list)
+    availability: dict[str, Any] = field(default_factory=dict)
+    description: str = ""
 
 
 # ---------------------------------------------------------------------------
@@ -612,8 +838,9 @@ class EscalationConfig:
 class ArchetypeConfig:
     """A named agent archetype from ``archetypes.yaml``.
 
-    Bundles model preference, system prompt, and optional complexity
-    escalation rules.
+    Bundles model preference, system prompt, optional complexity escalation
+    rules, and the procedure mode (one of :data:`PROCEDURE_MODES`; defaults
+    to :data:`DEFAULT_PROCEDURE_MODE` when the YAML omits it).
     """
 
     name: str
@@ -621,6 +848,7 @@ class ArchetypeConfig:
     system_prompt: str
     write_capable: bool = False
     escalation: EscalationConfig | None = None
+    procedure_mode: str = DEFAULT_PROCEDURE_MODE
 
 
 @dataclass
@@ -666,6 +894,9 @@ class ResolvedArchetype:
     provider: str | None = None
     write_capable: bool = False
     thinking: str | None = None
+    # The resolved archetype's procedure mode (add-skill-audit D3). Escalation
+    # never changes it: it belongs to the archetype, not to the tier.
+    procedure_mode: str = DEFAULT_PROCEDURE_MODE
 
 
 class ProviderModelMappingError(ValueError):
@@ -742,6 +973,74 @@ def _default_secrets_path() -> Path:
     return Path(__file__).resolve().parent.parent / ".secrets.yaml"
 
 
+def _check_principal_namespace(raw: Mapping[str, Any]) -> None:
+    """Agent names and human ids share one namespace (design D1)."""
+    clashes = sorted(set(raw.get("agents", {})) & set(raw.get("humans", {})))
+    if clashes:
+        name = clashes[0]
+        raise ValueError(
+            f"'{name}' is declared as both an agent and a human principal; "
+            f"agent names and human ids share one namespace"
+        )
+
+
+def _check_probe_blocks(raw: Mapping[str, Any]) -> None:
+    """Probe rules JSON Schema cannot express (agent-identity spec).
+
+    Raises:
+        jsonschema.ValidationError: for an ``auth_status_args`` list whose last
+            token is ``login`` (would start an interactive login), or a
+            ``help_args`` value with no exact ``--help``/``-h``/``help`` token.
+    """
+    for agent_id, agent in (raw.get("agents") or {}).items():
+        probe = ((agent or {}).get("cli") or {}).get("probe")
+        if not probe:
+            continue
+        auth = probe.get("auth_status_args")
+        if auth and auth[-1] == "login":
+            raise ValidationError(
+                f"agents.{agent_id}.cli.probe.auth_status_args must not end with "
+                f"'login' (interactive login); use e.g. ['login', 'status']"
+            )
+        for mode, argv in (probe.get("help_args") or {}).items():
+            if not _PROBE_HELP_TOKENS.intersection(argv):
+                raise ValidationError(
+                    f"agents.{agent_id}.cli.probe.help_args.{mode} must contain "
+                    f"one of --help, -h, help"
+                )
+
+
+def load_human_principals(path: Path | None = None) -> list[HumanEntry]:
+    """Load the ``humans:`` block of ``agents.yaml`` (empty list when absent).
+
+    Raises:
+        FileNotFoundError: If *path* does not exist.
+        jsonschema.ValidationError: If the registry fails schema validation.
+        ValueError: If a human id collides with an agent name.
+    """
+    if path is None:
+        path = _default_agents_path()
+    with open(path) as fh:
+        raw = yaml.safe_load(fh)
+    if raw is None:
+        raise ValueError("Empty agents.yaml file")
+    validate(instance=raw, schema=AGENTS_SCHEMA)
+    _check_principal_namespace(raw)
+    _check_probe_blocks(raw)
+    return [
+        HumanEntry(
+            name=name,
+            display_name=data["display_name"],
+            github=data.get("github"),
+            email=data.get("email"),
+            domains=list(data.get("domains", [])),
+            availability=dict(data.get("availability", {})),
+            description=data.get("description", ""),
+        )
+        for name, data in raw.get("humans", {}).items()
+    ]
+
+
 def load_agents_config(
     path: Path | None = None,
     *,
@@ -774,6 +1073,13 @@ def load_agents_config(
         raise ValueError("Empty agents.yaml file")
 
     validate(instance=raw, schema=AGENTS_SCHEMA)
+    _check_principal_namespace(raw)
+    _check_probe_blocks(raw)
+    # Validate the cross-entry catalog and names once, before interpolation.
+    project_principals({
+        "credential_vendors": raw["credential_vendors"],
+        "agents": raw["agents"],
+    })
 
     secrets = _load_secrets_file(secrets_path)
     entries: list[AgentEntry] = []
@@ -807,9 +1113,8 @@ def load_agents_config(
         resolved_key: str | None = None
         if raw_key:
             resolved_key = interpolate(raw_key, secrets)
-            # Keep unresolved ${VAR} placeholders so that
-            # _resolve_api_key_from_openbao() can extract the variable
-            # name and fetch the secret from OpenBao at runtime.
+            # Preserve unresolved placeholders for static development mode.
+            # Configured Bao identity reload reads the projected per-agent path.
 
         cli_config: CliConfig | None = None
         raw_cli = agent_data.get("cli")
@@ -820,11 +1125,7 @@ def load_agents_config(
                 if raw_poll:
                     poll_config = PollConfig(
                         command_template=raw_poll["command_template"],
-                        task_id_pattern=raw_poll["task_id_pattern"],
-                        success_pattern=raw_poll["success_pattern"],
-                        failure_pattern=raw_poll.get(
-                            "failure_pattern", "failed|error",
-                        ),
+                        result_protocol=raw_poll["result_protocol"],
                         interval_seconds=raw_poll.get(
                             "interval_seconds", 30,
                         ),
@@ -835,6 +1136,7 @@ def load_agents_config(
                 return ModeConfig(
                     args=mode_data["args"],
                     async_dispatch=mode_data.get("async", False),
+                    isolation=mode_data.get("isolation"),
                     poll=poll_config,
                 )
 
@@ -850,6 +1152,7 @@ def load_agents_config(
                 prompt_via_stdin=raw_cli.get("prompt_via_stdin", False),
                 prompt_via_flag=raw_cli.get("prompt_via_flag", ""),
                 api_key_env=raw_cli.get("api_key_env", ""),
+                probe=raw_cli.get("probe"),
             )
 
         sdk_config: SdkConfig | None = None
@@ -876,7 +1179,12 @@ def load_agents_config(
                 isolation=agent_data.get("isolation", "none"),
                 archetypes=agent_data.get("archetypes", []),
                 api_key=resolved_key,
-                openbao_role_id=agent_data.get("openbao_role_id"),
+                vendor_credentials=tuple(sorted(agent_data.get("vendor_credentials", []))),
+                endpoint_kind=agent_data.get("endpoint_kind"),
+                base_url=agent_data.get("base_url"),
+                location=agent_data.get("location", "unknown"),
+                policy_vendor=agent_data.get("policy_vendor", agent_data["type"]),
+                catalog_vendor=agent_data.get("catalog_vendor"),
                 cli=cli_config,
                 sdk=sdk_config,
             )
@@ -888,57 +1196,6 @@ def load_agents_config(
 # ---------------------------------------------------------------------------
 # API key identity generation
 # ---------------------------------------------------------------------------
-
-def _resolve_api_key_from_openbao(agent: AgentEntry) -> str | None:
-    """Resolve an agent's API key from OpenBao using its AppRole.
-
-    When the agent has an ``openbao_role_id`` and OpenBao is enabled,
-    authenticates with the agent's AppRole and reads secrets. Falls back
-    to the coordinator's shared token when no per-agent role is configured.
-    """
-    from src.config import OpenBaoConfig
-
-    bao_config = OpenBaoConfig.from_env()
-    if not bao_config.is_enabled():
-        return None
-
-    if not agent.openbao_role_id:
-        # Use shared coordinator secrets — api_key already resolved from shared pool
-        return agent.api_key
-
-    try:
-        import hvac
-
-        # Authenticate with the agent's own AppRole, not the global coordinator token.
-        # The agent's secret_id is expected in BAO_SECRET_ID (shared bootstrap secret)
-        # while the role_id comes from the per-agent openbao_role_id field.
-        client = hvac.Client(url=bao_config.addr, timeout=bao_config.timeout)
-        client.auth.approle.login(
-            role_id=agent.openbao_role_id,
-            secret_id=bao_config.secret_id,
-        )
-        response = client.secrets.kv.v2.read_secret_version(
-            path=bao_config.secret_path,
-            mount_point=bao_config.mount_path,
-        )
-        data = response.get("data", {}).get("data", {})
-        # Look for agent-specific key pattern or the interpolation source
-        raw_key = agent.api_key
-        if raw_key and _INTERPOLATION_RE.search(raw_key):
-            var_name = _INTERPOLATION_RE.search(raw_key).group(1)  # type: ignore[union-attr]
-            resolved = data.get(var_name)
-            if isinstance(resolved, str) and resolved:
-                return resolved
-        return agent.api_key
-    except Exception:  # noqa: BLE001
-        logger.warning(
-            "Failed to resolve API key from OpenBao for agent '%s' — "
-            "falling back to static resolution",
-            agent.name,
-            exc_info=True,
-        )
-        return agent.api_key
-
 
 class DuplicateApiKeyError(ValueError):
     """Two registry agents resolve to the same API key (design D6).
@@ -968,8 +1225,8 @@ def get_api_key_identities(
     HTTP-proxy fallback makes local agents HTTP principals in practice, so
     ``transport`` is dispatch metadata only and does not gate identity.
 
-    When OpenBao is enabled, attempts to resolve API keys from OpenBao
-    for agents with ``openbao_role_id``. Falls back to static interpolation.
+    In configured Bao mode the identity-reader snapshot owns authentication,
+    so this static map is deliberately empty.
 
     Returns:
         Dict mapping resolved API key values to
@@ -981,16 +1238,12 @@ def get_api_key_identities(
     if agents is None:
         agents = load_agents_config()
 
-    # Check if OpenBao is available for key resolution
-    openbao_enabled = bool(os.environ.get("BAO_ADDR"))
+    if os.environ.get("BAO_ADDR"):
+        return {}
 
     identities: dict[str, dict[str, str]] = {}
     for agent in agents:
         key = agent.api_key
-        if openbao_enabled and agent.openbao_role_id:
-            resolved = _resolve_api_key_from_openbao(agent)
-            if resolved:
-                key = resolved
 
         if not key:
             continue
@@ -1031,6 +1284,7 @@ CAPABILITY_OPERATIONS: dict[str, tuple[str, ...]] = {
     "discover": ("register_session", "discover_agents", "heartbeat"),
     "audit": ("query_audit",),
     "feature_registry": ("register_feature", "deregister_feature"),
+    "vendor_limit_reporter": ("report_vendor_rate_limit",),
 }
 
 #: Operations granted by *trust level* rather than by capability, as
@@ -1049,6 +1303,7 @@ TRUST_DERIVED_OPERATIONS: tuple[tuple[int, tuple[str, ...]], ...] = (
             "mark_merged",
             "remove_from_merge_queue",
             "publish_work_projection",
+            "report_vendor_rate_limit",
         ),
     ),
 )
@@ -1774,7 +2029,7 @@ def reset_agents_config() -> None:
 def get_dispatch_configs(
     agents: list[AgentEntry] | None = None,
 ) -> dict[str, Any]:
-    """Return dispatch configs for agents with a ``cli`` or ``sdk`` section.
+    """Return configs for agents with a dispatch transport or routable endpoint.
 
     Shared serialization logic used by both MCP and HTTP endpoints.
     Returns a dict with ``agents`` key containing a list of agent
@@ -1785,7 +2040,10 @@ def get_dispatch_configs(
 
     agents_out: list[dict[str, Any]] = []
     for entry in agents:
-        if entry.cli is None and entry.sdk is None:
+        routable_endpoint = (
+            entry.endpoint_kind in {"openrouter", "local"} and entry.base_url
+        )
+        if entry.cli is None and entry.sdk is None and not routable_endpoint:
             continue
         sdk_out: dict[str, Any] | None = None
         if entry.sdk:
@@ -1805,11 +2063,14 @@ def get_dispatch_configs(
                     name: {
                         "args": mc.args,
                         "async": mc.async_dispatch,
+                        **(
+                            {"isolation": mc.isolation}
+                            if mc.isolation is not None
+                            else {}
+                        ),
                         **({"poll": {
                             "command_template": mc.poll.command_template,
-                            "task_id_pattern": mc.poll.task_id_pattern,
-                            "success_pattern": mc.poll.success_pattern,
-                            "failure_pattern": mc.poll.failure_pattern,
+                            "result_protocol": mc.poll.result_protocol,
                             "interval_seconds": mc.poll.interval_seconds,
                             "timeout_seconds": mc.poll.timeout_seconds,
                         }} if mc.poll else {}),
@@ -1822,12 +2083,21 @@ def get_dispatch_configs(
                 "prompt_via_stdin": entry.cli.prompt_via_stdin,
                 "prompt_via_flag": entry.cli.prompt_via_flag,
                 "api_key_env": entry.cli.api_key_env,
+                # Only when declared; a declared ``{}`` is kept (is not None).
+                **(
+                    {"probe": entry.cli.probe}
+                    if entry.cli.probe is not None
+                    else {}
+                ),
             }
         agents_out.append({
             "agent_id": entry.name,
             "type": entry.type,
             "transport": entry.transport,
-            "openbao_role_id": entry.openbao_role_id,
+            "principal_id": agent_principal_id(entry.name) if entry.api_key else None,
+            "vendor_credentials": list(entry.vendor_credentials),
+            "endpoint_kind": entry.endpoint_kind,
+            "base_url": entry.base_url,
             "cli": cli_out,
             "sdk": sdk_out,
         })
@@ -1839,15 +2109,26 @@ def get_dispatch_configs(
 # Isolation helpers
 # ---------------------------------------------------------------------------
 
-def get_agent_isolation(agent_type: str) -> str | None:
-    """Return the isolation mode for *agent_type*, or ``None`` if not found.
+def get_agent_isolation(
+    agent_type: str,
+    dispatch_mode: str | None = None,
+    *,
+    agent_id: str | None = None,
+) -> IsolationMode | None:
+    """Return isolation for an exact agent/mode, or ``None`` if not found.
 
-    Searches through loaded agent entries and returns the ``isolation``
-    field of the first agent whose ``type`` matches *agent_type*.
+    The legacy one-argument call retains first-type-match behavior. Callers
+    that know the selected lane pass ``agent_id`` to avoid YAML-order coupling.
     """
     for agent in get_agents_config():
-        if agent.type == agent_type:
-            return agent.isolation
+        if agent.type != agent_type or (agent_id is not None and agent.name != agent_id):
+            continue
+        configured: object = agent.isolation
+        if dispatch_mode is not None and agent.cli is not None:
+            mode = agent.cli.dispatch_modes.get(dispatch_mode)
+            if mode is not None and mode.isolation is not None:
+                configured = mode.isolation
+        return validate_isolation(configured, rung="agents_yaml")
     return None
 
 
@@ -1988,36 +2269,23 @@ def _validate_local_roster(
             )
 
 
-def load_archetypes_config(
-    path: Path | None = None,
-) -> dict[str, ArchetypeConfig]:
-    """Load and validate ``archetypes.yaml``.
+def _observe_archetypes_source(path: Path) -> tuple[str, int, int]:
+    """Identity of the file currently on disk.
 
-    Returns a dict mapping archetype names to :class:`ArchetypeConfig`.
-    Uses the global cache — subsequent calls return the same dict.
-
-    Also populates the parallel ``_phase_mapping`` cache when the file
-    contains a ``phase_mapping`` section (schema_version=2). The mapping is
-    accessible via :func:`get_phase_mapping`. Raises ``ValueError`` if a
-    ``phase_mapping`` entry references an archetype that is not defined in
-    the same file.
-
-    If the file does not exist, returns an empty dict and logs a warning
-    (design decision D5: graceful degradation).
+    ``mtime_ns`` of -1 means the path is missing. A later save changes the
+    token, which is what tells a long-running coordinator to re-read.
     """
-    global _archetypes, _phase_mapping, _provider_model_map
-    if _archetypes is not None:
-        return _archetypes
+    try:
+        st = path.stat()
+    except OSError:
+        return (str(path), -1, -1)
+    return (str(path.resolve()), st.st_mtime_ns, st.st_size)
 
-    if path is None:
-        path = _default_archetypes_path()
 
-    if not path.exists():
-        logger.warning("archetypes.yaml not found at %s — falling back to ambient model", path)
-        _archetypes = {}
-        _phase_mapping = {}
-        return _archetypes
-
+def _parse_archetypes_file(
+    path: Path,
+) -> tuple[dict[str, ArchetypeConfig], dict[str, PhaseMappingEntry], dict[str, Any]]:
+    """Read and validate ``archetypes.yaml``. Does not touch the process cache."""
     with open(path) as fh:
         raw = yaml.safe_load(fh)
 
@@ -2026,7 +2294,7 @@ def load_archetypes_config(
 
     validate(instance=raw, schema=ARCHETYPES_SCHEMA)
     _validate_local_roster(raw.get("model_aliases"), raw.get("local_host_class"))
-    _provider_model_map = _normalize_provider_model_map(raw.get("model_aliases"))
+    provider_model_map = _normalize_provider_model_map(raw.get("model_aliases"))
 
     result: dict[str, ArchetypeConfig] = {}
     for name, data in raw["archetypes"].items():
@@ -2052,12 +2320,22 @@ def load_archetypes_config(
                 f"write-capable worker archetypes and never edits code, specs, "
                 f"tests, or configuration directly. Got write_capable: true."
             )
+        # Optional per-archetype procedure mode (add-skill-audit D3). The JSON
+        # schema already rejects unknown values; this guard keeps the error
+        # structured if the two ever drift.
+        procedure_mode = data.get("procedure_mode", DEFAULT_PROCEDURE_MODE)
+        if procedure_mode not in PROCEDURE_MODES:
+            raise ValueError(
+                f"archetype {name!r} declares unknown procedure_mode "
+                f"{procedure_mode!r}; expected one of {', '.join(PROCEDURE_MODES)}"
+            )
         result[name] = ArchetypeConfig(
             name=name,
             model=data["model"],
             system_prompt=data["system_prompt"],
             write_capable=write_capable,
             escalation=esc_config,
+            procedure_mode=procedure_mode,
         )
 
     # Phase mapping (optional, schema_version=2). Validate archetype refs after
@@ -2076,14 +2354,85 @@ def load_archetypes_config(
             signals=list(entry_data.get("signals", [])),
         )
 
-    _archetypes = result
+    return result, phase_mapping, provider_model_map
+
+
+def load_archetypes_config(
+    path: Path | None = None,
+) -> dict[str, ArchetypeConfig]:
+    """Load and validate ``archetypes.yaml``, refreshing when the file changes.
+
+    Returns a dict mapping archetype names to :class:`ArchetypeConfig`.
+    An unchanged file returns the cached dict. A changed file is parsed
+    again, so a running coordinator picks up a tier-map edit without a
+    restart. A parse or validation failure after a successful load keeps
+    the last good config and logs the error. The first load of a bad file
+    still raises.
+
+    Also populates the parallel ``_phase_mapping`` and provider-model-map
+    caches. Raises ``ValueError`` if a ``phase_mapping`` entry references
+    an archetype that is not defined in the same file.
+
+    If the file does not exist on the first load, returns an empty dict and
+    logs a warning (design decision D5: graceful degradation). If it
+    disappears after a successful load, the last good config stays in service.
+    """
+    global _archetypes, _phase_mapping, _provider_model_map
+    global _archetypes_observed, _archetypes_path
+    if path is None:
+        path = _archetypes_path or _default_archetypes_path()
+
+    observed = _observe_archetypes_source(path)
+    if _archetypes is not None and observed == _archetypes_observed:
+        return _archetypes
+
+    if not path.exists():
+        if _archetypes is not None:
+            logger.warning(
+                "archetypes.yaml disappeared at %s — keeping the last good config",
+                path,
+            )
+            _archetypes_observed = observed
+            _archetypes_path = path
+            return _archetypes
+        logger.warning("archetypes.yaml not found at %s — falling back to ambient model", path)
+        _archetypes = {}
+        _phase_mapping = {}
+        _archetypes_observed = observed
+        _archetypes_path = path
+        return _archetypes
+
+    try:
+        archetypes, phase_mapping, provider_model_map = _parse_archetypes_file(path)
+    except Exception:
+        if _archetypes is not None:
+            logger.exception(
+                "archetypes.yaml at %s failed to reload — keeping the last good config",
+                path,
+            )
+            _archetypes_observed = observed
+            _archetypes_path = path
+            return _archetypes
+        raise
+
+    _archetypes = archetypes
     _phase_mapping = phase_mapping
+    _provider_model_map = provider_model_map
+    _archetypes_observed = observed
+    _archetypes_path = path
     return _archetypes
 
 
 _archetypes: dict[str, ArchetypeConfig] | None = None
 _phase_mapping: dict[str, PhaseMappingEntry] | None = None
 _provider_model_map: dict[str, Any] | None = None
+# Last observed (path, mtime_ns, size). A mismatch with the file on disk
+# triggers a reload. A failed reload records the bad token so the next
+# request does not parse the same broken file again.
+_archetypes_observed: tuple[str, int, int] | None = None
+# Path the cache was loaded from. Later refreshes stat this path, so a test
+# or caller that loaded an explicit file is not overwritten by the repo default.
+_archetypes_path: Path | None = None
 
 
 def get_archetype(name: str) -> ArchetypeConfig | None:
@@ -2106,18 +2455,19 @@ def get_phase_mapping() -> dict[str, PhaseMappingEntry]:
     Returns ``{}`` for legacy ``schema_version=1`` configs that omit
     ``phase_mapping`` entirely (per spec agent-archetypes.1).
     """
-    global _phase_mapping
-    if _phase_mapping is None:
-        load_archetypes_config()
+    load_archetypes_config()
     return _phase_mapping if _phase_mapping is not None else {}
 
 
 def reset_archetypes_config() -> None:
     """Reset the global archetypes + phase_mapping caches (for testing)."""
     global _archetypes, _phase_mapping, _provider_model_map
+    global _archetypes_observed, _archetypes_path
     _archetypes = None
     _phase_mapping = None
     _provider_model_map = None
+    _archetypes_observed = None
+    _archetypes_path = None
 
 
 def _served_local_roster(roster: Any) -> Any:
@@ -2202,23 +2552,22 @@ def get_provider_model_map() -> dict[str, Any]:
     returned only when the YAML path is missing or fails to load.
     """
     global _provider_model_map
-    if _provider_model_map is None:
-        path = _default_archetypes_path()
-        if path.exists():
-            try:
-                load_archetypes_config(path)
-            except Exception:  # noqa: BLE001 — fall back loudly
-                logger.exception(
-                    "Failed to load archetypes.yaml from %s; using emergency "
-                    "DEFAULT_PROVIDER_MODEL_MAP",
-                    path,
-                )
-        else:
-            logger.warning(
-                "archetypes.yaml not found at %s — using emergency "
+    path = _archetypes_path or _default_archetypes_path()
+    if path.exists() or _archetypes is not None:
+        try:
+            load_archetypes_config(path)
+        except Exception:  # noqa: BLE001 — fall back loudly
+            logger.exception(
+                "Failed to load archetypes.yaml from %s; using emergency "
                 "DEFAULT_PROVIDER_MODEL_MAP",
                 path,
             )
+    elif _provider_model_map is None:
+        logger.warning(
+            "archetypes.yaml not found at %s — using emergency "
+            "DEFAULT_PROVIDER_MODEL_MAP",
+            path,
+        )
     if _provider_model_map is None:
         return _normalize_provider_model_map(None)
     return _provider_model_map
@@ -2493,7 +2842,7 @@ def _resolve_model_spec(
 # ---------------------------------------------------------------------------
 
 
-def resolve_archetype_for_phase(
+def _resolve_archetype_for_phase_static(
     phase: str,
     signals: dict[str, Any] | None = None,
     *,
@@ -2513,7 +2862,11 @@ def resolve_archetype_for_phase(
 
     Returns:
         A :class:`ResolvedArchetype` carrying the model, system prompt,
-        archetype name, and a reasons trace.
+        archetype name, procedure mode, and a reasons trace. For a non-guided
+        ``procedure_mode`` the archetype's ``system_prompt`` is returned with
+        the mode's sentence from :data:`PROCEDURE_MODE_SENTENCES` appended
+        after one blank line (add-skill-audit D3). This is the only injection
+        point; ``guided`` returns the prompt unchanged.
 
     Raises:
         KeyError: If *phase* is not present in ``phase_mapping``.
@@ -2523,8 +2876,7 @@ def resolve_archetype_for_phase(
             phase's archetype is outside :data:`LOCAL_TRUSTED_ARCHETYPES`
             (design D3) — raised before any model resolution or dispatch.
     """
-    if _phase_mapping is None:
-        load_archetypes_config()
+    load_archetypes_config()
     mapping = _phase_mapping if _phase_mapping is not None else {}
 
     if phase not in mapping:
@@ -2591,12 +2943,217 @@ def resolve_archetype_for_phase(
     if not escalation_reasons:
         reasons.append("no escalation triggered")
 
+    # Procedure-mode injection (add-skill-audit D3): the single place the
+    # mode sentence enters a prompt. `guided` has no sentence and leaves the
+    # archetype prompt byte-identical. The mode is read from the archetype,
+    # so escalation to another tier cannot change it.
+    system_prompt = archetype.system_prompt
+    sentence = PROCEDURE_MODE_SENTENCES.get(archetype.procedure_mode)
+    if sentence is not None:
+        system_prompt = system_prompt.rstrip("\n") + "\n\n" + sentence
+
     return ResolvedArchetype(
         model=spec.model,
-        system_prompt=archetype.system_prompt,
+        system_prompt=system_prompt,
         archetype=archetype.name,
         reasons=reasons,
         provider=provider,
         write_capable=archetype.write_capable,
         thinking=spec.thinking,
+        procedure_mode=archetype.procedure_mode,
+    )
+
+
+def _adaptive_routing_enabled() -> bool:
+    return os.environ.get("ROUTING_ADAPTIVE", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
+def _adaptive_task_signals(
+    phase: str,
+    signals: dict[str, Any] | None,
+    static: ResolvedArchetype,
+) -> dict[str, Any]:
+    mapping = _phase_mapping if _phase_mapping is not None else {}
+    entry = mapping.get(phase)
+    allowed = set(entry.signals) if entry is not None else set()
+    supplied = signals or {}
+    filtered = {key: value for key, value in supplied.items() if key in allowed}
+    modality = supplied.get("modality", "programmatic")
+    if modality not in {"interactive", "programmatic"}:
+        modality = "programmatic"
+    complexity = str(filtered.get("complexity", "medium"))
+    return {
+        "archetype": static.archetype,
+        "phase": phase,
+        "task_type": f"{static.archetype}/{complexity}-complexity",
+        **filtered,
+        "modality": modality,
+    }
+
+
+def _catalog_vendor_for_provider(provider: str) -> str:
+    """The model-catalog vendor name for an agent type (e.g. ``pi`` → ``openrouter``).
+
+    Falls back to the provider string itself when no configured agent of that
+    type declares one; a wrong guess can only fail to match a catalog row, which
+    the router treats as ``incumbent-unresolved`` and keeps the static model.
+    """
+    declared = {
+        agent.catalog_vendor
+        for agent in get_agents_config()
+        if agent.type == provider and agent.catalog_vendor
+    }
+    return declared.pop() if len(declared) == 1 else provider
+
+
+def _provider_for_catalog_vendor(catalog_vendor: str) -> str | None:
+    """The agent type behind a model-catalog vendor (e.g. ``openrouter`` → ``pi``).
+
+    The inverse of ``_catalog_vendor_for_provider``. ``None`` when no configured
+    agent type, or more than one, lists models under that vendor: a routed
+    selection that names no single agent type cannot be dispatched, so the caller
+    falls back to static rather than guess.
+    """
+    types = {
+        agent.type
+        for agent in get_agents_config()
+        if (agent.catalog_vendor or agent.type) == catalog_vendor
+    }
+    return types.pop() if len(types) == 1 else None
+
+
+def _routed_provider(selected: Mapping[str, Any]) -> str:
+    """The agent type a routed selection dispatches to.
+
+    Prefers the assignment's ``vendor_type`` (already an agent type) and otherwise
+    maps the candidate's catalog ``vendor`` back to one.
+    """
+    assignment = selected.get("assignment")
+    if isinstance(assignment, Mapping):
+        vendor_type = assignment.get("vendor_type")
+        if isinstance(vendor_type, str) and vendor_type:
+            return vendor_type
+    vendor = selected.get("vendor")
+    if not isinstance(vendor, str) or not vendor:
+        raise ValueError("adaptive response selected candidate has no vendor")
+    provider = _provider_for_catalog_vendor(vendor)
+    if provider is None:
+        raise ValueError(f"adaptive selection vendor {vendor!r} maps to no single agent type")
+    return provider
+
+
+def _static_incumbent(static: ResolvedArchetype, provider: str | None) -> dict[str, Any]:
+    """The static resolution, as the router's incumbent (design D2)."""
+    return {
+        "vendor": _catalog_vendor_for_provider(provider) if provider else None,
+        "model": static.model,
+    }
+
+
+def _bounded_adaptive_resolution(
+    *,
+    task_signals: dict[str, Any],
+    static_model: str,
+    provider: str | None,
+    timeout_seconds: float,
+    incumbent: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Call the synchronous adaptive seam without exceeding the fallback SLA."""
+    import queue
+    import threading
+
+    outcomes: queue.Queue[tuple[bool, Any]] = queue.Queue(maxsize=1)
+
+    def _call() -> None:
+        try:
+            from .model_routing.api import resolve_phase_model
+
+            outcomes.put(
+                (
+                    True,
+                    resolve_phase_model(
+                        task_signals=task_signals,
+                        static_model=static_model,
+                        provider=provider,
+                        timeout_seconds=timeout_seconds,
+                        incumbent=incumbent,
+                    ),
+                )
+            )
+        except Exception as exc:  # noqa: BLE001 - caller degrades to static
+            outcomes.put((False, exc))
+
+    thread = threading.Thread(target=_call, name="adaptive-model-router", daemon=True)
+    thread.start()
+    try:
+        ok, outcome = outcomes.get(timeout=timeout_seconds)
+    except queue.Empty as exc:
+        raise TimeoutError("adaptive model routing timed out") from exc
+    if not ok:
+        raise outcome
+    if not isinstance(outcome, dict):
+        raise TypeError("adaptive model routing returned a non-object response")
+    return outcome
+
+
+def resolve_archetype_for_phase(
+    phase: str,
+    signals: dict[str, Any] | None = None,
+    *,
+    provider: str | None = None,
+) -> ResolvedArchetype:
+    """Resolve statically, optionally replacing only the selected model.
+
+    ``ROUTING_ADAPTIVE`` defaults off. Errors, malformed responses, and the
+    bounded timeout all return the exact static object, preserving the legacy
+    policy path as the rollback mechanism (adaptive-router D2).
+    """
+    static = _resolve_archetype_for_phase_static(phase, signals, provider=provider)
+    if not _adaptive_routing_enabled():
+        return static
+
+    try:
+        timeout_seconds = max(
+            0.001,
+            min(2.0, float(os.environ.get("ROUTING_ADAPTIVE_TIMEOUT_SECONDS", "2"))),
+        )
+        routed = _bounded_adaptive_resolution(
+            task_signals=_adaptive_task_signals(phase, signals, static),
+            static_model=static.model,
+            provider=provider,
+            timeout_seconds=timeout_seconds,
+            incumbent=_static_incumbent(static, provider),
+        )
+        retention = routed.get("retention")
+        if isinstance(retention, dict) and retention.get("retained") is True:
+            # The router kept the incumbent: a normal outcome, not a fallback.
+            return static
+        selected = routed.get("selected")
+        if not isinstance(selected, dict):
+            raise ValueError("adaptive response has no selected candidate")
+        model = selected.get("model")
+        if not isinstance(model, str) or not model:
+            raise ValueError("adaptive response selected candidate has no model")
+        selected_provider = _routed_provider(selected)
+    except Exception as exc:  # noqa: BLE001 - fallback is the design contract
+        logger.warning("Adaptive model routing failed; using static tier: %s", exc)
+        return static
+
+    return ResolvedArchetype(
+        model=model,
+        system_prompt=static.system_prompt,
+        archetype=static.archetype,
+        reasons=[
+            *static.reasons,
+            f"adaptive routing selected vendor={selected_provider} model={model}",
+        ],
+        provider=selected_provider,
+        write_capable=static.write_capable,
+        thinking=static.thinking,
+        procedure_mode=static.procedure_mode,
     )

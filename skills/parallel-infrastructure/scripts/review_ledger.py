@@ -65,6 +65,7 @@ _LEDGER_ITEM_KEYS = (
     "resolution",
     "parked_reason",
     "consensus_status",
+    "fix_touched_file",
 )
 
 
@@ -451,6 +452,13 @@ def compact(ledger: dict[str, Any], repo_root: Path) -> dict[str, Any]:
             )
             continue
         if status == "addressed" and present is True:
+            if not has_snippet and item.get("fix_touched_file"):
+                # Description tokens survive an additive fix (a doc or report
+                # correction keeps the words it corrects), so the token
+                # heuristic cannot tell a fixed file from an unfixed one once
+                # the fix commit touched it. A re-raise by the next review
+                # round (merge_findings) is then the only reopen signal.
+                continue
             item["status"] = "open"
             item["resolution"] = (
                 "compact: snippet still present" if has_snippet
@@ -458,6 +466,45 @@ def compact(ledger: dict[str, Any], repo_root: Path) -> dict[str, Any]:
             )
     ledger["compacted_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     return ledger
+
+
+def open_item_ids(ledger: dict[str, Any]) -> set[int]:
+    """Ids of open items — the set a review packet asks reviewers to re-verify."""
+    return {
+        int(item["id"])
+        for item in ledger.get("items", [])
+        if item.get("status") == "open" and item.get("id") is not None
+    }
+
+
+def retire_unreported(
+    ledger: dict[str, Any],
+    reverified_ids: set[int],
+    reported_items: list[dict[str, Any]],
+    round_num: int,
+) -> list[dict[str, Any]]:
+    """Retire open items a fresh review was asked to re-verify but did not re-raise.
+
+    The packet lists every open item and asks reviewers to re-verify it
+    (review_packet). Without this step, an item ``compact`` reopened on token
+    presence stayed open after a quorum review stopped reporting it, so a
+    landed fix still blocked convergence. Only ids in ``reverified_ids`` (open
+    when the packet was built) are eligible; an item the round re-raised
+    (``reported_items``, as ``merge_findings`` returned them) stays open.
+    Retired items keep their record and a ``resolution`` naming the round.
+    """
+    reported = {int(item["id"]) for item in reported_items if item.get("id") is not None}
+    retired: list[dict[str, Any]] = []
+    for item in ledger.get("items", []):
+        item_id = item.get("id")
+        if item_id is None or item.get("status") != "open":
+            continue
+        if int(item_id) not in reverified_ids or int(item_id) in reported:
+            continue
+        item["status"] = "retired"
+        item["resolution"] = f"review round {round_num}: not re-raised on re-verification"
+        retired.append(item)
+    return retired
 
 
 def is_blocking_item(
@@ -530,11 +577,23 @@ def adjudication_items(ledger: dict[str, Any]) -> list[dict[str, Any]]:
     return out
 
 
-def mark_addressed(ledger: dict[str, Any], item_ids: list[int]) -> None:
+def mark_addressed(
+    ledger: dict[str, Any],
+    item_ids: list[int],
+    *,
+    touched_paths: list[str] | None = None,
+) -> None:
+    """Mark items addressed. ``touched_paths`` (repo-relative paths the fix
+    changed) records per item whether the fix touched its cited file, which
+    ``compact`` uses to stop re-opening token-matched items on additive fixes."""
     id_set = set(item_ids)
+    touched = {Path(p).as_posix().removeprefix("./") for p in touched_paths or []}
     for item in ledger.get("items", []):
         if item.get("id") in id_set and item.get("status") == "open":
             item["status"] = "addressed"
+            if touched_paths is not None:
+                cited = Path(str(item.get("file_path") or "")).as_posix().removeprefix("./")
+                item["fix_touched_file"] = bool(cited) and cited in touched
 
 
 def park_item(

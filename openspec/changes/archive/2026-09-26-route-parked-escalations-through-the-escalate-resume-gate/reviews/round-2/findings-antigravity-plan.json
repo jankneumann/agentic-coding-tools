@@ -1,0 +1,127 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "id": 1,
+      "type": "architecture",
+      "criticality": "low",
+      "severity": "none",
+      "disposition": "accept",
+      "axis": "architecture",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/design.md",
+      "line_range": {
+        "start": 9,
+        "end": 16
+      },
+      "description": "ExecutionAdapter.apply retains its exact current return shape and escalation routing is defined as a separate retryable cleanup operation following durable application.",
+      "resolution": "D1 and D5 confirm that apply remains unchanged in signature and return shape, while route_parked_escalations operates separately after apply or from apply error cleanup."
+    },
+    {
+      "id": 2,
+      "type": "resilience",
+      "criticality": "low",
+      "severity": "none",
+      "disposition": "accept",
+      "axis": "resilience",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/design.md",
+      "line_range": {
+        "start": 13,
+        "end": 17
+      },
+      "description": "One workspace serialization boundary prevents concurrent duplicate decisions while a private already-locked resume helper avoids nested flock reentrancy deadlock.",
+      "resolution": "D2 specifies that route_parked_escalations holds the workspace lock and delegates to a private _resume_locked helper, preventing nested flock acquisition."
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "low",
+      "severity": "none",
+      "disposition": "accept",
+      "axis": "correctness",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/design.md",
+      "line_range": {
+        "start": 17,
+        "end": 21
+      },
+      "description": "escalate_resume decision subject identity is scoped to dispatch ID and lease_generation, ensuring same-generation retries reuse prior decisions without auto-resuming future exhaustions.",
+      "resolution": "D3 and spec scenarios ensure that prior-record identity includes lease_generation, preventing cross-generation decision reuse."
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "low",
+      "severity": "none",
+      "disposition": "accept",
+      "axis": "correctness",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/design.md",
+      "line_range": {
+        "start": 33,
+        "end": 36
+      },
+      "description": "Authorized resume clears the prior generation application journal and increments lease generation so that the resumed generation can apply a fresh result.",
+      "resolution": "D7 and task 1.6 verify that authorized resume clears application_journal and other terminal fields prior to launching the fresh generation."
+    },
+    {
+      "id": 5,
+      "type": "observability",
+      "criticality": "low",
+      "severity": "none",
+      "disposition": "accept",
+      "axis": "observability",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/design.md",
+      "line_range": {
+        "start": 37,
+        "end": 40
+      },
+      "description": "Blocked decisions synchronously project to the supervisor mirror, stale/missing handoffs rehydrate from mirror, and the next supervisor handoff retains the pending gate and deadline.",
+      "resolution": "D8, spec scenarios, and task 3.1 establish synchronous mirror projection, stale-handoff rehydration, and retention in subsequent handoffs."
+    },
+    {
+      "id": 6,
+      "type": "security",
+      "criticality": "low",
+      "severity": "none",
+      "disposition": "accept",
+      "axis": "security",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/design.md",
+      "line_range": {
+        "start": 25,
+        "end": 28
+      },
+      "description": "Routing outputs and notification context are exact, bounded, allowlisted, and contain no child transcripts, raw approval payloads, or child-provided reason text.",
+      "resolution": "D5 and contracts/README.md enforce strict bounding and substitute fixed policy-pause reason text into gate notification context."
+    },
+    {
+      "id": 7,
+      "type": "resilience",
+      "criticality": "low",
+      "severity": "none",
+      "disposition": "accept",
+      "axis": "resilience",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/design.md",
+      "line_range": {
+        "start": 29,
+        "end": 33
+      },
+      "description": "Partial-batch and post-route failures never replay apply or dispatch_fn, and already committed work is safely reported as already_routed without duplicate route effects.",
+      "resolution": "D1, D6, and spec scenarios prohibit apply replay on routing failure and ensure already committed proceeds report already_routed."
+    },
+    {
+      "id": 8,
+      "type": "architecture",
+      "criticality": "low",
+      "severity": "none",
+      "disposition": "accept",
+      "axis": "architecture",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/work-packages.yaml",
+      "line_range": {
+        "start": 25,
+        "end": 99
+      },
+      "description": "Work-package scope, locks, and validation tasks comprehensively cover every stated requirement and enable full implementation and verification.",
+      "resolution": "work-packages.yaml and tasks.md define appropriate file locks, write scopes, unit/integration test suites, and strict OpenSpec validation steps."
+    }
+  ]
+}

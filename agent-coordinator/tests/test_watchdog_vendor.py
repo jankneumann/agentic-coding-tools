@@ -162,3 +162,246 @@ class TestVendorHealthCheck:
             if "vendor.recovered" in str(c.args[1].get("p_payload", ""))
         ]
         assert len(recovered_events) == 1
+
+
+
+def _snapshot_report():
+    from types import SimpleNamespace
+
+    return SimpleNamespace(
+        vendors=[
+            SimpleNamespace(
+                agent_id="codex-local",
+                healthy=True,
+                cli_command="codex",
+                error=None,
+            ),
+            SimpleNamespace(
+                agent_id="grok-remote",
+                healthy=False,
+                cli_command="",
+                error="no_probe_method",
+            ),
+        ]
+    )
+
+
+@pytest.mark.asyncio
+async def test_first_poll_persists_every_lane_without_transition_events() -> None:
+    from datetime import UTC, datetime, timedelta
+
+    now = datetime(2026, 9, 16, 12, 0, tzinfo=UTC)
+    registry = AsyncMock()
+    service = WatchdogService(
+        db=AsyncMock(),
+        time_fn=lambda: 301.0,
+        now_fn=lambda: now,
+        vendor_health_fn=_snapshot_report,
+        vendor_registry=registry,
+        routing_jobs={},
+    )
+    service._emit_event = AsyncMock()
+
+    await service._check_vendor_health()
+
+    assert registry.persist_probe.await_count == 2
+    first = registry.persist_probe.await_args_list[0].kwargs
+    second = registry.persist_probe.await_args_list[1].kwargs
+    assert first["status"] == "available"
+    assert first["stale_after"] == now + timedelta(
+        seconds=2 * service._vendor_health_interval
+    )
+    assert second["status"] == "unknown"
+    assert second["reason"] == "no_probe_method"
+    service._emit_event.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_snapshot_failure_is_audited_without_suppressing_siblings(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    from datetime import UTC, datetime
+
+    registry = AsyncMock()
+    registry.persist_probe.side_effect = [RuntimeError("db down"), None]
+    service = WatchdogService(
+        db=AsyncMock(),
+        time_fn=lambda: 301.0,
+        now_fn=lambda: datetime(2026, 9, 16, 12, 0, tzinfo=UTC),
+        vendor_health_fn=_snapshot_report,
+        vendor_registry=registry,
+        routing_jobs={},
+    )
+    service._previous_vendor_state = {
+        "codex-local": False,
+        "grok-remote": False,
+    }
+    service._emit_event = AsyncMock()
+
+    with caplog.at_level("ERROR"):
+        await service._check_vendor_health()
+
+    assert registry.persist_probe.await_count == 2
+    registry.audit_probe_persistence_failure.assert_awaited_once_with(
+        "codex-local",
+        source_agent_id="watchdog",
+        reason="probe_persistence_failed",
+    )
+    assert "failed to persist vendor probe for codex-local" in caplog.text
+    service._emit_event.assert_awaited_once()
+    assert service._emit_event.await_args.kwargs["event_type"] == "vendor.recovered"
+
+
+@pytest.mark.asyncio
+async def test_snapshot_audit_failure_does_not_suppress_siblings_or_transition(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    from datetime import UTC, datetime
+
+    registry = AsyncMock()
+    registry.persist_probe.side_effect = [RuntimeError("db down"), None]
+    registry.audit_probe_persistence_failure.side_effect = RuntimeError("audit down")
+    service = WatchdogService(
+        db=AsyncMock(),
+        time_fn=lambda: 301.0,
+        now_fn=lambda: datetime(2026, 9, 16, 12, 0, tzinfo=UTC),
+        vendor_health_fn=_snapshot_report,
+        vendor_registry=registry,
+        routing_jobs={},
+    )
+    service._previous_vendor_state = {
+        "codex-local": False,
+        "grok-remote": False,
+    }
+    service._emit_event = AsyncMock()
+
+    with caplog.at_level("ERROR"):
+        await service._check_vendor_health()
+
+    assert registry.persist_probe.await_count == 2
+    registry.audit_probe_persistence_failure.assert_awaited_once()
+    assert "failed to audit vendor probe persistence failure" in caplog.text
+    service._emit_event.assert_awaited_once()
+    assert service._emit_event.await_args.kwargs["event_type"] == "vendor.recovered"
+
+
+@pytest.mark.asyncio
+async def test_run_once_compacts_expired_vendor_limits() -> None:
+    from datetime import UTC, datetime
+    from types import SimpleNamespace
+
+    registry = AsyncMock()
+    service = WatchdogService(
+        db=AsyncMock(),
+        time_fn=lambda: 301.0,
+        now_fn=lambda: datetime(2026, 9, 16, 12, 0, tzinfo=UTC),
+        vendor_health_fn=lambda: SimpleNamespace(vendors=[]),
+        vendor_registry=registry,
+        routing_jobs={},
+    )
+    service._check_stale_agents = AsyncMock()
+    service._check_aging_approvals = AsyncMock()
+    service._check_expiring_locks = AsyncMock()
+    service._cleanup_expired_tokens = AsyncMock()
+    service._check_event_bus_health = AsyncMock()
+    service._run_routing_jobs = AsyncMock()
+
+    await service.run_once()
+
+    registry.compact_rate_limits.assert_awaited_once_with()
+
+
+def test_watchdog_registry_factory_wires_durable_audit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    audit = AsyncMock()
+    monkeypatch.setattr("src.audit.get_audit_service", lambda: audit)
+    service = WatchdogService(db=_make_mock_db(), routing_jobs={})
+
+    registry = service.vendor_registry
+
+    assert registry._audit is audit
+
+
+@pytest.mark.asyncio
+async def test_watchdog_starts_without_notification_channels() -> None:
+    from src.coordination_api import start_notification_runtime
+
+    notifier = AsyncMock()
+    watchdog = AsyncMock()
+
+    await start_notification_runtime(notifier, watchdog, "")
+
+    notifier.start_digest_loop.assert_not_awaited()
+    watchdog.start.assert_awaited_once_with()
+
+
+def test_real_vendor_health_probe_loads_and_reports_every_lane(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The watchdog loads vendor_health.py by path. Executing it without first
+    # registering it in sys.modules makes @dataclass (with postponed
+    # annotations) raise, so production never persisted a single probe (#643).
+    # Every other test injects vendor_health_fn and never exercised the loader.
+    from src.agents_config import get_agents_config
+
+    repo = Path(__file__).resolve().parents[2]
+    monkeypatch.setenv("SKILLS_ROOT", str(repo / "skills"))
+    monkeypatch.setenv("AGENTS_YAML", str(repo / "agent-coordinator" / "agents.yaml"))
+    monkeypatch.delenv("COORDINATION_API_URL", raising=False)
+    watchdog = WatchdogService(db=AsyncMock(), vendor_registry=AsyncMock())
+
+    first = watchdog._load_vendor_health_report()
+    second = watchdog._load_vendor_health_report()
+
+    expected = {agent.name for agent in get_agents_config()}
+    assert {v.agent_id for v in first.vendors} == expected
+    assert {v.agent_id for v in second.vendors} == expected
+
+
+class TestVendorProbeOffEventLoop:
+    @pytest.mark.asyncio
+    @patch("src.watchdog.get_event_bus")
+    async def test_vendor_health_runs_through_to_thread(self, mock_get_bus):
+        mock_bus = MagicMock()
+        mock_bus.failed = False
+        mock_get_bus.return_value = mock_bus
+        svc = WatchdogService(db=_make_mock_db(), check_interval=60, time_fn=FakeTime(500.0))
+        svc._last_vendor_check = 0.0
+
+        calls = []
+
+        async def fake_to_thread(fn, *args, **kwargs):
+            calls.append(fn)
+            return None
+
+        with patch("src.watchdog.asyncio.to_thread", fake_to_thread):
+            await svc._check_vendor_health()
+
+        assert [c.__name__ for c in calls] == ["_load_vendor_health_report"]
+
+    def test_real_loader_runs_check_all_vendors_without_yaml(self, tmp_path, monkeypatch):
+        """watchdog's by-path load works with vendor_probe.py beside it, no PyYAML."""
+        import shutil
+        import sys
+
+        repo_scripts = (
+            Path(__file__).resolve().parents[2] / "skills" / "parallel-infrastructure" / "scripts"
+        )
+        scripts = tmp_path / "skills" / "parallel-infrastructure" / "scripts"
+        scripts.mkdir(parents=True)
+        for name in ("vendor_health.py", "vendor_probe.py"):
+            shutil.copy(repo_scripts / name, scripts / name)
+        monkeypatch.setenv("SKILLS_ROOT", str(tmp_path / "skills"))
+        monkeypatch.setenv("AGENTIC_PROBE_CACHE", str(tmp_path / "cache.json"))
+        monkeypatch.setitem(sys.modules, "yaml", None)  # `import yaml` raises
+        monkeypatch.delitem(sys.modules, "vendor_probe", raising=False)
+        monkeypatch.setenv("AGENTS_YAML", str(tmp_path / "missing.yaml"))
+        monkeypatch.delenv("COORDINATION_API_URL", raising=False)
+        monkeypatch.chdir(tmp_path)
+
+        svc = WatchdogService(db=_make_mock_db(), check_interval=60, time_fn=FakeTime(0.0))
+        report = svc._load_vendor_health_report()
+
+        assert report is not None
+        assert report.total_count == 0

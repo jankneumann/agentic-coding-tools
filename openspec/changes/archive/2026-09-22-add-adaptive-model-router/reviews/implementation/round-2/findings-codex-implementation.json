@@ -1,0 +1,37 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: LedgerService.usage_summary does not return exploration_entries, although RoutingService._current_exploration_budget reads that field. With the real ledger, exploration_pct_used therefore remains zero and ROUTING_EXPLORATION_PCT never constrains exploration.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: OpenRouterRefresher now passes plain dictionaries to CatalogService.upsert, while this diff does not update the existing CatalogEntry-based upsert contract. The AsyncMock tests conceal the mismatch; the scheduled refresh can fail during real catalog persistence. Add an explicit partial-update mapping API or retain the CatalogEntry contract.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "resilience",
+      "criticality": "high",
+      "description": "Critical: RoutingService.select_model unconditionally queries the spend ledger for an exploration budget, even when allow_exploration is false, and does not contain ledger exceptions. A ledger read failure now prevents otherwise valid deterministic routing and escapes the HTTP endpoint as an unhandled 500. Skip the query when exploration is disabled and fail closed to non-exploratory selection when budget state is unavailable.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    }
+  ]
+}

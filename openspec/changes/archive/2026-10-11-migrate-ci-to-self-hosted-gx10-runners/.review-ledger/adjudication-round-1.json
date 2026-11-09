@@ -1,0 +1,77 @@
+{
+  "phase": "PLAN_REVIEW",
+  "round": 1,
+  "adjudicator": "orchestrator (claude_code PLAN_REVIEW sub-agent, rubric adjudication of single-vendor high/critical judgment findings)",
+  "at": "2026-10-11T02:21:24.533705+00:00",
+  "decisions": [
+    {
+      "id": 10,
+      "vendor": "codex",
+      "criticality": "critical",
+      "verdict": "valid",
+      "action": "fixed",
+      "rationale": "merge_group commits can contain an approved fork PR; D3 fork test only covered pull_request. Canonical expression now uses an event allowlist (push, workflow_dispatch, same-repo pull_request); merge_group always hosted; D4 guard = negated eligibility clause; spec scenario 'Merge queue runs stay hosted'."
+    },
+    {
+      "id": 11,
+      "vendor": "codex",
+      "criticality": "high",
+      "verdict": "valid",
+      "action": "fixed",
+      "rationale": "Jobs API exposes display names, not YAML ids. D8 now defines a correlation contract (id or literal name:, matrix prefix match, unknown-job violation, unique display names asserted in 2.2); spec scenario 'Matrix expansions are correlated to their job id'."
+    },
+    {
+      "id": 12,
+      "vendor": "codex",
+      "criticality": "high",
+      "verdict": "valid",
+      "action": "fixed",
+      "rationale": "A10 trust premise ignored Dependabot/agent same-repo branches and leaked credentials (corroborated by claude_code #2, medium). Cache is now off by default; enabling it is a recorded operator risk acceptance; switch mechanism specified ($GX10_RUNNER_CACHE_ARGS) and tested."
+    },
+    {
+      "id": 1,
+      "vendor": "claude_code",
+      "criticality": "high",
+      "verdict": "valid",
+      "action": "fixed",
+      "rationale": "allow_host_loopback=false does not block services bound to 0.0.0.0/LAN/Tailscale through slirp4netns NAT. D6/A11 now require an operator nftables skuid rule (or loopback-only binding); O4 probes every host address; spec operator scenario added."
+    }
+  ],
+  "also_fixed_non_blocking": [
+    2,
+    4,
+    7,
+    8,
+    13,
+    14,
+    15,
+    18
+  ],
+  "left_open_advisory": [
+    3,
+    5,
+    6,
+    9,
+    16,
+    17,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26
+  ],
+  "lanes": {
+    "succeeded": [
+      "claude_code",
+      "codex",
+      "pi"
+    ],
+    "failed": {
+      "antigravity": "timeout (240s) - dropped from later rounds",
+      "grok": "426 outdated CLI (vendor_unavailable) - dropped from later rounds"
+    }
+  }
+}

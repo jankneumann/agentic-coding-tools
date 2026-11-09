@@ -1,0 +1,77 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "axis": "correctness",
+      "criticality": "critical",
+      "description": "Critical: `plan_reconciliation()` validates `legacy_role_aliases` values using `_ROLE` (`^(agent|service)-[a-z][a-z0-9-]*$`), rejecting authentic pre-migration AppRole names (such as `claude-web` or `codex-cloud`) that lack the newly introduced `agent-`/`service-` prefix. This violates `contracts/migration-map.schema.json`, which defines `slugMapping` as `^[a-z][a-z0-9-]*$`. Furthermore, if an alias were prefixed with `agent-`, line 161 would immediately reject it as a collision with projected roles. As a result, any valid migration map defining legacy aliases for cutover deterministically fails preflight with `ValueError: invalid or colliding legacy role alias`, blocking cutover of existing un-prefixed roles.",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "skills/bao-vault/scripts/bao_seed.py",
+      "id": 1,
+      "line_range": "156-162",
+      "package_id": "wp-seeding",
+      "resolution": "Validate `legacy_role_aliases` values against `r\"^[a-z][a-z0-9-]*$\"` (matching the `slugMapping` definition in `migration-map.schema.json`) rather than `_ROLE`, and add test coverage in `test_bao_seed.py` for retiring un-prefixed legacy role aliases during cutover.",
+      "severity": "critical",
+      "type": "contract_mismatch"
+    },
+    {
+      "axis": "observability",
+      "criticality": "medium",
+      "description": "Optional: Cutover policy creation (`coordinator-internal-read`), internal AppRole update (`internal_role_name`), and shared policy retirement (`coordinator-read`) audit mutations using `internal_id = \"spiffe://coordinator.rotkohl.ai/service/identity-reader\"`. AI-11 explicitly forbids `service/identity-reader` from accessing `secret/data/coordinator` or receiving non-agent policies. Attributing these actions to `service/identity-reader` misattributes internal coordinator credential handoff and shared-policy retirement to the identity reader in the audit log. Additionally, line 297 attributes enabling the AppRole auth engine to `openbao.principal.created` for `service/identity-reader`.",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "skills/bao-vault/scripts/bao_seed.py",
+      "id": 2,
+      "line_range": "336-350",
+      "package_id": "wp-seeding",
+      "resolution": "Derive `internal_id` from `internal_role_name` (e.g. `f\"spiffe://coordinator.rotkohl.ai/service/{internal_role_name}\"`), which conforms to `openbao-event.schema.json` and cleanly separates internal coordinator profile-loader events from `service/identity-reader`.",
+      "severity": "optional",
+      "type": "observability"
+    },
+    {
+      "axis": "compatibility",
+      "criticality": "low",
+      "description": "Nit: `make bao-seed` hardcodes invocation flags and does not accept or forward optional cutover flags (such as `BAO_SEED_FLAGS`), preventing operators from executing `--confirm-cutover` and `--internal-role-name` via Makefile entry points.",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "agent-coordinator/Makefile",
+      "id": 3,
+      "line_range": "103-106",
+      "package_id": "wp-seeding",
+      "resolution": "Append `$(BAO_SEED_FLAGS)` to the `bao_seed.py` command in `agent-coordinator/Makefile` so operators can supply cutover flags through Make.",
+      "severity": "nit",
+      "type": "compatibility"
+    },
+    {
+      "axis": "security",
+      "criticality": "low",
+      "description": "none: AppRole response-wrapping and bootstrap delivery are implemented securely: SecretIDs are issued single-use (`secret_id_num_uses=1`) wrapped for 300s, validated against server creation paths (`auth/approle/role/<role>/secret-id`), and written atomically to mode-0600 bundles beneath mode-0700 directories via mkstemp + fchmod + fsync + replace with directory fsync. Periodic token configuration (`token_period`, `token_num_uses=0`) aligns with OpenBao token renewal semantics. Internal cutover handoff strictly verifies login and read access under the isolated policy before retiring legacy `coordinator-read` without mutating the admin client token or deleting coordinator data.",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "skills/bao-vault/scripts/bao_seed.py",
+      "id": 4,
+      "line_range": "243-354",
+      "package_id": "wp-seeding",
+      "resolution": "No action needed; complies with D1, D3, D5, D6, and CFG-05/06/07/09/10/11/12/13/23/24.",
+      "severity": "none",
+      "type": "security"
+    },
+    {
+      "axis": "correctness",
+      "criticality": "low",
+      "description": "none: Migration map preflight completeness enforces strict bijection across flat secrets, exact registry `${VAR}` placeholders without fallback expressions, keyed agents, and catalog vendors. Every source key is accounted for exactly once or designated as retained internal. Dry-run previews and audit emissions leak no secrets, tokens, or hashes.",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "skills/bao-vault/scripts/bao_seed.py",
+      "id": 5,
+      "line_range": "123-178",
+      "package_id": "wp-seeding",
+      "resolution": "No action needed; complies with D1, D3, CFG-08, and CFG-18.",
+      "severity": "none",
+      "type": "correctness"
+    }
+  ]
+}

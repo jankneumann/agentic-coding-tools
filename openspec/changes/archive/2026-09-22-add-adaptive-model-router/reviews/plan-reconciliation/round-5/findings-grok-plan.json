@@ -1,0 +1,83 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Nit: `agent-archetypes` still leaves the resolver-unavailable half of Archetype Resolution Delegates to Adaptive Router without a WHEN/THEN. The requirement says that when the flag is off or the resolver is unavailable, resolution SHALL keep the static tier mapping, but the only fallback scenario is Flag off preserves static behavior. Round-4 asked for resolver-unavailable coverage under agent-archetypes; this last-fix added Unknown endpoint kind here and put Resolver unavailability or error is bounded only under model-routing.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "Add an agent-archetypes scenario: WHEN ROUTING_ADAPTIVE is on and the resolver is unavailable or errors, THEN archetype/phase resolution SHALL equal the pre-change static tier mapping.",
+      "file_path": "openspec/changes/add-adaptive-model-router/specs/agent-archetypes/spec.md",
+      "line_range": {
+        "start": 7,
+        "end": 15
+      },
+      "evidence_class": "judgment",
+      "existing_code": "when the flag is off or the resolver is unavailable, resolution SHALL use the existing\nstatic tier mapping unchanged.\n\n#### Scenario: Flag off preserves static behavior",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 2,
+      "type": "security",
+      "criticality": "low",
+      "description": "Nit: Root `security: [CoordinatorBearer]` and the bearer `securitySchemes` entry fix the round-4 unauthenticated-contract hole, but none of the five `/routing/*` operations declare `401`/`403` (or equivalent Problem) responses. Spec scenarios still predicate success on valid authentication, so generated clients and reviewers still lack a machine-readable unauthorized outcome.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "nit",
+      "resolution": "Add authenticated-error responses (reuse `#/components/responses/Problem`) on each routing path, or document a single shared unauthorized response and reference it from all five operations.",
+      "file_path": "openspec/changes/add-adaptive-model-router/contracts/openapi/v1.yaml",
+      "line_range": {
+        "start": 9,
+        "end": 30
+      },
+      "evidence_class": "judgment",
+      "existing_code": "security:\n  - CoordinatorBearer: []\npaths:\n  /routing/select_model:\n    post:\n      operationId: selectModelForTask",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Optional: `wp-integration`'s Changed dg-00 runtime flows validate step hard-codes 10 entry files, while the newly added `architecture-impact.md` reports changed-file scoped flow validation over 43 files with zero findings. The executable gate therefore under-samples the surface the architecture evidence claims was cleared, and omits core routing modules such as `resolver.py` / `exploration.py`.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "optional",
+      "resolution": "Point the verification `--files` list at the same changed-file set used for architecture-impact (or `--diff` against the dg-00 base), and keep architecture-impact's count in sync with that command.",
+      "file_path": "openspec/changes/add-adaptive-model-router/work-packages.yaml",
+      "line_range": {
+        "start": 402,
+        "end": 404
+      },
+      "evidence_class": "judgment",
+      "existing_code": "command: \"skills/.venv/bin/python skills/validate-flows/scripts/validate_flows.py --graph docs/architecture-analysis/architecture.graph.json --files agent-coordinator/src/model_routing/api.py,agent-coordinator/src/model_routing/catalog.py,agent-coordinator/src/model_routing/ledger.py,agent-coordinator/src/model_routing/local_endpoints.py,agent-coordinator/src/model_routing/refresher.py,agent-coordinator/src/agents_config.py,agent-coordinator/src/coordination_api.py,agent-coordinator/src/coordination_mcp.py,agent-coordinator/src/watchdog.py,skills/parallel-infrastructure/scripts/review_dispatcher.py\"",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 4,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "none: Round-4 contract blockers look closed in this last-fix: OpenAPI 3.1 null unions replace `nullable`, `CoordinatorBearer` is declared and applied, `SelectModelResponse`/`CatalogRow`/`ExcludedCandidate` requiredness matches the Pydantic models, `posterior_sample_size` is number/float, and `RoutingDecision.excluded` is present in both OpenAPI and `models.py`.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "file_path": "openspec/changes/add-adaptive-model-router/contracts/openapi/v1.yaml",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Most round-4 completeness gaps are addressed: unknown `endpoint_kind`, HTTP catalog/decision/usage/feedback scenarios, stale-by-age, ledger actual/counterfactual, independent ledger rollup, and model-routing resolver-error fallback scenarios were added; `wp-contracts` now runs semantic parity tests; package Ruff/mypy checkpoints and task 8.2 OpenSpec/architecture/consensus gates are wired; design absorption and contracts README no longer overclaim archival or task 1.4 generation.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "file_path": "openspec/changes/add-adaptive-model-router/work-packages.yaml",
+      "evidence_class": "judgment"
+    }
+  ]
+}

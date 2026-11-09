@@ -28,7 +28,11 @@ all = ["gen-eval[mcp,sdk,db]"]
 # (add-the-shared-system-one-decision-helper-fallback-only). Separate from
 # ``all``: it is a pilot integration point for one gen-eval item
 # (ri-04, the semantic judge), not a general framework capability yet.
-decisions = ["system-one-decisions"]
+# Pulls system-one-decisions' own "live" extra (typesafe-sdk) -- without it,
+# decide() always hits its "SDK not installed" unavailability branch, so
+# semantic_judge's calibrated path would silently stay skip-only forever
+# even with TYPESAFE_API_KEY set (Codex review on PR #588).
+decisions = ["system-one-decisions[live]"]
 
 [tool.uv.sources]
 system-one-decisions = { path = "../system-one-decisions" }

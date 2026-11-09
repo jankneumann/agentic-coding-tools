@@ -1,0 +1,14 @@
+# Fixture for the plan-time collision scenarios (design D4, D6). All data; no logic.
+principals:
+  - name: alice
+    change_id: sim-alice-notes
+    steps:
+      - name: plan
+        duration: 1
+        files_from: principals/alice/plan
+  - name: bob
+    change_id: sim-bob-notes
+    steps:
+      - name: plan
+        duration: 1
+        files_from: principals/bob/plan

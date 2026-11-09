@@ -1,0 +1,296 @@
+{
+  "schema_version": 1,
+  "feature_id": "route-parked-escalations-through-the-escalate-resume-gate",
+  "package_id": "wp-authority-recovery",
+  "attempt": 1,
+  "plan_revision": 4,
+  "contracts_revision": 3,
+  "status": "completed",
+  "timestamps": {
+    "finished_at": "2026-09-16T13:38:27.940295+00:00"
+  },
+  "locks": {
+    "files": [
+      "skills/roadmap-runtime/scripts/checkpoint.py",
+      "skills/roadmap-runtime/scripts/models.py",
+      "skills/supervise/scripts/gate_router.py",
+      "skills/supervise/scripts/execution.py",
+      "skills/autopilot-roadmap/scripts/orchestrator.py"
+    ],
+    "keys": [
+      "feature:route-parked-escalations-through-the-escalate-resume-gate:authority",
+      "contract:supervise.escalation-routing",
+      "contract:roadmap.delegated-current-cohort"
+    ]
+  },
+  "scope": {
+    "write_allow": [
+      "skills/roadmap-runtime/scripts/checkpoint.py",
+      "skills/roadmap-runtime/scripts/models.py",
+      "skills/supervise/scripts/gate_router.py",
+      "skills/supervise/scripts/execution.py",
+      "skills/supervise/scripts/cycle_state.py",
+      "skills/autopilot-roadmap/scripts/orchestrator.py",
+      "skills/supervise/SKILL.md",
+      "openspec/schemas/gate-decision.schema.json",
+      "openspec/schemas/checkpoint.schema.json",
+      "skills/roadmap-runtime/install_assets/openspec/schemas/checkpoint.schema.json",
+      "docs/architecture-analysis/architecture.diff.json",
+      "skills/tests/roadmap-runtime/**",
+      "skills/tests/supervise/**",
+      "skills/tests/autopilot-roadmap/**",
+      "skills/tests/_shared/test_flat_module_isolation.py",
+      "skills/tests/conftest.py",
+      "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/**",
+      ".claude/skills/supervise/**",
+      ".agents/skills/supervise/**",
+      "docs/decisions/**"
+    ],
+    "read_allow": [
+      "**"
+    ],
+    "deny": [
+      "**/.venv/**"
+    ]
+  },
+  "files_modified": [
+    "docs/architecture-analysis/architecture.diff.json",
+    "docs/decisions/roadmap-orchestration.md",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/architecture-impact.md",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/artifacts/wp-authority-recovery/result.json",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/change-context.md",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/contracts/README.md",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/design.md",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/handoffs/gatekeeper-1.json",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/handoffs/plan-1.json",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/handoffs/plan-iteration-1-1.json",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/handoffs/plan-iteration-2-1.json",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/handoffs/plan-review-3-1.json",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/handoffs/validation-1.json",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/handoffs/validation-2-1.json",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/handoffs/validation-fix-1-1.json",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/handoffs/validation-fix-2-1.json",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/proposal.md",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/review-findings-plan.json",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/reviews/adjudication-plan.json",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/reviews/consensus-plan.json",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/reviews/dispositions.md",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/reviews/findings-claude_code-plan.json",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/reviews/findings-codex-plan.json",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/reviews/implementation/dispositions.md",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/reviews/implementation/findings-antigravity-implementation.json",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/reviews/implementation/findings-claude_code-implementation.json",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/reviews/implementation/findings-codex-implementation.json",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/reviews/recovery-round-1/findings-grok-plan.json",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/reviews/recovery-round-1/raw-antigravity-plan.meta.json",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/reviews/recovery-round-1/raw-antigravity-plan.stderr.txt",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/reviews/recovery-round-1/raw-antigravity-plan.txt",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/reviews/recovery-round-1/raw-claude_code-plan.meta.json",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/reviews/recovery-round-1/raw-claude_code-plan.txt",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/reviews/recovery-round-1/raw-grok-plan.meta.json",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/reviews/recovery-round-1/raw-grok-plan.txt",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/reviews/recovery-round-1/raw-pi-plan.meta.json",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/reviews/recovery-round-1/raw-pi-plan.txt",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/reviews/recovery-round-1/review-manifest.json",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/reviews/recovery-round-1/review-packet.md",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/reviews/recovery-round-1/review-packet.meta.json",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/reviews/recovery-round-1/review-prompt.md",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/reviews/review-manifest.json",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/reviews/review-prompt.md",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/reviews/round-1/consensus-plan.json",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/reviews/round-1/dispositions.md",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/reviews/round-1/findings-antigravity-plan.json",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/reviews/round-1/findings-claude_code-plan.json",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/reviews/round-1/findings-codex-plan.json",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/reviews/round-1/findings-grok-plan.json",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/reviews/round-1/findings-pi-invalid-plan.json",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/reviews/round-1/review-manifest.json",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/reviews/round-1/review-prompt.md",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/reviews/round-2/consensus-plan.json",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/reviews/round-2/dispositions.md",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/reviews/round-2/findings-antigravity-plan.json",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/reviews/round-2/findings-claude_code-plan.json",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/reviews/round-2/findings-codex-plan.json",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/reviews/round-2/findings-grok-plan.json",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/reviews/round-2/review-manifest.json",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/reviews/round-2/review-prompt.md",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/session-log.md",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/specs/roadmap-orchestration/spec.md",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/specs/supervise/spec.md",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/tasks.md",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/validation-findings.json",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/validation-history/validation-1-3848e95d.md",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/validation-report.md",
+    "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/work-packages.yaml",
+    "openspec/schemas/checkpoint.schema.json",
+    "openspec/schemas/gate-decision.schema.json",
+    "skills/autopilot-roadmap/scripts/orchestrator.py",
+    "skills/roadmap-runtime/install_assets/openspec/schemas/checkpoint.schema.json",
+    "skills/roadmap-runtime/scripts/checkpoint.py",
+    "skills/roadmap-runtime/scripts/models.py",
+    "skills/supervise/SKILL.md",
+    "skills/supervise/scripts/cycle_state.py",
+    "skills/supervise/scripts/execution.py",
+    "skills/supervise/scripts/gate_router.py",
+    "skills/tests/_shared/test_flat_module_isolation.py",
+    "skills/tests/autopilot-roadmap/test_supervised_dispatch.py",
+    "skills/tests/conftest.py",
+    "skills/tests/roadmap-runtime/test_checkpoint_replan.py",
+    "skills/tests/roadmap-runtime/test_delegated_checkpoint.py",
+    "skills/tests/supervise/test_cycle_state.py",
+    "skills/tests/supervise/test_execution.py",
+    "skills/tests/supervise/test_gate_router.py",
+    "skills/tests/supervise/test_prose_free_gates.py"
+  ],
+  "scope_check": {
+    "passed": true,
+    "violations": []
+  },
+  "git": {
+    "base": {
+      "ref": "origin/main"
+    },
+    "head": {
+      "commit": "3e1293d97a2db43314d6072c4d7fdb7329637223",
+      "branch": "openspec/recover-ri-06-escalation-routing",
+      "worktree": "/home/jankneumann/Coding/agentic-coding-tools/.git-worktrees/route-parked-escalations-through-the-escalate-resume-gate"
+    }
+  },
+  "verification": {
+    "tier": "A",
+    "passed": true,
+    "steps": [
+      {
+        "name": "Recovery regression suites",
+        "kind": "command",
+        "passed": true,
+        "command": "skills/.venv/bin/python -m pytest skills/tests/roadmap-runtime skills/tests/supervise skills/tests/autopilot-roadmap -q",
+        "cwd": ".",
+        "exit_code": 0,
+        "evidence": {
+          "artifacts": [],
+          "metrics": {
+            "recovery_suites": {
+              "passed": 620,
+              "failed": 0
+            }
+          }
+        }
+      },
+      {
+        "name": "Full skills suite",
+        "kind": "command",
+        "passed": true,
+        "command": "skills/.venv/bin/python -m pytest skills/tests -q",
+        "cwd": ".",
+        "exit_code": 0,
+        "evidence": {
+          "artifacts": [],
+          "metrics": {
+            "full_suite": {
+              "passed": 6319,
+              "skipped": 6,
+              "warnings": 2
+            }
+          }
+        }
+      },
+      {
+        "name": "Ruff changed surfaces",
+        "kind": "command",
+        "passed": true,
+        "command": "skills/.venv/bin/python -m ruff check skills/roadmap-runtime/scripts skills/supervise/scripts skills/autopilot-roadmap/scripts skills/tests/roadmap-runtime skills/tests/supervise skills/tests/autopilot-roadmap",
+        "cwd": ".",
+        "exit_code": 0,
+        "evidence": {
+          "artifacts": [],
+          "metrics": {
+            "ruff": {
+              "passed": true
+            }
+          }
+        }
+      },
+      {
+        "name": "Strict OpenSpec validation",
+        "kind": "command",
+        "passed": true,
+        "command": "openspec validate route-parked-escalations-through-the-escalate-resume-gate --strict && openspec validate --strict --all",
+        "cwd": ".",
+        "exit_code": 0,
+        "evidence": {
+          "artifacts": [],
+          "metrics": {
+            "openspec_strict": {
+              "passed": true
+            },
+            "openspec_all": {
+              "passed": 90,
+              "failed": 0
+            }
+          }
+        }
+      },
+      {
+        "name": "Work-package validation",
+        "kind": "command",
+        "passed": true,
+        "command": "skills/.venv/bin/python skills/validate-packages/scripts/validate_work_packages.py openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/work-packages.yaml",
+        "cwd": ".",
+        "exit_code": 0,
+        "evidence": {
+          "artifacts": [],
+          "metrics": {
+            "package_validation": {
+              "passed": true
+            }
+          }
+        }
+      },
+      {
+        "name": "Context drift gate",
+        "kind": "command",
+        "passed": true,
+        "command": "make context-drift-gate",
+        "cwd": ".",
+        "exit_code": 0,
+        "evidence": {
+          "artifacts": [],
+          "metrics": {
+            "context_drift": {
+              "passed": true,
+              "declared_surfaces": [
+                "apis",
+                "architecture",
+                "capabilities",
+                "decisions",
+                "documentation",
+                "semantic_code"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "name": "Post-sync package scope",
+        "kind": "manual",
+        "passed": true,
+        "manual": {
+          "instructions": "Run the implementation orchestrator's canonical scope checker and record any inherited-only drift separately."
+        },
+        "evidence": {
+          "artifacts": [],
+          "metrics": {
+            "scope_compliance": {
+              "passed": true,
+              "files_checked": 87,
+              "violations": 0
+            }
+          }
+        }
+      }
+    ]
+  },
+  "notes": "VAL_FIX evidence for implementation head 3e1293d9: exact bounded route output, durable already-routed retry, mirror rehydrate reconciliation, and direct 14-scenario behavioral coverage. Architecture evidence is preserved with qualified advisory provenance.",
+  "escalations": []
+}

@@ -507,6 +507,53 @@ _WEIGHTS = {
     "tie_breaker": "stub_key:asc",
 }
 
+# Score-legend labels, indexed [score - 1]. A live Score judgment (ri-17's
+# rubric_score.py) has no free-text justification field to populate --
+# rank_candidates substitutes the label for the factor's actual score here
+# when a rubric-score document omits `justification` (now optional per
+# supervise-rubric-score.schema.json). Mirrors rubric-prompt.md's own factor
+# descriptions; kept as plain text here (not imported from rubric_score.py)
+# so digest.py's "never calls a model" identity stays literally true -- it
+# does not import anything that can.
+_FACTOR_LEVEL_LABELS: dict[str, list[str]] = {
+    "relevance": [
+        "Score legend: no longer true on the current tree.",
+        "Score legend: mostly stale, small part still true.",
+        "Score legend: partially true on the current tree.",
+        "Score legend: mostly true on the current tree.",
+        "Score legend: still true on the current tree.",
+    ],
+    "value": [
+        "Score legend: negligible change for users/operators.",
+        "Score legend: minor change for users/operators.",
+        "Score legend: moderate change for users/operators.",
+        "Score legend: significant change for users/operators.",
+        "Score legend: major change for users/operators.",
+    ],
+    "readiness": [
+        "Score legend: far from ready to start.",
+        "Score legend: needs substantial groundwork first.",
+        "Score legend: needs minor groundwork first.",
+        "Score legend: nearly ready to start today.",
+        "Score legend: an implementer could start today.",
+    ],
+    "scope_fit": [
+        "Score legend: a fragment, not a coherent change.",
+        "Score legend: several change's worth, poorly bounded.",
+        "Score legend: roughly one change, some spillover.",
+        "Score legend: close to one focused change.",
+        "Score legend: exactly one focused change.",
+    ],
+    # risk: 5 = safest, 1 = highest risk (schema-documented inversion).
+    "risk": [
+        "Score legend: highest risk, largest blast radius.",
+        "Score legend: high risk if it goes wrong.",
+        "Score legend: moderate risk if it goes wrong.",
+        "Score legend: low risk, small blast radius.",
+        "Score legend: safest, minimal blast radius.",
+    ],
+}
+
 
 def _validate_score_join(
     repo_root: Path, manifest: dict[str, Any], scores: dict[str, Any]
@@ -736,7 +783,30 @@ def rank_candidates(
             factor: score_row[factor]["score"]
             for factor in ("relevance", "value", "readiness", "scope_fit", "risk")
         }
-        justifications = {factor: score_row[factor]["justification"] for factor in factors}
+        justifications = {
+            factor: score_row[factor].get("justification")
+            or _FACTOR_LEVEL_LABELS[factor][factors[factor] - 1]
+            for factor in factors
+        }
+        # ri-17: propagate Jev provenance (evidence_class + probability) for
+        # any factor a calibrated Score judgment produced, per the roadmap's
+        # own provenance rule (docs/proposals/jev-system-one-integration-
+        # assessment.md: "Every Jev-derived value that reaches a report
+        # carries evidence_class: judgment and the probability"). A factor
+        # scored by the analyst sub-agent carries neither field and is
+        # simply absent here.
+        scoring_provenance = {
+            factor: {
+                "evidence_class": score_row[factor]["evidence_class"],
+                **(
+                    {"probability": score_row[factor]["probability"]}
+                    if "probability" in score_row[factor]
+                    else {}
+                ),
+            }
+            for factor in factors
+            if "evidence_class" in score_row[factor]
+        }
         staleness = signals.get("staleness_days")
         penalty = min(staleness // 30, 5) if isinstance(staleness, int) else 0
         total = (
@@ -757,21 +827,22 @@ def rank_candidates(
             else None,
             "deferred_until": prior.get(key, {}).get("until"),
         }
-        ranked.append(
-            {
-                "stub_key": key,
-                "rank": 0,
-                "score": total,
-                "decision": decision,
-                "suggested_change_id": stub.get("suggested_change_id"),
-                "title": stub["title"],
-                "effort": stub["effort"],
-                "factors": factors,
-                "justifications": justifications,
-                "signals": output_signals,
-                "provenance": provenance,
-            }
-        )
+        ranked_item = {
+            "stub_key": key,
+            "rank": 0,
+            "score": total,
+            "decision": decision,
+            "suggested_change_id": stub.get("suggested_change_id"),
+            "title": stub["title"],
+            "effort": stub["effort"],
+            "factors": factors,
+            "justifications": justifications,
+            "signals": output_signals,
+            "provenance": provenance,
+        }
+        if scoring_provenance:
+            ranked_item["scoring_provenance"] = scoring_provenance
+        ranked.append(ranked_item)
         for marker in candidate.get("degraded") or []:
             if isinstance(marker, str):
                 degraded.add(marker)

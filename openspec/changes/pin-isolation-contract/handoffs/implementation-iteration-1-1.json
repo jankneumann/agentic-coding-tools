@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-22T01:39:37.490933+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "external coordinator handoff intentionally disabled after write denial",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Inline iteration review completed after the required implementer dispatch could not start because the collaboration thread limit was exhausted. The review repaired the truncated future-amendment contract and tightened the invalid-configuration test; focused validation is green and no runtime finding remains at the medium threshold.",
+    "completed_work": [
+      "Completed inline implementation review fallback",
+      "Documented the required container amendment surface",
+      "Asserted jsonschema.ValidationError for invalid per-mode isolation",
+      "Re-ran focused tests, lint, and strict OpenSpec validation"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Keep container behind an explicit amendment",
+        "rationale": "The pinned vocabulary remains none, worktree, and sandbox; widening requires coordinated schema, validation, and parity changes.",
+        "capability": "vendor-dispatch",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Run independent multi-vendor implementation review",
+      "Validate and open the pull request without merging"
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/pin-isolation-contract/design.md",
+        "description": "future amendment contract"
+      },
+      {
+        "path": "openspec/changes/pin-isolation-contract/impl-findings.md",
+        "description": "iteration findings ledger"
+      }
+    ]
+  }
+}

@@ -11,20 +11,23 @@ This ensures:
 
 from __future__ import annotations
 
+import asyncio
 import os
 import sys
 import time
+from datetime import UTC, datetime
 from typing import Annotated, Any, Literal
 from uuid import UUID
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from fastapi.encoders import jsonable_encoder
 from fastapi.exception_handlers import (
     http_exception_handler,
     request_validation_exception_handler,
 )
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
-from pydantic import BaseModel, ConfigDict, Field, StrictInt
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, model_validator
 
 from .approval import get_approval_service
 from .axi_output import list_envelope, probe_truncation
@@ -37,6 +40,7 @@ from .code_search_runtime import (
     stop_code_search_runtime,
 )
 from .config import get_config
+from .openbao_identity import IdentityRuntime, run_reload_loop
 from .port_allocator import get_port_allocator
 
 # Trust resolution lives in src/trust_resolution.py so that the HTTP write
@@ -47,6 +51,11 @@ from .port_allocator import get_port_allocator
 from .trust_resolution import (  # noqa: F401
     TrustResolutionError,
     resolve_trust_level,
+)
+from .vendor_registry import (
+    ObservationConflictError,
+    UnknownVendorLaneError,
+    VendorRegistryService,
 )
 
 _CODE_SEARCH_PROBLEMS = {
@@ -119,6 +128,77 @@ class _ProjectionProblemError(Exception):
         super().__init__(reason)
 
 
+class VendorRateLimitObservationRequest(BaseModel):
+    """A transient rate-limit observation reported by an authenticated lane."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    observation_id: str = Field(min_length=1, max_length=200)
+    reason: str = Field(min_length=1, max_length=2000)
+    reset_at: datetime | None = None
+    retry_after_seconds: StrictInt | None = Field(default=None, ge=1, le=604800)
+    scope: Literal["lane", "model"] = "lane"
+    model: str | None = Field(default=None, min_length=1, max_length=200)
+    metadata: dict[str, Any] = Field(default_factory=dict, max_length=20)
+
+    @model_validator(mode="after")
+    def validate_reset_and_scope(self) -> VendorRateLimitObservationRequest:
+        if self.reset_at is not None and self.retry_after_seconds is not None:
+            raise ValueError("exactly one reset form may be supplied")
+        if self.scope == "model" and not (self.model and self.model.strip()):
+            raise ValueError("model scope requires a concrete model")
+        return self
+
+
+_vendor_registry: VendorRegistryService | None = None
+_identity_runtime: IdentityRuntime | None = None
+
+
+def get_identity_runtime() -> IdentityRuntime | None:
+    """Expose the installed snapshot for request attribution and health."""
+    return _identity_runtime
+
+
+def get_vendor_registry() -> VendorRegistryService:
+    """Return the process-local registry service."""
+    global _vendor_registry
+    if _vendor_registry is None:
+        from .audit import get_audit_service
+
+        _vendor_registry = VendorRegistryService(audit=get_audit_service())
+    return _vendor_registry
+
+
+def _vendor_problem(status: int, problem_type: str, title: str, detail: str) -> JSONResponse:
+    return JSONResponse(
+        status_code=status,
+        content={
+            "type": problem_type,
+            "title": title,
+            "status": status,
+            "detail": detail,
+        },
+        media_type="application/problem+json",
+    )
+
+
+async def start_notification_runtime(notifier: Any, watchdog: Any, channels: str) -> None:
+    """Start optional notifications and the always-on watchdog independently."""
+    import logging
+
+    if channels.strip():
+        try:
+            await notifier.start_digest_loop()
+        except Exception:  # noqa: BLE001
+            logging.getLogger(__name__).warning(
+                "Notifier digest loop startup failed.", exc_info=True
+            )
+    try:
+        await watchdog.start()
+    except Exception:  # noqa: BLE001
+        logging.getLogger(__name__).warning("Watchdog startup failed.", exc_info=True)
+
+
 def _projection_mutation_payload(result: Any) -> dict[str, Any]:
     if not result.success:
         if getattr(result, "failure_category", None) == "policy":
@@ -148,9 +228,19 @@ def _projection_mutation_payload(result: Any) -> dict[str, Any]:
 
 
 class LockAcquireRequest(BaseModel):
+    """Lock request whose identity fields are optional by design.
+
+    ``resolve_identity`` already treats an absent ``agent_id``/``agent_type`` as
+    "act as whoever this API key is bound to", and rejects a supplied id only
+    when it contradicts the binding. Requiring the fields here contradicted
+    that: a key-bound caller had to send *something*, and anything other than
+    the exact bound value was refused as spoofing. Optional is what the resolver
+    was written for.
+    """
+
     file_path: str
-    agent_id: str
-    agent_type: str
+    agent_id: str | None = None
+    agent_type: str | None = None
     session_id: str | None = None
     reason: str | None = None
     ttl_minutes: int = 30
@@ -158,8 +248,11 @@ class LockAcquireRequest(BaseModel):
 
 class LockReleaseRequest(BaseModel):
     file_path: str
-    agent_id: str
+    agent_id: str | None = None
 
+
+class LockReleaseByAgentRequest(BaseModel):
+    agent_id: str
 
 class MemoryStoreRequest(BaseModel):
     agent_id: str
@@ -180,14 +273,14 @@ class MemoryQueryRequest(BaseModel):
 
 
 class WorkClaimRequest(BaseModel):
-    agent_id: str
-    agent_type: str
+    agent_id: str | None = None
+    agent_type: str | None = None
     task_types: list[str] | None = None
 
 
 class WorkCompleteRequest(BaseModel):
     task_id: str
-    agent_id: str
+    agent_id: str | None = None
     success: bool
     result: dict[str, Any] | None = None
     error_message: str | None = None
@@ -239,6 +332,7 @@ class WorkSubmitRequest(BaseModel):
     priority: int = Field(default=5, ge=1, le=10)
     depends_on: list[UUID] | None = None
     agent_requirements: dict[str, Any] | None = None
+    claim_immediately: bool = False
 
 
 class WorkReconcileRequest(BaseModel):
@@ -579,9 +673,17 @@ def _extract_api_key(
 def _principal_for_api_key(resolved_key: str) -> dict[str, Any]:
     """Return the coordinator principal bound to an API key."""
     config = get_config()
-    if resolved_key not in config.api.api_keys:
-        raise HTTPException(status_code=401, detail="Invalid API key")
-    identity = config.api.api_key_identities.get(resolved_key, {})
+    if config.openbao.is_enabled():
+        # The installed snapshot is the complete allowlist in Bao mode. A
+        # static key or JSON identity cannot authorize a request here.
+        runtime = _identity_runtime
+        identity = runtime.lookup(resolved_key) if runtime is not None else None
+        if identity is None:
+            raise HTTPException(status_code=401, detail="Invalid API key")
+    else:
+        if resolved_key not in config.api.api_keys:
+            raise HTTPException(status_code=401, detail="Invalid API key")
+        identity = config.api.api_key_identities.get(resolved_key, {})
     return {
         "api_key": resolved_key,
         "agent_id": identity.get("agent_id"),
@@ -682,6 +784,12 @@ def create_coordination_api() -> FastAPI:
     from contextlib import asynccontextmanager
 
     logger = logging.getLogger(__name__)
+    global _identity_runtime
+    cfg = get_config()
+    _identity_runtime = (
+        IdentityRuntime(required_static_keys=tuple(cfg.api.api_keys))
+        if cfg.openbao.is_enabled() else None
+    )
 
     from .langfuse_tracing import init_langfuse, shutdown_langfuse
     from .sse_log_redaction import install_token_redaction_filter
@@ -698,6 +806,12 @@ def create_coordination_api() -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+        identity_task: asyncio.Task[None] | None = None
+        identity_runtime = _identity_runtime
+        if identity_runtime is not None:
+            # Startup failure is routable only after a complete refresh. Keep
+            # the server up to expose degraded readiness and retry every 30s.
+            await asyncio.to_thread(identity_runtime.reload)
         # Apply pending database migrations on startup
         from .migrations import ensure_schema
 
@@ -750,29 +864,14 @@ def create_coordination_api() -> FastAPI:
                 exc_info=True,
             )
 
-        # Start notifier digest loop and watchdog (only when channels configured)
+        # Notifications are optional; registry freshness requires watchdog always-on.
         from .notifications.notifier import get_notifier
         from .watchdog import get_watchdog
 
         notifier = get_notifier()
         watchdog = get_watchdog()
         notification_channels = os.environ.get("NOTIFICATION_CHANNELS", "")
-
-        if notification_channels.strip():
-            try:
-                await notifier.start_digest_loop()
-            except Exception:  # noqa: BLE001
-                logging.getLogger(__name__).warning(
-                    "Notifier digest loop startup failed.",
-                    exc_info=True,
-                )
-            try:
-                await watchdog.start()
-            except Exception:  # noqa: BLE001
-                logging.getLogger(__name__).warning(
-                    "Watchdog startup failed.",
-                    exc_info=True,
-                )
+        await start_notification_runtime(notifier, watchdog, notification_channels)
 
         # Start merge-train sweeper (R1/R2 — task 5.9). Disable via
         # MERGE_TRAIN_SWEEP_DISABLED=1 for tests or manual operation.
@@ -800,9 +899,18 @@ def create_coordination_api() -> FastAPI:
                     exc_info=True,
                 )
 
+        if identity_runtime is not None:
+            identity_task = asyncio.create_task(run_reload_loop(identity_runtime))
+
         yield
 
         # Shutdown merge watcher, sweeper, watchdog, notifier, event bus, langfuse
+        try:
+            if identity_task is not None:
+                identity_task.cancel()
+                await asyncio.gather(identity_task, return_exceptions=True)
+        except Exception:  # noqa: BLE001
+            pass
         try:
             await merge_watcher.stop()
         except Exception:  # noqa: BLE001
@@ -895,6 +1003,15 @@ def create_coordination_api() -> FastAPI:
         request: Request,
         exc: RequestValidationError,
     ) -> JSONResponse:
+        if request.url.path.startswith("/vendors/") and request.url.path.endswith(
+            "/rate-limit-observations"
+        ):
+            return _vendor_problem(
+                400,
+                "urn:vendor-registry:invalid-observation",
+                "Invalid rate-limit observation",
+                "invalid_rate_limit_observation",
+            )
         if request.url.path == "/search/code":
             return JSONResponse(
                 status_code=422,
@@ -1051,6 +1168,55 @@ def create_coordination_api() -> FastAPI:
             },
         }
 
+
+    @app.get("/locks")
+    async def list_locks_by_agent(
+        agent_id: str,
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """List active locks held by the authenticated agent."""
+        resolved_agent_id, agent_type = resolve_identity(principal, agent_id, None)
+        await authorize_operation(
+            agent_id=resolved_agent_id,
+            agent_type=agent_type,
+            operation="check_locks",
+            resource=resolved_agent_id,
+        )
+        from .locks import get_lock_service
+
+        locks = await get_lock_service().check(locked_by=resolved_agent_id)
+        return {
+            "locks": [
+                {
+                    "file_path": lock.file_path,
+                    "locked_by": lock.locked_by,
+                    "agent_type": lock.agent_type,
+                    "locked_at": lock.locked_at.isoformat(),
+                    "expires_at": lock.expires_at.isoformat(),
+                    "reason": lock.reason,
+                }
+                for lock in locks
+            ]
+        }
+
+    @app.post("/locks/release-by-agent")
+    async def release_locks_by_agent(
+        request: LockReleaseByAgentRequest,
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Idempotently release active locks held by the authenticated agent."""
+        resolved_agent_id, agent_type = resolve_identity(principal, request.agent_id, None)
+        await authorize_operation(
+            agent_id=resolved_agent_id,
+            agent_type=agent_type,
+            operation="release_lock",
+            resource=resolved_agent_id,
+        )
+        from .locks import get_lock_service
+
+        result = await get_lock_service().release_by_agent(resolved_agent_id)
+        return result
+
     # --------------------------------------------------------------------- #
     # MEMORY
     # --------------------------------------------------------------------- #
@@ -1181,11 +1347,17 @@ def create_coordination_api() -> FastAPI:
 
         from .work_queue import get_work_queue_service
 
+        try:
+            task_id = UUID(request.task_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="Invalid task_id") from exc
+
         result = await get_work_queue_service().complete(
-            task_id=UUID(request.task_id),
+            task_id=task_id,
             success=request.success,
             result=request.result,
             error_message=request.error_message,
+            agent_id=agent_id,
         )
         return {
             "success": result.success,
@@ -1240,6 +1412,9 @@ def create_coordination_api() -> FastAPI:
             projection_labels=(
                 list(request.projection_labels) if request.projection_labels else None
             ),
+            claim_immediately=request.claim_immediately,
+            claimant_agent_id=agent_id if request.claim_immediately else None,
+            claimant_agent_type=agent_type if request.claim_immediately else None,
         )
         payload = _projection_mutation_payload(result)
         if request.projection_key is None:
@@ -1506,6 +1681,122 @@ def create_coordination_api() -> FastAPI:
             logger.exception("comment_issue failed")
             return {"success": False, "reason": f"{type(e).__name__}: {e}"}
         return {"success": True, "comment": comment.to_dict()}
+
+    # --------------------------------------------------------------------- #
+    # VENDOR REGISTRY
+    # --------------------------------------------------------------------- #
+
+    @app.get("/vendors")
+    async def list_vendors(
+        capability: str | None = None,
+        archetype: str | None = None,
+        dispatch_mode: str | None = None,
+        location: Literal["local", "cloud", "unknown"] | None = None,
+        available_only: bool = False,
+        _principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> Response:
+        try:
+            vendors = await get_vendor_registry().list_vendors(
+                capability=capability,
+                archetype=archetype,
+                dispatch_mode=dispatch_mode,
+                location=location,
+                available_only=available_only,
+            )
+        except Exception:  # noqa: BLE001
+            logger.exception("Vendor registry list failed")
+            return _vendor_problem(
+                503,
+                "urn:vendor-registry:unavailable",
+                "Vendor registry unavailable",
+                "vendor_registry_unavailable",
+            )
+        # The registry returns raw DB rows (timestamptz -> datetime); a bare
+        # JSONResponse cannot encode them and answered a plain 500 (#643).
+        return JSONResponse(content=jsonable_encoder({"vendors": vendors}))
+
+    @app.get("/vendors/{agent_id}/availability")
+    async def get_vendor_availability(
+        agent_id: str,
+        _principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> Response:
+        try:
+            availability = await get_vendor_registry().get_availability(agent_id)
+        except UnknownVendorLaneError:
+            return _vendor_problem(
+                404,
+                "urn:vendor-registry:unknown-lane",
+                "Unknown vendor lane",
+                "unknown_vendor_lane",
+            )
+        except Exception:  # noqa: BLE001
+            logger.exception("Vendor registry availability failed")
+            return _vendor_problem(
+                503,
+                "urn:vendor-registry:unavailable",
+                "Vendor registry unavailable",
+                "vendor_registry_unavailable",
+            )
+        return JSONResponse(content=jsonable_encoder(availability))
+
+    @app.post("/vendors/{agent_id}/rate-limit-observations", status_code=202)
+    async def report_vendor_rate_limit(
+        agent_id: str,
+        request: VendorRateLimitObservationRequest,
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> Response:
+        source_agent_id, source_agent_type = resolve_identity(principal, None, None)
+        if source_agent_id != agent_id:
+            await authorize_operation(
+                agent_id=source_agent_id,
+                agent_type=source_agent_type,
+                operation="report_vendor_rate_limit",
+                resource=agent_id,
+                context={"target_agent_id": agent_id},
+            )
+        try:
+            result = await get_vendor_registry().record_rate_limit(
+                agent_id,
+                observation_id=request.observation_id,
+                reason=request.reason,
+                source_agent_id=source_agent_id,
+                reset_at=request.reset_at,
+                retry_after_seconds=request.retry_after_seconds,
+                scope=request.scope,
+                model=request.model,
+                metadata=request.metadata,
+                received_at=datetime.now(UTC),
+            )
+        except UnknownVendorLaneError:
+            return _vendor_problem(
+                404,
+                "urn:vendor-registry:unknown-lane",
+                "Unknown vendor lane",
+                "unknown_vendor_lane",
+            )
+        except ObservationConflictError:
+            return _vendor_problem(
+                409,
+                "urn:vendor-registry:observation-conflict",
+                "Observation replay conflict",
+                "observation_conflict",
+            )
+        except ValueError as exc:
+            return _vendor_problem(
+                400,
+                "urn:vendor-registry:invalid-observation",
+                "Invalid rate-limit observation",
+                str(exc),
+            )
+        except Exception:  # noqa: BLE001
+            logger.exception("Vendor rate-limit observation failed")
+            return _vendor_problem(
+                503,
+                "urn:vendor-registry:unavailable",
+                "Vendor registry unavailable",
+                "vendor_registry_unavailable",
+            )
+        return JSONResponse(status_code=202, content=result)
 
     # --------------------------------------------------------------------- #
     # GUARDRAILS
@@ -1986,30 +2277,9 @@ def create_coordination_api() -> FastAPI:
             "reason": result.reason,
         }
 
-    @app.get("/features/{feature_id}")
-    async def get_feature_endpoint(
-        feature_id: str,
-        principal: dict[str, Any] = Depends(verify_api_key),
-    ) -> dict[str, Any]:
-        """Get details of a specific feature."""
-        from .feature_registry import get_feature_registry_service
-
-        feature = await get_feature_registry_service().get_feature(feature_id)
-        if feature is None:
-            raise HTTPException(404, detail="Feature not found")
-        return {
-            "feature_id": feature.feature_id,
-            "title": feature.title,
-            "status": feature.status,
-            "registered_by": feature.registered_by,
-            "resource_claims": feature.resource_claims,
-            "branch_name": feature.branch_name,
-            "merge_priority": feature.merge_priority,
-            "metadata": feature.metadata,
-            "registered_at": feature.registered_at.isoformat() if feature.registered_at else None,
-            "updated_at": feature.updated_at.isoformat() if feature.updated_at else None,
-        }
-
+    # Registered before GET /features/{feature_id}: Starlette matches in
+    # registration order, so the parameterised route would otherwise capture
+    # /features/active as feature_id="active" and answer 404.
     @app.get("/features/active")
     async def list_active_features_endpoint(
         _identity: dict[str, Any] = Depends(verify_api_key),
@@ -2039,6 +2309,30 @@ def create_coordination_api() -> FastAPI:
                 "POST /features/conflicts",
             ],
         )
+
+    @app.get("/features/{feature_id}")
+    async def get_feature_endpoint(
+        feature_id: str,
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Get details of a specific feature."""
+        from .feature_registry import get_feature_registry_service
+
+        feature = await get_feature_registry_service().get_feature(feature_id)
+        if feature is None:
+            raise HTTPException(404, detail="Feature not found")
+        return {
+            "feature_id": feature.feature_id,
+            "title": feature.title,
+            "status": feature.status,
+            "registered_by": feature.registered_by,
+            "resource_claims": feature.resource_claims,
+            "branch_name": feature.branch_name,
+            "merge_priority": feature.merge_priority,
+            "metadata": feature.metadata,
+            "registered_at": feature.registered_at.isoformat() if feature.registered_at else None,
+            "updated_at": feature.updated_at.isoformat() if feature.updated_at else None,
+        }
 
     @app.post("/features/conflicts")
     async def analyze_feature_conflicts_endpoint(
@@ -2479,7 +2773,8 @@ def create_coordination_api() -> FastAPI:
                 )
 
         try:
-            resolved = _resolve(
+            resolved = await asyncio.to_thread(
+                _resolve,
                 request.phase,
                 request.signals,
                 provider=request.provider,
@@ -2536,6 +2831,11 @@ def create_coordination_api() -> FastAPI:
             # Optional thinking/reasoning level from the tier entry. Additive:
             # older clients ignore it; adapters translate it to CLI flags.
             "thinking": resolved.thinking,
+            # Procedure mode of the resolved archetype (add-skill-audit D3).
+            # Additive passthrough: the bridge forwards it when present and
+            # older clients that ignore it still see the sentence, because it
+            # is already appended to system_prompt by the resolver.
+            "procedure_mode": resolved.procedure_mode,
         }
 
     # --------------------------------------------------------------------- #
@@ -3535,9 +3835,18 @@ def create_coordination_api() -> FastAPI:
         from fastapi.responses import JSONResponse
 
         db_status = await _database_health()
-        status = "ok" if db_status == "connected" else "degraded"
-        payload = {"status": status, "db": db_status, "version": "0.2.0"}
-        if db_status != "connected":
+        bao_enabled = get_config().openbao.is_enabled()
+        runtime = _identity_runtime if bao_enabled else None
+        identity_status, identity_usable = (
+            runtime.readiness() if runtime is not None
+            else (("degraded", False) if bao_enabled else ("disabled", True))
+        )
+        status = "ok" if db_status == "connected" and identity_status != "degraded" else "degraded"
+        payload = {
+            "status": status, "db": db_status,
+            "identity": identity_status, "version": "0.2.0",
+        }
+        if db_status != "connected" or not identity_usable:
             return JSONResponse(status_code=503, content=payload)
         return payload
 
@@ -3704,6 +4013,12 @@ def create_coordination_api() -> FastAPI:
         except Exception:  # noqa: BLE001
             response = _sanitized_unavailable(validated)
         return response.to_dict()
+
+    # Keep routing orchestration transport-neutral so HTTP and MCP invoke the
+    # same service without MCP importing this API factory.
+    from .model_routing.api import install_routing_routes
+
+    install_routing_routes(app, verify_api_key)
 
     return app
 
