@@ -1,24 +1,22 @@
 {
-  "generated_at": "2026-10-05T04:46:06+00:00",
-  "git_sha": "cb2e62c9627da76568704d7f0e7f75d605f81894",
+  "generated_at": "2026-11-02T22:58:10+00:00",
+  "git_sha": "8a897cb30d4dcb54da5d100968a15b39e259ebfe",
   "stats": {
-    "total_nodes": 2271,
-    "total_edges": 1382,
+    "total_nodes": 2242,
+    "total_edges": 1388,
     "by_language": {
-      "python": 1750,
-      "sql": 521
+      "python": 1703,
+      "sql": 539
     },
     "by_kind": {
       "module": 87,
-      "class": 313,
-      "function": 1298,
+      "class": 314,
+      "function": 1302,
       "table": 35,
-      "column": 353,
+      "column": 371,
       "index": 75,
       "stored_function": 47,
-      "trigger": 11,
-      "test_class": 7,
-      "test_function": 45
+      "trigger": 11
     },
     "entrypoint_count": 107
   },
@@ -181,12 +179,12 @@
       "path": "/features/deregister"
     },
     {
-      "node_id": "py:coordination_api.create_coordination_api.get_feature_endpoint",
-      "path": "/features/{feature_id}"
-    },
-    {
       "node_id": "py:coordination_api.create_coordination_api.list_active_features_endpoint",
       "path": "/features/active"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.get_feature_endpoint",
+      "path": "/features/{feature_id}"
     },
     {
       "node_id": "py:coordination_api.create_coordination_api.analyze_feature_conflicts_endpoint",
@@ -485,7 +483,7 @@
     },
     {
       "id": "py:teams.CrewManifest.validate",
-      "dependent_count": 43
+      "dependent_count": 44
     },
     {
       "id": "py:config",
@@ -512,16 +510,24 @@
       "dependent_count": 34
     },
     {
+      "id": "py:agents_config._check_principal_namespace",
+      "dependent_count": 31
+    },
+    {
+      "id": "py:agents_config._check_probe_blocks",
+      "dependent_count": 31
+    },
+    {
+      "id": "py:agents_config._default_agents_path",
+      "dependent_count": 31
+    },
+    {
       "id": "py:coordination_api.authorize_operation",
       "dependent_count": 31
     },
     {
       "id": "py:db.create_db_client",
       "dependent_count": 31
-    },
-    {
-      "id": "py:agents_config._default_agents_path",
-      "dependent_count": 30
     },
     {
       "id": "py:agents_config._default_secrets_path",

@@ -1031,8 +1031,7 @@ def answer(
     if note is not None:
         extra["note"] = note
     if resume_at is not None:
-        if gate_enum is not Gate.ESCALATE_RESUME or not approved or resume_at != "VALIDATE":
-            raise GateRefusalError("resume_at=VALIDATE applies only to an approved escalate_resume")
+        _check_resume_at(resume_at, gate_enum, approved)
         extra["resume_at"] = resume_at
     record = build_gate_decision_record(decision, phase=_PHASE, extra=extra)
     # Project before persisting -- a `GateRefusalError` (e.g. a blocked answer
@@ -1494,6 +1493,21 @@ def _already_resumed(checkpoint: Any, attempt: dict[str, Any], fingerprint: str)
     )
 
 
+# Where an approved escalate_resume may send the child instead of its parked
+# phase: VALIDATE regenerates refused evidence ("revalidate"); IMPLEMENT accepts
+# a reviewed plan from PLAN_REVIEW without quorum convergence ("operator_accept").
+RESUME_AT_TARGETS = frozenset({"VALIDATE", "IMPLEMENT"})
+
+
+def _check_resume_at(resume_at: str, gate_enum: Gate, approved: bool) -> None:
+    if resume_at not in RESUME_AT_TARGETS:
+        raise GateRefusalError(
+            f"resume_at must be one of {sorted(RESUME_AT_TARGETS)}, got {resume_at!r}"
+        )
+    if gate_enum is not Gate.ESCALATE_RESUME or not approved:
+        raise GateRefusalError(f"resume_at={resume_at} applies only to an approved escalate_resume")
+
+
 def answer_escalation(
     fingerprint: str,
     *,
@@ -1502,6 +1516,7 @@ def answer_escalation(
     approved: bool,
     adapter: Any,
     note: Optional[str] = None,
+    resume_at: Optional[str] = None,
     now: Optional[datetime] = None,
 ) -> dict[str, Any]:
     """Answer one fingerprint escalation (D9): an approval writes one
@@ -1509,12 +1524,18 @@ def answer_escalation(
     projected ``lease_generation``, the shared fingerprint, human provenance)
     and resumes each through its own CAS; a member whose generation moved
     since projection is skipped and reported. Single-flight with
-    ``resolve_parked`` on the same workspace + fingerprint."""
+    ``resolve_parked`` on the same workspace + fingerprint.
+
+    ``resume_at`` (approval only) is stamped on every per-dispatch record, so
+    each relaunched child resumes at that phase; it is checked before anything
+    is recorded."""
+    if resume_at is not None:
+        _check_resume_at(resume_at, Gate.ESCALATE_RESUME, approved)
     workspace = Path(workspace)
     with _fingerprint_subject_lock(workspace, fingerprint):
         return _answer_escalation_locked(
             fingerprint, workspace=workspace, repo_root=Path(repo_root), approved=approved,
-            adapter=adapter, note=note, now=now,
+            adapter=adapter, note=note, resume_at=resume_at, now=now,
         )
 
 
@@ -1527,6 +1548,7 @@ def _answer_escalation_locked(
     adapter: Any,
     note: Optional[str],
     now: Optional[datetime],
+    resume_at: Optional[str] = None,
 ) -> dict[str, Any]:
     moment = now or datetime.now(timezone.utc)
     roadmap = load_roadmap(workspace / "roadmap.yaml", repo_root)
@@ -1575,9 +1597,14 @@ def _answer_escalation_locked(
     # member that parked on this fingerprint after the subject was recorded
     # stays parked; its own resolve_parked persists and projects a subject the
     # operator can then answer (D9 provenance).
+    member_extra: dict[str, Any] = {}
+    if note:
+        member_extra["note"] = note
+    if resume_at is not None:
+        member_extra["resume_at"] = resume_at
     records, resumed, failed = _fan_out_resume(
         members, decision, fingerprint=fingerprint, roadmap=roadmap, workspace=workspace, adapter=adapter,
-        extra={"note": note} if note else None,
+        extra=member_extra or None,
     )
     _project_fingerprint(None, repo_root=repo_root, stale_ids=stale, now=moment)
     return {"outcome": "proceed", "resumed": resumed, "skipped": skipped + failed, "records": records}

@@ -145,3 +145,50 @@ def test_a_failed_roadmap_fetch_records_nothing(worker: Path) -> None:
 
     assert runner.main([*args, "--approval-ref", _REF]) == 2
     assert path.read_bytes() == before
+
+
+def _origin_with_only_rm(worker: Path) -> None:
+    """A reachable origin that has roadmap ``rm`` but not roadmap ``gone``.
+
+    ``gone`` has a committed checkpoint and a stale local tracking ref whose
+    checkpoint carries the decision, as when a roadmap was recovered onto a
+    differently named branch and its original branch deleted.
+    """
+    gone = worker / "openspec" / "roadmaps" / "gone" / "checkpoint.json"
+    gone.parent.mkdir(parents=True)
+    gone.write_text((worker / "openspec" / "roadmaps" / "rm" / "checkpoint.json").read_text())
+    _git(worker, "add", "-A")
+    _git(worker, "commit", "-q", "-m", "second roadmap")
+    _git(worker, "update-ref", "refs/remotes/origin/openspec/roadmap-gone", "HEAD")
+    bare = worker.parent / "origin.git"
+    _git(worker.parent, "init", "-q", "--bare", str(bare))
+    _git(worker, "remote", "add", "origin", str(bare))
+    _git(worker, "push", "-q", "origin", "refs/remotes/origin/openspec/roadmap-rm:refs/heads/openspec/roadmap-rm")
+
+
+def test_a_roadmap_branch_absent_on_origin_is_skipped(worker: Path) -> None:
+    _origin_with_only_rm(worker)
+    path = _seed(worker)
+    args = [a for a in _ARGS if a != "--no-fetch"]
+
+    assert runner.main([*args, "--approval-ref", _REF]) == 0
+
+    assert _state(path)["pending_gate"] is None
+    stale = subprocess.run(
+        ["git", "-C", str(worker), "rev-parse", "--verify", "--quiet", "refs/remotes/origin/openspec/roadmap-gone"],
+        capture_output=True, check=False,
+    )
+    assert stale.returncode != 0, "the stale tracking ref of an absent branch must be dropped"
+
+
+def test_a_stale_ref_of_an_absent_branch_cannot_verify(worker: Path) -> None:
+    """Only ``gone``'s stale ref carries the decision; deleting it leaves nothing to verify."""
+    _origin_with_only_rm(worker)
+    _git(worker, "push", "-q", "--delete", "origin", "openspec/roadmap-rm")
+    _git(worker, "update-ref", "-d", "refs/remotes/origin/openspec/roadmap-rm")
+    path = _seed(worker)
+    before = path.read_bytes()
+    args = [a for a in _ARGS if a != "--no-fetch"]
+
+    assert runner.main([*args, "--approval-ref", _REF]) == 2
+    assert path.read_bytes() == before
