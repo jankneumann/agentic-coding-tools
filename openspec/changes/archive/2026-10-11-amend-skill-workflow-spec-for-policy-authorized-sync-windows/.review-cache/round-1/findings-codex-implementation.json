@@ -1,0 +1,37 @@
+{
+  "review_type": "implementation",
+  "target": "amend-skill-workflow-spec-for-policy-authorized-sync-windows",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "`openspec/schemas/trust-posture.schema.json` does not enforce the required uniqueness of window IDs. `uniqueItems: true` compares complete array entries, so two windows with the same `id` but different cadence or policy fields pass schema validation while the Python loader rejects them. This conflicts with the specification and with the README's characterization of the schema as the canonical machine-readable contract.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "The schema and loader do not accept exactly the same cadence strings as claimed. The schema pattern ends with `$`, which permits a match immediately before a final newline under the validator's regex semantics, while `_CADENCE_RE.fullmatch` rejects that value. The parity test explicitly excludes this known divergence. Add an absolute-end constraint (and a regression case containing a trailing newline) so schema-only validation cannot accept a posture the authoritative loader rejects.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "`validation-report.md` states that the sync-window tests cover every spec scenario, but `design.md` and `tasks.md` explicitly acknowledge that the scheduled-invocation scenarios cannot be exercised until the ri-12/ri-13 callers exist. The report should describe the tested authorization/contract boundary and identify the end-to-end scenarios as deferred; otherwise it overstates the validation evidence.",
+      "disposition": "fix",
+      "axis": "observability",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    }
+  ]
+}

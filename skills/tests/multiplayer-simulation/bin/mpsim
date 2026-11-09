@@ -1,0 +1,9 @@
+#!/usr/bin/env python3
+"""Launcher: run ``python -m mpsim`` with the harness root on ``sys.path``."""
+
+import runpy
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+runpy.run_module("mpsim", run_name="__main__", alter_sys=True)

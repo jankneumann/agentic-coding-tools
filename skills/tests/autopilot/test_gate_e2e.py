@@ -91,15 +91,22 @@ def scene(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
 
     audit = RecordingAudit()
     coordinator = UnreachableCoordinator()
+    # A dispatched run by default: the launch marker carries the verified
+    # roadmap approval that scopes proposal_approval's auto (dispatch-contract
+    # D8). A test sets scene["marker"]["value"] = None for a standalone run.
+    marker: dict[str, Any] = {
+        "value": {"roadmap_approval_ref": "gate-decision:11111111-2222-4333-8444-555555555555"}
+    }
 
     def build(change_id: str, repo_root: Path) -> ApprovalGate:
         # The real gate service, reading the real posture file at repo_root —
-        # only the transport and the sink are substituted.
+        # only the transport, the sink and the marker seam are substituted.
         return ApprovalGate(
             coordinator=coordinator,
             audit=audit,
             agent_id=f"autopilot:{change_id}",
             repo_root=str(repo_root),
+            marker_reader=lambda _ctx: marker["value"],
         )
 
     monkeypatch.setattr(autopilot, "_build_gate_evaluator", build)
@@ -108,6 +115,7 @@ def scene(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
         "worktree": worktree,
         "state_path": tmp_path / "loop-state.json",
         "audit": audit,
+        "marker": marker,
     }
 
 
@@ -146,6 +154,24 @@ def test_all_auto_posture_runs_through_submit_pr_without_interaction(
     assert state.goal_gate["evidence"]["merge_authorized"] is True
     # Every decision reached the audit sink too, not just loop state.
     assert [r["gate"] for r in scene["audit"].records] == _HAPPY_PATH_GATES
+    assert state.gate_decisions[0]["scope"] == "roadmap_approval"
+
+
+def test_standalone_all_auto_posture_parks_proposal_approval_unscoped(
+    scene: dict[str, Any],
+) -> None:
+    """D8: a standalone run has no roadmap approval, so the unscoped fallback
+    (block by default) applies to proposal_approval even under all-auto."""
+    write_posture(scene["worktree"], all_auto())
+    scene["marker"]["value"] = None
+
+    state = drive(scene)
+
+    assert state.current_phase == "PLAN"
+    assert state.pending_gate["gate"] == "proposal_approval"
+    record = state.gate_decisions[-1]
+    assert record["scope"] == "unscoped"
+    assert "unscoped fallback" in record["reason"]
 
 
 def test_absent_posture_parks_at_plan_on_proposal_approval(

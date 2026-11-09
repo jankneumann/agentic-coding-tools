@@ -1,0 +1,50 @@
+{
+  "attempt": 1,
+  "branch": "openspec/dispatch-contract",
+  "change_id": "dispatch-contract",
+  "degradations": [
+    {
+      "code": "single_vendor_review",
+      "detail": "claude_code only; min_quorum=1 under cloud-container policy (TRUST_POSTURE.md 479dcd9)",
+      "phase": "PLAN_REVIEW"
+    },
+    {
+      "code": "single_vendor_review",
+      "detail": "claude_code only; min_quorum=1 under cloud-container policy (TRUST_POSTURE.md 479dcd9)",
+      "phase": "IMPL_REVIEW"
+    },
+    {
+      "code": "single_vendor_review",
+      "detail": "claude_code only; min_quorum=1 under cloud-container policy (TRUST_POSTURE.md 479dcd9)",
+      "phase": "VAL_REVIEW"
+    },
+    {
+      "code": "coordinator_projection_forbidden",
+      "detail": "every project-state submit returned forbidden (trust-2 cloud agent)",
+      "phase": "SUBMIT_PR"
+    },
+    {
+      "code": "audit_sink_failed",
+      "detail": "audit sink failed for proposal_approval, escalate_resume, pr_creation, merge gate decisions",
+      "phase": "SUBMIT_PR"
+    }
+  ],
+  "dispatch_id": "batch-1199bf07b6cb5035d4c22472:ri-21:attempt-1",
+  "evidence": {
+    "commit": "bf613c97b74333336b11927489a1fe51c2d2f136",
+    "loop_state_digest": "20e8fa624f44682cf4064082a5b09393f6b7d09d6f25723024135295a645a2ee",
+    "loop_state_path": "openspec/changes/dispatch-contract/loop-state.json"
+  },
+  "host_id": "machine-dc39bf1e25efdf45",
+  "lease_generation": 4,
+  "outcome": "parked",
+  "parked": {
+    "deadline": null,
+    "gate": null,
+    "kind": "policy_pause",
+    "reason": "goal gate refused: required section not passed: Validation Review (missing)",
+    "resume_hint": "previous_phase=SUBMIT_PR; answer escalate_resume to resume"
+  },
+  "schema_version": 2,
+  "worktree_ref": "dispatch-contract"
+}

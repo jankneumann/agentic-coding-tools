@@ -2277,30 +2277,9 @@ def create_coordination_api() -> FastAPI:
             "reason": result.reason,
         }
 
-    @app.get("/features/{feature_id}")
-    async def get_feature_endpoint(
-        feature_id: str,
-        principal: dict[str, Any] = Depends(verify_api_key),
-    ) -> dict[str, Any]:
-        """Get details of a specific feature."""
-        from .feature_registry import get_feature_registry_service
-
-        feature = await get_feature_registry_service().get_feature(feature_id)
-        if feature is None:
-            raise HTTPException(404, detail="Feature not found")
-        return {
-            "feature_id": feature.feature_id,
-            "title": feature.title,
-            "status": feature.status,
-            "registered_by": feature.registered_by,
-            "resource_claims": feature.resource_claims,
-            "branch_name": feature.branch_name,
-            "merge_priority": feature.merge_priority,
-            "metadata": feature.metadata,
-            "registered_at": feature.registered_at.isoformat() if feature.registered_at else None,
-            "updated_at": feature.updated_at.isoformat() if feature.updated_at else None,
-        }
-
+    # Registered before GET /features/{feature_id}: Starlette matches in
+    # registration order, so the parameterised route would otherwise capture
+    # /features/active as feature_id="active" and answer 404.
     @app.get("/features/active")
     async def list_active_features_endpoint(
         _identity: dict[str, Any] = Depends(verify_api_key),
@@ -2330,6 +2309,30 @@ def create_coordination_api() -> FastAPI:
                 "POST /features/conflicts",
             ],
         )
+
+    @app.get("/features/{feature_id}")
+    async def get_feature_endpoint(
+        feature_id: str,
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Get details of a specific feature."""
+        from .feature_registry import get_feature_registry_service
+
+        feature = await get_feature_registry_service().get_feature(feature_id)
+        if feature is None:
+            raise HTTPException(404, detail="Feature not found")
+        return {
+            "feature_id": feature.feature_id,
+            "title": feature.title,
+            "status": feature.status,
+            "registered_by": feature.registered_by,
+            "resource_claims": feature.resource_claims,
+            "branch_name": feature.branch_name,
+            "merge_priority": feature.merge_priority,
+            "metadata": feature.metadata,
+            "registered_at": feature.registered_at.isoformat() if feature.registered_at else None,
+            "updated_at": feature.updated_at.isoformat() if feature.updated_at else None,
+        }
 
     @app.post("/features/conflicts")
     async def analyze_feature_conflicts_endpoint(

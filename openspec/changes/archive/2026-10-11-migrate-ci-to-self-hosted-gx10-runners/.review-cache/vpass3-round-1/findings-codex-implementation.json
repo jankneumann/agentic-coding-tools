@@ -1,0 +1,6 @@
+{
+  "review_type": "implementation",
+  "target": "migrate-ci-to-self-hosted-gx10-runners",
+  "reviewer_vendor": "codex",
+  "findings": []
+}

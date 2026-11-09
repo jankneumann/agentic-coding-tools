@@ -41,7 +41,7 @@ dev = [
     # Neither jsonschema nor pyyaml ships py.typed, and `mypy --strict` cannot
     # check the two imports this package cannot do without. Without both stub
     # packages the type gate reports `import-untyped` and stops being a gate.
-    "types-jsonschema==4.26.0.20260518",
+    "types-jsonschema==4.26.0.20261006",
     "types-PyYAML==6.0.12.20260906",
 ]
 
