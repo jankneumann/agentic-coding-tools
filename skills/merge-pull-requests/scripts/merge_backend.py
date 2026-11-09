@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
-from merge_pr import _try_merge_queue, merge_pr
+from merge_pr import _try_merge_queue, merge_pr, merge_queue_required
 
 
 @dataclass
@@ -220,20 +220,24 @@ def _get_coordinator_status() -> dict:
 
 
 def _has_github_merge_queue() -> bool:
+    """True when the repository's default branch requires a merge queue.
+
+    Reading ``allow_merge_commit`` only proves the repository is reachable, so
+    ask the branch's effective rules instead.
+    """
     try:
         result = subprocess.run(
-            [
-                "gh", "api", "repos/:owner/:repo",
-                "--jq", ".allow_merge_commit",
-            ],
+            ["gh", "api", "repos/:owner/:repo", "--jq", ".default_branch"],
             capture_output=True,
             text=True,
             check=False,
             timeout=10,
         )
-        return result.returncode == 0
     except (subprocess.TimeoutExpired, OSError):
         return False
+    if result.returncode != 0:
+        return False
+    return merge_queue_required(result.stdout.strip())
 
 
 def detect_merge_backend() -> MergeBackend:
