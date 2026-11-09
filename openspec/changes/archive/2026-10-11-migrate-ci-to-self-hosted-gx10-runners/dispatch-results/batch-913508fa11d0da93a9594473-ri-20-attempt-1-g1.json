@@ -1,0 +1,45 @@
+{
+  "attempt": 1,
+  "branch": "openspec/migrate-ci-to-self-hosted-gx10-runners",
+  "change_id": "migrate-ci-to-self-hosted-gx10-runners",
+  "degradations": [
+    {
+      "code": "coordinator_projection_forbidden",
+      "detail": "project-state submit returned forbidden",
+      "phase": "INIT"
+    },
+    {
+      "code": "audit_sink_failed",
+      "detail": "audit sink reported failure for gate proposal_approval decision auto",
+      "phase": "PLAN"
+    },
+    {
+      "code": "audit_sink_failed",
+      "detail": "audit sink reported failure for gate pr_creation decision auto",
+      "phase": "SUBMIT_PR"
+    },
+    {
+      "code": "audit_sink_failed",
+      "detail": "audit sink reported failure for gate merge decision posture_block",
+      "phase": "SUBMIT_PR"
+    }
+  ],
+  "dispatch_id": "batch-913508fa11d0da93a9594473:ri-20:attempt-1",
+  "evidence": {
+    "commit": "e2616646f40bb80d9a8720821908571e5c88b00c",
+    "loop_state_digest": "95853d11d073f49067bf9ab7a24db066d5220846b4d0418455d6e48e8ce8d170",
+    "loop_state_path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/loop-state.json"
+  },
+  "host_id": "machine-8ce412f9e16ce285",
+  "lease_generation": 1,
+  "outcome": "parked",
+  "parked": {
+    "deadline": null,
+    "gate": "merge",
+    "kind": "pending_gate",
+    "reason": "Authorize merging this pull request? (autopilot records the authorization only; /cleanup-feature merges)",
+    "resume_hint": "answer gate merge through the resume request's gate_answer"
+  },
+  "schema_version": 2,
+  "worktree_ref": "migrate-ci-to-self-hosted-gx10-runners"
+}

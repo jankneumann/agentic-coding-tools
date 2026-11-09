@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "runner-lanes.schema.json",
+  "title": "CI runner lane manifest",
+  "description": "Classifies every job of the routed GitHub Actions workflows as routed (follows the lane selector) or hosted (pinned to ubuntu-latest with a justification). See migrate-ci-to-self-hosted-gx10-runners design D1.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "routing", "workflows"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "routing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository_variable", "dispatch_input", "self_hosted_labels", "hosted_label"],
+      "properties": {
+        "repository_variable": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" },
+        "dispatch_input": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+        "self_hosted_labels": {
+          "type": "array",
+          "minItems": 2,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 },
+          "contains": { "const": "self-hosted" }
+        },
+        "hosted_label": { "const": "ubuntu-latest" }
+      }
+    },
+    "workflows": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": { "pattern": "^[A-Za-z0-9_.-]+\\.ya?ml$" },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["jobs"],
+        "properties": {
+          "jobs": {
+            "type": "object",
+            "minProperties": 1,
+            "propertyNames": { "pattern": "^[A-Za-z_][A-Za-z0-9_-]*$" },
+            "additionalProperties": { "$ref": "#/$defs/job" }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "job": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["lane"],
+          "properties": { "lane": { "const": "routed" } }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["lane", "reason_code", "reason"],
+          "properties": {
+            "lane": { "const": "hosted" },
+            "reason_code": {
+              "enum": ["container-engine", "amd64-only", "privileged-token", "measured-slower"]
+            },
+            "reason": { "type": "string", "minLength": 10 }
+          }
+        }
+      ]
+    }
+  }
+}

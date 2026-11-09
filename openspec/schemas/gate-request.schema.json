@@ -40,7 +40,12 @@
       "required": ["disposition", "posture_present"],
       "properties": {
         "disposition": {"type": "string", "enum": ["auto", "notify_with_timeout", "block"]},
-        "posture_present": {"type": "boolean"}
+        "posture_present": {"type": "boolean"},
+        "posture_digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "trust_posture.posture_digest() of the posture this gate was evaluated under; a standalone gate-check re-evaluates when it differs (dispatch-contract D5)."
+        }
       }
     }
   }

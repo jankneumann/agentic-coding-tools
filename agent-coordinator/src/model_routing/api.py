@@ -775,9 +775,16 @@ class RoutingService:
         }
         if decision.selected is None:
             return None, False, retention
+        # Once a challenger has displaced the incumbent, exploring back onto the
+        # incumbent would report a routed "exploration" of the caller's own model.
+        pool = (
+            ranked
+            if decision.retained
+            else [c for c in ranked if (c.vendor, c.model) != (incumbent.vendor, incumbent.model)]
+        )
         selection = choose_evidenced(
             decision.selected,
-            ranked,
+            pool,
             allow_exploration=allow_exploration,
             budget=budget,
             rng=self._rng,

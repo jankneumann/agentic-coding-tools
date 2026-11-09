@@ -547,3 +547,157 @@ def test_tiered_reorder_takes_effect_in_both_dispatch_modes(repo_root: Path):
         "ri-01", "ri-04", "ri-02", "ri-03", "ri-05",
     ]
     assert preview.priority_changes == [["ri-04", 3, 2]]
+
+
+# --- adopt_existing: bring an in-flight change under roadmap ownership --------
+
+
+def _existing_change(repo_root: Path, change_id: str) -> Path:
+    change_dir = repo_root / "openspec" / "changes" / change_id
+    change_dir.mkdir(parents=True)
+    (change_dir / "proposal.md").write_text("# hand-refined plan\n")
+    return change_dir
+
+
+def test_preview_adopt_existing_active_change_skips_scaffold(repo_root: Path):
+    roadmap_path = _write_roadmap(repo_root, [_item("ri-01", change_id="first-change")])
+    _existing_change(repo_root, "in-flight-pilot")
+
+    preview = preview_refinement(
+        roadmap_path,
+        _request({
+            "op": "add",
+            "adopt_existing": True,
+            "item": _new_item("ri-02", "Pilot", change_id="in-flight-pilot"),
+        }),
+        repo_root,
+    )
+
+    assert preview.errors == []
+    assert preview.operation_summaries == ["adopt:ri-02"]
+    assert preview.new_item_ids == ["ri-02"]
+    assert preview.scaffold_change_ids == []
+    assert preview.adopted_change_ids == ["in-flight-pilot"]
+    assert preview.to_dict()["adopted_change_ids"] == ["in-flight-pilot"]
+
+
+def test_adopt_requires_explicit_change_id(repo_root: Path):
+    roadmap_path = _write_roadmap(repo_root, [_item("ri-01", change_id="first-change")])
+
+    preview = preview_refinement(
+        roadmap_path,
+        _request({"op": "add", "adopt_existing": True, "item": _new_item("ri-02", "Pilot")}),
+        repo_root,
+    )
+
+    assert any("explicit change_id" in error for error in preview.errors)
+
+
+@pytest.mark.parametrize("state", ["missing", "archived"])
+def test_adopt_rejects_change_that_is_not_active(repo_root: Path, state: str):
+    roadmap_path = _write_roadmap(repo_root, [_item("ri-01", change_id="first-change")])
+    if state == "archived":
+        (repo_root / "openspec" / "changes" / "archive" / "2026-01-01-old-pilot").mkdir(parents=True)
+
+    preview = preview_refinement(
+        roadmap_path,
+        _request({
+            "op": "add",
+            "adopt_existing": True,
+            "item": _new_item("ri-02", "Pilot", change_id="old-pilot"),
+        }),
+        repo_root,
+    )
+
+    expected = "does not exist" if state == "missing" else "archived"
+    assert any("old-pilot" in error and expected in error for error in preview.errors)
+
+
+def test_adopt_rejects_change_owned_by_another_roadmap(repo_root: Path):
+    _write_roadmap(repo_root, [_item("ri-01", change_id="in-flight-pilot")], roadmap_id="owner")
+    roadmap_path = _write_roadmap(repo_root, [_item("ri-01", change_id="first-change")])
+    _existing_change(repo_root, "in-flight-pilot")
+
+    preview = preview_refinement(
+        roadmap_path,
+        _request({
+            "op": "add",
+            "adopt_existing": True,
+            "item": _new_item("ri-02", "Pilot", change_id="in-flight-pilot"),
+        }),
+        repo_root,
+    )
+
+    assert any("in-flight-pilot" in error and "owner:ri-01" in error for error in preview.errors)
+
+
+def test_apply_adopt_leaves_existing_change_untouched_and_records_provenance(repo_root: Path):
+    roadmap_path = _write_roadmap(repo_root, [_item("ri-01", change_id="first-change")])
+    change_dir = _existing_change(repo_root, "in-flight-pilot")
+    request = _request({
+        "op": "add",
+        "adopt_existing": True,
+        "item": _new_item("ri-02", "Pilot", change_id="in-flight-pilot"),
+    })
+    preview = preview_refinement(roadmap_path, request, repo_root)
+
+    result = apply_refinement(
+        roadmap_path,
+        request,
+        repo_root,
+        expected_base_sha256=preview.base_sha256,
+        strict_validator=lambda _root: [],
+    )
+
+    saved = yaml.safe_load(roadmap_path.read_text())
+    assert result.scaffolded_change_ids == []
+    assert sorted(p.name for p in change_dir.iterdir()) == ["proposal.md"]
+    assert (change_dir / "proposal.md").read_text() == "# hand-refined plan\n"
+    assert saved["items"][-1]["change_id"] == "in-flight-pilot"
+    assert saved["refinements"][-1]["operations"] == ["adopt:ri-02"]
+
+
+def test_apply_adopt_failure_never_removes_the_adopted_change(repo_root: Path):
+    roadmap_path = _write_roadmap(repo_root, [_item("ri-01", change_id="first-change")])
+    change_dir = _existing_change(repo_root, "in-flight-pilot")
+    request = _request({
+        "op": "add",
+        "adopt_existing": True,
+        "item": _new_item("ri-02", "Pilot", change_id="in-flight-pilot"),
+    })
+    preview = preview_refinement(roadmap_path, request, repo_root)
+
+    with pytest.raises(RefinementValidationError, match="strict OpenSpec"):
+        apply_refinement(
+            roadmap_path,
+            request,
+            repo_root,
+            expected_base_sha256=preview.base_sha256,
+            strict_validator=lambda _root: ["strict OpenSpec failure"],
+        )
+
+    assert (change_dir / "proposal.md").read_text() == "# hand-refined plan\n"
+
+
+@pytest.mark.parametrize("ceded_status", ["skipped", "superseded"])
+def test_adopt_accepts_change_ceded_by_another_roadmap(repo_root: Path, ceded_status: str):
+    _write_roadmap(
+        repo_root,
+        [_item("ri-01", status=ceded_status, change_id="in-flight-pilot")],
+        roadmap_id="former",
+    )
+    roadmap_path = _write_roadmap(repo_root, [_item("ri-01", change_id="first-change")])
+    _existing_change(repo_root, "in-flight-pilot")
+
+    preview = preview_refinement(
+        roadmap_path,
+        _request({
+            "op": "add",
+            "adopt_existing": True,
+            "item": _new_item("ri-02", "Pilot", change_id="in-flight-pilot"),
+        }),
+        repo_root,
+    )
+
+    assert preview.errors == []
+    assert preview.adopted_change_ids == ["in-flight-pilot"]

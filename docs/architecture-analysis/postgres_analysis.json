@@ -4483,6 +4483,56 @@
         "public.v_id",
         "public.work_queue"
       ]
+    },
+    {
+      "name": "public.persist_vendor_probe_state",
+      "file": "045_persist_vendor_probe_state.sql",
+      "line": 23,
+      "language": "sql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_AGENT_ID TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_OBSERVATION_ID TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_STATUS TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_SOURCE_AGENT_ID TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_REASON TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_OBSERVED_AT TIMESTAMPTZ"
+        },
+        {
+          "name": "",
+          "type": "P_STALE_AFTER TIMESTAMPTZ"
+        },
+        {
+          "name": "",
+          "type": "P_METADATA JSONB DEFAULT '{}'"
+        },
+        {
+          "name": "",
+          "type": "::JSONB"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.set",
+        "public.upserted",
+        "public.vendor_probe_state"
+      ]
     }
   ],
   "triggers": [

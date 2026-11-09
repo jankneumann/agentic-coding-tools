@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-09-27T22:44:36+00:00",
+  "generated_at": "2026-11-02T22:58:10+00:00",
   "summary": {
-    "total_comments": 2736,
+    "total_comments": 2776,
     "total_with_markers": 21,
     "marker_totals": {
       "NOTE": 4,
@@ -11,9 +11,9 @@
       "DEPRECATED": 3,
       "TODO": 1
     },
-    "total_graph_nodes": 2234,
-    "documented_nodes": 311,
-    "documentation_coverage": 0.139
+    "total_graph_nodes": 2242,
+    "documented_nodes": 317,
+    "documentation_coverage": 0.141
   },
   "marker_hotspots": [
     {
@@ -142,7 +142,7 @@
       ]
     },
     "py:coordination_api.create_coordination_api": {
-      "comment_count": 108,
+      "comment_count": 111,
       "markers": [
         "NOTE"
       ]
@@ -163,7 +163,7 @@
   "file_summaries": [
     {
       "file": "agents_config.py",
-      "total_comments": 299,
+      "total_comments": 312,
       "with_markers": 2,
       "languages": [
         "python"
@@ -235,7 +235,7 @@
     },
     {
       "file": "coordination_api.py",
-      "total_comments": 249,
+      "total_comments": 254,
       "with_markers": 2,
       "languages": [
         "python"
@@ -259,7 +259,7 @@
     },
     {
       "file": "db.py",
-      "total_comments": 7,
+      "total_comments": 9,
       "with_markers": 0,
       "languages": [
         "python"
@@ -267,7 +267,7 @@
     },
     {
       "file": "db_postgres.py",
-      "total_comments": 28,
+      "total_comments": 32,
       "with_markers": 0,
       "languages": [
         "python"
@@ -275,7 +275,7 @@
     },
     {
       "file": "discovery.py",
-      "total_comments": 6,
+      "total_comments": 7,
       "with_markers": 0,
       "languages": [
         "python"
@@ -835,7 +835,7 @@
     },
     {
       "file": "model_routing/api.py",
-      "total_comments": 32,
+      "total_comments": 34,
       "with_markers": 0,
       "languages": [
         "python"
@@ -1083,7 +1083,7 @@
     },
     {
       "file": "vendor_registry.py",
-      "total_comments": 11,
+      "total_comments": 13,
       "with_markers": 0,
       "languages": [
         "python"
@@ -1091,7 +1091,7 @@
     },
     {
       "file": "watchdog.py",
-      "total_comments": 18,
+      "total_comments": 29,
       "with_markers": 0,
       "languages": [
         "python"

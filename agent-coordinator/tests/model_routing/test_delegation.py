@@ -65,7 +65,8 @@ def test_adaptive_flag_forwards_phase_archetype_and_escalation_signals(
     )
 
     assert resolved.model == "qwen/qwen3-coder"
-    assert resolved.provider == "openrouter"
+    # The agent type that lists openrouter models, not the catalog vendor (#636).
+    assert resolved.provider == "pi"
     assert captured["task_signals"] == {
         "archetype": resolved.archetype,
         "phase": "IMPLEMENT",
@@ -229,6 +230,71 @@ def test_non_retained_selection_still_routes_adaptively(
     resolved = resolve_archetype_for_phase("PLAN", {}, provider="claude_code")
 
     assert (resolved.provider, resolved.model) == ("codex", "gpt-5.6-terra")
+
+
+def _challenger(selected: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "selected": {"score": 0.9, **selected},
+        "retention": {
+            "retained": False,
+            "reason": "challenger-evidenced-above-margin",
+            "margin": 0.05,
+        },
+    }
+
+
+def test_challenger_keeps_the_archetype_procedure_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    # PLAN resolves to `architect`, whose procedure_mode is goal-directed, not the default.
+    _capture(monkeypatch, _challenger({"vendor": "codex", "model": "gpt-5.6-terra"}))
+
+    resolved = resolve_archetype_for_phase("PLAN", {}, provider="claude_code")
+
+    assert resolved.model == "gpt-5.6-terra"
+    assert resolved.procedure_mode == "goal-directed"
+
+
+def test_challenger_catalog_vendor_maps_back_to_its_agent_type(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # `pi` agents list models under catalog vendor `openrouter`; provider must be the agent type.
+    _capture(monkeypatch, _challenger({"vendor": "openrouter", "model": "qwen/qwen3-coder"}))
+
+    resolved = resolve_archetype_for_phase("PLAN", {}, provider="claude_code")
+
+    assert (resolved.provider, resolved.model) == ("pi", "qwen/qwen3-coder")
+
+
+def test_challenger_assignment_vendor_type_is_the_provider(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _capture(
+        monkeypatch,
+        _challenger(
+            {
+                "vendor": "openrouter",
+                "model": "qwen/qwen3-coder",
+                "assignment": {"agent_id": "pi-local", "vendor_type": "pi"},
+            }
+        ),
+    )
+
+    resolved = resolve_archetype_for_phase("PLAN", {}, provider="claude_code")
+
+    assert resolved.provider == "pi"
+
+
+def test_challenger_with_no_matching_agent_type_falls_back_to_static(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import src.agents_config as agents_config
+
+    static = agents_config._resolve_archetype_for_phase_static("PLAN", {}, provider="claude_code")
+    monkeypatch.setattr(
+        agents_config, "_resolve_archetype_for_phase_static", lambda *_a, **_k: static
+    )
+    _capture(monkeypatch, _challenger({"vendor": "no-such-vendor", "model": "m"}))
+
+    assert resolve_archetype_for_phase("PLAN", {}, provider="claude_code") is static
 
 
 def test_seam_sends_the_incumbent_and_accepts_a_retained_null_selection(

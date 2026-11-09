@@ -11,8 +11,17 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import pytest
+
 _SKILLS_DIR = Path(__file__).resolve().parents[2]
 for sub in ("autopilot/scripts", "coordination-bridge/scripts", "session-log/scripts"):
     candidate = _SKILLS_DIR / sub
     if str(candidate) not in sys.path:
         sys.path.insert(0, str(candidate))
+
+
+@pytest.fixture(autouse=True)
+def _local_execution_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Pin local execution so worktree-isolation assertions do not depend on
+    the host (cloud containers set AGENT_EXECUTION_ENV=cloud)."""
+    monkeypatch.setenv("AGENT_EXECUTION_ENV", "local")

@@ -1,0 +1,21 @@
+{
+  "review_type": "implementation",
+  "target": "dispatch-contract",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "low",
+      "severity": "nit",
+      "axis": "correctness",
+      "evidence_class": "deterministic",
+      "disposition": "fix",
+      "file_path": "openspec/changes/dispatch-contract/validation-report.md",
+      "line_range": "102",
+      "existing_code": "apply return value) and `::test_a_capability_park_is_one_operator_escalation_that_resumes_the_child` (capability_unavailable).",
+      "description": "The kind label added in 0466eab9 under-reports the end-to-end capability-park test. autopilot-roadmap/test_dispatch_contract_e2e.py::test_a_capability_park_is_one_operator_escalation_that_resumes_the_child is parametrized over `park` with ids [\"permission_blocked\", \"capability_unavailable\"] (lines 519-528), so it is the end-to-end proof for both kinds. Labelling it '(capability_unavailable)' only leaves permission_blocked with unit-level citations alone. A reader would conclude it has no end-to-end coverage, but it does.",
+      "resolution": "Change the label to '(both kinds: parametrized permission_blocked and capability_unavailable)'."
+    }
+  ]
+}

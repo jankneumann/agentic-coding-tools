@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-27T22:44:36+00:00",
+  "generated_at": "2026-11-02T22:58:10+00:00",
   "python_patterns": {
     "assertions": {
       "count": 8,
@@ -41,14 +41,14 @@
       }
     },
     "context_managers": {
-      "count": 49,
+      "count": 50,
       "files": {
         "feature_flags.py": 7,
         "db_postgres.py": 5,
         "port_allocator.py": 5,
+        "agents_config.py": 3,
         "github_prs_api.py": 3,
         "work_queue.py": 3,
-        "agents_config.py": 2,
         "event_bus.py": 2,
         "kanban_viz_files.py": 2,
         "locks.py": 2,
@@ -66,12 +66,12 @@
       }
     },
     "type_hints": {
-      "count": 2478,
+      "count": 2489,
       "files": {
         "coordination_api.py": 216,
         "coordination_mcp.py": 139,
         "http_proxy.py": 132,
-        "agents_config.py": 111,
+        "agents_config.py": 122,
         "vendor_registry.py": 77,
         "policy_engine.py": 71,
         "model_routing/api.py": 70,
@@ -124,8 +124,8 @@
     }
   },
   "type_hint_coverage": {
-    "functions_with_return_type": 1197,
-    "typed_parameters": 1201
+    "functions_with_return_type": 1203,
+    "typed_parameters": 1206
   },
   "exception_handling": {
     "bare_except": 0,

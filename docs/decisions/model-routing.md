@@ -115,6 +115,17 @@
 
 ---
 
+## 2026-09-03 — add-model-usage-ledger
+
+### Phase: Plan
+
+**Supersede usage-stats-multi-model; amend adaptive-router D12** — Avoids three cost models in flight; transcript-derived records become an accepted router ledger source. Design D12.
+
+- Status: `active`
+- Source: [openspec/changes/add-model-usage-ledger/session-log.md](/openspec/changes/add-model-usage-ledger/session-log.md) (D7)
+
+---
+
 ## 2026-09-02 — add-harbor-benchmark-routing
 
 ### Phase: Plan review remediation

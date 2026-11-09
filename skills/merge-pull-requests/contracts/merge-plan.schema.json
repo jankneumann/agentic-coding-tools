@@ -66,6 +66,7 @@
             "outcome": {"enum": ["pending", "in_progress", "merged", "closed", "deferred", "failed"]},
             "needs_revalidation": {"type": "boolean", "default": false},
             "claimed_by": {"type": ["string", "null"]},
+            "awaiting_merge_confirmation": {"type": "boolean", "default": false},
             "staleness": {"enum": ["fresh", "stale", "obsolete", "unknown"]},
             "ci_state": {"enum": ["clean", "unstable", "blocked", "dirty", "unknown"]},
             "ci_failure_class": {

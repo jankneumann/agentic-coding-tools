@@ -76,6 +76,7 @@ def test_build_command_injects_tier_model_and_thinking() -> None:
     ]
     cmd = adapter.build_command("review", "prompt", model=model, thinking=thinking)
     assert cmd[0] == "claude"
-    assert "--effort" in cmd and "medium" in cmd
+    assert thinking is not None
+    assert "--effort" in cmd and thinking in cmd
     assert "--model" in cmd and model in cmd
     assert cmd.count("--effort") == 1
