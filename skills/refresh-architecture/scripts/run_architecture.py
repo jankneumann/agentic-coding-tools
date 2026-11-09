@@ -89,10 +89,55 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
+# architecture.config.yaml `analysis:` keys -> refresh_architecture.sh variables.
+_CONFIG_SOURCE_DIRS = {
+    "python_src_dir": "PYTHON_SRC_DIR",
+    "ts_src_dir": "TS_SRC_DIR",
+    "migrations_dir": "MIGRATIONS_DIR",
+}
+
+
+def _config_source_dirs(target_dir: Path) -> dict[str, str]:
+    """Source directories the target repository declares for analysis.
+
+    Consumer skills call ``--ensure`` with no source-dir flags, so a repository
+    whose sources are not at the script defaults (``src/``, ``web/``,
+    ``database/migrations``) failed to analyze and every architecture finding
+    was stale or vacuous (#635). The ``analysis:`` section of
+    ``architecture.config.yaml`` lets the repository declare its layout once.
+    """
+    path = target_dir / "architecture.config.yaml"
+    if not path.is_file():
+        return {}
+    try:
+        import yaml
+
+        raw = yaml.safe_load(path.read_text())
+    except Exception as exc:  # noqa: BLE001 - a broken config must not stop analysis
+        print(f"WARNING: could not read {path}: {exc}", file=sys.stderr)
+        return {}
+    section = raw.get("analysis") if isinstance(raw, dict) else None
+    if not isinstance(section, dict):
+        return {}
+    return {
+        env_key: str(section[key])
+        for key, env_key in _CONFIG_SOURCE_DIRS.items()
+        if isinstance(section.get(key), str) and section[key]
+    }
+
+
 def build_env(args: argparse.Namespace) -> dict[str, str]:
-    """Build child-process environment for refresh_architecture.sh."""
+    """Build child-process environment for refresh_architecture.sh.
+
+    Precedence for the source directories: CLI flag > environment variable >
+    the target's ``architecture.config.yaml`` > the script's own default.
+    """
     env = dict(os.environ)
     env["SCRIPTS_DIR"] = str(SCRIPTS_DIR)
+
+    target_dir = Path(getattr(args, "target_dir", None) or ".").expanduser().resolve()
+    for key, value in _config_source_dirs(target_dir).items():
+        env.setdefault(key, value)
 
     overrides = {
         "PYTHON_SRC_DIR": args.python_src_dir,

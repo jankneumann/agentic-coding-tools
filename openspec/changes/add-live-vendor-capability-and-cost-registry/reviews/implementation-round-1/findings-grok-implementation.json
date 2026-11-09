@@ -1,0 +1,325 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "critical",
+      "description": "Critical: Spec Authorized and Observable Ingestion and design D6 require cross-lane rate-limit writes when the principal has `report_vendor_rate_limit` or a trust-level 3 administrative override. `report_vendor_rate_limit` is not in `ADMIN_ACTIONS` / `TRUST_DERIVED_OPERATIONS`, so `authorize_operation` falls through to the profile allowlist only. A trust-3 principal without `vendor_limit_reporter` is denied for cross-lane POSTs; API tests mock `authorize_operation` and never assert the trust-3 override.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "package_id": "wp-api-watchdog",
+      "file_path": "agent-coordinator/src/coordination_api.py",
+      "line_range": {
+        "start": 1635,
+        "end": 1643
+      },
+      "evidence_class": "judgment",
+      "existing_code": "if source_agent_id != agent_id:\n            await authorize_operation(\n                agent_id=source_agent_id,\n                agent_type=source_agent_type,\n                operation=\"report_vendor_rate_limit\",\n                resource=agent_id,\n                context={\"target_agent_id\": agent_id},\n            )",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 2,
+      "type": "observability",
+      "criticality": "high",
+      "description": "Critical: Design D10 requires durable coordinator audit for coordinator-side observation lifecycle. `VendorRegistryService._audit_event` only calls `audit.log_operation` when `self._audit is not None`, but `get_vendor_registry()` and the watchdog factory construct `VendorRegistryService()` / `VendorRegistryService(db=...)` with `audit=None`. Production therefore emits only `logger.info`, unlike other coordinator services that wire `get_audit_service()`.",
+      "disposition": "fix",
+      "axis": "observability",
+      "severity": "critical",
+      "package_id": "wp-api-watchdog",
+      "file_path": "agent-coordinator/src/coordination_api.py",
+      "line_range": {
+        "start": 154,
+        "end": 159
+      },
+      "evidence_class": "judgment",
+      "existing_code": "def get_vendor_registry() -> VendorRegistryService:\n    \"\"\"Return the process-local registry service.\"\"\"\n    global _vendor_registry\n    if _vendor_registry is None:\n        _vendor_registry = VendorRegistryService()\n    return _vendor_registry",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 3,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: Spec Missing or ambiguous catalog row requires that a non-unique configured join leave cost unknown and that the miss be audited without heuristics. `_cost_projection` drops zero-match models silently and only `logger.warning`s ambiguous matches\u2014no durable audit and no explicit miss marker in the projection payload\u2014so partial joins can still yield `cost.known=True` while omitted models disappear.",
+      "disposition": "fix",
+      "axis": "observability",
+      "severity": "critical",
+      "package_id": "wp-registry-core",
+      "file_path": "agent-coordinator/src/vendor_registry.py",
+      "line_range": {
+        "start": 329,
+        "end": 344
+      },
+      "evidence_class": "judgment",
+      "existing_code": "if len(matches) != 1:\n                if matches:\n                    logger.warning(\n                        \"ambiguous vendor catalog join\",\n                        extra={\"agent_id\": agent.name, \"model\": model},\n                    )\n                continue",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 4,
+      "type": "spec_gap",
+      "criticality": "critical",
+      "description": "Critical: Task 4.4 and design D7 require reporting provider-dispatch capacity failures once per result. `PhaseDispatchResult` carries additive `agent_id` / capacity fields and tests only assert field propagation, but `dispatch_phase` / `normalize_dispatch_result` never call `report_vendor_limit_result` (or any bridge writer), so autopilot capacity outcomes are never persisted.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "package_id": "wp-dispatch-reporting",
+      "file_path": "skills/autopilot/scripts/provider_dispatch.py",
+      "line_range": {
+        "start": 367,
+        "end": 421
+      },
+      "evidence_class": "judgment",
+      "existing_code": "agent_id=payload.agent_id,\n        error_class=error_class,\n        capacity_scope=capacity_scope,\n        capacity_model=capacity_model,\n        capacity_reset_at=capacity_reset_at,\n        capacity_retry_after_seconds=capacity_retry_after_seconds,",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: Spec One model limits before fallback succeeds and D7 require per-attempt model-scoped reports. `ReviewOrchestrator` assigns `sdk_adapter._capacity_callback = report_vendor_limit_result`, but `SdkVendorAdapter.dispatch` catches `_SdkCapacityError` and `continue`s without invoking the callback. A successful SDK fallback after model A capacity leaves no model-scoped observation.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "package_id": "wp-dispatch-reporting",
+      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "line_range": {
+        "start": 1584,
+        "end": 1613
+      },
+      "evidence_class": "judgment",
+      "existing_code": "except _SdkCapacityError:\n                logger.info(\n                    \"%s SDK model %s capacity exhausted, trying fallback\",\n                    self.vendor, model,\n                )\n                continue",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 6,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: Sync CLI capacity callbacks report model-scoped limits, then `_collect` always re-reports terminal `CAPACITY` via `report_vendor_limit_result`. Final `ReviewResult` omits `capacity_scope`/`capacity_model`, so the reporter defaults to lane scope. For a single-model (or last-model) exhaustion this marks the whole lane limited after an already-recorded model-scoped observation, contradicting D4 model-scope semantics.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "package_id": "wp-dispatch-reporting",
+      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "line_range": {
+        "start": 2718,
+        "end": 2725
+      },
+      "evidence_class": "judgment",
+      "existing_code": "if result.agent_id is None:\n                result.agent_id = job_agent_ids[index]\n            if result.error_class == ErrorClass.CAPACITY:\n                report_vendor_limit_result(result)",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 7,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: `CliVendorAdapter.dispatch_async` treats model capacity with `continue` and returns terminal `CAPACITY` without `_notify_capacity` / `capacity_callback`. Intermediate model-scoped limits are lost on the async submit path even though the sync CLI path notifies at the matching capacity branches.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "package_id": "wp-dispatch-reporting",
+      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "line_range": {
+        "start": 1340,
+        "end": 1391
+      },
+      "evidence_class": "judgment",
+      "existing_code": "if error_class == ErrorClass.CAPACITY:\n                    logger.info(\n                        \"%s async model %s capacity exhausted, trying fallback\",\n                        self.vendor, model_name,\n                    )\n                    continue",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 8,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: Design D8 requires preserving selected lane identity through selection into subsequent retry context (`to_agent_id` / `dispatch_agent_id`). After a switch decision, `_execute_item_phases` rebuilds `context` as only `{item_id, roadmap_id, completed_items}` and continues; `to_agent_id` is recorded in provenance but never injected into the next `dispatch_fn` call, so exact-lane routing remains prompt-layer optional.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical",
+      "package_id": "wp-roadmap-policy",
+      "file_path": "skills/autopilot-roadmap/scripts/orchestrator.py",
+      "line_range": {
+        "start": 1034,
+        "end": 1109
+      },
+      "evidence_class": "judgment",
+      "existing_code": "context = {\n            \"item_id\": item_id,\n            \"roadmap_id\": roadmap.roadmap_id,\n            \"completed_items\": list(checkpoint.completed_items),\n        }",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 9,
+      "type": "compatibility",
+      "criticality": "medium",
+      "description": "Nit: Design D7/D8 name the structured lane field `dispatch_agent_id`, and roadmap policy reads `dispatch_metadata.get(\"dispatch_agent_id\")`. `phase_agent` / `provider_dispatch` only add optional `agent_id`. Callers that forward the phase payload field name as-authored never satisfy the orchestrator's exact-lane seam without an adapter rename.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "nit",
+      "package_id": "wp-dispatch-reporting",
+      "file_path": "skills/autopilot/scripts/phase_agent.py",
+      "line_range": {
+        "start": 1028,
+        "end": 1073
+      },
+      "evidence_class": "judgment",
+      "existing_code": "\"provider\": selected_provider,\n        \"agent_id\": agent_id,\n        \"prompt\": folded_prompt,",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 10,
+      "type": "observability",
+      "criticality": "medium",
+      "description": "Nit: When `dispatch_agent_id` is present, policy provenance sets `durable_persistence: \"reported_by_dispatcher\"` without invoking the reporter. Presence of a lane id is not evidence an observation was written, so D7/D10 audit consumers can over-read persistence success.",
+      "disposition": "fix",
+      "axis": "observability",
+      "severity": "nit",
+      "package_id": "wp-roadmap-policy",
+      "file_path": "skills/autopilot-roadmap/scripts/orchestrator.py",
+      "line_range": {
+        "start": 1085,
+        "end": 1090
+      },
+      "evidence_class": "judgment",
+      "existing_code": "\"durable_persistence\": (\n                        \"reported_by_dispatcher\"\n                        if dispatch_metadata.get(\"dispatch_agent_id\")\n                        else \"skipped_ambiguous\"\n                    ),",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 11,
+      "type": "observability",
+      "criticality": "medium",
+      "description": "Optional: D8 requires continuing under availability policy with `cost_guard=unavailable` and a warning when a USD ceiling cannot be evaluated. Legacy `_evaluate_switch` logs that warning; `select_registry_lane` (the orchestrator path) sets `cost_guard` but does not warn when `cost_ceiling_usd` is set and the exact quote is missing.",
+      "disposition": "fix",
+      "axis": "observability",
+      "severity": "optional",
+      "package_id": "wp-roadmap-policy",
+      "file_path": "skills/autopilot-roadmap/scripts/policy.py",
+      "line_range": {
+        "start": 448,
+        "end": 474
+      },
+      "evidence_class": "judgment",
+      "existing_code": "cost_guard = \"available\" if cost_delta is not None else \"unavailable\"\n    if (\n        policy.cost_ceiling_usd is not None\n        and cost_delta is not None\n        and cost_delta > policy.cost_ceiling_usd\n    ):",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 12,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "Nit: Runtime returns `application/problem+json` with `type=urn:vendor-registry:invalid-observation` for invalid POSTs, but OpenAPI `Problem.type` enum only lists unknown-lane / unavailable / observation-conflict. `400` responses are not schema-bound to `Problem`, so this is contract drift rather than a hard route violation.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "nit",
+      "package_id": "wp-contracts",
+      "file_path": "openspec/changes/add-live-vendor-capability-and-cost-registry/contracts/openapi/v1.yaml",
+      "line_range": {
+        "start": 224,
+        "end": 236
+      },
+      "evidence_class": "judgment",
+      "existing_code": "type:\n          type: string\n          enum:\n            - urn:vendor-registry:unknown-lane\n            - urn:vendor-registry:unavailable\n            - urn:vendor-registry:observation-conflict",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 13,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: GET/POST vendor routes accept Bearer, `X-Coordinator-API-Key`, and `X-API-Key`; source principal is server-derived on POST; own-lane writes skip cross-lane auth while cross-lane writes require `report_vendor_rate_limit`; 404/409/503 use RFC7807 problem types matching the contract; observation_id/reason/reset/model/metadata bounds (including max 20 metadata keys) are enforced in `VendorRateLimitObservationRequest`.",
+      "disposition": "accept",
+      "axis": "security",
+      "severity": "none",
+      "package_id": "wp-api-watchdog",
+      "file_path": "agent-coordinator/src/coordination_api.py",
+      "line_range": {
+        "start": 129,
+        "end": 172
+      },
+      "evidence_class": "judgment",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 14,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Registry reads batch one probe query, one active-limit query, and one `model_catalog` read; SQL RPCs implement atomic probe upsert, rate-limit insert/replay/conflict, and compaction; replay hashes absolute reset / retry-after / default-TTL markers without receipt time; `now >= stale_after/reset_at` expires state; tables contain no price columns; quotes use decimal arithmetic with explicit `ROUND_HALF_UP` at six places as recorded in `choices.json`.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "package_id": "wp-registry-core",
+      "file_path": "agent-coordinator/src/vendor_registry.py",
+      "line_range": {
+        "start": 136,
+        "end": 159
+      },
+      "evidence_class": "judgment",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 15,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Bundled `agents.yaml` declares explicit `location` / `policy_vendor` / `catalog_vendor`; lane identity maps `agent_id=name`, `vendor_type=type` without inferring location from suffixes; catalog joins use exact model ID plus optional endpoint_kind/base_url/catalog_vendor constraints with no fuzzy publisher heuristics, supporting multi-publisher lanes when IDs collide by yielding unknown rather than guessing.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "package_id": "wp-registry-core",
+      "file_path": "agent-coordinator/src/vendor_registry.py",
+      "line_range": {
+        "start": 171,
+        "end": 187
+      },
+      "evidence_class": "judgment",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 16,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Watchdog persists every lane snapshot on the first poll with `stale_after = observed_at + 2\u00d7VENDOR_HEALTH_INTERVAL_SECONDS` and skips transition events; `no_probe_method` maps to `unknown`; per-lane persist failures are isolated; compaction runs from `run_once`; Dockerfile copies `vendor_health.py` and sets `SKILLS_ROOT`/`AGENTS_YAML`; `start_notification_runtime` starts watchdog independently of notification channels.",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "none",
+      "package_id": "wp-api-watchdog",
+      "file_path": "agent-coordinator/src/watchdog.py",
+      "line_range": {
+        "start": 437,
+        "end": 514
+      },
+      "evidence_class": "judgment",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 17,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: `vendor_limit_reporter` refuses provider-to-lane inference and never masks dispatch failures; sync CLI fires model-scoped callbacks before successful fallback; bridge helpers preserve distinct `coordinator_unavailable` / `server_error` / `malformed_response` / `unknown_vendor_lane` errors without returning an empty successful registry.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "package_id": "wp-dispatch-reporting",
+      "file_path": "skills/parallel-infrastructure/scripts/vendor_limit_reporter.py",
+      "line_range": {
+        "start": 27,
+        "end": 70
+      },
+      "evidence_class": "judgment",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 18,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Roadmap policy obtains lanes from `try_list_vendors` (no embedded `claude/codex/...` discovery roster); registry outage fail-closes unless an explicit `agents_yaml_fallback` is injected with unknown availability/cost only; exact `dispatch_agent_id` excludes only that lane while legacy provider-only signals exclude matching `policy_vendor` for the current decision; `quote_lane_cost` requires model+tokens and six-decimal ROUND_HALF_UP; static tiers rank candidates but do not populate or enforce USD in `select_registry_lane`.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "package_id": "wp-roadmap-policy",
+      "file_path": "skills/autopilot-roadmap/scripts/orchestrator.py",
+      "line_range": {
+        "start": 1265,
+        "end": 1353
+      },
+      "evidence_class": "judgment",
+      "line_resolution": "vendor"
+    }
+  ]
+}

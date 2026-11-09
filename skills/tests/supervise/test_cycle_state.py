@@ -570,6 +570,19 @@ class TestWorkflowContract:
             "Dispatch exactly one host sub-agent"
         )
 
+    def test_batched_rubric_scorer_is_tried_before_the_analyst_archetype_fallback(self) -> None:
+        """ri-17: the sub-agent analyst-archetype dispatch remains the
+        fallback -- tried only when the batched judged scorer reports
+        unavailable -- not the primary scoring path."""
+        text = _SKILL_MD.read_text(encoding="utf-8")
+        rank = self._section(text, "### 4. Rank", "### 5. Digest, then stop")
+
+        assert "rubric_score.py" in rank
+        assert "score-batch" in rank
+        assert rank.index("rubric_score.py") < rank.index("Dispatch exactly one host sub-agent")
+        assert "only when `rubric_score.py` exited nonzero" in rank
+        assert "analyst archetype" in rank
+
 
 # --------------------------------------------------------------------------- #
 # CLI surface
@@ -786,6 +799,44 @@ class TestGateAnswerCli:
         )
 
         assert rc == 2
+
+    def test_escalate_resume_answer_rejects_a_ledger_without_a_current_attempt(
+        self, repo: Path, capsys
+    ) -> None:
+        repo = _gated_repo(repo)
+        _write_posture(repo, "roadmap_approval", "block")
+        cycle_state.main(["--repo-root", str(repo), "gate-check", "--roadmap", "alpha"])
+        capsys.readouterr()
+        workspace = repo / "openspec" / "roadmaps" / "alpha"
+        checkpoint_path = workspace / "checkpoint.json"
+        checkpoint = json.loads(checkpoint_path.read_text(encoding="utf-8"))
+        checkpoint["gate_decisions"] = [
+            {
+                "decision_id": "11111111-2222-4333-8444-555555555555",
+                "gate": "escalate_resume", "outcome": "blocked",
+                "resolution": "posture_block", "disposition": "block",
+                "reason": "blocked", "posture_present": True,
+                "recorded_at": "2026-09-01T00:00:00+00:00",
+                "roadmap_id": "alpha", "dispatch_id": "d-1", "lease_generation": 1,
+            },
+            {
+                "decision_id": "66666666-7777-4888-8999-aaaaaaaaaaaa",
+                "gate": "escalate_resume", "outcome": "blocked",
+                "resolution": "posture_block", "disposition": "block",
+                "reason": "blocked", "posture_present": True,
+                "recorded_at": "2026-09-02T00:00:00+00:00",
+                "roadmap_id": "alpha", "dispatch_id": "d-1", "lease_generation": 2,
+            },
+        ]
+        checkpoint_path.write_text(json.dumps(checkpoint), encoding="utf-8")
+
+        rc = cycle_state.main(
+            ["--repo-root", str(repo), "gate-answer", "--roadmap", "alpha",
+             "--gate", "escalate_resume", "--decision", "approved", "--dispatch-id", "d-1"]
+        )
+
+        assert rc == 2
+        assert "current parked policy_pause" in capsys.readouterr().err
 
 
 class TestGateLogCli:

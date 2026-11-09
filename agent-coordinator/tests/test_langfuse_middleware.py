@@ -131,7 +131,42 @@ class TestResolveAgentId:
         mock_request.headers = {"x-api-key": "test-key"}
 
         with patch("src.config.get_config") as mock_config:
+            mock_config.return_value.openbao.is_enabled.return_value = False
             mock_config.return_value.api.api_key_identities = {
                 "test-key": {"agent_id": "codex-1", "agent_type": "codex"}
             }
             assert _resolve_agent_id(mock_request) == "codex-1"
+
+    def test_bao_attribution_uses_installed_snapshot_and_strips_header(
+        self, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from src import coordination_api
+        from src.agents_config import AgentEntry
+        from src.langfuse_middleware import _resolve_agent_id
+        from src.openbao_identity import IdentityRuntime
+
+        class Reader:
+            def ensure_session(self, *_args: object) -> None:
+                pass
+
+            def read_agent_key(self, _name: str) -> str:
+                return "bao-key"
+
+        agent = AgentEntry(name="alice", type="codex", profile="alice", trust_level=1,
+                           transport="mcp", capabilities=[], description="", api_key="${STATIC}")
+        runtime = IdentityRuntime(lambda: Reader(), lambda: [agent])
+        assert runtime.reload()
+        monkeypatch.setattr(coordination_api, "_identity_runtime", runtime)
+        request = MagicMock()
+        request.headers = {"x-api-key": "  bao-key  "}
+        with patch("src.config.get_config") as mock_config:
+            mock_config.return_value.openbao.is_enabled.return_value = True
+            mock_config.return_value.api.api_key_identities = {
+                "bao-key": {"agent_id": "wrong-static"},
+                "static-key": {"agent_id": "wrong-static"},
+            }
+            assert _resolve_agent_id(request) == "alice"
+            request.headers = {"x-api-key": "static-key"}
+            assert _resolve_agent_id(request) == "cloud-agent"
+            request.headers = {"authorization": "Bearer bao-key"}
+            assert _resolve_agent_id(request) == "alice"

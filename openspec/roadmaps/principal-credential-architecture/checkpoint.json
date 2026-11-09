@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "roadmap_id": "principal-credential-architecture",
+  "current_item_id": "pca-02",
+  "phase": "planning",
+  "created_at": "2026-09-24T09:50:23.289723+00:00",
+  "updated_at": "2026-09-24T09:50:23.289723+00:00",
+  "completed_items": [
+    "pca-01"
+  ]
+}

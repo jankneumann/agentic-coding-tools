@@ -1,0 +1,363 @@
+[
+  {
+    "description": "Improve the harness capability: rightsize merge-pull-requests: contract_unpinned in SKILL.md#05-active-agent-guard-sync-point-skill.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F001"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/merge-pull-requests-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-merge-pull-requests-contract-unpinned-skill-md-05-active-agent-guard-sync-point-skill",
+    "tags": [
+      "source-rank-1"
+    ],
+    "title": "rightsize merge-pull-requests: contract_unpinned in SKILL.md#05-active-agent-guard-sync-point-skill"
+  },
+  {
+    "description": "Improve the harness capability: rightsize merge-pull-requests: contract_unpinned in SKILL.md#12-1-verify-environment.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F003"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/merge-pull-requests-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-merge-pull-requests-contract-unpinned-skill-md-12-1-verify-environment",
+    "tags": [
+      "source-rank-3"
+    ],
+    "title": "rightsize merge-pull-requests: contract_unpinned in SKILL.md#12-1-verify-environment"
+  },
+  {
+    "description": "Improve the harness capability: rightsize merge-pull-requests: contract_unpinned in SKILL.md#13-2-pull-latest-main.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F004"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/merge-pull-requests-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-merge-pull-requests-contract-unpinned-skill-md-13-2-pull-latest-main",
+    "tags": [
+      "source-rank-4"
+    ],
+    "title": "rightsize merge-pull-requests: contract_unpinned in SKILL.md#13-2-pull-latest-main"
+  },
+  {
+    "description": "Improve the harness capability: rightsize merge-pull-requests: contract_unpinned in SKILL.md#15-draft-prs.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F005"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/merge-pull-requests-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-merge-pull-requests-contract-unpinned-skill-md-15-draft-prs",
+    "tags": [
+      "source-rank-5"
+    ],
+    "title": "rightsize merge-pull-requests: contract_unpinned in SKILL.md#15-draft-prs"
+  },
+  {
+    "description": "Improve the harness capability: rightsize merge-pull-requests: contract_unpinned in SKILL.md#19-5-check-staleness-for-each-pr.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F006"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/merge-pull-requests-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-merge-pull-requests-contract-unpinned-skill-md-19-5-check-staleness-for-each-pr",
+    "tags": [
+      "source-rank-6"
+    ],
+    "title": "rightsize merge-pull-requests: contract_unpinned in SKILL.md#19-5-check-staleness-for-each-pr"
+  },
+  {
+    "description": "Improve the harness capability: rightsize merge-pull-requests: contract_unpinned in SKILL.md#21-6-identify-conflicting-pr-pairs.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F007"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/merge-pull-requests-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-merge-pull-requests-contract-unpinned-skill-md-21-6-identify-conflicting-pr-pairs",
+    "tags": [
+      "source-rank-7"
+    ],
+    "title": "rightsize merge-pull-requests: contract_unpinned in SKILL.md#21-6-identify-conflicting-pr-pairs"
+  },
+  {
+    "description": "Improve the harness capability: rightsize merge-pull-requests: contract_unpinned in SKILL.md#22-7-batch-close-obsolete-prs.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F008"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/merge-pull-requests-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-merge-pull-requests-contract-unpinned-skill-md-22-7-batch-close-obsolete-prs",
+    "tags": [
+      "source-rank-8"
+    ],
+    "title": "rightsize merge-pull-requests: contract_unpinned in SKILL.md#22-7-batch-close-obsolete-prs"
+  },
+  {
+    "description": "Improve the harness capability: rightsize merge-pull-requests: contract_unpinned in SKILL.md#23-8-analyze-review-comments.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F009"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/merge-pull-requests-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-merge-pull-requests-contract-unpinned-skill-md-23-8-analyze-review-comments",
+    "tags": [
+      "source-rank-9"
+    ],
+    "title": "rightsize merge-pull-requests: contract_unpinned in SKILL.md#23-8-analyze-review-comments"
+  },
+  {
+    "description": "Improve the harness capability: rightsize merge-pull-requests: contract_unpinned in SKILL.md#26-9-6-check-holdout-gate-openspec-prs-only.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F010"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/merge-pull-requests-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-merge-pull-requests-contract-unpinned-skill-md-26-9-6-check-holdout-gate-openspec-prs",
+    "tags": [
+      "source-rank-10"
+    ],
+    "title": "rightsize merge-pull-requests: contract_unpinned in SKILL.md#26-9-6-check-holdout-gate-openspec-prs-only"
+  },
+  {
+    "description": "Improve the harness capability: rightsize merge-pull-requests: contract_unpinned in SKILL.md#29-save-point-pattern.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F012"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/merge-pull-requests-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-merge-pull-requests-contract-unpinned-skill-md-29-save-point-pattern",
+    "tags": [
+      "source-rank-12"
+    ],
+    "title": "rightsize merge-pull-requests: contract_unpinned in SKILL.md#29-save-point-pattern"
+  },
+  {
+    "description": "Improve the harness capability: rightsize merge-pull-requests: contract_unpinned in SKILL.md#30-change-summary-template.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F013"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/merge-pull-requests-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-merge-pull-requests-contract-unpinned-skill-md-30-change-summary-template",
+    "tags": [
+      "source-rank-13"
+    ],
+    "title": "rightsize merge-pull-requests: contract_unpinned in SKILL.md#30-change-summary-template"
+  },
+  {
+    "description": "Improve the harness capability: rightsize merge-pull-requests: contract_unpinned in SKILL.md#34-re-check-staleness-after-merge.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F014"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/merge-pull-requests-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-merge-pull-requests-contract-unpinned-skill-md-34-re-check-staleness-after-merge",
+    "tags": [
+      "source-rank-14"
+    ],
+    "title": "rightsize merge-pull-requests: contract_unpinned in SKILL.md#34-re-check-staleness-after-merge"
+  },
+  {
+    "description": "Improve the harness capability: rightsize merge-pull-requests: contract_unpinned in SKILL.md#35-close-a-pr.",
+    "effort": "S",
+    "priority": 2,
+    "provenance": {
+      "finding_ids": [
+        "F015"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/merge-pull-requests-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity high.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-merge-pull-requests-contract-unpinned-skill-md-35-close-a-pr",
+    "tags": [
+      "source-rank-15"
+    ],
+    "title": "rightsize merge-pull-requests: contract_unpinned in SKILL.md#35-close-a-pr"
+  },
+  {
+    "description": "Improve the harness capability: rightsize merge-pull-requests: constraint_without_reason in SKILL.md#07-merge-metrics-always-on.",
+    "effort": "S",
+    "priority": 3,
+    "provenance": {
+      "finding_ids": [
+        "F002"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/merge-pull-requests-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity medium.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-merge-pull-requests-constraint-without-reason-skill-md-07-merge-metrics-always-on",
+    "tags": [
+      "source-rank-2"
+    ],
+    "title": "rightsize merge-pull-requests: constraint_without_reason in SKILL.md#07-merge-metrics-always-on"
+  },
+  {
+    "description": "Improve the harness capability: rightsize merge-pull-requests: constraint_without_reason in SKILL.md#40-guards-in-enforcement-order.",
+    "effort": "S",
+    "priority": 3,
+    "provenance": {
+      "finding_ids": [
+        "F016"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/merge-pull-requests-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity medium.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-merge-pull-requests-constraint-without-reason-skill-md-40-guards-in-enforcement-order",
+    "tags": [
+      "source-rank-16"
+    ],
+    "title": "rightsize merge-pull-requests: constraint_without_reason in SKILL.md#40-guards-in-enforcement-order"
+  },
+  {
+    "description": "Improve the harness capability: rightsize merge-pull-requests: constraint_without_reason in SKILL.md#45-ownership-boundary.",
+    "effort": "S",
+    "priority": 3,
+    "provenance": {
+      "finding_ids": [
+        "F017"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/merge-pull-requests-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity medium.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-merge-pull-requests-constraint-without-reason-skill-md-45-ownership-boundary",
+    "tags": [
+      "source-rank-17"
+    ],
+    "title": "rightsize merge-pull-requests: constraint_without_reason in SKILL.md#45-ownership-boundary"
+  },
+  {
+    "description": "Improve the harness capability: rightsize merge-pull-requests: convention_drift in SKILL.md.",
+    "effort": "S",
+    "priority": 3,
+    "provenance": {
+      "finding_ids": [
+        "F019"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/merge-pull-requests-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity medium.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-merge-pull-requests-convention-drift-skill-md",
+    "tags": [
+      "source-rank-19"
+    ],
+    "title": "rightsize merge-pull-requests: convention_drift in SKILL.md"
+  },
+  {
+    "description": "Improve the harness capability: rightsize merge-pull-requests: missing_deviation_protocol in SKILL.md#28-11-interactive-pr-review.",
+    "effort": "S",
+    "priority": 3,
+    "provenance": {
+      "finding_ids": [
+        "F018"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/merge-pull-requests-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity medium.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-merge-pull-requests-missing-deviation-protocol-skill-md-28-11-interactive-pr-review",
+    "tags": [
+      "source-rank-18"
+    ],
+    "title": "rightsize merge-pull-requests: missing_deviation_protocol in SKILL.md#28-11-interactive-pr-review"
+  },
+  {
+    "description": "Improve the harness capability: rightsize merge-pull-requests: procedure_without_probe in SKILL.md#28-11-interactive-pr-review.",
+    "effort": "S",
+    "priority": 3,
+    "provenance": {
+      "finding_ids": [
+        "F011"
+      ],
+      "generator": "improve-harness",
+      "source_artifact": "docs/reports/skill-audit/merge-pull-requests-2026-09-16.md"
+    },
+    "rationale": "Observed 1 occurrence(s), with maximum severity medium.",
+    "schema_version": 1,
+    "suggested_change_id": "update-rightsize-merge-pull-requests-procedure-without-probe-skill-md-28-11-interactive-pr-review",
+    "tags": [
+      "source-rank-11"
+    ],
+    "title": "rightsize merge-pull-requests: procedure_without_probe in SKILL.md#28-11-interactive-pr-review"
+  }
+]

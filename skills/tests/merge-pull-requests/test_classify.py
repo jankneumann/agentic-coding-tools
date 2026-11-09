@@ -141,3 +141,36 @@ class TestOtherOrigins:
     def test_jules_branch(self) -> None:
         result = classify_pr(_pr("sentinel/fix-xss"))
         assert result["origin"] == "sentinel"
+
+
+class TestPrOriginsVocabulary:
+    """PR_ORIGINS is the closed vocabulary that sync windows pin to."""
+
+    FIXTURES = [
+        _pr("openspec/some-change"),
+        _pr("claude/session-1"),
+        _pr("feature/x", author="dependabot[bot]"),
+        _pr("feature/x", author="renovate[bot]"),
+        _pr("feature/x", author="jules[bot]"),
+        _pr("sentinel-fix-1", author="google-labs-jules[bot]"),
+        _pr("bolt-fast-1", author="google-labs-jules[bot]"),
+        _pr("palette-ui-1", author="google-labs-jules[bot]"),
+        _pr("codex/task-1"),
+        _pr("feature/random"),
+    ]
+
+    def test_every_classified_origin_is_declared_and_folds(self) -> None:
+        if str(REPO_ROOT) not in sys.path:
+            sys.path.insert(0, str(REPO_ROOT))
+        from shared import github_classifier as gc
+
+        seen = set()
+        for payload in self.FIXTURES:
+            origin = classify_pr(payload)["origin"]
+            seen.add(origin)
+            assert origin in gc.PR_ORIGINS
+        # Exhaustive both ways: every origin the fixtures produce is declared,
+        # and every declared origin is reachable from classify_pr.
+        assert seen == gc.PR_ORIGINS
+        for origin in gc.PR_ORIGINS:
+            assert gc.to_pr_card_origin(origin)

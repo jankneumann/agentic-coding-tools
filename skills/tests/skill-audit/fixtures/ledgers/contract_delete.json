@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "skill": "quick-task",
+  "generated_at": "2026-09-16T00:00:00+00:00",
+  "convention": "rightsizing",
+  "freshness": {
+    "archetypes_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "reviewed_dates": [],
+    "evidence_window_days": 30
+  },
+  "layers": [],
+  "dispatch_profile": [],
+  "evidence": {"status": "unavailable", "reason": "coordinator_unreachable", "tier_rows": []},
+  "findings": [
+    {
+      "id": "F001",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "section_id": "SKILL.md#00-frontmatter",
+      "remediation": "delete",
+      "evidence": {}
+    }
+  ]
+}

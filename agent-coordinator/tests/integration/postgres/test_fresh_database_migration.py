@@ -56,6 +56,8 @@ REQUIRED_TABLES = [
     "audit_log",
     "file_locks",
     "work_queue",
+    "vendor_probe_state",
+    "vendor_rate_limits",
 ]
 
 REQUIRED_FUNCTIONS = [
@@ -64,6 +66,10 @@ REQUIRED_FUNCTIONS = [
     "coordinator_notify",
     "get_agent_profile",
     "is_domain_allowed",
+    "upsert_vendor_probe_state",
+    "persist_vendor_probe_state",
+    "record_vendor_rate_limit",
+    "compact_vendor_rate_limits",
     "mutate_issue_if_unowned",
     "close_issues_if_unowned",
 ]
@@ -637,3 +643,237 @@ async def test_seeded_database_survives_the_first_run_pass(migrated_database) ->
     assert recorded == len(discover_migrations()), (
         "the first-run pass stopped early and left migrations unrecorded"
     )
+
+
+def _routing_decision(decision_id: str, **overrides: object) -> dict:
+    provenance = {
+        "source": "coordinator",
+        "policy_version": "dg04-v1",
+        "policy_checksum": "a" * 64,
+    }
+    return {
+        "decision_id": decision_id,
+        "request": {"task_signals": {"archetype": "architect"}, "allow_exploration": False},
+        "selected": None,
+        "assignment": None,
+        "provenance": provenance,
+        "retention": {
+            "retained": True,
+            "reason": "incumbent-unresolved",
+            "margin": 0.05,
+            "incumbent_score": None,
+        },
+        "alternatives": [],
+        "excluded": [],
+        "exploration": False,
+        "fallback": False,
+        "policy_version": "linear-utility-v1",
+        "budget_state": {},
+        **overrides,
+    }
+
+
+def _agentless_link(decision_id: str) -> dict:
+    return {
+        "decision_id": decision_id,
+        "selected_agent_id": None,
+        "selected_model": None,
+        "routing_policy_version": "dg04-v1",
+        "routing_policy_checksum": "a" * 64,
+        "source": "coordinator",
+        "success": True,
+    }
+
+
+async def _record(conn: asyncpg.Connection, decision: dict, link: dict) -> None:
+    await conn.fetchval(
+        "SELECT record_routing_decision_with_audit($1::jsonb, $2::jsonb)",
+        json.dumps(decision),
+        json.dumps(link),
+    )
+
+
+async def test_044_persists_a_catalogless_retention(migrated_database) -> None:
+    """Migration 044: a kept incumbent with no catalog row persists with a null
+    selection, its retention record, and an agentless audit link."""
+    dsn, _applied = migrated_database
+    decision_id = str(uuid.uuid4())
+
+    conn = await _connect(dsn)
+    try:
+        await _record(conn, _routing_decision(decision_id), _agentless_link(decision_id))
+        row = await conn.fetchrow(
+            "SELECT selected, retention FROM routing_decisions WHERE decision_id = $1::uuid",
+            decision_id,
+        )
+        assert row is not None
+        assert row["selected"] is None  # SQL NULL, not a JSON null
+        assert json.loads(row["retention"])["reason"] == "incumbent-unresolved"
+    finally:
+        await conn.close()
+
+
+async def test_044_rejects_a_null_selection_without_retention(migrated_database) -> None:
+    dsn, _applied = migrated_database
+    decision_id = str(uuid.uuid4())
+    decision = _routing_decision(decision_id)
+    del decision["retention"]
+
+    conn = await _connect(dsn)
+    try:
+        with pytest.raises(asyncpg.CheckViolationError):
+            await _record(conn, decision, _agentless_link(decision_id))
+    finally:
+        await conn.close()
+
+
+async def test_044_keeps_the_042_selected_decision_path(migrated_database) -> None:
+    """A normal selection (no retention) still records exactly as under 042."""
+    dsn, _applied = migrated_database
+    decision_id = str(uuid.uuid4())
+    selected = {
+        "vendor": "codex",
+        "model": "gpt-5.6-terra",
+        "endpoint_kind": "vendor-cli",
+        "score": 0.8,
+        "assignment": {"agent_id": "codex-local"},
+        "provenance": {
+            "source": "coordinator",
+            "policy_version": "dg04-v1",
+            "policy_checksum": "a" * 64,
+        },
+    }
+    decision = _routing_decision(decision_id, selected=selected)
+    del decision["retention"]
+    link = {
+        **_agentless_link(decision_id),
+        "selected_agent_id": "codex-local",
+        "selected_model": "gpt-5.6-terra",
+    }
+
+    conn = await _connect(dsn)
+    try:
+        await _record(conn, decision, link)
+        row = await conn.fetchrow(
+            "SELECT retention FROM routing_decisions WHERE decision_id = $1::uuid", decision_id
+        )
+        assert row is not None and row["retention"] is None
+    finally:
+        await conn.close()
+
+
+async def _upsert_probe(dsn: str, observed_at: str, status: str) -> object:
+    """Call persist_vendor_probe_state through the production client.
+
+    The client matters: it registers jsonb with a text codec, which is what made
+    asyncpg refuse to decode the old SETOF-composite result of the 041 function (#643).
+    """
+    from src.config import PostgresConfig
+    from src.db_postgres import DirectPostgresClient
+
+    client = DirectPostgresClient(PostgresConfig(dsn=dsn, pool_min=1, pool_max=1))
+    try:
+        return await client.rpc(
+            "persist_vendor_probe_state",
+            {
+                "p_agent_id": "claude-remote",
+                "p_observation_id": f"watchdog:claude-remote:{observed_at}",
+                "p_status": status,
+                "p_source_agent_id": "watchdog",
+                "p_reason": None,
+                "p_observed_at": observed_at,
+                "p_stale_after": "2099-01-01T00:00:00+00:00",
+                "p_metadata": {"probe": "vendor_health"},
+            },
+        )
+    finally:
+        await client.close()
+
+
+async def test_045_vendor_probe_upsert_round_trips_through_the_client(migrated_database) -> None:
+    """Migration 045: the probe upsert returns a decodable row and persists it."""
+    dsn, _applied = migrated_database
+
+    result = await _upsert_probe(dsn, "2026-09-28T12:00:00+00:00", "available")
+
+    assert isinstance(result, dict)
+    assert (result["agent_id"], result["status"]) == ("claude-remote", "available")
+    conn = await _connect(dsn)
+    try:
+        row = await conn.fetchrow(
+            "SELECT status, metadata FROM vendor_probe_state WHERE agent_id = 'claude-remote'"
+        )
+        assert row is not None
+        assert row["status"] == "available"
+        assert json.loads(row["metadata"]) == {"probe": "vendor_health"}
+    finally:
+        await conn.close()
+
+
+async def test_045_older_probe_does_not_overwrite_a_newer_one(migrated_database) -> None:
+    dsn, _applied = migrated_database
+    await _upsert_probe(dsn, "2026-09-28T12:00:00+00:00", "available")
+
+    stale = await _upsert_probe(dsn, "2026-09-28T11:00:00+00:00", "unavailable")
+
+    assert stale is None
+    conn = await _connect(dsn)
+    try:
+        status = await conn.fetchval(
+            "SELECT status FROM vendor_probe_state WHERE agent_id = 'claude-remote'"
+        )
+        assert status == "available"
+    finally:
+        await conn.close()
+
+
+async def test_watchdog_stale_agent_sweep_runs_against_the_migrated_schema(
+    migrated_database,
+) -> None:
+    """The watchdog's stale-agent sweep must query a relation that exists (#634).
+
+    It queried `agent_discovery`, the name of migration 003's *file*, while 003
+    actually extends `agent_sessions`. Every cycle failed, so stale agents were
+    never reported, disconnected, or relieved of their locks.
+    """
+    from unittest.mock import AsyncMock
+
+    from src.config import PostgresConfig
+    from src.db_postgres import DirectPostgresClient
+    from src.watchdog import WatchdogService
+
+    dsn, _applied = migrated_database
+    conn = await _connect(dsn)
+    try:
+        await conn.execute(
+            "INSERT INTO agent_sessions (id, agent_id, agent_type, status, last_heartbeat) VALUES "
+            "('s-stale', 'stale-agent', 'codex', 'active', NOW() - INTERVAL '1 hour'), "
+            "('s-fresh', 'fresh-agent', 'codex', 'active', NOW())"
+        )
+        await conn.execute(
+            "INSERT INTO file_locks (file_path, locked_by, agent_type, expires_at) VALUES "
+            "('src/held.py', 'stale-agent', 'codex', NOW() + INTERVAL '1 hour')"
+        )
+    finally:
+        await conn.close()
+
+    client = DirectPostgresClient(PostgresConfig(dsn=dsn, pool_min=1, pool_max=1))
+    watchdog = WatchdogService(db=client)
+    watchdog._emit_event = AsyncMock()  # type: ignore[method-assign]
+    try:
+        await watchdog._check_stale_agents()
+    finally:
+        await client.close()
+
+    reported = [call.kwargs["agent_id"] for call in watchdog._emit_event.await_args_list]
+    assert reported == ["stale-agent"]
+    conn = await _connect(dsn)
+    try:
+        statuses = dict(await conn.fetch("SELECT agent_id, status FROM agent_sessions"))
+        assert statuses == {"stale-agent": "disconnected", "fresh-agent": "active"}
+        held = await conn.fetchval(
+            "SELECT count(*) FROM file_locks WHERE locked_by = 'stale-agent'"
+        )
+        assert held == 0
+    finally:
+        await conn.close()

@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools/schemas/skill-audit-findings.schema.json",
+  "title": "Skill audit findings ledger",
+  "description": "One ledger per audited skill, written by skills/skill-audit/scripts/skill_audit.py. Findings are proposals; the audit never edits the audited skill.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "skill", "generated_at", "convention", "freshness", "layers", "dispatch_profile", "evidence", "findings"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "skill": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,63}$" },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "convention": { "type": "string", "enum": ["rightsizing", "current"] },
+    "freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["archetypes_sha256", "reviewed_dates", "evidence_window_days"],
+      "properties": {
+        "archetypes_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "reviewed_dates": { "type": "array", "items": { "type": "string", "format": "date" } },
+        "evidence_window_days": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "layers": {
+      "type": "array",
+      "description": "Every section of SKILL.md and one-level references, in document order.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["section_id", "file", "heading", "layer", "decided_by"],
+        "properties": {
+          "section_id": { "type": "string" },
+          "file": { "type": "string" },
+          "heading": { "type": "string" },
+          "layer": { "$ref": "#/$defs/layer" },
+          "decided_by": { "type": "string", "enum": ["pre-pass", "model", "none"] },
+          "rule": { "type": "string", "description": "Pre-pass rule name from references/layers.md when decided_by is pre-pass." }
+        }
+      }
+    },
+    "dispatch_profile": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["archetype", "tier", "provider", "model"],
+        "properties": {
+          "archetype": { "type": "string", "pattern": "^[a-z][a-z0-9_-]{0,31}$" },
+          "tier": { "type": "string", "enum": ["frontier", "premium", "standard", "economy"] },
+          "provider": { "type": "string" },
+          "model": { "type": "string" },
+          "thinking": { "type": ["string", "null"] },
+          "procedure_mode": { "type": ["string", "null"], "enum": ["verbatim", "guided", "goal-directed", null] },
+          "degraded_from": { "type": ["string", "null"], "enum": ["frontier", "premium", "standard", null] },
+          "phases": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "tier_rows"],
+      "properties": {
+        "status": { "type": "string", "enum": ["available", "unavailable"] },
+        "reason": { "type": "string" },
+        "tier_rows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["archetype", "provider", "model", "count", "sessions", "max_severity", "sources", "attributed_by"],
+            "properties": {
+              "archetype": { "type": "string" },
+              "provider": { "type": "string" },
+              "model": { "type": "string" },
+              "thinking": { "type": ["string", "null"] },
+              "count": { "type": "integer", "minimum": 1 },
+              "sessions": { "type": "integer", "minimum": 1 },
+              "max_severity": { "type": "string", "enum": ["low", "medium", "high", "critical"] },
+              "sources": { "type": "array", "items": { "type": "string", "enum": ["self-reported", "coordinator-emitted", "session-log", "transcript-mined"] } },
+              "attributed_by": { "type": "string", "enum": ["loop-state", "discovery", "unknown"] }
+            }
+          }
+        },
+        "multi_source_fraction": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/finding" }
+    }
+  },
+  "$defs": {
+    "layer": { "type": "string", "enum": ["contract", "constraint", "procedure", "teaching", "unclassified"] },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "layer", "section_id", "remediation", "evidence"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^F[0-9]{3,}$" },
+        "kind": {
+          "type": "string",
+          "enum": ["teaching_inferable", "procedure_without_probe", "constraint_without_reason", "contract_unpinned", "missing_deviation_protocol", "tier_concentrated_failure", "convention_drift"]
+        },
+        "layer": { "$ref": "#/$defs/layer" },
+        "section_id": { "type": "string" },
+        "remediation": { "type": "string", "enum": ["keep", "move_to_reference", "extract_to_script", "add_probe", "add_reason", "delete"] },
+        "rationale": { "type": "string" },
+        "evidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "repo_specific_tokens": { "type": "array", "items": { "type": "string" } },
+            "tier": { "type": ["string", "null"] },
+            "count": { "type": "string", "description": "e.g. 5/7" },
+            "rule": { "type": "string", "description": "Convention rule name for convention_drift." },
+            "benchmark": {
+              "type": ["object", "null"],
+              "description": "Reserved for a later benchmark change; v1 never fills it.",
+              "additionalProperties": true
+            }
+          }
+        }
+      },
+      "if": { "properties": { "layer": { "const": "contract" } } },
+      "then": { "properties": { "remediation": { "not": { "const": "delete" } } } }
+    }
+  }
+}

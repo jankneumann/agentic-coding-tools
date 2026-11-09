@@ -1,0 +1,15 @@
+{
+  "fix_mode": "targeted",
+  "items": [
+    {
+      "id": 17,
+      "type": "resilience",
+      "criticality": "medium",
+      "allowed_paths": [
+        "skills/parallel-infrastructure/scripts/vendor_probe.py",
+        "skills/tests/parallel-infrastructure/test_vendor_probe.py"
+      ],
+      "description": "Critical: skills/parallel-infrastructure/scripts/vendor_probe.py:_run sets start_new_session=True then on TimeoutExpired only returns 'timeout'. subprocess.run kills the direct child and waits for it; vendor CLIs that fork/exec leave hung grandchildren in the orphaned process group. report/health/--check-vendors probe every lane, so each timed-out lane leaks a process tree. Re-verified open ledger [17].\n\nOrchestrator adjudication: CONFIRMED at medium. Fix in vendor_probe._run: replace subprocess.run with subprocess.Popen (same stdin/stdout/stderr/start_new_session args) and proc.communicate(timeout=timeout); on TimeoutExpired call os.killpg(proc.pid, signal.SIGKILL) (ignore ProcessLookupError/PermissionError, fall back to proc.kill()), then proc.wait() ONLY (do not communicate: a descendant that escaped the group could hold the pipe) and return ('timeout', None, ''). Keep OSError -> launch_error. Update the comment above the call accordingly. Add a POSIX test in test_vendor_probe.py: run ['sh','-c','sleep 30 & echo $! > PIDFILE; wait'] (PIDFILE under tmp_path) with timeout 1, assert status 'timeout' and that the grandchild pid is gone shortly after (os.kill(pid,0) raises ProcessLookupError within ~2 s, polling). Run /home/jankneumann/Coding/agentic-coding-tools/.git-worktrees/add-local-agent-probe/skills/.venv/bin/python -m pytest -q skills/tests/parallel-infrastructure/test_vendor_probe*.py and make it pass. Minimal changes. Do not commit."
+    }
+  ]
+}

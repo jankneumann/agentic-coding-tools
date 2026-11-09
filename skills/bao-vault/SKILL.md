@@ -43,7 +43,7 @@ eval "$("<skill-base-dir>/scripts/langfuse_env.sh")"
 
 Falls back silently when `BAO_ADDR` is unset or the keys are already populated, so it is safe to put in shell init or scripts.
 
-**Authentication**: prefers `BAO_TOKEN` if set, otherwise uses AppRole login via `BAO_ROLE_ID` + `BAO_SECRET_ID` (matches `bao_seed.py`).
+**Authentication**: uses `BAO_TOKEN` if set, otherwise logs in through the isolated coordinator-internal AppRole using `BAO_INTERNAL_ROLE_ID` and `BAO_INTERNAL_SECRET_ID`. The legacy `BAO_ROLE_ID` and `BAO_SECRET_ID` inputs are ignored by this helper. Stage the retained Langfuse values at `secret/coordinator` and grant the internal role access to that path before enabling Bao mode.
 
 **Consumed by**:
 - `<skill-base-dir>/../langfuse/scripts/install-mcp.sh` — computes the literal Basic-auth token written into Codex / Gemini user-global config files.

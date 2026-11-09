@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "change_id": null,
+  "review_type": "plan",
+  "created_at": "2026-09-16T18:40:18Z",
+  "target": "cli-dispatch",
+  "dispatches": [
+    {
+      "vendor": "antigravity",
+      "success": true,
+      "model_used": "gemini-3.6-flash-medium",
+      "models_attempted": [
+        "gemini-3.8-flash-high",
+        "gemini-3.6-flash-medium"
+      ],
+      "elapsed_seconds": 51.49754048977047,
+      "error": null,
+      "error_class": null
+    },
+    {
+      "vendor": "claude_code",
+      "success": true,
+      "model_used": "fable",
+      "models_attempted": [
+        "fable"
+      ],
+      "elapsed_seconds": 398.46748387720436,
+      "error": null,
+      "error_class": null
+    },
+    {
+      "vendor": "codex",
+      "success": false,
+      "model_used": null,
+      "models_attempted": [
+        "gpt-5.6-sol"
+      ],
+      "elapsed_seconds": 600.0496596968733,
+      "error": "Timeout after 600s",
+      "error_class": "transient"
+    },
+    {
+      "vendor": "grok",
+      "success": true,
+      "model_used": "grok-4.5",
+      "models_attempted": [
+        "grok-4.5"
+      ],
+      "elapsed_seconds": 384.7398008662276,
+      "error": null,
+      "error_class": null
+    },
+    {
+      "vendor": "pi",
+      "success": false,
+      "model_used": null,
+      "models_attempted": [
+        "nvidia/nemotron-3-ultra-550b-a55b"
+      ],
+      "elapsed_seconds": 600.0291536836885,
+      "error": "Timeout after 600s",
+      "error_class": "transient"
+    }
+  ],
+  "quorum_requested": 5,
+  "quorum_received": 3,
+  "vendors": [
+    {
+      "name": "antigravity",
+      "findings_path": "findings-antigravity-plan.json",
+      "finding_count": 0,
+      "unanchored_findings": 0,
+      "coverage_rate": null,
+      "coverage_eligibility": "full",
+      "coverage": "unreported"
+    },
+    {
+      "name": "claude_code",
+      "findings_path": "findings-claude_code-plan.json",
+      "finding_count": 12,
+      "unanchored_findings": 0,
+      "coverage_rate": null,
+      "coverage_eligibility": "full",
+      "coverage": "unreported"
+    },
+    {
+      "name": "grok",
+      "findings_path": "findings-grok-plan.json",
+      "finding_count": 9,
+      "unanchored_findings": 0,
+      "coverage_rate": null,
+      "coverage_eligibility": "full",
+      "coverage": "unreported"
+    }
+  ]
+}

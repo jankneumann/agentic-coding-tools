@@ -610,3 +610,252 @@ def test_status_report_without_phase_archetype_is_accepted(
     )
 
     assert response.status_code == 200, response.text
+
+
+# ---------------------------------------------------------------------------
+# `procedure_mode` injection (OpenSpec change add-skill-audit, D3)
+#
+# Spec: openspec/changes/add-skill-audit/specs/agent-archetypes/spec.md —
+#       ADDED "Procedure Mode Prompt Injection": scenarios "Verbatim archetype
+#       gets the verbatim sentence", "Goal-directed archetype names the
+#       deviation ledger", "Guided archetype is unchanged", "Escalation
+#       preserves the mode"; plus the endpoint carrying `procedure_mode`.
+#
+# The fixture roster mirrors the authored shape (runner verbatim, architect
+# goal-directed, implementer undeclared) but every expectation below is read
+# back from the fixture text, not asserted as a literal.
+# ---------------------------------------------------------------------------
+
+_PROCEDURE_MODE_ARCHETYPES = """
+schema_version: 4
+archetypes:
+  architect:
+    write_capable: true
+    model: opus
+    procedure_mode: goal-directed
+    system_prompt: |
+      You are a software architect. Focus on cross-cutting concerns.
+  implementer:
+    write_capable: true
+    model: sonnet
+    system_prompt: |
+      You are a focused implementer.
+    escalation:
+      escalate_to: opus
+      loc_threshold: 100
+  runner:
+    write_capable: false
+    model: haiku
+    procedure_mode: verbatim
+    system_prompt: |
+      Execute and report.
+phase_mapping:
+  PLAN:       {archetype: architect}
+  IMPLEMENT:  {archetype: implementer, signals: [loc_estimate]}
+  INIT:       {archetype: runner}
+"""
+
+
+def _procedure_mode_raw() -> dict[str, Any]:
+    import yaml
+
+    return yaml.safe_load(textwrap.dedent(_PROCEDURE_MODE_ARCHETYPES))
+
+
+def _setup_procedure_mode_roster(tmp_path: Path, mutate: Any = None) -> dict[str, Any]:
+    """Load the procedure_mode fixture, optionally mutated; return its raw dict."""
+    import yaml
+
+    raw = _procedure_mode_raw()
+    if mutate is not None:
+        mutate(raw)
+    path = tmp_path / "archetypes.yaml"
+    path.write_text(yaml.safe_dump(raw, sort_keys=False))
+    load_archetypes_config(path)
+    return raw
+
+
+def _expected_injected_prompt(archetype_prompt: str, sentence: str) -> str:
+    """Archetype prompt, one blank line, the mode sentence."""
+    return archetype_prompt.rstrip("\n") + "\n\n" + sentence
+
+
+def test_procedure_mode_sentences_are_defined_for_every_non_guided_mode() -> None:
+    from src.agents_config import (
+        DEFAULT_PROCEDURE_MODE,
+        PROCEDURE_MODE_SENTENCES,
+        PROCEDURE_MODES,
+    )
+
+    assert set(PROCEDURE_MODE_SENTENCES) == set(PROCEDURE_MODES) - {DEFAULT_PROCEDURE_MODE}
+    assert all(s and not s.endswith("\n") for s in PROCEDURE_MODE_SENTENCES.values())
+
+
+def test_verbatim_archetype_gets_the_verbatim_sentence(tmp_path: Path) -> None:
+    from src.agents_config import PROCEDURE_MODE_SENTENCES
+
+    raw = _setup_procedure_mode_roster(tmp_path)
+    runner = raw["archetypes"][raw["phase_mapping"]["INIT"]["archetype"]]
+    assert runner["procedure_mode"] == "verbatim", "fixture guard"
+
+    result = resolve_archetype_for_phase("INIT", {})
+
+    sentence = PROCEDURE_MODE_SENTENCES["verbatim"]
+    assert result.procedure_mode == runner["procedure_mode"]
+    assert result.system_prompt.endswith(sentence)
+    assert result.system_prompt == _expected_injected_prompt(
+        runner["system_prompt"], sentence
+    )
+
+
+def test_goal_directed_archetype_names_the_deviation_ledger(tmp_path: Path) -> None:
+    from src.agents_config import PROCEDURE_MODE_SENTENCES
+
+    raw = _setup_procedure_mode_roster(tmp_path)
+    architect = raw["archetypes"][raw["phase_mapping"]["PLAN"]["archetype"]]
+    assert architect["procedure_mode"] == "goal-directed", "fixture guard"
+
+    result = resolve_archetype_for_phase("PLAN", {})
+
+    sentence = PROCEDURE_MODE_SENTENCES["goal-directed"]
+    assert "skill-procedure-deviation" in sentence
+    assert result.procedure_mode == architect["procedure_mode"]
+    assert result.system_prompt.endswith(sentence)
+    assert result.system_prompt == _expected_injected_prompt(
+        architect["system_prompt"], sentence
+    )
+
+
+def test_guided_archetype_prompt_is_unchanged(tmp_path: Path) -> None:
+    from src.agents_config import DEFAULT_PROCEDURE_MODE
+
+    raw = _setup_procedure_mode_roster(tmp_path)
+    implementer = raw["archetypes"][raw["phase_mapping"]["IMPLEMENT"]["archetype"]]
+    assert "procedure_mode" not in implementer, "fixture guard"
+
+    result = resolve_archetype_for_phase("IMPLEMENT", {})
+
+    assert result.procedure_mode == DEFAULT_PROCEDURE_MODE
+    assert result.system_prompt == implementer["system_prompt"]
+
+
+def test_guided_resolution_is_byte_identical_to_pre_change_output(tmp_path: Path) -> None:
+    """Apart from the new field, a guided archetype resolves exactly as it did
+    before procedure_mode existed: same roster at schema_version 3 with no
+    procedure_mode keys must produce the same ResolvedArchetype."""
+    import dataclasses
+
+    def strip_modes(raw: dict[str, Any]) -> None:
+        raw["schema_version"] = 3
+        for archetype in raw["archetypes"].values():
+            archetype.pop("procedure_mode", None)
+
+    _setup_procedure_mode_roster(tmp_path, strip_modes)
+    before = dataclasses.asdict(resolve_archetype_for_phase("IMPLEMENT", {}))
+    reset_archetypes_config()
+
+    _setup_procedure_mode_roster(tmp_path)
+    after = dataclasses.asdict(resolve_archetype_for_phase("IMPLEMENT", {}))
+
+    assert after.pop("procedure_mode") == before.pop("procedure_mode")
+    assert after == before
+
+
+def test_escalation_preserves_the_archetype_mode(tmp_path: Path) -> None:
+    """Mode is a property of the archetype, not of the tier it escalates to."""
+
+    def implementer_verbatim(raw: dict[str, Any]) -> None:
+        raw["archetypes"]["implementer"]["procedure_mode"] = "verbatim"
+
+    raw = _setup_procedure_mode_roster(tmp_path, implementer_verbatim)
+    implementer = raw["archetypes"]["implementer"]
+    escalated_to = implementer["escalation"]["escalate_to"]
+    # The archetype whose base model the escalation lands on declares a
+    # different mode, so a wrong lookup would be caught.
+    other_mode = raw["archetypes"]["architect"]["procedure_mode"]
+    assert raw["archetypes"]["architect"]["model"] == escalated_to
+    assert other_mode != implementer["procedure_mode"], "fixture guard"
+
+    result = resolve_archetype_for_phase("IMPLEMENT", {"loc_estimate": 250})
+
+    assert result.model == escalated_to, "fixture guard: escalation fired"
+    assert any("loc_estimate" in r for r in result.reasons)
+    assert result.procedure_mode == implementer["procedure_mode"]
+    assert result.procedure_mode != other_mode
+
+
+def test_escalation_keeps_guided_when_implementer_declares_nothing(tmp_path: Path) -> None:
+    from src.agents_config import DEFAULT_PROCEDURE_MODE
+
+    raw = _setup_procedure_mode_roster(tmp_path)
+    assert "procedure_mode" not in raw["archetypes"]["implementer"], "fixture guard"
+
+    result = resolve_archetype_for_phase("IMPLEMENT", {"loc_estimate": 250})
+
+    assert result.model == raw["archetypes"]["implementer"]["escalation"]["escalate_to"]
+    assert result.procedure_mode == DEFAULT_PROCEDURE_MODE
+    assert result.system_prompt == raw["archetypes"]["implementer"]["system_prompt"]
+
+
+def _patch_loader_with_procedure_mode_roster(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, mutate: Any = None,
+) -> dict[str, Any]:
+    import yaml
+
+    from src import agents_config
+
+    raw = _procedure_mode_raw()
+    if mutate is not None:
+        mutate(raw)
+    config_path = tmp_path / "archetypes.yaml"
+    config_path.write_text(yaml.safe_dump(raw, sort_keys=False))
+    monkeypatch.setattr(agents_config, "_default_archetypes_path", lambda: config_path)
+    reset_archetypes_config()
+    return raw
+
+
+def test_endpoint_response_carries_procedure_mode(
+    client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.agents_config import DEFAULT_PROCEDURE_MODE, PROCEDURE_MODE_SENTENCES
+
+    raw = _patch_loader_with_procedure_mode_roster(monkeypatch, tmp_path)
+
+    init = client.post(
+        "/archetypes/resolve_for_phase", headers=_auth(), json={"phase": "INIT"},
+    )
+    assert init.status_code == 200, init.text
+    runner = raw["archetypes"]["runner"]
+    body = init.json()
+    assert body["procedure_mode"] == runner["procedure_mode"]
+    assert body["system_prompt"].endswith(PROCEDURE_MODE_SENTENCES[runner["procedure_mode"]])
+
+    implement = client.post(
+        "/archetypes/resolve_for_phase", headers=_auth(), json={"phase": "IMPLEMENT"},
+    )
+    assert implement.status_code == 200, implement.text
+    body = implement.json()
+    assert body["procedure_mode"] == DEFAULT_PROCEDURE_MODE
+    assert body["system_prompt"] == raw["archetypes"]["implementer"]["system_prompt"]
+
+
+def test_endpoint_guided_response_is_byte_identical_apart_from_procedure_mode(
+    client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def strip_modes(raw: dict[str, Any]) -> None:
+        raw["schema_version"] = 3
+        for archetype in raw["archetypes"].values():
+            archetype.pop("procedure_mode", None)
+
+    _patch_loader_with_procedure_mode_roster(monkeypatch, tmp_path, strip_modes)
+    before = client.post(
+        "/archetypes/resolve_for_phase", headers=_auth(), json={"phase": "IMPLEMENT"},
+    ).json()
+
+    _patch_loader_with_procedure_mode_roster(monkeypatch, tmp_path)
+    after = client.post(
+        "/archetypes/resolve_for_phase", headers=_auth(), json={"phase": "IMPLEMENT"},
+    ).json()
+
+    assert after.pop("procedure_mode") == before.pop("procedure_mode")
+    assert after == before

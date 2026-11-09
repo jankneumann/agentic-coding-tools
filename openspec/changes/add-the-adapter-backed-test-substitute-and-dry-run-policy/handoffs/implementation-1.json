@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-18T13:07:02.233296+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Implemented all 3 phases: decide()'s dry_run flag, system_one_decisions.testing (stub_decide/stub_decide_intent), and a double-gated, uncalibrated-named adapter behavioural test. Also found and fixed a real monkeypatch bug in my own first draft of test_testing_stubs.py (from-import binding a name before the patch ran), and found skills/uv.lock had been stale since ri-02 (its CI job never syncs skills/ directly).",
+    "completed_work": [
+      "decide()'s dry_run: bool = False parameter, checked before any unavailability branch",
+      "system_one_decisions/testing.py: stub_decide, stub_decide_intent",
+      "test-adapter extra (system-one-adapter[anthropic]) + double-gated behavioural test",
+      "AST-based guard: every adapter-importing test function named 'uncalibrated'",
+      "Relocked gen-eval, agent-coordinator, and skills (the last one stale since ri-02)"
+    ],
+    "in_progress": [],
+    "decisions": [],
+    "next_steps": [
+      "Create PR",
+      "Continue the roadmap to ri-04 once merged"
+    ],
+    "relevant_files": [
+      {
+        "path": "packages/system-one-decisions/src/system_one_decisions/_core.py",
+        "description": "dry_run flag"
+      },
+      {
+        "path": "packages/system-one-decisions/src/system_one_decisions/testing.py",
+        "description": "stub helpers"
+      },
+      {
+        "path": "packages/system-one-decisions/tests/test_decide_adapter_uncalibrated.py",
+        "description": "double-gated behavioural test"
+      }
+    ]
+  }
+}

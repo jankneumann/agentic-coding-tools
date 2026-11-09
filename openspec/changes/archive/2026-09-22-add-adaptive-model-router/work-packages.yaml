@@ -1,0 +1,470 @@
+schema_version: 1
+# Canonical bounded dg-00 execution DAG. The byte-preserved original is
+# work-packages-full-proposal.yaml and excluded work is indexed in deferred-tasks.md.
+
+feature:
+  id: add-adaptive-model-router
+  title: "dg-00 routing wiring — storage, transports, fallback, discovery"
+  plan_revision: 4
+  created_by: claude-code
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/add-adaptive-model-router/contracts/openapi/v1.yaml"
+    files:
+      - "openspec/changes/add-adaptive-model-router/contracts/openapi/v1.yaml"
+      - "openspec/changes/add-adaptive-model-router/contracts/db/schema.sql"
+      - "openspec/changes/add-adaptive-model-router/contracts/events/routing-signal.schema.json"
+      - "openspec/changes/add-adaptive-model-router/contracts/README.md"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  # ── wp-contracts — reconcile and validate contracts (tasks 1.1–1.3)
+  - package_id: wp-contracts
+    title: "Contracts — OpenAPI, DB, event schemas + generated types"
+    task_type: contracts
+    description: |
+      Tasks 1.1–1.3: reconcile and validate the routing OpenAPI (v1.yaml), DB contract
+      (schema.sql), and signal event schema; generate Pydantic models into
+      contracts/generated/. Coordination boundary for all downstream packages.
+    role: contracts-author
+    priority: 1
+    depends_on: []
+    locks:
+      files: []
+      keys:
+        - "contract:model-routing-openapi"
+        - "contract:model-routing-db"
+        - "contract:model-routing-events"
+      ttl_minutes: 60
+      reason: "Contract definitions for downstream packages"
+    scope:
+      write_allow:
+        - "openspec/changes/add-adaptive-model-router/contracts/**"
+        - "agent-coordinator/tests/model_routing/test_contracts_generated.py"
+      read_allow:
+        - "**"
+    worktree:
+      name: adaptive-router-wp-contracts
+      mode: isolated
+    timeout_minutes: 30
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: C
+      steps:
+        - name: "OpenAPI, SQL, event schema, and generated models are semantically consistent"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/model_routing/test_contracts_generated.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "contract_parity_passed"
+        - name: "Contract parity test passes Ruff"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m ruff check agent-coordinator/tests/model_routing/test_contracts_generated.py openspec/changes/add-adaptive-model-router/contracts/generated/models.py"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "contract_ruff_passed"
+    metadata:
+      loc_estimate: 300
+      complexity: low
+      package_kind: config
+    inputs: {}
+    outputs:
+      result_keys:
+        - "contract_parity_passed"
+        - "contract_ruff_passed"
+
+  # ── wp-db-catalog — migrations, catalog service, refresher, local probes, ledger (tasks 2.1–2.11)
+  - package_id: wp-db-catalog
+    title: "Coordinator catalog storage — migrations, catalog, OpenRouter refresher, ledger"
+    task_type: backend
+    description: |
+      Tasks 2.1–2.11 (flagged L, internally decomposed): additive migrations for the four
+      routing tables; catalog service (no external calls on read path); OpenRouter REST
+      refresher with standing key; local endpoint registration + health probe; spend +
+      counterfactual ledger; watchdog schedule wiring. Design D1, D4, D5, D7, D8.
+    role: backend-implementer
+    archetype: implementer
+    priority: 2
+    depends_on: [wp-contracts]
+    locks:
+      files:
+        - "agent-coordinator/src/watchdog.py"
+      keys:
+        - "db:schema:model_routing"
+      ttl_minutes: 180
+      reason: "Routing storage layer and scheduled jobs"
+    scope:
+      write_allow:
+        - "agent-coordinator/database/migrations/**"
+        - "agent-coordinator/src/model_routing/catalog.py"
+        - "agent-coordinator/src/model_routing/refresher.py"
+        - "agent-coordinator/src/model_routing/local_endpoints.py"
+        - "agent-coordinator/src/model_routing/ledger.py"
+        - "agent-coordinator/src/model_routing/__init__.py"
+        - "agent-coordinator/src/watchdog.py"
+        - "agent-coordinator/tests/model_routing/test_catalog*.py"
+        - "agent-coordinator/tests/model_routing/test_refresher*.py"
+        - "agent-coordinator/tests/model_routing/test_ledger*.py"
+        - "agent-coordinator/tests/model_routing/test_migrations*.py"
+        - "agent-coordinator/tests/model_routing/test_local_endpoints*.py"
+        - "agent-coordinator/tests/test_watchdog.py"
+        - "agent-coordinator/tests/integration/postgres/test_fresh_database_migration.py"
+      read_allow:
+        - "**"
+    worktree:
+      name: adaptive-router-wp-db-catalog
+      mode: isolated
+    timeout_minutes: 240
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Catalog layer unit + integration tests pass"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/model_routing agent-coordinator/tests/test_watchdog.py agent-coordinator/tests/integration/postgres/test_fresh_database_migration.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "catalog_tests_passed"
+        - name: "Catalog and watchdog scope passes Ruff"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m ruff check agent-coordinator/src/model_routing/catalog.py agent-coordinator/src/model_routing/refresher.py agent-coordinator/src/model_routing/local_endpoints.py agent-coordinator/src/model_routing/ledger.py agent-coordinator/src/watchdog.py agent-coordinator/tests/model_routing/test_catalog.py agent-coordinator/tests/model_routing/test_catalog_watchdog.py agent-coordinator/tests/model_routing/test_refresher.py agent-coordinator/tests/model_routing/test_local_endpoints.py agent-coordinator/tests/model_routing/test_ledger.py agent-coordinator/tests/model_routing/test_migrations_catalog.py"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "catalog_ruff_passed"
+        - name: "Catalog and watchdog scope passes mypy"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m mypy --ignore-missing-imports agent-coordinator/src/model_routing/catalog.py agent-coordinator/src/model_routing/refresher.py agent-coordinator/src/model_routing/local_endpoints.py agent-coordinator/src/model_routing/ledger.py agent-coordinator/src/watchdog.py"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "catalog_mypy_passed"
+    metadata:
+      loc_estimate: 1500
+      complexity: high
+      package_kind: data_model
+    inputs: {}
+    outputs:
+      result_keys:
+        - "catalog_tests_passed"
+        - "catalog_ruff_passed"
+        - "catalog_mypy_passed"
+
+  # ── wp-resolver — merged core plus dg-00 API/MCP and delegation
+  - package_id: wp-resolver
+    title: "Selection resolver surface — API, MCP, bounded flag delegation"
+    task_type: backend
+    description: |
+      Reuse the merged resolver core without duplicating scoring/policy logic; add the five
+      HTTP paths, matching MCP selection tool, ROUTING_ADAPTIVE delegation with bounded
+      exact-static fallback, and endpoint_kind/base_url registry validation.
+    role: backend-implementer
+    archetype: implementer
+    priority: 3
+    depends_on: [wp-db-catalog]
+    locks:
+      files:
+        - "agent-coordinator/src/agents_config.py"
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/src/coordination_mcp.py"
+        - "agent-coordinator/src/http_proxy.py"
+      keys:
+        - "api:POST /routing/select_model"
+        - "api:GET /routing/catalog"
+        - "api:GET /routing/decisions/{id}"
+        - "api:GET /routing/usage"
+        - "api:POST /routing/feedback"
+        - "feature:add-adaptive-model-router:mcp"
+      ttl_minutes: 180
+      reason: "Resolver, routing API surface, archetype delegation"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/model_routing/resolver.py"
+        - "agent-coordinator/src/model_routing/exploration.py"
+        - "agent-coordinator/src/model_routing/api.py"
+        - "agent-coordinator/src/agents_config.py"
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/agents.yaml"
+        - "agent-coordinator/archetypes.yaml"
+        - "agent-coordinator/policies/**"
+        - "agent-coordinator/tests/model_routing/test_resolver*.py"
+        - "agent-coordinator/tests/model_routing/test_exploration*.py"
+        - "agent-coordinator/tests/model_routing/test_api*.py"
+        - "agent-coordinator/tests/model_routing/test_delegation*.py"
+        - "agent-coordinator/tests/model_routing/test_constraints*.py"
+        - "agent-coordinator/src/coordination_mcp.py"
+        - "agent-coordinator/src/http_proxy.py"
+        - "agent-coordinator/tests/test_coordination_api.py"
+        - "agent-coordinator/tests/test_http_proxy.py"
+      read_allow:
+        - "**"
+    worktree:
+      name: adaptive-router-wp-resolver
+      mode: isolated
+    timeout_minutes: 240
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Resolver, constraint, exploration, API tests pass"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/model_routing -q -k 'resolver or exploration or api or delegation or constraints'"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "resolver_tests_passed"
+        - name: "Resolver, API, MCP, and config scope passes Ruff"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m ruff check agent-coordinator/src/model_routing/resolver.py agent-coordinator/src/model_routing/exploration.py agent-coordinator/src/model_routing/api.py agent-coordinator/src/agents_config.py agent-coordinator/src/coordination_api.py agent-coordinator/src/coordination_mcp.py agent-coordinator/src/http_proxy.py agent-coordinator/tests/model_routing/test_resolver.py agent-coordinator/tests/model_routing/test_api.py agent-coordinator/tests/model_routing/test_delegation.py agent-coordinator/tests/model_routing/test_agent_endpoints.py agent-coordinator/tests/model_routing/test_service.py agent-coordinator/tests/test_coordination_api.py agent-coordinator/tests/test_http_proxy.py"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "resolver_ruff_passed"
+        - name: "Resolver, API, MCP, and config scope passes mypy"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m mypy --ignore-missing-imports agent-coordinator/src/model_routing/resolver.py agent-coordinator/src/model_routing/exploration.py agent-coordinator/src/model_routing/api.py agent-coordinator/src/agents_config.py agent-coordinator/src/coordination_api.py agent-coordinator/src/coordination_mcp.py agent-coordinator/src/http_proxy.py"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "resolver_mypy_passed"
+    metadata:
+      loc_estimate: 1200
+      complexity: high
+      package_kind: algorithm
+    inputs: {}
+    outputs:
+      result_keys:
+        - "resolver_tests_passed"
+        - "resolver_ruff_passed"
+        - "resolver_mypy_passed"
+
+  # ── wp-dispatch — OpenAI-compatible adapter discovery
+  - package_id: wp-dispatch
+    title: "Dispatch discovery for OpenAI-compatible endpoints"
+    task_type: backend
+    description: |
+      Reuse the merged OpenAICompatAdapter; make local and
+      OpenRouter endpoint entries reachable after CLI and SDK discovery while preserving
+      CLI precedence. Skills tree only — parallel-safe with coordinator packages.
+    role: backend-implementer
+    archetype: implementer
+    priority: 3
+    depends_on: [wp-contracts]
+    locks:
+      files:
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+      keys:
+        - "feature:add-adaptive-model-router:dispatch"
+      ttl_minutes: 120
+      reason: "OpenAI-compatible dispatcher discovery"
+    scope:
+      write_allow:
+        - "skills/parallel-infrastructure/scripts/**"
+        - "skills/tests/parallel-infrastructure/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: adaptive-router-wp-dispatch
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Dispatcher discovery tests pass"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/parallel-infrastructure/scripts/tests skills/tests/parallel-infrastructure -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "dispatch_tests_passed"
+        - name: "Adapter and policy scope passes Ruff"
+          kind: command
+          command: "skills/.venv/bin/python -m ruff check skills/parallel-infrastructure/scripts/review_dispatcher.py skills/parallel-infrastructure/scripts/tests skills/tests/parallel-infrastructure"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "dispatch_ruff_passed"
+    metadata:
+      loc_estimate: 700
+      complexity: medium
+      package_kind: integration
+    inputs: {}
+    outputs:
+      result_keys:
+        - "dispatch_tests_passed"
+        - "dispatch_ruff_passed"
+
+  # ── wp-integration — combined tests, reviews, and validation (tasks 8.1–8.2)
+  - package_id: wp-integration
+    title: "Integration — affected suites, vendor reviews, strict validation"
+    task_type: integration
+    description: |
+      Tasks 8.1–8.2: integrate bounded packages, run affected coordinator and skills suites,
+      complete multi-vendor plan and implementation convergence, strict OpenSpec validation,
+      and architecture checks. The broader integration tail remains deferred.
+    role: integrator
+    archetype: integrator
+    priority: 9
+    depends_on: [wp-db-catalog, wp-resolver, wp-dispatch]
+    locks:
+      files: []
+      keys:
+        - "feature:add-adaptive-model-router:integration"
+      ttl_minutes: 120
+      reason: "Final dg-00 integration and validation"
+    scope:
+      write_allow:
+        - "**"
+      read_allow:
+        - "**"
+    worktree:
+      name: adaptive-router-wp-integration
+      mode: isolated
+    timeout_minutes: 180
+    retry_budget: 2
+    min_trust_level: 3
+    verification:
+      tier_required: A
+      steps:
+        - name: "Coordinator suite passes"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests -q -m 'not e2e and not integration'"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "coordinator_suite_passed"
+        - name: "Skills suite passes"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/parallel-infrastructure/scripts/tests skills/tests/parallel-infrastructure -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "skills_suite_passed"
+        - name: "Work-package DAG and parallel scopes validate"
+          kind: command
+          command: "skills/.venv/bin/python skills/validate-packages/scripts/validate_work_packages.py openspec/changes/add-adaptive-model-router/work-packages.yaml --check-overlap"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "package_dag_valid"
+        - name: "Canonical dg-00 OpenSpec validates strictly"
+          kind: command
+          command: "openspec validate add-adaptive-model-router --strict"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "openspec_strict_passed"
+        - name: "Architecture graph is current"
+          kind: command
+          command: "skills/.venv/bin/python skills/refresh-architecture/scripts/run_architecture.py --ensure --python agent-coordinator/.venv/bin/python --python-src-dir agent-coordinator/src --ts-src-dir apps --migrations-dir agent-coordinator/database/migrations"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts:
+              - "docs/architecture-analysis/architecture.graph.json"
+            result_keys:
+              - "architecture_check_passed"
+        - name: "Changed dg-00 runtime flows validate against the architecture graph"
+          kind: command
+          command: "skills/.venv/bin/python skills/validate-flows/scripts/validate_flows.py --graph docs/architecture-analysis/architecture.graph.json --diff main...HEAD"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts:
+              - "docs/architecture-analysis/architecture.diagnostics.scoped.json"
+            result_keys:
+              - "architecture_flows_passed"
+        - name: "Previously produced plan consensus report is schema-valid"
+          kind: command
+          command: "skills/.venv/bin/python -c 'import json, jsonschema; jsonschema.validate(json.load(open(\"openspec/changes/add-adaptive-model-router/reviews/consensus-plan.json\")), json.load(open(\"openspec/schemas/consensus-report.schema.json\")))'"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts:
+              - "openspec/changes/add-adaptive-model-router/reviews/consensus-plan.json"
+            result_keys:
+              - "plan_consensus_schema_valid"
+        - name: "Previously produced implementation consensus report is schema-valid"
+          kind: command
+          command: "skills/.venv/bin/python -c 'import json, jsonschema; jsonschema.validate(json.load(open(\"openspec/changes/add-adaptive-model-router/reviews/consensus-impl.json\")), json.load(open(\"openspec/schemas/consensus-report.schema.json\")))'"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts:
+              - "openspec/changes/add-adaptive-model-router/reviews/consensus-impl.json"
+            result_keys:
+              - "implementation_consensus_schema_valid"
+        - name: "Previously produced reviews have multi-vendor quorum and zero blockers"
+          kind: command
+          command: "skills/.venv/bin/python -c 'import json; paths=[\"openspec/changes/add-adaptive-model-router/reviews/consensus-plan.json\",\"openspec/changes/add-adaptive-model-router/reviews/consensus-impl.json\"]; docs=[json.load(open(path)) for path in paths]; assert all(doc[\"quorum_met\"] and len({row[\"vendor\"] for row in doc[\"reviewers\"] if row[\"success\"]}) >= 2 and doc[\"summary\"][\"blocking_count\"] == 0 for doc in docs)'"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts:
+              - "openspec/changes/add-adaptive-model-router/reviews/consensus-plan.json"
+              - "openspec/changes/add-adaptive-model-router/reviews/consensus-impl.json"
+            result_keys:
+              - "plan_review_converged"
+              - "implementation_review_converged"
+    metadata:
+      loc_estimate: 300
+      complexity: medium
+      package_kind: integration
+    inputs: {}
+    outputs:
+      result_keys:
+        - "coordinator_suite_passed"
+        - "skills_suite_passed"
+        - "package_dag_valid"
+        - "openspec_strict_passed"
+        - "architecture_check_passed"
+        - "architecture_flows_passed"
+        - "plan_consensus_schema_valid"
+        - "implementation_consensus_schema_valid"
+        - "plan_review_converged"
+        - "implementation_review_converged"

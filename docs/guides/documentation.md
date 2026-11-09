@@ -3,6 +3,7 @@
 ## Foundational
 
 Read these before contributing infrastructure changes:
+- [Multiplayer Collaboration](multiplayer-collaboration.md) — Principles P1-P10, solo vs team mode, and the single-principal assumptions later capabilities cite.
 - [Durable State Artifacts](state-artifacts.md) — Canonical holders, writers, authority boundaries, failure behavior, and fresh-session rehydration order.
 - [Parallel Agentic Development](../parallel-agentic-development.md) — Worktree isolation, scope discipline, parallel DAG execution (the canonical multi-agent safety reference)
 - [Mental Models](../mental-models.md) — Conceptual framework: orchestrators/workers/validators, scope isolation, structured handoffs
@@ -11,6 +12,7 @@ Read these before contributing infrastructure changes:
 
 ## Discovery & Reference
 
+- [Using Supervise](supervise.md) — Operator guide for intake, cycle digests, roadmap approval, and execution.
 - [Skills Catalogue](../skills-catalogue.md) — Discoverable index of every skill grouped by purpose; trigger + related + user_invocable per skill
 - [Agent Coordinator](../agent-coordinator.md) — Architecture overview, capabilities, design pointers
 - [Architecture Artifacts](../architecture-artifacts.md) — Auto-generated codebase analysis, key files, refresh commands
@@ -23,6 +25,7 @@ Read these before contributing infrastructure changes:
 - [Cloud Session Hooks](../cloud-session-hooks.md) — Lifecycle hooks for hosted harness sessions
 - [Cloud vs Local Execution](../cloud-vs-local-execution.md) — Environment detection and worktree short-circuit behavior
 - [Cloudflare Setup](../cloudflare-setup.md) — Cloudflare integration for hosted endpoints
+- [Self-Hosted CI Runners](self-hosted-ci-runners.md) — Operator runbook O1-O12 for routing CI to ephemeral GX10 runners, with rollback and fork-PR isolation
 - [Local Migration](../local-migration.md) — Runbook for moving the coordinator from Railway to a local box behind a Cloudflare Tunnel
 - [OpenBao Secret Management](../openbao-secret-management.md) — Setup options, seeding, API key resolution for SDK dispatch
 
@@ -32,6 +35,7 @@ Read these before contributing infrastructure changes:
 - [Parallel Git Config](../parallel-git-config.md) — Multi-agent git configuration
 - [Script/Skill Dependencies](../script-skill-dependencies.md) — Cross-skill Python import contract
 - [Coordination Detection Template](../coordination-detection-template.md) — Detecting coordinator availability
+- [Vendor Dispatch Capabilities](vendor-dispatch-capabilities.md) — Structured result guarantees, async ledger lifecycle, and per-lane CLI/SDK limits
 
 ## Subdirectories
 

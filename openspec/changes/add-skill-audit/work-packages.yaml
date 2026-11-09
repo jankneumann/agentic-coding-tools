@@ -1,0 +1,293 @@
+schema_version: 1
+
+feature:
+  id: add-skill-audit
+  title: "Skill audit — layer classification, tier-joined evidence, and procedure_mode on archetypes"
+  plan_revision: 1
+  created_by: claude-code
+
+contracts:
+  revision: 1
+  openapi:
+    # No new OpenAPI surface: one optional field is added to an existing endpoint
+    # documented in the agent-archetypes spec. README is the contracts entrypoint.
+    primary: "openspec/changes/add-skill-audit/contracts/README.md"
+    files:
+      - "openspec/changes/add-skill-audit/contracts/README.md"
+      - "openspec/changes/add-skill-audit/contracts/schemas/skill-audit-findings.schema.json"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 90
+  timeout_minutes: 60
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  # ── wp-procedure-mode — coordinator-side schema field and injection (tasks 1.1–1.6)
+  - package_id: wp-procedure-mode
+    title: "procedure_mode on archetypes: schema v4, parsing, injection, bridge passthrough"
+    task_type: backend
+    description: |
+      Tasks 1.1–1.6: tests first in agent-coordinator/tests, then the optional
+      procedure_mode field in archetypes.schema.json, archetypes.yaml at schema_version 4
+      with runner=verbatim and architect=goal-directed, ArchetypeConfig/ResolvedArchetype
+      fields, the two sentence constants and the append in resolve_archetype_for_phase,
+      the endpoint response field, and the bridge docstring. Design D3. Specs:
+      agent-archetypes "Archetype Definition Schema" (MODIFIED), "Procedure Mode Prompt
+      Injection" (ADDED).
+    role: backend-implementer
+    archetype: implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "agent-coordinator/archetypes.yaml"
+        - "agent-coordinator/src/agents_config.py"
+        - "skills/autopilot/install_assets/openspec/schemas/archetypes.schema.json"
+      keys:
+        - "feature:add-skill-audit:archetypes"
+      ttl_minutes: 90
+      reason: "Add procedure_mode to the archetype roster and its resolution path"
+    scope:
+      write_allow:
+        - "agent-coordinator/archetypes.yaml"
+        - "agent-coordinator/src/agents_config.py"
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/tests/test_archetypes_yaml.py"
+        - "agent-coordinator/tests/test_agents_config.py"
+        - "agent-coordinator/tests/test_phase_archetype_resolution.py"
+        - "agent-coordinator/tests/test_report_status_phase_archetype.py"
+        - "skills/autopilot/install_assets/openspec/schemas/archetypes.schema.json"
+        - "skills/coordination-bridge/scripts/coordination_bridge.py"
+        - "skills/tests/coordination-bridge/test_archetype_resolve.py"
+      read_allow:
+        - "**"
+      deny:
+        - "skills/skill-audit/**"
+        - "skills/tests/skill-audit/**"
+        - "skills/install-manifest.json"
+        - "skills/pyproject.toml"
+    worktree:
+      name: skill-audit-wp-procedure-mode
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Coordinator archetype tests green"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_archetypes_yaml.py agent-coordinator/tests/test_agents_config.py agent-coordinator/tests/test_phase_archetype_resolution.py agent-coordinator/tests/test_teams.py agent-coordinator/tests/test_report_status_phase_archetype.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "coordinator_archetype_tests_green"
+        - name: "Bridge and autopilot archetype tests green"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/coordination-bridge skills/tests/autopilot/test_phase_archetype_e2e.py skills/tests/vendor-neutral-autopilot -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "bridge_tests_green"
+        - name: "Guided archetypes resolve byte-identically to before"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_phase_archetype_resolution.py -q -k guided"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "guided_unchanged"
+    metadata:
+      loc_estimate: 220
+      complexity: medium
+      package_kind: config
+    inputs: {}
+    outputs:
+      result_keys:
+        - "coordinator_archetype_tests_green"
+        - "bridge_tests_green"
+        - "guided_unchanged"
+
+  # ── wp-skill-audit — the new skill, its scripts, schema, references, tests (tasks 2.1–2.12)
+  - package_id: wp-skill-audit
+    title: "skill-audit skill: classifier, dispatch profile, evidence join, report, CLI, tests"
+    task_type: backend
+    description: |
+      Tasks 2.1–2.12: findings schema and guard, deterministic-first classifier with a
+      single batched analyst call, roster-driven dispatch profile, memory-to-tier
+      evidence join reusing improve-harness helpers, report with freshness stamp,
+      conventions, --propose via the improve-harness projection helper, the CLI, the
+      SKILL.md and references, and every test with LLM-free fixtures. Design D1, D2,
+      D4–D10. Specs: skill-workflow (all ADDED), harness-engineering (ADDED).
+    role: backend-implementer
+    archetype: implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files: []
+      keys:
+        - "feature:add-skill-audit:skill"
+      ttl_minutes: 90
+      reason: "New skill directory and its tests"
+    scope:
+      write_allow:
+        - "skills/skill-audit/**"
+        - "skills/tests/skill-audit/**"
+      read_allow:
+        - "**"
+      deny:
+        - "agent-coordinator/**"
+        - "skills/coordination-bridge/**"
+        - "skills/improve-harness/**"
+        - "skills/install-manifest.json"
+        - "skills/pyproject.toml"
+    worktree:
+      name: skill-audit-wp-skill-audit
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "skill-audit tests green"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/skill-audit -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "skill_audit_tests_green"
+        - name: "Ledger is deterministic with the stub backend"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/skill-audit/test_classifier.py -q -k byte_identical"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "ledger_deterministic"
+        - name: "Audit completes with coordinator unreachable"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/skill-audit/test_evidence_join.py -q -k coordinator_down"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "degrades_without_coordinator"
+    metadata:
+      loc_estimate: 1100
+      complexity: medium
+      package_kind: algorithm
+    inputs: {}
+    outputs:
+      result_keys:
+        - "skill_audit_tests_green"
+        - "ledger_deterministic"
+        - "degrades_without_coordinator"
+
+  # ── wp-integration — manifest, testpaths, CI job, docs, mirrors, first audits (tasks 3.1–3.5)
+  - package_id: wp-integration
+    title: "Integration — manifest, testpaths, freshness CI job, docs, mirrors, first audit reports"
+    task_type: integration
+    description: |
+      Tasks 3.1–3.5: merge both package branches; register the skill in
+      install-manifest.json and pyproject testpaths; add the non-blocking
+      skill-audit-freshness CI job; docs/guides/skills.md paragraph and the reports
+      directory README; regenerate mirrors with install.sh; run the full skills and
+      coordinator suites plus openspec validate --strict; run the first six audits with
+      --propose and commit their reports; append the session log.
+    role: integrator
+    archetype: integrator
+    priority: 2
+    depends_on:
+      - wp-procedure-mode
+      - wp-skill-audit
+    locks:
+      files:
+        - "skills/install-manifest.json"
+        - "skills/pyproject.toml"
+        - ".github/workflows/ci.yml"
+      keys:
+        - "feature:add-skill-audit:distribution"
+        - "feature:add-skill-audit:mirrors"
+      ttl_minutes: 60
+      reason: "Distribution wiring, CI job, and mirror regeneration after both packages land"
+    scope:
+      write_allow:
+        - "skills/install-manifest.json"
+        - "skills/pyproject.toml"
+        - ".github/workflows/ci.yml"
+        - "docs/guides/skills.md"
+        - "docs/reports/skill-audit/**"
+        - ".claude/skills/**"
+        - ".agents/skills/**"
+        - "openspec/changes/add-skill-audit/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: skill-audit-wp-integration
+      mode: shared
+    timeout_minutes: 45
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Install manifest and mirrors consistent"
+          kind: command
+          command: "bash skills/install.sh --check"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "manifest_valid"
+        - name: "Every test directory is reached by CI"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/ci_coverage -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "ci_coverage_green"
+        - name: "Full skills suite green"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "skills_suite_green"
+        - name: "OpenSpec strict validation"
+          kind: command
+          command: "openspec validate add-skill-audit --strict"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "openspec_valid"
+    metadata:
+      loc_estimate: 120
+      complexity: low
+      package_kind: config
+    inputs: {}
+    outputs:
+      result_keys:
+        - "manifest_valid"
+        - "ci_coverage_green"
+        - "skills_suite_green"
+        - "openspec_valid"

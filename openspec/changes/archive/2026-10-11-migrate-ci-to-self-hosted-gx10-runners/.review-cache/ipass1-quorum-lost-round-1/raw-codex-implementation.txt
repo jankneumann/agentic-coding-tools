@@ -1,0 +1,67 @@
+{
+  "findings": [
+    {
+      "id": "R1-001",
+      "type": "security",
+      "criticality": "high",
+      "description": "deploy/gx10-runner/Containerfile does not reliably remove the upstream runner user's passwordless-sudo grant. `sed -i '/NOPASSWD/d' /etc/sudoers` ignores grants in included files such as `/etc/sudoers.d/*`, which is the usual location for image-specific grants. The accompanying test only proves that this Containerfile does not add a grant; it cannot detect an inherited grant. Remove the runner-specific sudoers entries and privileged-group membership explicitly, and test the resulting image or the known upstream paths.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "critical"
+    },
+    {
+      "id": "R1-002",
+      "type": "correctness",
+      "criticality": "high",
+      "description": "scripts/ci/ci_wallclock.py classifies every assigned job without the `gx10` label as GitHub-hosted. Consequently, a job running on another self-hosted runner with labels such as `[self-hosted, linux, ARM64, other]` passes both hosted-job and rollback verification. Successful routed jobs with absent labels also bypass placement checks because `actual is None` is accepted. Distinguish GitHub-hosted, self-hosted, and unknown placement using the `self-hosted` label or runner metadata, and treat unexpected/unknown placement as a violation.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical"
+    },
+    {
+      "id": "R1-003",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "`correlate()` accepts the `<display name> (` prefix for every workflow job, even when that job has no `strategy.matrix`. Thus an API entry named `build (unexpected)` can satisfy a missing non-matrix `build` job and avoid the required unknown-job violation. Restrict prefix correlation to definitions that actually declare a matrix and add a negative test for a suffixed non-matrix job.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical"
+    },
+    {
+      "id": "R1-004",
+      "type": "behavioral_failure",
+      "criticality": "high",
+      "description": "docs/guides/self-hosted-ci-runners.md says all commands executed as the nologin `ghrunner` account must set `XDG_RUNTIME_DIR`, but several operative commands do not: the O3 Podman build/image inspection, O4 Podman probes and cache operations, and O9 Podman checks. `sudo -u ghrunner` commonly preserves an unset or wrong-owner runtime directory, causing rootless Podman to fail. O9 also invokes `journalctl --user` as the current operator, so it queries the wrong user manager. Apply the documented wrapper consistently, or use the `ghrunner@` machine/user-manager form, and mirror the corrections in tasks.md.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "critical"
+    },
+    {
+      "id": "R1-005",
+      "type": "resilience",
+      "criticality": "medium",
+      "description": "mint-jitconfig.sh deletes matching runners while paging through the mutable runners collection. Deleting entries from page 1 shifts later entries toward earlier pages, so requesting page 2 afterward can skip the first runner that was formerly on page 2. This violates the contract to search every page and can leave stale registrations indefinitely. Snapshot all bounded pages before deleting, or repeatedly rescan from a stable page, and use a stateful pagination test that models deletion-induced shifts.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "critical"
+    },
+    {
+      "id": "R1-006",
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "When lane-aware comparison is requested, `compare()` unconditionally keeps a run that lacks a `jobs` key instead of excluding it as unclassifiable. Such a run can contribute its duration to either sample despite there being no evidence that any routed job was assigned to that lane, contrary to D8 and the specification. Treat missing job data the same as no assigned routed runner and add coverage for a run with no `jobs` key.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit"
+    },
+    {
+      "id": "R1-007",
+      "type": "observability",
+      "criticality": "low",
+      "description": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/tasks.md marks integration task 6.1 complete even though its dependency 2.9 remains unchecked, while the top-level Testing status is also unchecked. The task ledger therefore reports an impossible completion state and cannot be relied on to show which validation actually ran.",
+      "disposition": "fix",
+      "axis": "observability",
+      "severity": "nit"
+    }
+  ]
+}

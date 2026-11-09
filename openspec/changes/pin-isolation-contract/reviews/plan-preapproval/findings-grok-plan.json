@@ -1,0 +1,141 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "critical",
+      "description": "Critical: Per-mode agents.yaml isolation overrides cannot take effect on the reachable-router path under the planned precedence. Spec and plan say router wins when reachable, then get_agent_isolation(), then none; the plan only teaches get_agent_isolation(agent_type, dispatch_mode?) to honor cli.dispatch_modes.<mode>.isolation. Current producers always emit entry-level isolation: resolver.py builds RoutingAssignment with lane.get(\"isolation\") or \"none\", and routing_fallback.py does the same with entry.get(\"isolation\"). After dg-05 as scoped, a review/alternative override is ignored whenever a routing decision exists, so the acceptance outcome that an (agent_type, dispatch_mode) pair resolves with per-mode overrides fails on the primary path.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Require emission sites owned by dg-05 (coordinator lane assignment and skills local-static fallback) to attach isolation via the same (agent_type, dispatch_mode) resolution helper before the decision is treated as the router rung. Keep dg-06 limited to carrying/obeying that decision; do not leave mode-aware emission only on the fallback get_agent_isolation rung.",
+      "file_path": "agent-coordinator/src/model_routing/resolver.py",
+      "line_range": {
+        "start": 224,
+        "end": 235
+      },
+      "evidence_class": "judgment",
+      "existing_code": "isolation=str(lane.get(\"isolation\") or \"none\"),\n                dispatch_mode=dispatch_mode,"
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "critical",
+      "description": "Critical: The plan consolidates vocabulary into one isolation_contract module imported by agents_config and model_routing, but leaves the live third copy in skills/coordination-bridge/scripts/routing_fallback.py (_ISOLATION_VALUES = frozenset({\"none\", \"worktree\", \"sandbox\"})). That module intentionally re-validates routing.yaml without importing agent-coordinator. Unless the shared module is dependency-neutral and skills-importable, and routing_fallback switches to it, the ADDED requirement that the vocabulary is defined once and referenced by producer and consumer is already false on the coordinator-unreachable path dg-05 claims to pin.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical",
+      "resolution": "Place isolation_contract where both agent-coordinator and skills can import it without a coordinator dependency (skills/shared or an equivalent tiny shared package). Make routing_fallback.py import VALID_ISOLATION_MODES/validation from that module; treat updating this copy as in-scope for dg-05, not dg-06.",
+      "file_path": "skills/coordination-bridge/scripts/routing_fallback.py",
+      "line_range": {
+        "start": 36,
+        "end": 38
+      },
+      "evidence_class": "judgment",
+      "existing_code": "_LOCATION_VALUES = frozenset({\"local\", \"cloud\", \"unknown\"})\n_ISOLATION_VALUES = frozenset({\"none\", \"worktree\", \"sandbox\"})\n_DISPATCH_MODE_VALUES = frozenset({\"review\", \"alternative\", \"quick\", \"sdk\"})"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: Proposed unreachable/silent wording (\u201cuse fallback config then none\u201d) collides with dg-04\u2019s already-shipped meaning of fallback. routing.yaml fallback.isolation_order is only a deterministic lane tie-break among configured values while the coordinator is unreachable (implement-the-task-router design D8/D9); it is explicitly not isolation-strength precedence. The dg-05 ladder in specs/vendor-dispatch/spec.md is router \u2192 agents.yaml via get_agent_isolation() \u2192 none. Implementing \u201cfallback config\u201d as isolation_order would either invent a fourth rung or reinterpret dg-04 fallback as enforcement policy.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Name the ladder rungs exactly: routing decision when present; else get_agent_isolation(agent_type, dispatch_mode); else none. State that routing.yaml fallback.isolation_order remains a dg-04 local-static sort key only and is out of band for effective-isolation resolution.",
+      "file_path": "openspec/changes/implement-the-task-router-vendor-x-location-x-model/design.md",
+      "line_range": {
+        "start": 181,
+        "end": 198
+      },
+      "evidence_class": "judgment",
+      "existing_code": "The fallback table's order is only a deterministic choice among the lane's exact\nconfigured values while the coordinator is unreachable. It is not an isolation-strength\nprecedence or enforcement policy."
+    },
+    {
+      "id": 4,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: \u201cRouter reachable but silent\u201d is unspecified against post-dg-04 behavior. PolicyEvaluation.isolation may be None when no rule constrains isolation, but both coordinator and local-static assignment paths still always populate assignment.isolation from the lane (defaulting with or \"none\"). Without defining silence as \u201cno routing decision / missing isolation field on the decision object\u201d versus \u201cpolicy did not constrain isolation,\u201d implementers can treat ordinary lane-filled decisions as silent and incorrectly fall through to agents.yaml, or never hit the agents.yaml rung at all.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Add scenarios that distinguish (1) decision present with isolation set, (2) decision absent/unreachable, (3) decision present but isolation field missing/null, and (4) invalid isolation value. Reject (4); do not treat policy-dimension None alone as router silence after an assignment has been built.",
+      "file_path": "openspec/changes/pin-isolation-contract/specs/vendor-dispatch/spec.md",
+      "line_range": {
+        "start": 35,
+        "end": 45
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "compatibility",
+      "criticality": "high",
+      "description": "Critical: Enabling cli.dispatch_modes.<mode>.isolation requires more than ModeConfig.args growth. AGENTS_SCHEMA currently sets additionalProperties: false on each dispatch mode object and lists only args/async/poll, so a per-mode isolation key fails agents.yaml validation today. The configured-lane dump path also serializes only args/async/poll and would drop a parsed mode isolation on round-trip. Plan/tasks do not call out these schema and serialization updates, so the feature is incompatible with the current loader/exporter even if the dataclass changes.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "critical",
+      "resolution": "Explicitly update AGENTS_SCHEMA mode properties to allow isolation enum values; parse into ModeConfig; emit isolation in the agents dump when set; add load-reject tests for unknown mode isolation values and round-trip tests for a per-mode override.",
+      "file_path": "agent-coordinator/src/agents_config.py",
+      "line_range": {
+        "start": 449,
+        "end": 480
+      },
+      "evidence_class": "judgment",
+      "existing_code": "\"additionalProperties\": {\n                                    \"type\": \"object\",\n                                    \"required\": [\"args\"],\n                                    \"properties\": {\n                                        \"args\": {"
+    },
+    {
+      "id": 6,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: Concrete contract tests are missing from the plan artifacts. tasks.md is still a generic scaffold, and neither proposal nor spec lists deterministic coverage for: shared-module single-definition imports from agent-coordinator and skills; precedence source recording (router vs agents.yaml vs none); unrecognized value rejection vs unreachable fallback; ModeConfig.isolation parse/default; get_agent_isolation(agent_type, dispatch_mode) override vs entry-level fallback; and local-static using mode-aware isolation. Without those pins, dg-05 can merge as a type alias shuffle while the ladder and per-mode behavior remain unproven.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Replace scaffold tasks with test-first packages covering the cases above, including skills/tests/coordination-bridge coverage so the unreachable path cannot keep a private vocabulary or ignore per-mode overrides.",
+      "file_path": "openspec/changes/pin-isolation-contract/tasks.md",
+      "line_range": {
+        "start": 13,
+        "end": 19
+      },
+      "evidence_class": "judgment",
+      "existing_code": "- [ ] Define detailed requirements\n- [ ] Implement core functionality\n- [ ] Write tests\n- [ ] Update documentation\n- [ ] Review and merge"
+    },
+    {
+      "id": 7,
+      "type": "architecture",
+      "criticality": "high",
+      "description": "Critical: Scope that \u201cexcludes dg-06 consumer dispatch wiring\u201d is being used too broadly if it also skips emission/validation sites that dg-04 already made responsible for isolation data. dg-04 design D9 assigns per-mode overrides and the precedence ladder to dg-05, while dg-06 only owns calling routing before dispatch_fn. Leaving resolver/local-static entry-level emission and the skills vocabulary copy untouched means dg-05 cannot satisfy its own producer/consumer and (agent_type, dispatch_mode) acceptance outcomes, and pushes contract work into the wrong later item.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical",
+      "resolution": "Keep dg-06/dg-07 exclusions limited to orchestrator dispatch context wiring and OS sandbox enforcement. In dg-05 scope: shared contract module, schema/types, mode-aware helpers, producer emission aligned to (agent_type, dispatch_mode), and skills local-static vocabulary/resolution alignment.",
+      "file_path": "openspec/changes/pin-isolation-contract/proposal.md",
+      "line_range": {
+        "start": 16,
+        "end": 20
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 8,
+      "type": "compatibility",
+      "criticality": "medium",
+      "description": "FYI: Sibling change add-sandboxed-harness-execution / docs/proposals/sandboxed-harness-execution.md explicitly asks dg-05 to admit container into the pinned isolation vocabulary while the contract is open, and its draft schemas already enum none|worktree|sandbox|container. The proposed dg-05 plan freezes {none, worktree, sandbox}. Landing dg-05 without a recorded decision forces a later vocabulary reopen or leaves the sibling proposal inconsistent with the pinned contract.",
+      "disposition": "escalate",
+      "axis": "compatibility",
+      "severity": "fyi",
+      "resolution": "Human decision before implementation: either keep the three-value vocabulary and require the sandbox-harness proposal to stop depending on dg-05 for container, or amend pin-isolation-contract now to admit container as a closed value with no backend obligation in dg-05.",
+      "file_path": "docs/proposals/sandboxed-harness-execution.md",
+      "line_range": {
+        "start": 67,
+        "end": 79
+      },
+      "evidence_class": "judgment",
+      "existing_code": "| `isolation` | `none` \\| `worktree` \\| `sandbox` \\| `container` | Strength of the boundary around the process |\n\n`container` is admitted to `VALID_ISOLATION_MODES` now, while the vocabulary is being\npinned, even though its local backend (OpenShell) is deferred \u2014 re-opening a pinned\ncontract later is the expensive path."
+    }
+  ]
+}

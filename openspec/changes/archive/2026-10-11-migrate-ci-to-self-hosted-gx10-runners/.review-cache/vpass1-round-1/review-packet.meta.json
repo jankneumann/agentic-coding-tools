@@ -1,0 +1,1237 @@
+{
+  "schema_version": 2,
+  "change_id": "migrate-ci-to-self-hosted-gx10-runners",
+  "round": 1,
+  "body_path": "review-packet.md",
+  "sha256": "f6301546d233f78dab36283ce806b744b1bfda4b0093f6676f6be2907ed62bc0",
+  "char_length": 314123,
+  "budget_chars": 320000,
+  "tools_overflow": true,
+  "includes_ledger": true,
+  "diff_kind": "full",
+  "selection": {
+    "per_file_token_ceiling": 64000,
+    "selected": [
+      {
+        "path": ".github/runner-lanes.schema.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 671
+      },
+      {
+        "path": ".github/runner-lanes.yaml",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 736
+      },
+      {
+        "path": ".github/workflows/ci.yml",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 9225
+      },
+      {
+        "path": ".github/workflows/security.yml",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1291
+      },
+      {
+        "path": "deploy/gx10-runner/Containerfile",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 649
+      },
+      {
+        "path": "deploy/gx10-runner/cleanup-runner.sh",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 627
+      },
+      {
+        "path": "deploy/gx10-runner/gx10-runner.env.example",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 390
+      },
+      {
+        "path": "deploy/gx10-runner/install-units.sh",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 664
+      },
+      {
+        "path": "deploy/gx10-runner/job-started-hook.sh",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 537
+      },
+      {
+        "path": "deploy/gx10-runner/mint-jitconfig.sh",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 2462
+      },
+      {
+        "path": "deploy/gx10-runner/systemd/gx10-runner@.service",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 708
+      },
+      {
+        "path": "deploy/gx10-runner/toolchain.txt",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 71
+      },
+      {
+        "path": "docs/guides/documentation.md",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 246
+      },
+      {
+        "path": "docs/guides/self-hosted-ci-runners.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 4496
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/contracts/README.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 341
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/contracts/schemas/runner-lanes.schema.json",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 720
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/design.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 9325
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/specs/ci-runner-infrastructure/spec.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 6108
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/tasks.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 8308
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/validation-report.md",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1023
+      },
+      {
+        "path": "scripts/ci/ci_wallclock.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 5303
+      },
+      {
+        "path": "skills/pyproject.toml",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 139
+      },
+      {
+        "path": "skills/tests/ci_runners/__init__.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 33
+      },
+      {
+        "path": "skills/tests/ci_runners/_gha_expr.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1904
+      },
+      {
+        "path": "skills/tests/ci_runners/_stubs.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1238
+      },
+      {
+        "path": "skills/tests/ci_runners/conftest.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 395
+      },
+      {
+        "path": "skills/tests/ci_runners/test_ci_wallclock.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 5005
+      },
+      {
+        "path": "skills/tests/ci_runners/test_fork_guard.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 834
+      },
+      {
+        "path": "skills/tests/ci_runners/test_install_units.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1090
+      },
+      {
+        "path": "skills/tests/ci_runners/test_jit_scripts.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 3273
+      },
+      {
+        "path": "skills/tests/ci_runners/test_manifest_completeness.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 779
+      },
+      {
+        "path": "skills/tests/ci_runners/test_manifest_schema.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 496
+      },
+      {
+        "path": "skills/tests/ci_runners/test_routing_expression.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1309
+      },
+      {
+        "path": "skills/tests/ci_runners/test_runbook.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1687
+      },
+      {
+        "path": "skills/tests/ci_runners/test_runner_image.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1533
+      },
+      {
+        "path": "skills/tests/ci_runners/test_systemd_unit.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1905
+      },
+      {
+        "path": "skills/tests/ci_runners/test_tool_parity.py",
+        "status": "added",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 1419
+      },
+      {
+        "path": "skills/tests/project-context-refresh/test_gate.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 236
+      },
+      {
+        "path": "skills/tests/validate-feature/test_ci_sweep_wiring.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 275
+      }
+    ],
+    "excluded": [
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass1-quorum-lost-round-1/findings-claude_code-implementation.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 3090
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass1-quorum-lost-round-1/raw-claude_code-implementation.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 217
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass1-quorum-lost-round-1/raw-claude_code-implementation.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 2452
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass1-quorum-lost-round-1/raw-codex-implementation.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 224
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass1-quorum-lost-round-1/raw-codex-implementation.stderr.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 77445
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass1-quorum-lost-round-1/raw-codex-implementation.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 1330
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass1-quorum-lost-round-1/raw-pi-implementation.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 206
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass1-quorum-lost-round-1/review-manifest.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 718
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass1-quorum-lost-round-1/review-packet.md",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 75912
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass1-quorum-lost-round-1/review-packet.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 7235
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass2-quorum-lost-round-1/findings-claude_code-implementation.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 4011
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass2-quorum-lost-round-1/raw-claude_code-implementation.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 217
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass2-quorum-lost-round-1/raw-claude_code-implementation.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 3327
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass2-quorum-lost-round-1/raw-codex-implementation.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 224
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass2-quorum-lost-round-1/raw-codex-implementation.stderr.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 76948
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass2-quorum-lost-round-1/raw-codex-implementation.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 833
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass2-quorum-lost-round-1/raw-pi-implementation.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 206
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass2-quorum-lost-round-1/review-manifest.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 716
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass2-quorum-lost-round-1/review-packet.md",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 75912
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass2-quorum-lost-round-1/review-packet.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 7235
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass3-round-1/fact-check-claude_code.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 351
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass3-round-1/fact-check-codex.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 229
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass3-round-1/findings-claude_code-implementation.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 3707
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass3-round-1/findings-codex-implementation.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 1058
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass3-round-1/raw-claude_code-implementation.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 221
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass3-round-1/raw-claude_code-implementation.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 2902
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass3-round-1/raw-codex-implementation.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 235
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass3-round-1/raw-codex-implementation.stderr.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 77093
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass3-round-1/raw-codex-implementation.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 978
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass3-round-1/review-manifest.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 446
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass3-round-1/review-packet.md",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 75903
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass3-round-1/review-packet.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 7226
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass4-round-1/fact-check-claude_code.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 268
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass4-round-1/fact-check-codex.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 196
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass4-round-1/findings-claude_code-implementation.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 2373
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass4-round-1/findings-codex-implementation.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 795
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass4-round-1/raw-claude_code-implementation.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 221
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass4-round-1/raw-claude_code-implementation.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 2001
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass4-round-1/raw-codex-implementation.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 235
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass4-round-1/raw-codex-implementation.stderr.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 79289
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass4-round-1/raw-codex-implementation.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 671
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass4-round-1/review-manifest.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 445
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass4-round-1/review-packet.md",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 78405
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass4-round-1/review-packet.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 9615
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass5-round-1/fact-check-claude_code.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 285
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass5-round-1/fact-check-codex.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 196
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass5-round-1/findings-claude_code-implementation.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 2413
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass5-round-1/findings-codex-implementation.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 747
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass5-round-1/raw-claude_code-implementation.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 221
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass5-round-1/raw-claude_code-implementation.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 1952
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass5-round-1/raw-codex-implementation.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 235
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass5-round-1/raw-codex-implementation.stderr.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 81408
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass5-round-1/raw-codex-implementation.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 683
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass5-round-1/review-manifest.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 446
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass5-round-1/review-packet.md",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 80513
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/ipass5-round-1/review-packet.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 10528
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass1-round-1/fact-check-claude_code.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 300
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass1-round-1/fact-check-codex.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 158
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass1-round-1/fact-check-pi.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 154
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass1-round-1/findings-claude_code-plan.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 3735
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass1-round-1/findings-codex-plan.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 1320
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass1-round-1/findings-pi-plan.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 1635
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass1-round-1/findings.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 1740
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass1-round-1/raw-antigravity-plan.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 194
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass1-round-1/raw-antigravity-plan.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 70
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass1-round-1/raw-claude_code-plan.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 195
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass1-round-1/raw-claude_code-plan.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 3224
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass1-round-1/raw-codex-plan.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 199
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass1-round-1/raw-codex-plan.stderr.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 34160
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass1-round-1/raw-codex-plan.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 1080
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass1-round-1/raw-grok-plan.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 185
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass1-round-1/raw-grok-plan.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 66
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass1-round-1/raw-pi-plan.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 195
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass1-round-1/raw-pi-plan.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 319867
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass1-round-1/review-manifest.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 770
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass1-round-1/review-packet.md",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 32762
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass1-round-1/review-packet.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 1082
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass2-quorum-lost-round-1/findings-claude_code-plan.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 5469
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass2-quorum-lost-round-1/raw-claude_code-plan.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 204
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass2-quorum-lost-round-1/raw-claude_code-plan.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 4662
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass2-quorum-lost-round-1/raw-codex-plan.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 195
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass2-quorum-lost-round-1/raw-codex-plan.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 73
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass2-quorum-lost-round-1/raw-pi-plan.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 192
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass2-quorum-lost-round-1/raw-pi-plan.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 71
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass2-quorum-lost-round-1/review-manifest.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 422
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass2-quorum-lost-round-1/review-packet.md",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 45493
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass2-quorum-lost-round-1/review-packet.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 2699
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass3-round-1/fact-check-claude_code.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 418
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass3-round-1/fact-check-codex.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 296
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass3-round-1/findings-claude_code-plan.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 4908
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass3-round-1/findings-codex-plan.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 1740
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass3-round-1/raw-claude_code-plan.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 195
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass3-round-1/raw-claude_code-plan.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 3988
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass3-round-1/raw-codex-plan.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 199
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass3-round-1/raw-codex-plan.stderr.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 47313
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass3-round-1/raw-codex-plan.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 1617
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass3-round-1/raw-pi-plan.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 184
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass3-round-1/raw-pi-plan.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 351782
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass3-round-1/review-manifest.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 653
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass3-round-1/review-packet.md",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 45484
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass3-round-1/review-packet.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 2690
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass4-round-1/fact-check-claude_code.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 317
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass4-round-1/fact-check-codex.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 228
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass4-round-1/findings-claude_code-plan.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 3575
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass4-round-1/findings-codex-plan.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 1178
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass4-round-1/raw-claude_code-plan.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 195
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass4-round-1/raw-claude_code-plan.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 2969
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass4-round-1/raw-codex-plan.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 199
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass4-round-1/raw-codex-plan.stderr.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 55508
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass4-round-1/raw-codex-plan.txt",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 995
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass4-round-1/review-manifest.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 438
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass4-round-1/review-packet.md",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 54196
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-cache/pass4-round-1/review-packet.meta.json",
+        "status": "added",
+        "reason": "generated_path",
+        "gate": "generated_path",
+        "est_tokens": 4456
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-ledger/adjudication-impl-pass3-round-1.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 657
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-ledger/adjudication-impl-pass4-round-1.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 596
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-ledger/adjudication-impl-pass5-round-1.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 566
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-ledger/adjudication-pass3-round-1.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 922
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-ledger/adjudication-pass4-round-1.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 543
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-ledger/adjudication-round-1.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 729
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/.review-ledger/ledger.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 27165
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/loop-state.json",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 911
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/plan-findings.md",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 1140
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/proposal.md",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 3916
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/session-log.md",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 5654
+      },
+      {
+        "path": "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/work-packages.yaml",
+        "status": "added",
+        "reason": "user_exclude",
+        "gate": "user_exclude",
+        "est_tokens": 4619
+      }
+    ],
+    "truncated": []
+  },
+  "rule_groups": [
+    {
+      "group_id": 1,
+      "source": "default",
+      "pattern": "(default)",
+      "files": [
+        ".github/runner-lanes.schema.json",
+        ".github/runner-lanes.yaml",
+        ".github/workflows/ci.yml",
+        ".github/workflows/security.yml",
+        "deploy/gx10-runner/Containerfile",
+        "deploy/gx10-runner/cleanup-runner.sh",
+        "deploy/gx10-runner/gx10-runner.env.example",
+        "deploy/gx10-runner/install-units.sh",
+        "deploy/gx10-runner/job-started-hook.sh",
+        "deploy/gx10-runner/mint-jitconfig.sh",
+        "deploy/gx10-runner/systemd/gx10-runner@.service",
+        "deploy/gx10-runner/toolchain.txt",
+        "docs/guides/documentation.md",
+        "docs/guides/self-hosted-ci-runners.md",
+        "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/contracts/README.md",
+        "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/contracts/schemas/runner-lanes.schema.json",
+        "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/design.md",
+        "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/tasks.md",
+        "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/validation-report.md",
+        "skills/pyproject.toml"
+      ]
+    },
+    {
+      "group_id": 2,
+      "source": "default",
+      "pattern": "openspec/changes/*/specs/**/spec.md",
+      "files": [
+        "openspec/changes/migrate-ci-to-self-hosted-gx10-runners/specs/ci-runner-infrastructure/spec.md"
+      ]
+    },
+    {
+      "group_id": 3,
+      "source": "default",
+      "pattern": "**/*.py",
+      "files": [
+        "scripts/ci/ci_wallclock.py"
+      ]
+    },
+    {
+      "group_id": 4,
+      "source": "default",
+      "pattern": "skills/tests/**",
+      "files": [
+        "skills/tests/ci_runners/__init__.py",
+        "skills/tests/ci_runners/_gha_expr.py",
+        "skills/tests/ci_runners/_stubs.py",
+        "skills/tests/ci_runners/conftest.py",
+        "skills/tests/ci_runners/test_ci_wallclock.py",
+        "skills/tests/ci_runners/test_fork_guard.py",
+        "skills/tests/ci_runners/test_install_units.py",
+        "skills/tests/ci_runners/test_jit_scripts.py",
+        "skills/tests/ci_runners/test_manifest_completeness.py",
+        "skills/tests/ci_runners/test_manifest_schema.py",
+        "skills/tests/ci_runners/test_routing_expression.py",
+        "skills/tests/ci_runners/test_runbook.py",
+        "skills/tests/ci_runners/test_runner_image.py",
+        "skills/tests/ci_runners/test_systemd_unit.py",
+        "skills/tests/ci_runners/test_tool_parity.py",
+        "skills/tests/project-context-refresh/test_gate.py",
+        "skills/tests/validate-feature/test_ci_sweep_wiring.py"
+      ]
+    }
+  ]
+}

@@ -22,10 +22,15 @@ Unified skills with **tiered execution** — each skill auto-selects its tier at
 /cleanup-feature <change-id>                           → Done (runs deploy + security validation before merge)
 
 # Roadmap orchestration (multi-change decomposition + iterative execution)
+/supervise intake "<request>"                           → Track a request in the right roadmap
+/supervise cycle [--dry-run] [--force]                   → Discover, rank, and present decisions
+/supervise execute <roadmap-path>                      → Dispatch an approved roadmap
 /plan-roadmap <proposal-path>                          → Decompose proposal into prioritized roadmap
 /refine-roadmap <workspace-path> <refinement>           → Preview and safely evolve an active roadmap
 /autopilot-roadmap <workspace-path>                    → Execute roadmap items with learning feedback
 ```
+
+See [Using Supervise](supervise.md) for the operator workflow and approval boundaries.
 
 Validation is automatic: `/implement-feature` runs environment-safe checks (spec, evidence), `/cleanup-feature` and `/merge-pull-requests` run Docker-dependent checks (deploy, smoke, security, E2E) before merge. Both delegate to `/validate-feature` with `--phase` selectors. `/validate-feature` can also be invoked directly for a full manual pass.
 

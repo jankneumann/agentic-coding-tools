@@ -12,8 +12,8 @@ from src.config import OpenBaoConfig
 class TestOpenBaoConfigFromEnv:
     def test_all_defaults(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv("BAO_ADDR", raising=False)
-        monkeypatch.delenv("BAO_ROLE_ID", raising=False)
-        monkeypatch.delenv("BAO_SECRET_ID", raising=False)
+        monkeypatch.delenv("BAO_INTERNAL_ROLE_ID", raising=False)
+        monkeypatch.delenv("BAO_INTERNAL_SECRET_ID", raising=False)
         cfg = OpenBaoConfig.from_env()
         assert cfg.addr == ""
         assert cfg.role_id == ""
@@ -25,8 +25,8 @@ class TestOpenBaoConfigFromEnv:
 
     def test_all_vars_set(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("BAO_ADDR", "http://bao:8200")
-        monkeypatch.setenv("BAO_ROLE_ID", "role-1")
-        monkeypatch.setenv("BAO_SECRET_ID", "secret-1")
+        monkeypatch.setenv("BAO_INTERNAL_ROLE_ID", "role-1")
+        monkeypatch.setenv("BAO_INTERNAL_SECRET_ID", "secret-1")
         monkeypatch.setenv("BAO_MOUNT_PATH", "kv")
         monkeypatch.setenv("BAO_SECRET_PATH", "myapp")
         monkeypatch.setenv("BAO_TIMEOUT", "10")
@@ -39,6 +39,20 @@ class TestOpenBaoConfigFromEnv:
         assert cfg.secret_path == "myapp"
         assert cfg.timeout == 10
         assert cfg.token_ttl == 7200
+
+    def test_legacy_inputs_cannot_authenticate_internal_loader(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("BAO_ADDR", "http://bao:8200")
+        monkeypatch.delenv("BAO_INTERNAL_ROLE_ID", raising=False)
+        monkeypatch.delenv("BAO_INTERNAL_SECRET_ID", raising=False)
+        monkeypatch.setenv("BAO_ROLE_ID", "legacy-role")
+        monkeypatch.setenv("BAO_SECRET_ID", "legacy-secret")
+        cfg = OpenBaoConfig.from_env()
+        assert cfg.role_id == ""
+        assert cfg.secret_id == ""
+        with pytest.raises(ValueError, match="BAO_INTERNAL_ROLE_ID"):
+            cfg.create_client()
 
 
 class TestOpenBaoConfigIsEnabled:
@@ -63,12 +77,12 @@ class TestOpenBaoConfigCreateClient:
 
     def test_raises_when_role_id_missing(self) -> None:
         cfg = OpenBaoConfig(addr="http://localhost:8200", secret_id="s1")
-        with pytest.raises(ValueError, match="BAO_ROLE_ID"):
+        with pytest.raises(ValueError, match="BAO_INTERNAL_ROLE_ID"):
             cfg.create_client()
 
     def test_raises_when_secret_id_missing(self) -> None:
         cfg = OpenBaoConfig(addr="http://localhost:8200", role_id="r1")
-        with pytest.raises(ValueError, match="BAO_SECRET_ID"):
+        with pytest.raises(ValueError, match="BAO_INTERNAL_SECRET_ID"):
             cfg.create_client()
 
     @patch("hvac.Client")
@@ -110,6 +124,18 @@ class TestOpenBaoConfigCreateClient:
         cfg = OpenBaoConfig(addr="http://localhost:8200", role_id="bad", secret_id="s1")
         with pytest.raises(RuntimeError, match="authentication failed"):
             cfg.create_client()
+
+    @patch("hvac.Client")
+    def test_internal_auth_error_does_not_echo_backend_response(
+        self, mock_client_cls: MagicMock
+    ) -> None:
+        mock_client_cls.return_value.auth.approle.login.side_effect = Exception(
+            "permission denied: secret-id-sensitive"
+        )
+        cfg = OpenBaoConfig(addr="http://localhost:8200", role_id="r1", secret_id="s1")
+        with pytest.raises(RuntimeError) as error:
+            cfg.create_client()
+        assert "secret-id-sensitive" not in str(error.value)
 
     @patch("hvac.Client")
     def test_unauthenticated_after_login(self, mock_client_cls: MagicMock) -> None:

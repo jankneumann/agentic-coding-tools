@@ -19,6 +19,15 @@ Multi-agent coordination system for AI coding assistants. Enables Claude Code, C
 
 ## Quick Start
 
+OpenBao is optional for local development. For a protected per-agent rollout,
+follow the [OpenBao cutover guide](../docs/openbao-secret-management.md) before
+setting `BAO_ADDR`. The registry declares vendor credential scopes; OpenBao
+mode requires principal-specific wrapped bootstrap files in a protected
+`BAO_BOOTSTRAP_DIR`. `BAO_INTERNAL_ROLE_ID` and `BAO_INTERNAL_SECRET_ID` are
+reserved for coordinator-internal settings. The live AppRole and policy matrix
+runs with `bash skills/bao-vault/scripts/tests/integration/run_live_matrix.sh`
+from the repository root.
+
 ### 1. Set Up the Database
 
 The coordinator supports two PostgreSQL backends, selected via `DB_BACKEND`:

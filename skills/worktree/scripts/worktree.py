@@ -130,6 +130,61 @@ def _existing_branch_start_point(main_repo: Path, branch: str) -> str | None:
     return None
 
 
+def _fresh_main(main_repo: Path) -> str:
+    """The freshest main ref: ``origin/main`` when the remote ref exists.
+
+    ``setup`` fetches ``origin main`` before choosing a base, but that only moves
+    ``refs/remotes/origin/main``. The local ``main`` ref lags whenever another
+    session merges, and branching from it put new worktrees behind the merged
+    state (#619).
+    """
+    return "origin/main" if _remote_branch_exists(main_repo, "main") else "main"
+
+
+def _intended_base(
+    main_repo: Path,
+    change_id: str,
+    agent_id: str | None,
+    prefix: str | None,
+    branch_prefix: str | None,
+) -> str:
+    """The ref a branch for this setup should be current with.
+
+    Agent branches belong on their parent feature branch when it exists; every
+    other branch (and an agent branch whose parent is gone, e.g. a post-merge
+    ``--cleanup``) belongs on the freshest main. Read-only: unlike
+    ``_branch_creation_start_point`` this never creates the parent ref.
+    """
+    if agent_id and branch_prefix != PROTOTYPE_BRANCH_PREFIX:
+        parent = _existing_branch_start_point(
+            main_repo, resolve_parent_branch(change_id, prefix=prefix)
+        )
+        if parent:
+            return parent
+    return _fresh_main(main_repo)
+
+
+def _has_unique_work(main_repo: Path, branch_ref: str, base: str) -> bool:
+    """Whether ``branch_ref`` holds commits whose changes are not in ``base``.
+
+    ``git cherry`` compares patches, not SHAs, so commits that reached main
+    through a rebase-merge (same change, new SHA) do not count as unique work.
+    A squash-merged branch still does, which errs on the side of keeping it.
+    """
+    out = run_git("cherry", base, branch_ref, cwd=str(main_repo))
+    return any(line.startswith("+") for line in (out or "").splitlines())
+
+
+def _commits_behind(main_repo: Path, branch_ref: str, base: str) -> int:
+    out = run_git("rev-list", "--count", f"{branch_ref}..{base}", cwd=str(main_repo))
+    return int((out or "0").strip() or 0)
+
+
+def _checked_out_in_a_worktree(main_repo: Path, branch: str) -> bool:
+    out = run_git("worktree", "list", "--porcelain", cwd=str(main_repo))
+    return f"branch refs/heads/{branch}" in (out or "").splitlines()
+
+
 def _invoking_feature_branch(cwd: str | None, exclude: set[str]) -> str | None:
     """Return the invoking checkout's current branch if it is a viable parent.
 
@@ -191,13 +246,50 @@ def _branch_creation_start_point(
             feature_branch = _invoking_feature_branch(
                 invoking_cwd, exclude={branch, parent}
             )
-            base = feature_branch or "main"
+            base = feature_branch or _fresh_main(main_repo)
             source = "parent-created-from-feature" if feature_branch else "parent-created"
             run_git("branch", parent, base, cwd=str(main_repo))
             print(f"PARENT_BRANCH_CREATED={parent} (from {base})", file=sys.stderr)
             return parent, source
 
-    return "main", "main"
+    return _fresh_main(main_repo), "main"
+
+
+def _bring_branch_up_to_base(main_repo: Path, branch: str, base: str) -> None:
+    """Fast-forward a stale branch that holds no work of its own; report the rest.
+
+    A same-name branch is reused as-is by design (resuming work), which is how a
+    leftover ``--cleanup`` branch from an aborted run once brought a worktree up
+    on a month-old tree (#619). The branch is moved only when that is provably
+    safe: it has no unique work relative to ``base`` and no worktree has it
+    checked out. A branch with its own commits is never touched: a feature
+    branch behind main is normal, so it is only reported.
+    """
+    if branch == base or not _git_ref_exists(main_repo, base):
+        return
+    try:
+        behind = _commits_behind(main_repo, branch, base)
+        if behind == 0:
+            return
+        safe_to_move = not _has_unique_work(
+            main_repo, branch, base
+        ) and not _checked_out_in_a_worktree(main_repo, branch)
+        if safe_to_move:
+            run_git("branch", "-f", branch, base, cwd=str(main_repo))
+    except subprocess.CalledProcessError as exc:
+        # Best-effort: a freshness check must never be what blocks setup.
+        print(f"WARNING: could not compare {branch} with {base}: {exc}", file=sys.stderr)
+        return
+    if safe_to_move:
+        for stream in (sys.stdout, sys.stderr):
+            print(f"BRANCH_FAST_FORWARDED={base}", file=stream)
+        return
+    print(f"BRANCH_BEHIND_BASE={behind}")
+    print(
+        f"WARNING: {branch} is {behind} commit(s) behind {base} and has work of its own "
+        "(or is checked out in a worktree); left unchanged. Rebase it if that is not intended.",
+        file=sys.stderr,
+    )
 
 
 def _adopt_branch_in_isolated_checkout(args: argparse.Namespace, cwd: str) -> tuple[str, str] | None:
@@ -632,8 +724,17 @@ def cmd_setup(args: argparse.Namespace) -> int:
         )
         run_git("branch", branch, start_point, cwd=str(main_repo))
         print(f"BRANCH_CREATED={branch}", file=sys.stderr)
-        print(f"BRANCH_START_POINT={start_point}", file=sys.stderr)
-        print(f"BRANCH_START_SOURCE={start_source}", file=sys.stderr)
+        # On stdout too: the chosen base is what a caller most needs to check,
+        # and stderr is easy to lose (#619).
+        for stream in (sys.stdout, sys.stderr):
+            print(f"BRANCH_START_POINT={start_point}", file=stream)
+            print(f"BRANCH_START_SOURCE={start_source}", file=stream)
+
+    _bring_branch_up_to_base(
+        main_repo,
+        branch,
+        _intended_base(main_repo, change_id, agent_id, prefix, branch_prefix),
+    )
 
     # Prune stale worktree entries (e.g., directory was deleted but git still tracks it)
     run_git("worktree", "prune", cwd=str(main_repo), check=False)

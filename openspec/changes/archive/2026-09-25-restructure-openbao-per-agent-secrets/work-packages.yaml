@@ -1,0 +1,248 @@
+schema_version: 1
+feature:
+  id: restructure-openbao-per-agent-secrets
+  title: Registry-derived OpenBao principals
+  plan_revision: 10
+  created_by: codex
+  deployable: true
+contracts:
+  revision: 6
+  openapi:
+    primary: openspec/changes/restructure-openbao-per-agent-secrets/contracts/openapi/v1.yaml
+    files:
+      - openspec/changes/restructure-openbao-per-agent-secrets/contracts/openapi/v1.yaml
+      - openspec/changes/restructure-openbao-per-agent-secrets/contracts/principal-topology.schema.json
+      - openspec/changes/restructure-openbao-per-agent-secrets/contracts/bootstrap-bundle.schema.json
+      - openspec/changes/restructure-openbao-per-agent-secrets/contracts/session-cache.schema.json
+      - openspec/changes/restructure-openbao-per-agent-secrets/contracts/migration-map.schema.json
+      - openspec/changes/restructure-openbao-per-agent-secrets/contracts/agent-secret.schema.json
+      - openspec/changes/restructure-openbao-per-agent-secrets/contracts/vendor-secret.schema.json
+      - openspec/changes/restructure-openbao-per-agent-secrets/contracts/openbao-event.schema.json
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 120
+  retry_budget: 1
+  verification_tier_required: B
+  min_trust_level: 2
+packages:
+  - package_id: wp-contracts
+    title: Freeze principal, bootstrap, audit, and readiness contracts
+    task_type: contracts
+    description: Validate the Gate 2 contracts before implementation starts; contract changes require a plan revision.
+    priority: 1
+    depends_on: []
+    locks:
+      files: []
+      keys: ["contract:openbao-principal-topology", "contract:openbao-bootstrap", "contract:openbao-session-cache", "contract:openbao-migration-map", "contract:openbao-secret-payloads", "api:GET /ready", "api:GET /agents/dispatch-configs"]
+      ttl_minutes: 60
+      reason: Freeze producer and consumer interfaces
+    scope:
+      write_allow: []
+      read_allow: ["openspec/changes/restructure-openbao-per-agent-secrets/**"]
+    worktree: {name: pca02-contracts, mode: isolated}
+    timeout_minutes: 30
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: C
+      steps:
+        - name: Parse schemas and OpenAPI
+          kind: command
+          command: "skills/.venv/bin/python -c 'import json,yaml; from pathlib import Path; p=Path(\"openspec/changes/restructure-openbao-per-agent-secrets/contracts\"); [json.loads(x.read_text()) for x in p.glob(\"*.json\")]; yaml.safe_load((p/\"openapi/v1.yaml\").read_text())'"
+          evidence: {artifacts: [], result_keys: [contracts_valid]}
+    outputs: {result_keys: [contracts_valid]}
+
+  - package_id: wp-projection
+    title: Shared topology projection and typed Bao adapter
+    task_type: backend
+    description: Tasks 1.1-1.6. Own the common Python package, registry schema/roster, dependency manifests, and coordinator Docker import smoke contract. Strip legacy Bao lookup from agents_config while retaining non-Bao behavior.
+    priority: 2
+    depends_on: [wp-contracts]
+    locks:
+      files: ["agent-coordinator/agents.yaml", "agent-coordinator/src/agents_config.py"]
+      keys: ["contract:openbao-python-adapter"]
+      ttl_minutes: 120
+      reason: Canonical producer for principal projection and client interface
+    scope:
+      write_allow:
+        - "packages/openbao-credentials/**"
+        - "agent-coordinator/agents.yaml"
+        - "agent-coordinator/src/agents_config.py"
+        - "agent-coordinator/tests/test_agents_config.py"
+        - "agent-coordinator/tests/test_agents_config_isolation.py"
+        - "agent-coordinator/tests/test_setup_cloud.py"
+        - "agent-coordinator/tests/test_registry_projection.py"
+        - "agent-coordinator/tests/model_routing/test_agent_endpoints.py"
+        - "agent-coordinator/pyproject.toml"
+        - "agent-coordinator/uv.lock"
+        - "skills/pyproject.toml"
+        - "skills/uv.lock"
+        - "agent-coordinator/Dockerfile"
+        - ".github/workflows/ci.yml"
+        - "openspec/changes/restructure-openbao-per-agent-secrets/tasks.md"
+      read_allow: ["**"]
+    worktree: {name: pca02-projection, mode: isolated}
+    timeout_minutes: 150
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: Projection and adapter tests
+          kind: command
+          command: "uv run --project packages/openbao-credentials pytest packages/openbao-credentials/tests -q"
+          evidence: {artifacts: [], result_keys: [projection_tests_passed]}
+        - name: Registry projection tests
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_agents_config.py agent-coordinator/tests/test_agents_config_isolation.py agent-coordinator/tests/test_setup_cloud.py agent-coordinator/tests/test_registry_projection.py agent-coordinator/tests/model_routing/test_agent_endpoints.py -q"
+          evidence: {artifacts: [], result_keys: [registry_tests_passed]}
+        - name: Docker import coverage
+          kind: command
+          command: ".venv/bin/python scripts/check_docker_imports.py --data-dir cedar --data-dir profiles --verbose"
+          cwd: agent-coordinator
+          evidence: {artifacts: [], result_keys: [docker_imports_passed]}
+    outputs: {result_keys: [projection_tests_passed, registry_tests_passed, docker_imports_passed]}
+
+  - package_id: wp-seeding
+    title: Per-principal provisioning and protected bootstrap
+    task_type: backend
+    description: Tasks 2.1-2.4. Migrate the seeder and its Makefile entry points through an explicit source-key map to topology projection, exact policies, wrapped bundles, auditable reconciliation, and explicit legacy cutover.
+    priority: 3
+    depends_on: [wp-projection]
+    locks:
+      files: ["skills/bao-vault/scripts/bao_seed.py"]
+      keys: ["feature:pca02:seeding"]
+      ttl_minutes: 120
+      reason: Exclusive owner of OpenBao mutation code
+    scope:
+      write_allow: ["skills/bao-vault/scripts/bao_seed.py", "skills/bao-vault/scripts/tests/**", "agent-coordinator/Makefile", "openspec/changes/restructure-openbao-per-agent-secrets/tasks.md"]
+      read_allow: ["**"]
+    worktree: {name: pca02-seeding, mode: isolated}
+    timeout_minutes: 150
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: Seeder tests
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/bao-vault/scripts/tests/test_bao_seed.py -q"
+          evidence: {artifacts: [], result_keys: [seeding_tests_passed]}
+    outputs: {result_keys: [seeding_tests_passed]}
+
+  - package_id: wp-coordinator
+    title: Atomic coordinator identity reload
+    task_type: backend
+    description: Tasks 3.1-3.8. Consume the identity-reader adapter; implement one atomic accepted-key snapshot, bounded grace, readiness, sanitized audit, snapshot-backed Langfuse attribution, and isolated internal profile loading.
+    priority: 3
+    depends_on: [wp-seeding]
+    locks:
+      files: ["agent-coordinator/src/coordination_api.py", "agent-coordinator/src/config.py"]
+      keys: ["api:GET /ready", "feature:pca02:identity"]
+      ttl_minutes: 120
+      reason: Exclusive owner of coordinator auth and readiness behavior
+    scope:
+      write_allow:
+        - "agent-coordinator/src/config.py"
+        - "agent-coordinator/src/agents_config.py"
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/src/openbao_identity.py"
+        - "agent-coordinator/src/profile_loader.py"
+        - "agent-coordinator/src/langfuse_middleware.py"
+        - "agent-coordinator/tests/test_openbao_config.py"
+        - "agent-coordinator/tests/test_coordination_api.py"
+        - "agent-coordinator/tests/test_openbao_identity.py"
+        - "agent-coordinator/tests/test_agents_config.py"
+        - "agent-coordinator/tests/test_profile_loader.py"
+        - "agent-coordinator/tests/test_langfuse_middleware.py"
+        - "openspec/changes/restructure-openbao-per-agent-secrets/tasks.md"
+      read_allow: ["**"]
+    worktree: {name: pca02-coordinator, mode: isolated}
+    timeout_minutes: 180
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: Coordinator identity and API tests
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_openbao_config.py agent-coordinator/tests/test_openbao_identity.py agent-coordinator/tests/test_agents_config.py agent-coordinator/tests/test_coordination_api.py agent-coordinator/tests/test_profile_loader.py -q"
+          evidence: {artifacts: [], result_keys: [coordinator_tests_passed]}
+    outputs: {result_keys: [coordinator_tests_passed]}
+
+  - package_id: wp-dispatch
+    title: Scoped dispatch credential lookup
+    task_type: backend
+    description: Tasks 4.1-4.2. Resolve only explicitly authorized vendors through the typed adapter; update both review-dispatch call sites and remove configured-Bao fallback.
+    priority: 3
+    depends_on: [wp-coordinator]
+    locks:
+      files: ["skills/parallel-infrastructure/scripts/api_key_resolver.py"]
+      keys: ["feature:pca02:dispatch"]
+      ttl_minutes: 90
+      reason: Exclusive owner of dispatch credential consumer
+    scope:
+      write_allow:
+        - "skills/parallel-infrastructure/scripts/api_key_resolver.py"
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+        - "skills/parallel-infrastructure/scripts/tests/test_api_key_resolver.py"
+        - "skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py"
+        - "openspec/changes/restructure-openbao-per-agent-secrets/tasks.md"
+      read_allow: ["**"]
+    worktree: {name: pca02-dispatch, mode: isolated}
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: Dispatch resolver tests
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/parallel-infrastructure/scripts/tests/test_api_key_resolver.py skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py -q"
+          evidence: {artifacts: [], result_keys: [dispatch_tests_passed]}
+    outputs: {result_keys: [dispatch_tests_passed]}
+
+  - package_id: wp-integration
+    title: Live OpenBao conformance and migration documentation
+    task_type: integration
+    description: Tasks 5.1-5.8. Merge consumers; add pinned live fixture, scoped policy/bootstrap/rotation matrix, Langfuse helper migration, operator guide, secret scan, and full validation.
+    priority: 8
+    depends_on: [wp-dispatch]
+    locks:
+      files: ["docs/openbao-secret-management.md"]
+      keys: ["feature:pca02:integration"]
+      ttl_minutes: 180
+      reason: Single convergence point for release-level migration and live tests
+    scope:
+      write_allow:
+        - ".github/workflows/**"
+        - "agent-coordinator/tests/integration/**"
+        - "skills/bao-vault/scripts/tests/integration/**"
+        - "skills/bao-vault/scripts/langfuse_env.sh"
+        - "skills/bao-vault/scripts/tests/test_langfuse_env.py"
+        - "agent-coordinator/docker-compose.yml"
+        - "docs/openbao-secret-management.md"
+        - "agent-coordinator/.secrets.yaml.example"
+        - "agent-coordinator/README.md"
+        - "agent-coordinator/CLAUDE.md"
+        - "docs/guides/**"
+        - "openspec/changes/restructure-openbao-per-agent-secrets/validation/**"
+        - "openspec/changes/restructure-openbao-per-agent-secrets/tasks.md"
+      read_allow: ["**"]
+    worktree: {name: pca02-integration, mode: isolated}
+    timeout_minutes: 180
+    retry_budget: 2
+    min_trust_level: 3
+    verification:
+      tier_required: A
+      steps:
+        - name: Strict OpenSpec validation
+          kind: command
+          command: "openspec validate restructure-openbao-per-agent-secrets --strict"
+          evidence: {artifacts: [], result_keys: [openspec_valid]}
+        - name: Live OpenBao matrix
+          kind: command
+          command: "bash skills/bao-vault/scripts/tests/integration/run_live_matrix.sh"
+          evidence: {artifacts: [], result_keys: [live_matrix_passed]}
+    outputs: {result_keys: [openspec_valid, live_matrix_passed]}

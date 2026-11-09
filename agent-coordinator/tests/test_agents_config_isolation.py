@@ -6,10 +6,13 @@ import textwrap
 from pathlib import Path
 
 import pytest
+from jsonschema import ValidationError
 
 from src.agents_config import (
     AgentEntry,
+    ModeConfig,
     get_agent_isolation,
+    get_dispatch_configs,
     load_agents_config,
     reset_agents_config,
 )
@@ -28,6 +31,7 @@ def agents_yaml_with_isolation(tmp_path: Path) -> Path:
     """Create a minimal agents.yaml with isolation fields."""
     p = tmp_path / "agents.yaml"
     p.write_text(textwrap.dedent("""\
+        credential_vendors: []
         agents:
           local-agent:
             type: claude_code
@@ -64,6 +68,7 @@ def agents_yaml_without_isolation(tmp_path: Path) -> Path:
     """Create agents.yaml without isolation fields (tests default)."""
     p = tmp_path / "agents.yaml"
     p.write_text(textwrap.dedent("""\
+        credential_vendors: []
         agents:
           bare-agent:
             type: claude_code
@@ -185,3 +190,105 @@ class TestGetAgentIsolation:
         import src.agents_config as mod
         mod._agents = []
         assert get_agent_isolation("claude_code") is None
+
+
+def test_mode_config_accepts_an_optional_isolation_override() -> None:
+    mode = ModeConfig(args=["--print"], isolation="sandbox")
+    assert mode.isolation == "sandbox"
+
+
+def _mode_aware_agents_yaml(tmp_path: Path) -> Path:
+    path = tmp_path / "agents.yaml"
+    path.write_text(textwrap.dedent("""\
+        credential_vendors: []
+        agents:
+          codex-local:
+            type: codex
+            profile: local
+            trust_level: 3
+            transport: mcp
+            isolation: worktree
+            capabilities: [lock]
+            description: Local Codex
+            cli:
+              command: codex
+              dispatch_modes:
+                review:
+                  args: [exec]
+                  isolation: sandbox
+                alternative:
+                  args: [exec]
+              model_flag: -m
+          codex-remote:
+            type: codex
+            profile: remote
+            trust_level: 2
+            transport: http
+            isolation: none
+            capabilities: [lock]
+            description: Remote Codex
+            cli:
+              command: codex
+              dispatch_modes:
+                review:
+                  args: [exec]
+              model_flag: -m
+    """))
+    return path
+
+
+def test_get_agent_isolation_prefers_mode_override_and_preserves_legacy_call(
+    tmp_path: Path,
+    dummy_secrets: Path,
+) -> None:
+    agents = load_agents_config(
+        _mode_aware_agents_yaml(tmp_path), secrets_path=dummy_secrets
+    )
+    import src.agents_config as mod
+    mod._agents = agents
+
+    assert get_agent_isolation("codex") == "worktree"
+    assert get_agent_isolation("codex", "review", agent_id="codex-local") == "sandbox"
+    assert get_agent_isolation("codex", "alternative", agent_id="codex-local") == "worktree"
+
+
+def test_get_agent_isolation_uses_exact_agent_id_for_repeated_types(
+    tmp_path: Path,
+    dummy_secrets: Path,
+) -> None:
+    agents = load_agents_config(
+        _mode_aware_agents_yaml(tmp_path), secrets_path=dummy_secrets
+    )
+    import src.agents_config as mod
+    mod._agents = agents
+
+    assert get_agent_isolation("codex", "review", agent_id="codex-remote") == "none"
+    assert get_agent_isolation("codex", "review", agent_id="missing") is None
+    assert get_agent_isolation("claude_code", "review", agent_id="codex-local") is None
+
+
+def test_dispatch_config_serializes_mode_isolation(
+    tmp_path: Path,
+    dummy_secrets: Path,
+) -> None:
+    agents = load_agents_config(
+        _mode_aware_agents_yaml(tmp_path), secrets_path=dummy_secrets
+    )
+    import src.agents_config as mod
+    mod._agents = agents
+
+    output = get_dispatch_configs()
+    local = next(agent for agent in output["agents"] if agent["agent_id"] == "codex-local")
+    assert local["cli"]["dispatch_modes"]["review"]["isolation"] == "sandbox"
+    assert "isolation" not in local["cli"]["dispatch_modes"]["alternative"]
+
+
+def test_invalid_per_mode_isolation_is_rejected_at_load(
+    tmp_path: Path,
+    dummy_secrets: Path,
+) -> None:
+    path = _mode_aware_agents_yaml(tmp_path)
+    path.write_text(path.read_text().replace("isolation: sandbox", "isolation: container"))
+
+    with pytest.raises(ValidationError, match="container"):
+        load_agents_config(path, secrets_path=dummy_secrets)

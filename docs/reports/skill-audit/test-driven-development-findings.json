@@ -1,0 +1,394 @@
+{
+  "convention": "rightsizing",
+  "dispatch_profile": [],
+  "evidence": {
+    "reason": "unauthorized",
+    "status": "unavailable",
+    "tier_rows": []
+  },
+  "findings": [
+    {
+      "evidence": {},
+      "id": "F001",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#03-the-tdd-cycle"
+    },
+    {
+      "evidence": {},
+      "id": "F002",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#04-step-1-red-write-a-failing-test"
+    },
+    {
+      "evidence": {},
+      "id": "F003",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#05-step-2-green-make-it-pass"
+    },
+    {
+      "evidence": {},
+      "id": "F004",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#06-step-3-refactor-clean-up"
+    },
+    {
+      "evidence": {},
+      "id": "F005",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#07-the-prove-it-pattern-bug-fixes"
+    },
+    {
+      "evidence": {},
+      "id": "F006",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#08-the-test-pyramid"
+    },
+    {
+      "evidence": {},
+      "id": "F007",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#10-decision-guide"
+    },
+    {
+      "evidence": {},
+      "id": "F008",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#12-test-state-not-interactions"
+    },
+    {
+      "evidence": {},
+      "id": "F009",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#13-damp-over-dry-in-tests"
+    },
+    {
+      "evidence": {},
+      "id": "F010",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#14-prefer-real-implementations-over-mocks"
+    },
+    {
+      "evidence": {},
+      "id": "F011",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#15-use-the-arrange-act-assert-pattern"
+    },
+    {
+      "evidence": {},
+      "id": "F012",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#16-one-assertion-per-concept"
+    },
+    {
+      "evidence": {},
+      "id": "F013",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#17-name-tests-descriptively"
+    },
+    {
+      "evidence": {},
+      "id": "F014",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#19-coverage-and-targeted-runs"
+    },
+    {
+      "evidence": {},
+      "id": "F015",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#20-browser-testing-with-devtools"
+    },
+    {
+      "evidence": {},
+      "id": "F016",
+      "kind": "constraint_without_reason",
+      "layer": "constraint",
+      "rationale": "Prohibition without a stated reason; a strong model argues with a bare rule.",
+      "remediation": "add_reason",
+      "section_id": "SKILL.md#21-security-boundaries"
+    },
+    {
+      "evidence": {},
+      "id": "F017",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#22-when-to-use-subagents-for-testing"
+    },
+    {
+      "evidence": {
+        "rule": "max_lines"
+      },
+      "id": "F018",
+      "kind": "convention_drift",
+      "layer": "contract",
+      "rationale": "SKILL.md has 606 lines; the rightsizing cap is 500",
+      "remediation": "move_to_reference",
+      "section_id": "SKILL.md"
+    }
+  ],
+  "freshness": {
+    "archetypes_sha256": "5cfdd2f5e34d7ae83201695604a0382adcd9e2a2fe003b854959112e4800ed7a",
+    "evidence_window_days": 30,
+    "reviewed_dates": [
+      "2026-08-16"
+    ]
+  },
+  "generated_at": "2026-09-16T11:40:37+00:00",
+  "layers": [
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "frontmatter",
+      "layer": "contract",
+      "rule": "frontmatter",
+      "section_id": "SKILL.md#00-frontmatter"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Overview",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#01-overview"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "When to Use",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#02-when-to-use"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "The TDD Cycle",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#03-the-tdd-cycle"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Step 1: RED — Write a Failing Test",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#04-step-1-red-write-a-failing-test"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Step 2: GREEN — Make It Pass",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#05-step-2-green-make-it-pass"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Step 3: REFACTOR — Clean Up",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#06-step-3-refactor-clean-up"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "The Prove-It Pattern (Bug Fixes)",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#07-the-prove-it-pattern-bug-fixes"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "The Test Pyramid",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#08-the-test-pyramid"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Test Sizes (Resource Model)",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#09-test-sizes-resource-model"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Decision Guide",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#10-decision-guide"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Writing Good Tests",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#11-writing-good-tests"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Test State, Not Interactions",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#12-test-state-not-interactions"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "DAMP Over DRY in Tests",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#13-damp-over-dry-in-tests"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Prefer Real Implementations Over Mocks",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#14-prefer-real-implementations-over-mocks"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Use the Arrange-Act-Assert Pattern",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#15-use-the-arrange-act-assert-pattern"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "One Assertion Per Concept",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#16-one-assertion-per-concept"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Name Tests Descriptively",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#17-name-tests-descriptively"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Test Anti-Patterns to Avoid",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#18-test-anti-patterns-to-avoid"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Coverage and Targeted Runs",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#19-coverage-and-targeted-runs"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Browser Testing with DevTools",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#20-browser-testing-with-devtools"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Security Boundaries",
+      "layer": "constraint",
+      "rule": "prohibition_without_reason",
+      "section_id": "SKILL.md#21-security-boundaries"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "When to Use Subagents for Testing",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#22-when-to-use-subagents-for-testing"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "See Also",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#23-see-also"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Common Rationalizations",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#24-common-rationalizations"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Red Flags",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#25-red-flags"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Verification",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#26-verification"
+    }
+  ],
+  "schema_version": 1,
+  "skill": "test-driven-development"
+}

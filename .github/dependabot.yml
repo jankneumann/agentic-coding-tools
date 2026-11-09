@@ -173,6 +173,15 @@ updates:
     labels:
       - "dependencies"
 
+  - package-ecosystem: "pip"
+    directory: "/packages/openbao-credentials"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+
   # kanban-viz Tauri shell (Rust)
   #
   # A desktop application's native half, with its own dependency tree and no
@@ -188,4 +197,3 @@ updates:
     labels:
       - "dependencies"
       - "rust"
-

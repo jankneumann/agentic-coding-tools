@@ -1,0 +1,112 @@
+{
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "The routing.yaml schema (contracts/config/routing.schema.json) defines fallback.location_order and fallback.isolation_order but omits fallback.dispatch_mode_order. Design D3 describes a 'local-fallback dimension table' and D8 states 'The fallback table's order is only a deterministic choice among the lane's exact configured values' — implying all three dimensions (location, isolation, dispatch_mode) should have fallback orders. The OpenAPI RoutingAssignment requires dispatch_mode, and the local fallback helper (skills/coordination-bridge/scripts/routing_fallback.py per D8) would need a deterministic dispatch_mode choice when the coordinator is unreachable.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical"
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "The routing.yaml schema allows rule.when.phase as an unrestricted string (no enum, no pattern) and defaults.phase_dispatch_modes as an object with unconstrained keys. Design D3 states 'reference to an unconfigured phase dispatch default' should fail validation, but the schema does not validate phase values against a known phase registry. This permits typos (e.g., 'IMPLMENT' vs 'IMPLEMENT') to silently create unmatched rules or invalid defaults.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical"
+    },
+    {
+      "id": 3,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "The OpenAPI v1.1.yaml defines SelectModelResponse.assignment and .provenance as optional (anyOf with null, default: null). Design D6 states 'A successful response adds top-level: assignment... provenance...' and Spec.md 'Additive assignment and provenance' requires 'Every selected candidate SHALL expose exact lane assignment fields'. On a 200 success these fields must be present, not optional. The schema should make them required (or use a discriminated response shape) rather than optional-with-default.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "critical"
+    },
+    {
+      "id": 4,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "The routing.yaml schema validates fallback.location_order and isolation_order enum values but does not validate that these values exist in actual configured lanes (agents.yaml). Design D8 states the fallback is 'a deterministic choice among the lane's exact configured values'. A config with fallback.location_order: ['local', 'cloud'] but no lanes with location='cloud' would pass schema validation but fail at runtime. A cross-reference validation (schema + agents.yaml) is needed at load time.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "optional"
+    },
+    {
+      "id": 5,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "The TaskRoutingProfile.roadmap_policy (allowed_agent_ids, excluded_agent_ids, allowed_vendor_types, excluded_vendor_types, allowed_locations) and routing.yaml rule.when predicates operate on different attribute sets. The design D5 step 4 applies roadmap-policy allow/exclude sets as a separate feasibility gate, but this is not reflected in the routing.yaml schema or the spec.md 'Config rules consume typed signals' scenario. The relationship between request-level roadmap_policy and config-level rules is underspecified — e.g., whether request constraints override, intersect, or union with rule constraints.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "optional"
+    },
+    {
+      "id": 6,
+      "type": "observability",
+      "criticality": "low",
+      "description": "The routing-decision.schema.json audit event has source.const='coordinator' and success.const=true, meaning only successful coordinator decisions produce audit events. Design D7 confirms failed atomic RPCs roll back both writes and return 503. While this preserves the 'no orphan decision/audit' invariant, it creates an observability gap: routing-durability-unavailable and routing-registry-unavailable failures leave no audit trail. Security/compliance may require recording attempted decisions that failed durability.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "fyi"
+    },
+    {
+      "id": 7,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "The dg-01 VendorLane.catalog_vendor is nullable (type: [string, 'null']), but dg-04 design D4 requires exact projection key (catalog_vendor, model, endpoint_kind, base_url) where catalog_vendor comes from the projection. If a lane has catalog_vendor=null, the exact association cannot be formed. The spec.md 'Exact lane and catalog association' scenario assumes a projection exists, but does not address lanes where catalog_vendor is null. The feasibility check should exclude such lanes with a machine-readable reason (e.g., 'registry:no-catalog-projection') rather than failing association silently.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical"
+    },
+    {
+      "id": 8,
+      "type": "security",
+      "criticality": "low",
+      "description": "The routing.yaml loader resolves the file from ROUTING_CONFIG or package root 'never the process working directory' (Design D3). The work-packages.yaml wp-contract-config scope.write_allow includes agent-coordinator/Dockerfile and agent-coordinator/routing.yaml. The schema validation rejects unknown fields, but there is no explicit protection against path traversal if ROUTING_CONFIG is set to an arbitrary path (e.g., '../../etc/passwd'). The loader implementation must resolve and validate the path is within the expected config directory.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "optional"
+    },
+    {
+      "id": 9,
+      "type": "compatibility",
+      "criticality": "medium",
+      "description": "The dg-00 SelectModelResponse.excluded items have required [vendor, model, reason] with reason as free string (example: 'cedar:programmatic-ineligible'). The dg-04 ExcludedAssignment adds optional agent_id, base_url, endpoint_kind and constrains reason to pattern '^(lane|policy|catalog|roadmap|registry|cedar):[a-z0-9-]+$'. This is additive and backward-compatible for consumers that only read vendor/model/reason. However, the dg-04 response returns ExcludedAssignment[] while dg-00 returned a looser schema. Existing consumers parsing excluded[].reason expecting free strings may break on the new patterned format. The spec should clarify this is a breaking change for excluded reason parsing or provide a migration path.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "critical"
+    },
+    {
+      "id": 10,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The work-packages.yaml correctly enables parallel execution of wp-policy-service and wp-transports-fallback after wp-contract-config (both priority 2, depends_on: [wp-contract-config]). However, wp-policy-service locks 'agent-coordinator/src/model_routing/api.py' and wp-transports-fallback locks 'agent-coordinator/src/coordination_mcp.py' and 'agent-coordinator/src/http_proxy.py' — these are distinct files, so no lock conflict. Good parallelizability. No finding needed; this is a positive observation.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "fyi"
+    }
+  ],
+  "coverage": {
+    "reviewed": [
+      "openspec/changes/implement-the-task-router-vendor-x-location-x-model/proposal.md",
+      "openspec/changes/implement-the-task-router-vendor-x-location-x-model/design.md",
+      "openspec/changes/implement-the-task-router-vendor-x-location-x-model/tasks.md",
+      "openspec/changes/implement-the-task-router-vendor-x-location-x-model/work-packages.yaml",
+      "openspec/changes/implement-the-task-router-vendor-x-location-x-model/specs/task-routing/spec.md",
+      "openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/README.md",
+      "openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/config/routing.schema.json",
+      "openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/events/routing-decision.schema.json",
+      "openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/openapi/v1.1.yaml",
+      "openspec/changes/add-adaptive-model-router/proposal.md",
+      "openspec/changes/add-adaptive-model-router/contracts/openapi/v1.yaml",
+      "openspec/changes/add-live-vendor-capability-and-cost-registry/proposal.md",
+      "openspec/changes/add-live-vendor-capability-and-cost-registry/contracts/openapi/v1.yaml"
+    ],
+    "skipped": []
+  }
+}
