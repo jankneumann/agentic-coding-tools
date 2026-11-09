@@ -186,9 +186,7 @@ class TestPostgresFilterParsing:
         from src.db_postgres import _parse_postgrest_array_literal
 
         assert _parse_postgrest_array_literal("{api,followup}") == ["api", "followup"]
-        assert _parse_postgrest_array_literal('{"change:__probe__"}') == [
-            "change:__probe__"
-        ]
+        assert _parse_postgrest_array_literal('{"change:__probe__"}') == ["change:__probe__"]
         assert _parse_postgrest_array_literal('{"task:1.1","change:foo"}') == [
             "task:1.1",
             "change:foo",
@@ -224,6 +222,50 @@ class TestPostgresFilterParsing:
     def test_coerce_filter_value_leaves_non_timestamp_strings(self):
         assert _coerce_filter_value("completed") == "completed"
         assert _coerce_filter_value("2026-08-19") == "2026-08-19"
+
+    @pytest.mark.asyncio
+    async def test_query_decodes_filter_values_before_coercion(self):
+        """PostgREST-escaped values must bind as their original Python values."""
+        from datetime import datetime
+
+        captured: dict = {}
+
+        class FakeConn:
+            async def fetch(self, query, *args):
+                captured["query"] = query
+                captured["args"] = args
+                return []
+
+        class FakeAcquire:
+            async def __aenter__(self):
+                return FakeConn()
+
+            async def __aexit__(self, *exc):
+                return None
+
+        class FakePool:
+            def acquire(self):
+                return FakeAcquire()
+
+        client = DirectPostgresClient()
+        client._pool = FakePool()  # type: ignore[assignment]
+
+        await client.query(
+            "routing_spend_ledger",
+            "model=eq.vendor%2Bmodel%23v1%25"
+            "&lower_bound=gt.alpha%2Bbeta"
+            "&occurred_at=gte.2026-09-16T00:00:00%2B00:00"
+            "&finished_at=lte.2026-09-16T23:59:59%2B00:00"
+            "&state=in.(ready%2Bsoon,blocked%23reason)",
+        )
+
+        args = captured["args"]
+        assert args[:2] == ("vendor+model#v1%", "alpha+beta")
+        assert isinstance(args[2], datetime)
+        assert args[2].isoformat() == "2026-09-16T00:00:00+00:00"
+        assert isinstance(args[3], datetime)
+        assert args[3].isoformat() == "2026-09-16T23:59:59+00:00"
+        assert args[4:] == ("ready+soon", "blocked#reason")
 
 
 @pytest.mark.skipif(not HAS_ASYNCPG, reason="asyncpg not installed")
@@ -319,8 +361,7 @@ class TestPostgresUpdateTimestampBinding:
         # $1 status, $2 completed_at, $3 closed_at, $4 match id
         assert args[0] == "completed"
         assert isinstance(args[1], datetime), (
-            "completed_at ($2) must be datetime, not ISO string — "
-            f"got {type(args[1]).__name__}"
+            f"completed_at ($2) must be datetime, not ISO string — got {type(args[1]).__name__}"
         )
         assert isinstance(args[2], datetime)
         assert args[3] == issue_id
@@ -557,3 +598,121 @@ class TestTerminateClosedLoopFallback:
 
         with pytest.raises(RuntimeError, match="something unrelated"):
             self._client_with_pool(_Pool()).terminate()
+
+
+class TestPyJWTFloorIsHeld:
+    """PyJWT must stay at or above 2.14.0.
+
+    2.13.0 carries ten advisories, and two of them are not mitigated by
+    anything in this codebase:
+
+    - ``CVE-2026-102267`` — ``PyJWKClient`` followed HTTP redirects while
+      fetching a JWKS without validating the destination, so a redirect from
+      the configured endpoint could supply authoritative key material.
+    - ``CVE-2026-101917`` — ``PyJWKClient`` issued unbounded JWKS requests
+      driven by an attacker-controlled ``kid``.
+
+    Both land on ``src/cloudflare_access.py``, which constructs a real
+    ``jwt.PyJWKClient`` to verify Cloudflare's RSA-signed JWKS. The fix is the
+    library version; there is no application-level workaround.
+
+    The algorithm-confusion advisory (``CVE-2026-102273``) is separately
+    defended here — both decode sites pin their algorithm list explicitly,
+    ``["RS256"]`` in cloudflare_access and ``["HS256"]`` in event_stream — but
+    that defence is a property of those two call sites, not of the dependency,
+    and a third JWT consumer added later would not inherit it.
+
+    A floor in pyproject is the durable guard: a lockfile can be regenerated
+    downward, a constraint cannot be satisfied downward.
+    """
+
+    def test_pyjwt_floor_is_at_least_2_14(self) -> None:
+        data = tomllib.loads(PYPROJECT.read_text())
+        groups: list[list[str]] = [data["project"]["dependencies"]]
+        groups += list(data["project"].get("optional-dependencies", {}).values())
+
+        specs = [dep for group in groups for dep in group if dep.lower().startswith("pyjwt")]
+        assert specs, "PyJWT must be declared; cloudflare_access and event_stream import it"
+
+        for spec in specs:
+            _, _, floor = spec.partition(">=")
+            assert floor, f"PyJWT must carry a >= floor, got {spec!r}"
+            major, minor = (int(part) for part in floor.strip().strip('"').split(".")[:2])
+            assert (major, minor) >= (2, 14), (
+                f"PyJWT floor {floor.strip()} is below 2.14.0, which reintroduces the "
+                f"PyJWKClient JWKS redirect and unbounded-fetch advisories that "
+                f"cloudflare_access.py is exposed to ({spec!r})."
+            )
+
+
+def _capturing_client():
+    """A DirectPostgresClient whose pool records the SQL and args it is given."""
+    captured: dict = {}
+
+    class FakeConn:
+        async def fetch(self, query, *args):
+            captured["query"] = query
+            captured["args"] = args
+            return []
+
+    class FakeAcquire:
+        async def __aenter__(self):
+            return FakeConn()
+
+        async def __aexit__(self, *exc):
+            return None
+
+    class FakePool:
+        def acquire(self):
+            return FakeAcquire()
+
+    client = DirectPostgresClient()
+    client._pool = FakePool()  # type: ignore[assignment]
+    return client, captured
+
+
+class TestFilterOperatorCoverage:
+    """Every PostgREST operator a caller uses must reach the WHERE clause (#634).
+
+    `lt` and `is` had no branch and were silently dropped, so e.g. "delete
+    tokens with expires_at < now" deleted every token on the Postgres backend.
+    """
+
+    @pytest.mark.asyncio
+    async def test_lt_filters_and_binds_a_datetime(self):
+        from datetime import datetime
+
+        client, captured = _capturing_client()
+        await client.query(
+            "agent_sessions",
+            "status=eq.active&last_heartbeat=lt.2026-10-04T00:00:00%2B00:00",
+        )
+
+        assert "last_heartbeat < $2" in captured["query"]
+        assert isinstance(captured["args"][1], datetime)
+
+    @pytest.mark.asyncio
+    async def test_lt_now_uses_server_time(self):
+        client, captured = _capturing_client()
+        await client.query("notification_tokens", "expires_at=lt.now()")
+
+        assert "expires_at < NOW()" in captured["query"]
+        assert captured["args"] == ()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("value", "sql"),
+        [("null", "used_at IS NULL"), ("true", "used_at IS TRUE"), ("false", "used_at IS FALSE")],
+    )
+    async def test_is_filters(self, value, sql):
+        client, captured = _capturing_client()
+        await client.query("notification_tokens", f"token=eq.t&used_at=is.{value}")
+
+        assert sql in captured["query"]
+
+    @pytest.mark.asyncio
+    async def test_unsupported_filter_is_rejected_not_dropped(self):
+        client, _captured = _capturing_client()
+
+        with pytest.raises(ValueError, match="unsupported query filter"):
+            await client.query("approval_queue", "status=eq.pending&expires_at=neq.x")

@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://coordinator.rotkohl.ai/contracts/openbao/migration-map.schema.json",
+  "title": "Explicit flat-secret migration mapping",
+  "description": "Contains source key names only, never secret values. Preflight must check that each keyed registry agent and declared vendor has exactly one destination, source keys do not repeat, and every source key is either mapped or retained internally.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "agents", "vendors", "retained_internal"],
+  "properties": {
+    "version": { "const": 1 },
+    "agents": { "$ref": "#/$defs/mapping" },
+    "vendors": { "$ref": "#/$defs/mapping" },
+    "legacy_role_aliases": { "$ref": "#/$defs/slugMapping" },
+    "retained_internal": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/sourceKey" } }
+  },
+  "$defs": {
+    "sourceKey": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" },
+    "mapping": {
+      "type": "object",
+      "propertyNames": { "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$" },
+      "additionalProperties": { "$ref": "#/$defs/sourceKey" }
+    },
+    "slugMapping": {
+      "type": "object",
+      "propertyNames": { "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$" },
+      "additionalProperties": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" }
+    }
+  }
+}

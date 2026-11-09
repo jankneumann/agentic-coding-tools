@@ -1,0 +1,64 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: `RoutingService._current_exploration_budget` reads `summary[\"exploration_entries\"]` to compute `pct_used`, but `LedgerService.usage_summary` never emits `exploration_entries` (only `exploration_usd_used` / `entries`). With defaults `ROUTING_EXPLORATION_PCT=0.10` and `ROUTING_EXPLORATION_MONTHLY_USD=0` (USD ceiling disabled), `pct_used` stays 0.0 forever, so the dual-ceiling gate never exhausts and Round-1 exploration-budget remediation remains incomplete in production.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "In `usage_summary`, add `exploration_entries: sum(1 for row in selected if row.get(\"exploration\"))` (and cover it in `test_usage_summary_aggregates_by_model_and_exploration_spend`). Prefer an integration test that drives `RoutingService.select_model` against a real `LedgerService` mock return without injecting `exploration_entries` by hand.",
+      "package_id": "whole-branch",
+      "file_path": "agent-coordinator/src/model_routing/ledger.py",
+      "line_range": {
+        "start": 132,
+        "end": 149
+      },
+      "evidence_class": "judgment",
+      "existing_code": "+            \"by_model\": by_model,\n+            \"exploration_usd_used\": sum(\n+                float(row.get(\"actual_usd\") or 0.0) for row in selected if row.get(\"exploration\")\n+            ),",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: `OpenRouterRefresher._entry` now returns a plain dict with `refreshed_at` as a live `datetime`, skipping `CatalogEntry.to_row()`'s isoformat conversion. `SupabaseClient.insert/update` pass `json=data` to httpx, which cannot serialize `datetime` (`TypeError: Object of type datetime is not JSON serializable`), so scheduled catalog refresh fails on the REST backend after this remediation.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "critical",
+      "resolution": "Normalize `refreshed_at` (and any other timestamps) to ISO-8601 strings before upsert, matching the prior `CatalogEntry.to_row()` contract; keep omitting unset latency/quota fields so the null-wipe fix is preserved.",
+      "package_id": "whole-branch",
+      "file_path": "agent-coordinator/src/model_routing/refresher.py",
+      "line_range": {
+        "start": 70,
+        "end": 91
+      },
+      "evidence_class": "judgment",
+      "existing_code": "+        entry: dict[str, Any] = {\n+            \"vendor\": vendor,\n+            \"model\": model_id,\n+            \"endpoint_kind\": \"openrouter\",\n+            \"base_url\": \"https://openrouter.ai/api/v1\",\n+            \"available\": True,\n+            \"refreshed_at\": refreshed_at,\n+            \"stale\": False,\n+        }",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: `LedgerService.usage_summary` now runs `occurred_at` bounds through `encode_filter_value`, turning UTC offsets like `+00:00` into `%2B00:00`. `DirectPostgresClient.query` splits on `&` then coerces gte/lte values via `_coerce_filter_value` without `_decode_query_value`, so `datetime.fromisoformat` rejects the encoded stamp and the timestamptz bind fails. Because every `select_model` call now awaits `_current_exploration_budget` \u2192 `usage_summary`, adaptive selection breaks on the direct-Postgres path.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Decode percent-encoded filter values in `DirectPostgresClient` before `_coerce_filter_value` for eq/gte/lte/gt (same as the existing `=cs.` path), or stop encoding `+` for values that only the Postgres splitter consumes. Add a ledger/query test that round-trips an aware UTC `occurred_at` bound through encode + DirectPostgres parsing.",
+      "package_id": "whole-branch",
+      "file_path": "agent-coordinator/src/model_routing/ledger.py",
+      "line_range": {
+        "start": 117,
+        "end": 120
+      },
+      "evidence_class": "judgment",
+      "existing_code": "+            f\"occurred_at=gte.{encode_filter_value(start.isoformat())}\"\n+            f\"&occurred_at=lte.{encode_filter_value(inclusive_end.isoformat())}\",",
+      "line_resolution": "vendor"
+    }
+  ]
+}

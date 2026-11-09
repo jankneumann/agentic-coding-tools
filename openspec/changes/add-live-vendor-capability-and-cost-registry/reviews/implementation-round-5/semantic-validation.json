@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "review_type": "implementation",
+  "target": "add-live-vendor-capability-and-cost-registry",
+  "round": 5,
+  "valid_for_consensus": [
+    "claude_code",
+    "grok"
+  ],
+  "excluded": [
+    {
+      "vendor": "antigravity",
+      "reason": "timeout"
+    },
+    {
+      "vendor": "codex",
+      "reason": "timeout"
+    },
+    {
+      "vendor": "pi",
+      "reason": "timeout"
+    }
+  ],
+  "semantic_checks": {
+    "schema_valid": true,
+    "prefix_matches_severity": true,
+    "security_accept_absent": true,
+    "critical_disposition_coherent": true,
+    "none_disposition_accept": true
+  },
+  "quorum_requested": 2,
+  "quorum_received": 2,
+  "quorum_met": true,
+  "blocking_count": 0,
+  "disagreement_count": 0,
+  "disposition": "converged"
+}

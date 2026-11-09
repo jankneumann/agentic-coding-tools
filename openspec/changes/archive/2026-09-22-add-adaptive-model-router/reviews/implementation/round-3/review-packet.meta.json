@@ -1,0 +1,163 @@
+{
+  "schema_version": 2,
+  "change_id": "add-adaptive-model-router",
+  "round": 3,
+  "body_path": "review-packet.md",
+  "sha256": "70924afda7e9f59e8b741c58fc654145366b64252324a8798ae78202a2158d87",
+  "char_length": 37130,
+  "budget_chars": 320000,
+  "tools_overflow": false,
+  "includes_ledger": false,
+  "diff_kind": "last_fix",
+  "selection": {
+    "per_file_token_ceiling": 64000,
+    "selected": [
+      {
+        "path": "agent-coordinator/src/coordination_mcp.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 414
+      },
+      {
+        "path": "agent-coordinator/src/db_postgres.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 617
+      },
+      {
+        "path": "agent-coordinator/src/model_routing/api.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 550
+      },
+      {
+        "path": "agent-coordinator/src/model_routing/catalog.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 256
+      },
+      {
+        "path": "agent-coordinator/src/model_routing/ledger.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 487
+      },
+      {
+        "path": "agent-coordinator/src/model_routing/local_endpoints.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 248
+      },
+      {
+        "path": "agent-coordinator/src/model_routing/refresher.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 153
+      },
+      {
+        "path": "agent-coordinator/tests/model_routing/test_api.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 424
+      },
+      {
+        "path": "agent-coordinator/tests/model_routing/test_contracts_generated.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 370
+      },
+      {
+        "path": "agent-coordinator/tests/model_routing/test_ledger.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 234
+      },
+      {
+        "path": "agent-coordinator/tests/model_routing/test_local_endpoints.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 243
+      },
+      {
+        "path": "agent-coordinator/tests/model_routing/test_refresher.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 235
+      },
+      {
+        "path": "agent-coordinator/tests/model_routing/test_service.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 723
+      },
+      {
+        "path": "agent-coordinator/tests/test_db_factory.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 521
+      },
+      {
+        "path": "openspec/changes/add-adaptive-model-router/contracts/generated/models.py",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 239
+      },
+      {
+        "path": "openspec/changes/add-adaptive-model-router/contracts/openapi/v1.yaml",
+        "status": "modified",
+        "reason": "none",
+        "gate": "passed",
+        "est_tokens": 242
+      }
+    ],
+    "excluded": [],
+    "truncated": []
+  },
+  "rule_groups": [
+    {
+      "group_id": 1,
+      "source": "default",
+      "pattern": "**/*.py",
+      "files": [
+        "agent-coordinator/src/coordination_mcp.py",
+        "agent-coordinator/src/db_postgres.py",
+        "agent-coordinator/src/model_routing/api.py",
+        "agent-coordinator/src/model_routing/catalog.py",
+        "agent-coordinator/src/model_routing/ledger.py",
+        "agent-coordinator/src/model_routing/local_endpoints.py",
+        "agent-coordinator/src/model_routing/refresher.py",
+        "agent-coordinator/tests/model_routing/test_api.py",
+        "agent-coordinator/tests/model_routing/test_contracts_generated.py",
+        "agent-coordinator/tests/model_routing/test_ledger.py",
+        "agent-coordinator/tests/model_routing/test_local_endpoints.py",
+        "agent-coordinator/tests/model_routing/test_refresher.py",
+        "agent-coordinator/tests/model_routing/test_service.py",
+        "agent-coordinator/tests/test_db_factory.py",
+        "openspec/changes/add-adaptive-model-router/contracts/generated/models.py"
+      ]
+    },
+    {
+      "group_id": 2,
+      "source": "default",
+      "pattern": "(default)",
+      "files": [
+        "openspec/changes/add-adaptive-model-router/contracts/openapi/v1.yaml"
+      ]
+    }
+  ]
+}

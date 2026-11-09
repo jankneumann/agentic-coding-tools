@@ -1,0 +1,119 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "axis": "correctness",
+      "severity": "critical",
+      "disposition": "fix",
+      "package_id": "wp-contracts",
+      "file_path": "openspec/changes/add-model-usage-ledger/contracts/openapi/v1.yaml",
+      "line_range": {
+        "start": 383,
+        "end": 401
+      },
+      "description": "The session_overhead bucket was introduced to report orchestrator-session usage in GET /usage/by-phase. However, PhaseUsageRow in openapi/v1.yaml requires dispatch_id and intended_model as non-nullable string fields. Because session_overhead represents usage not associated with any phase dispatch, it has no dispatch_id or intended_model. Emitting null or omitting these fields for session_overhead violates the PhaseUsageRow schema in OpenAPI and generated types.",
+      "resolution": "Update PhaseUsageRow in contracts/openapi/v1.yaml (and generated types) to make dispatch_id and intended_model nullable (type: [string, null])."
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "axis": "compatibility",
+      "severity": "critical",
+      "disposition": "fix",
+      "package_id": "wp-contracts",
+      "file_path": "openspec/changes/add-model-usage-ledger/contracts/openapi/v1.yaml",
+      "line_range": {
+        "start": 74,
+        "end": 353
+      },
+      "description": "POST /usage/dispatch requestBody in openapi/v1.yaml references DispatchRecordPatch only instead of supporting initial creation (oneOf: [DispatchRecordCreate, DispatchRecordPatch]). Furthermore, DispatchRecordCreate omits dispatched_at required by contracts/events/dispatch-record.schema.json, and DispatchRecord inherits DispatchRecordPatch, omitting change_id, phase, intended_model, and session_id from its required properties.",
+      "resolution": "Update POST /usage/dispatch requestBody in openapi/v1.yaml to accept oneOf: [DispatchRecordCreate, DispatchRecordPatch], add dispatched_at to DispatchRecordCreate, and compose DispatchRecord from DispatchRecordCreate plus timestamps."
+    },
+    {
+      "id": 3,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "axis": "security",
+      "severity": "critical",
+      "disposition": "fix",
+      "package_id": "wp-contracts",
+      "file_path": "openspec/changes/add-model-usage-ledger/specs/usage-accounting/spec.md",
+      "line_range": {
+        "start": 202,
+        "end": 207
+      },
+      "description": "All /usage/* GET routes were updated to require API keys and principal scoping in openapi/v1.yaml. However, specs/usage-accounting/spec.md (lines 202-207) and specs/agent-coordinator/spec.md (lines 29-32) still describe GET /usage/summary, GET /usage/by-phase, GET /usage/by-model, GET /usage/mismatches, and GET /usage/events as unauthenticated GET routes, contradicting openapi/v1.yaml.",
+      "resolution": "Update specs/usage-accounting/spec.md and specs/agent-coordinator/spec.md to state that all GET /usage/* routes require API key authentication and are principal-scoped."
+    },
+    {
+      "id": 4,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "axis": "architecture",
+      "severity": "critical",
+      "disposition": "fix",
+      "package_id": "wp-dispatch",
+      "file_path": "openspec/changes/add-model-usage-ledger/work-packages.yaml",
+      "line_range": {
+        "start": 218,
+        "end": 283
+      },
+      "description": "Task 4.4b in tasks.md explicitly requires modifying skills/shared/provider_dispatch.py to thread sub-agent IDs on the return path. However, wp-dispatch scope.write_allow in work-packages.yaml omits skills/shared/**, causing isolated worktrees or scope validators to reject modifications to skills/shared/provider_dispatch.py.",
+      "resolution": "Add \"skills/shared/**\" to scope.write_allow of wp-dispatch in work-packages.yaml."
+    },
+    {
+      "id": 5,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "axis": "compatibility",
+      "severity": "optional",
+      "disposition": "regenerate",
+      "package_id": "wp-contracts",
+      "file_path": "openspec/changes/add-model-usage-ledger/contracts/generated/models.py",
+      "line_range": {
+        "start": 72,
+        "end": 93
+      },
+      "description": "contracts/generated/models.py retains the obsolete DispatchRecordUpsert model and lacks DispatchRecordCreate and DispatchRecordPatch defined in openapi/v1.yaml. Task 1.4 requires regenerating models.py from OpenAPI, but the checked-in stub in generated/models.py is stale.",
+      "resolution": "Regenerate contracts/generated/models.py from openapi/v1.yaml to include DispatchRecordCreate and DispatchRecordPatch."
+    },
+    {
+      "id": 6,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "axis": "observability",
+      "severity": "optional",
+      "disposition": "fix",
+      "package_id": "wp-coordinator",
+      "file_path": "openspec/changes/add-model-usage-ledger/specs/agent-coordinator/spec.md",
+      "line_range": {
+        "start": 54,
+        "end": 67
+      },
+      "description": "contracts/db/schema.sql specifies a 30-day retention purge for usage_ingest_state cursor rows. However, specs/agent-coordinator/spec.md and Task 3.10 only specify purging transcript_events and omit the usage_ingest_state retention requirement.",
+      "resolution": "Add usage_ingest_state retention purge requirements to specs/agent-coordinator/spec.md and expand Task 3.10 in tasks.md."
+    },
+    {
+      "id": 7,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "axis": "correctness",
+      "severity": "optional",
+      "disposition": "fix",
+      "package_id": "wp-contracts",
+      "file_path": "openspec/changes/add-model-usage-ledger/contracts/openapi/v1.yaml",
+      "line_range": {
+        "start": 354,
+        "end": 366
+      },
+      "description": "TokenTotals in openapi/v1.yaml mandates non-nullable pricing_version: string. In db/schema.sql, ck_usage_cost_provenance allows cost_usd and pricing_version to be NULL when unpriced. Requiring pricing_version to be a non-null string in TokenTotals causes validation failures when returning unpriced aggregate totals.",
+      "resolution": "Update pricing_version in TokenTotals in openapi/v1.yaml and generated types to be nullable (type: [string, null])."
+    }
+  ]
+}

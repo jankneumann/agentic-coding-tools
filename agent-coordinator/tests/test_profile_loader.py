@@ -273,6 +273,19 @@ class TestLoadSecretsOpenbao:
         result = _load_secrets_openbao()
         assert result == {"GOOD": "value"}
 
+    @pytest.mark.parametrize("document", [{}, {"data": {}}, {"data": {"data": None}},
+                                          {"data": {"data": "wrong"}}])
+    @patch("src.config.OpenBaoConfig.from_env")
+    def test_missing_or_malformed_internal_document_fails_loudly(
+        self, mock_from_env: MagicMock, document: dict
+    ) -> None:
+        mock_config = self._mock_openbao({"GOOD": "value"})
+        mock_client = mock_config.create_client.return_value
+        mock_client.secrets.kv.v2.read_secret_version.return_value = document
+        mock_from_env.return_value = mock_config
+        with pytest.raises(RuntimeError, match="internal secret document"):
+            _load_secrets_openbao()
+
     @patch("src.config.OpenBaoConfig.from_env")
     def test_auth_failure(self, mock_from_env: MagicMock) -> None:
         """Authentication failure raises RuntimeError via create_client."""
@@ -285,12 +298,12 @@ class TestLoadSecretsOpenbao:
 
     @patch("src.config.OpenBaoConfig.from_env")
     def test_missing_credentials(self, mock_from_env: MagicMock) -> None:
-        """Missing BAO_ROLE_ID raises ValueError."""
+        """Missing BAO_INTERNAL_ROLE_ID raises ValueError."""
         mock_config = MagicMock()
-        mock_config.create_client.side_effect = ValueError("BAO_ROLE_ID required")
+        mock_config.create_client.side_effect = ValueError("BAO_INTERNAL_ROLE_ID required")
         mock_from_env.return_value = mock_config
 
-        with pytest.raises(ValueError, match="BAO_ROLE_ID"):
+        with pytest.raises(ValueError, match="BAO_INTERNAL_ROLE_ID"):
             _load_secrets_openbao()
 
     @patch("src.config.OpenBaoConfig.from_env")

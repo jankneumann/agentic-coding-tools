@@ -1,0 +1,405 @@
+{
+  "schema_version": 1,
+  "change_id": "ownership-map",
+  "items": [
+    {
+      "id": 1,
+      "status": "parked",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/reviewer-shaped-prs/specs/multiplayer-collaboration/spec.md",
+      "fingerprint": "698918932a2591f1",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Scaffold generator lower-cased the first letter of the acceptance outcome, producing 'The system SHALL ensure that pRs created by /autopilot ...' (the 'PRs' acronym became 'pRs'). The requirement text is still readable but is wrong as written and will propagate into the merged capability spec on sync.",
+      "resolution": "conductor adjudication (PLAN_REVIEW 2026-10-09): cites openspec/changes/reviewer-shaped-prs/specs/multiplayer-collaboration/spec.md, outside change ownership-map; the packet diff is main...HEAD over the whole roadmap branch. Advisory for the branch owner.",
+      "parked_reason": "out_of_scope",
+      "consensus_status": "disagreement"
+    },
+    {
+      "id": 2,
+      "status": "addressed",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/ownership-map/proposal.md",
+      "fingerprint": "a724325a2e6c1835",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The proposal's Selected Approach section says design.md records decisions '(D1\u2013D13)', but design.md now has D14 (solo-mode suppression of unowned_* findings) added in plan iteration 1, and the proposal itself cites D14 elsewhere. The readiness checklist in plan-findings.md correctly says D1\u2013D14.",
+      "resolution": "IMPL_REVIEW 2026-10-09, conductor (claude_code, lead vendor) after round-1 convergence: fixed earlier by PLAN_FIX commit 0a4659f (proposal Selected Approach cites D1-D14); re-verified by the round-1 lane (finding 8 / ledger 14).",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 3,
+      "status": "parked",
+      "axis": "readability",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "TRUST_POSTURE.md",
+      "fingerprint": "ac7be6ca7baa62de",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The YAML front-matter comment states 'merges and every failure/escalation path still wait for a human', but `replan_required` (which fires when a roadmap item enters replan_required, a failure-adjacent path) is set to `auto`. The prose table below does explain that replan_required is covered by roadmap approval, so the posture is internally justified, but the header comment, which is what an operator reads first when editing the gates, overstates what blocks.",
+      "resolution": "conductor adjudication (PLAN_REVIEW 2026-10-09): cites TRUST_POSTURE.md, outside change ownership-map; the packet diff is main...HEAD over the whole roadmap branch. Advisory for the branch owner.",
+      "parked_reason": "out_of_scope",
+      "consensus_status": "disagreement"
+    },
+    {
+      "id": 4,
+      "status": "parked",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/attention-budgets-digests/specs/multiplayer-collaboration/spec.md",
+      "spec_file": "openspec/changes/attention-budgets-digests/specs/multiplayer-collaboration/spec.md",
+      "fingerprint": "dd7da908019e0e54",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "All 19 scaffolded spec deltas satisfy the WHEN/THEN rule only mechanically: every scenario is 'WHEN `<change>` is implemented THEN <restated requirement>', which is tautological and untestable, and all of them target the placeholder capability directory `multiplayer-collaboration`. The files are clearly marked as plan-roadmap scaffolds to be refined by /plan-feature, and the ownership-map change shows what the refined form looks like, so this is expected at this stage, but syncing any of these scaffolds as-is would add vacuous requirements to a placeholder capability.",
+      "resolution": "conductor adjudication (PLAN_REVIEW 2026-10-09): cites openspec/changes/attention-budgets-digests/specs/multiplayer-collaboration/spec.md, outside change ownership-map; the packet diff is main...HEAD over the whole roadmap branch. Advisory for the branch owner.",
+      "parked_reason": "out_of_scope",
+      "consensus_status": "disagreement"
+    },
+    {
+      "id": 5,
+      "status": "parked",
+      "axis": "security",
+      "type": "security",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/roadmaps/multiplayer-collaboration/checkpoint.json",
+      "fingerprint": "b11da12f5a97e6a7",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "checkpoint.json commits a dispatch `launch_token` and lease `owner_nonce` into the tracked repository. These are one-shot launch-gate markers for an already-resolved attempt (lease state 'released', outcome 'parked'), and the same pattern is already tracked for the dispatch-governance and principal-credential-architecture roadmaps, so there is no live credential exposure; flagged only so the convention is a conscious one.",
+      "resolution": "conductor adjudication (PLAN_REVIEW 2026-10-09): cites openspec/roadmaps/multiplayer-collaboration/checkpoint.json, outside change ownership-map; the packet diff is main...HEAD over the whole roadmap branch. Advisory for the branch owner.",
+      "parked_reason": "out_of_scope",
+      "consensus_status": "disagreement"
+    },
+    {
+      "id": 6,
+      "status": "open",
+      "axis": "compatibility",
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/ownership-map/contracts/schemas/owners.schema.json",
+      "fingerprint": "8adac3d66645a79e",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The `PathPattern` schema regex admits an embedded `**` (e.g. `openspec/spec**s/`) and also sequences like `***`, relying on the loader to reject them per design D3. The split is documented in both the schema description and D3, and the spec has a scenario for the loader half, so this is a deliberate two-layer validation rather than a gap; noting it because schema-only validators (e.g. an editor plugin) will accept a value the resolver refuses.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 7,
+      "status": "addressed",
+      "axis": "readability",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/ownership-map/design.md",
+      "fingerprint": "a83a30ce22fbfec2",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "check_owners.py CODES emits `invalid_registry` and `registry_not_found` (both errors, also documented in SKILL.md and the session log), but the design D9 table in design.md does not list them. The spec's Ownership Check requirement says `code` is 'one of the stable identifiers enumerated in design D9' and task 3.5 asserts 'every emitted code is in the D9 table', so the normative enumeration and the implementation disagree; test_codes_table_has_the_documented_codes only checks a subset relation and so does not catch it.",
+      "resolution": "IMPL_REVIEW 2026-10-09, conductor (claude_code, lead vendor) after round-1 convergence: design.md D9 table now lists invalid_registry and registry_not_found; test_codes_table_has_the_documented_codes tightened to equality with the table.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 8,
+      "status": "addressed",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/ownership-map/tasks.md",
+      "fingerprint": "cfbfad3316515526",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "tasks.md 5.2 (marked done) says the repository map assigns capabilities `ownership-map` and `agent-identity`, but openspec/owners.yaml assigns `agent-identity` and `agent-coordinator`. The session log records why (`openspec/specs/ownership-map/` does not exist until archival and would trip `unknown_capability`), but the task text was not updated, so the checked-off task no longer describes the delivered artifact.",
+      "resolution": "IMPL_REVIEW 2026-10-09, conductor (claude_code, lead vendor) after round-1 convergence: tasks.md 5.2 now names the delivered capabilities agent-identity and agent-coordinator and explains why ownership-map is not assigned until archival.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 9,
+      "status": "addressed",
+      "axis": "compatibility",
+      "type": "compatibility",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "skills/ownership-runtime/scripts/principals.py",
+      "fingerprint": "469063995fb58b8c",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The skills-side registry reader validates each `humans:` entry against human-principals.schema.json, but that schema is per-entry; the principal-id slug pattern and 64-char limit live only in the coordinator's AGENTS_SCHEMA `propertyNames`. principals.read_registry therefore accepts an id such as `Jan_N` that load_agents_config() rejects, so the resolver can resolve owners the coordinator will never load. This is the 'reader duplication' risk D2 names, and the pinned schema does not cover it because the key constraint is outside the mirrored dict.",
+      "resolution": "IMPL_REVIEW 2026-10-09, conductor (claude_code, lead vendor) after round-1 convergence: principals.read_registry validates each humans: key against owners.schema.json $defs.PrincipalId (slug pattern, 1-64 chars) and raises invalid_registry naming the id; tests test_human_id_must_follow_the_principal_id_pattern / test_human_id_longer_than_64_characters_rejected; coordinator test pins PRINCIPAL_ID_PATTERN and propertyNames.maxLength to that schema.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 10,
+      "status": "addressed",
+      "axis": "resilience",
+      "type": "resilience",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/ownership-runtime/scripts/codeowners.py",
+      "fingerprint": "9c21ab72c98feaca",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "codeowners.tracked_files calls subprocess.run with timeout=60 but catches nothing; a hung `git ls-files` raises subprocess.TimeoutExpired out of reconcile() and check_owners --codeowners instead of producing a finding. principals._git handles the same failure classes (OSError, SubprocessError) and returns None, so the two git wrappers behave differently on the failure path this module is meant to guard.",
+      "resolution": "IMPL_REVIEW 2026-10-09, conductor (claude_code, lead vendor) after round-1 convergence: codeowners.tracked_files catches OSError and subprocess.SubprocessError (incl. TimeoutExpired) and returns [] like a non-zero exit, matching principals._git; test TestTrackedFiles.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 11,
+      "status": "addressed",
+      "axis": "compatibility",
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/ownership-runtime/SKILL.md",
+      "fingerprint": "389dc54351315135",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "check_owners.check() returns `mode: null` whenever collect_problems yields no context (invalid map, unknown owner, team registry without map), but SKILL.md documents the --json shape with `mode` and the mode contract as `\"solo\" | \"team\"` only. Consumers keying on mode will see a third value the contract does not mention.",
+      "resolution": "IMPL_REVIEW 2026-10-09, conductor (claude_code, lead vendor) after round-1 convergence: SKILL.md documents that --json mode is null when no context could be built and which error codes accompany it.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 12,
+      "status": "open",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "agent-coordinator/tests/test_registry_projection.py",
+      "fingerprint": "108e6b4befc3fea2",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The rule-6 human-projection checkers (_strings / _strings_in) test exact string equality against the human id, so a projection that embedded the id in a composite string (e.g. `agent:jan`, a role path `agents/jan/...` or an AppRole name) would not be reported. The negative tests only inject a bare `jan` row, so they do not prove coverage of that shape; the invariant is weaker than the spec's 'no human id appears in any projection' wording.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 13,
+      "status": "open",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/tests/ownership-runtime/test_repository_invariant.py",
+      "fingerprint": "9763965bdbaf1ca4",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verification of open ledger item 13: test_adding_a_capability_directory_causes_no_unowned_churn still asserts report['findings'] == [] and then asserts no code starts with 'unowned_'; the second assertion remains vacuous. Status unchanged.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 14,
+      "status": "retired",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/ownership-map/proposal.md",
+      "fingerprint": "c5d27961141bcd2a",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verification of open ledger item 2: proposal.md Selected Approach now reads '(D1\u2013D14)' in the diff, so the range mismatch is resolved and the item can be closed.",
+      "resolution": "IMPL_REVIEW 2026-10-09, conductor (claude_code, lead vendor) after round-1 convergence: duplicate: the lane's re-verification note for ledger item 2, which is now addressed.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 15,
+      "status": "retired",
+      "axis": "compatibility",
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/schemas/owners.schema.json",
+      "fingerprint": "0d86aba683110577",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verification of open ledger item 6: the PathPattern regex in owners.schema.json (all three copies) still admits an embedded `**`; the loader rejects it (compile_pattern, covered by test_embedded_double_star_rejected and fixture embedded_double_star_schema_ok.json). The two-layer split remains as designed in D3; no change in status.",
+      "resolution": "IMPL_REVIEW 2026-10-09, conductor (claude_code, lead vendor) after round-1 convergence: duplicate: the lane's re-verification note for ledger item 6 (two-layer PathPattern validation is as designed in D3); item 6 stays open as a low advisory.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 16,
+      "status": "addressed",
+      "axis": "resilience",
+      "type": "resilience",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/ownership-runtime/scripts/owners.py",
+      "fingerprint": "605ddcf49481ae89",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "collect_problems() documents 'return every configuration problem instead of raising', but _schema_problems() calls _load_schema(), which raises OwnershipConfigError('invalid_map', 'owners.schema.json is not installed') when neither the install_assets copy nor openspec/schemas/ exists; the exception escapes collect_problems() and so check_owners.check() / codeowners.reconcile() crash with a traceback instead of emitting an invalid_map finding. Likewise read_codeowners() does path.read_bytes().decode('utf-8') unguarded, so an unreadable or non-UTF-8 .github/CODEOWNERS raises OSError/UnicodeDecodeError out of reconcile() rather than producing a finding. Both are on the file-I/O failure path this module is meant to guard (principals.read_registry wraps the equivalent read in OSError handling).",
+      "resolution": "VAL_REVIEW 2026-10-09, conductor (claude_code, lead vendor) after round-1 convergence: VAL_FIX, test-first: owners._schema_problems returns the missing-schema OwnershipConfigError as an invalid_map Problem instead of raising (test_missing_schema_is_reported_not_raised); codeowners.read_codeowners raises codeowners_unreadable on OSError/UnicodeDecodeError and reconcile / emit --write surface it as a finding (TestUnreadableCodeowners in the reconcile and emit suites); codeowners_unreadable added to CODES, the design D9 table and SKILL.md.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 17,
+      "status": "addressed",
+      "axis": "readability",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/ownership-map/specs/ownership-map/spec.md",
+      "spec_file": "openspec/changes/ownership-map/specs/ownership-map/spec.md",
+      "fingerprint": "9fc4be85b17da89b",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The Ownership Check requirement states SHALL-level behaviour for two warnings that have no WHEN/THEN scenario: 'every item in any active roadmap.yaml with no explicit assignment' (unowned_roadmap_item) and 'a solo principal that is the sentinel' (sentinel_principal). Only unowned_capability and unknown_capability have scenarios; the roadmap and sentinel halves are covered by tests (test_unowned_roadmap_item_reported, test_sentinel_principal_warning) but not by the normative spec, so the spec-to-scenario rule for this group is not met for those clauses.",
+      "resolution": "VAL_REVIEW 2026-10-09, conductor (claude_code, lead vendor) after round-1 convergence: VAL_FIX: spec Ownership Check gains the scenarios 'Unowned roadmap item reported' and 'Sentinel principal reported', mirroring test_unowned_roadmap_item_reported and test_sentinel_principal_warning; both traced in validation-report.md.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 18,
+      "status": "addressed",
+      "axis": "compatibility",
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/ownership-runtime/scripts/principals.py",
+      "fingerprint": "1d5ff8ead68bbe2f",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Spec Solo Mode says the sole principal is derived as: single declared human; else `git:<email>` from git config user.email; else the `repository-default` sentinel. derive_solo_principal() inserts an extra step: when user.email is unset but user.name is set it returns Principal(id='git:<name>', source='git-config'). Design D5 mentions '(then user.name)', so the design and code agree, but the spec requirement and the 'Sentinel when no identity is available' scenario do not describe this id shape; a downstream consumer reading the spec would not expect a `git:` id that is not an email.",
+      "resolution": "VAL_REVIEW 2026-10-09, conductor (claude_code, lead vendor) after round-1 convergence: VAL_FIX: spec Solo Mode now states the `git config user.name` fallback (`git:<name>`) between user.email and the sentinel, matching design D5, derive_solo_principal and test_principals.py.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 19,
+      "status": "open",
+      "axis": "observability",
+      "type": "observability",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/ownership-runtime/scripts/check_owners.py",
+      "fingerprint": "ea4b5436657b8018",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "active_roadmap_items() silently `continue`s when an active roadmap.yaml cannot be read or parsed. In that case every roadmap_items assignment for that roadmap is reported as unknown_roadmap_item ('is in no active roadmap') and, in team mode, no unowned_roadmap_item findings are emitted for it, so a corrupt roadmap file is misreported as a map typo and nothing names the real cause.",
+      "resolution": "VAL_REVIEW 2026-10-09, conductor (claude_code, lead vendor) after round-1 convergence: left open as a low advisory: a corrupt active roadmap.yaml deserves its own D9 code rather than being folded into unknown_roadmap_item; follow-up change.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 20,
+      "status": "open",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/ownership-runtime/scripts/codeowners.py",
+      "fingerprint": "4977abea843d243d",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Two definitions of 'literal prefix' exist: Rule.literal_length (owners.py) counts a leading '/' in the pattern, while codeowners._literal_prefix strips it with lstrip('/') before locating the first metacharacter. Resolution and emit both use Rule.sort_key so they stay consistent with each other, but '/openspec/x' and 'openspec/x' (identical semantics per D3) get different specificity, and the reconcile probe prefix is computed by a different function than the one that ranks rules. Harmless today; a maintenance trap if either is changed alone.",
+      "resolution": "VAL_REVIEW 2026-10-09, conductor (claude_code, lead vendor) after round-1 convergence: accepted as a low advisory (lane disposition accept): Rule.literal_length and codeowners._literal_prefix agree for every pattern shape the schema admits today; unify when either changes.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 21,
+      "status": "open",
+      "axis": "performance",
+      "type": "performance",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/ownership-runtime/scripts/codeowners.py",
+      "fingerprint": "73d29d78b3178097",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "check_owners.check(codeowners=True) builds the context via collect_problems() and then codeowners.check_findings() -> reconcile() calls collect_problems() again, re-reading and re-validating owners.yaml and the registry (including the shipped-schema JSON loads) a second time in the same run. On disagreement the resolver is also invoked twice per probe (_expected_handles and again for matched_rule). Within the 250 ms design budget today, but doubles the I/O for every CI run of the invariant.",
+      "resolution": "VAL_REVIEW 2026-10-09, conductor (claude_code, lead vendor) after round-1 convergence: accepted as a low advisory (lane disposition accept): the second collect_problems() in reconcile() stays inside the 250 ms budget; let reconcile() take a prebuilt context in a follow-up.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 22,
+      "status": "retired",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "agent-coordinator/tests/test_registry_projection.py",
+      "fingerprint": "d859b4f8ff265d06",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "Re-verification of open ledger item 12: _strings / _strings_in in the two coordinator tests still use exact string equality against the human id, and the negative tests inject only a bare 'jan' row. A composite projection string (agent:jan, agents/jan/...) would still pass undetected. Status unchanged; the session log records why substring matching was rejected (false positives on unrelated 'jan' substrings).",
+      "resolution": "VAL_REVIEW 2026-10-09, conductor (claude_code, lead vendor) after round-1 convergence: duplicate: the lane's re-verification note for open ledger item 12 (unchanged).",
+      "consensus_status": "unconfirmed"
+    }
+  ]
+}

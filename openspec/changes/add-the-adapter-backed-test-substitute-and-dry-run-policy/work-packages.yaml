@@ -1,0 +1,82 @@
+schema_version: 1
+
+feature:
+  id: add-the-adapter-backed-test-substitute-and-dry-run-policy
+  title: "system-one-decisions — adapter test substitute, dry-run policy"
+  plan_revision: 1
+  created_by: claude-code
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/add-the-adapter-backed-test-substitute-and-dry-run-policy/contracts/README.md"
+    files:
+      - "openspec/changes/add-the-adapter-backed-test-substitute-and-dry-run-policy/contracts/README.md"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-main
+    title: "system-one-decisions — dry_run flag, testing stubs, adapter tests, full scope"
+    task_type: implementation
+    description: |
+      Add decide()'s dry_run flag (never constructs a client when True),
+      system_one_decisions.testing (stub_decide/stub_decide_intent), and a
+      double-gated, uncalibrated-named behavioural test suite backed by the
+      real system-one-adapter package. No production call-site migration,
+      no _core.py branch logic beyond dry_run. Single-package scope.
+    role: implementer
+    archetype: implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "packages/system-one-decisions/pyproject.toml"
+        - "packages/system-one-decisions/src/system_one_decisions/_core.py"
+      keys:
+        - "feature:add-the-adapter-backed-test-substitute-and-dry-run-policy:main"
+      ttl_minutes: 120
+      reason: "Full-scope implementation of the dry-run flag and test substitute"
+    scope:
+      write_allow:
+        - "packages/system-one-decisions/**"
+        # Corrected during implementation, same class of correction as
+        # ri-01's and ri-02's: the new test-adapter extra changed
+        # system-one-decisions' package metadata, staling the consumers
+        # that embed its metadata in their own committed lockfile. Also
+        # caught skills/uv.lock was already stale from ri-02's dev/live
+        # extras (skills' own CI job never verifies it with --locked, so
+        # it never surfaced as a failure) -- fixed here rather than left.
+        - "packages/gen-eval/uv.lock"
+        - "skills/uv.lock"
+        - "agent-coordinator/uv.lock"
+      read_allow:
+        - "**"
+      deny: []
+    worktree:
+      name: system-one-decisions-adapter-wp-main
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "system-one-decisions test suite is green (adapter tests skip without opt-in)"
+          kind: command
+          command: "python3 -m pytest packages/system-one-decisions/tests -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "system_one_decisions_adapter_tests_green"
+    outputs:
+      result_keys:
+        - "system_one_decisions_adapter_tests_green"

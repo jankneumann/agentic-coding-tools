@@ -1,0 +1,150 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: `LocalEndpointService.sync_from_agents_config` does `getattr(agent, \"model\", None)`, but `AgentEntry` has no `model` field and the agents schema only added `endpoint_kind`/`base_url`. Endpoint-only agents therefore always catalog under `agent.name` (locked in by `test_agents_registry_local_endpoint_is_registered_for_probing`), so `POST /routing/select_model` can return a non-serving model id. Health probes hit `{base_url}/models` but never replace the catalog model from the probe payload, and review discovery resolves a different model via archetype/CLI/SDK fallbacks.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Add an optional top-level `model` (or equivalent) to the agents schema/`AgentEntry`, require it for `endpoint_kind in {local,openrouter}`, thread it through `sync_from_agents_config`, and/or update catalog rows from a successful `/models` probe. Align review-dispatcher and catalog model identity.",
+      "file_path": "agent-coordinator/src/model_routing/local_endpoints.py",
+      "line_range": {
+        "start": 65,
+        "end": 85
+      },
+      "evidence_class": "judgment",
+      "existing_code": "model = getattr(agent, \"model\", None)\n            if model is None and agent.sdk is not None:\n                model = agent.sdk.model\n            configs.append(\n                {\n                    \"vendor\": agent.type,\n                    \"model\": model or agent.name,",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: `RoutingService.select_model` always calls `choose(..., budget=ExplorationBudget())` with default `pct_used=0` / `usd_used=0` and persists `budget_state: {}`. The dual-ceiling gate in `exploration.py` therefore never exhausts, so exploration stays epsilon-open on every request instead of stopping after the configured task-share/USD ceilings. Decision provenance cannot show real budget burn-down.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Load current exploration spend/share (from the spend ledger and/or prior decisions) into `ExplorationBudget` before `choose`, and write the resulting `budget_state` into the persisted routing decision.",
+      "file_path": "agent-coordinator/src/model_routing/api.py",
+      "line_range": {
+        "start": 202,
+        "end": 235
+      },
+      "evidence_class": "judgment",
+      "existing_code": "selection = choose(\n            ranked,\n            allow_exploration=request.allow_exploration,\n            budget=ExplorationBudget(),\n            rng=self._rng,\n        )",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 3,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Nit: `LedgerService.usage_summary` never builds `by_model` or `exploration_usd_used`, even though ledger rows already store vendor/model/endpoint_kind/exploration/actual_usd. `RoutingService.get_usage` therefore always returns `by_model: []` and `exploration_usd_used: 0.0` via `.get(..., default)`, despite OpenAPI `UsageAggregate` and the `/routing/usage` summary advertising per-model aggregates and exploration burn-down.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "Aggregate ledger rows into `by_model` and sum `actual_usd` where `exploration` is true into `exploration_usd_used`; add ledger tests that fail if those fields stay empty when rows exist.",
+      "file_path": "agent-coordinator/src/model_routing/ledger.py",
+      "line_range": {
+        "start": 130,
+        "end": 142
+      },
+      "evidence_class": "judgment",
+      "existing_code": "return {\n            \"window\": window,\n            \"month\": start.date().isoformat(),\n            \"actual_usd\": actual,\n            \"counterfactual_usd\": counterfactual,\n            \"savings_usd\": counterfactual - actual,\n            \"verified_savings_usd\": verified_counterfactual - verified_actual,",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 4,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Nit: Runtime `SelectModelRequest` types `task_signals` as unconstrained `dict[str, Any]`, so `POST /routing/select_model` and the MCP tool accept missing `archetype`. OpenAPI and `contracts/generated/models.py` both require `task_signals.archetype`. Empty signals degrade to task type `unknown/medium-complexity` instead of 422.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "nit",
+      "resolution": "Reuse the generated `TaskSignals`/`SelectModelRequest` models (or equivalent Pydantic constraints) in `model_routing.api` so missing `archetype` returns 422 as the contract promises.",
+      "file_path": "agent-coordinator/src/model_routing/api.py",
+      "line_range": {
+        "start": 38,
+        "end": 44
+      },
+      "evidence_class": "judgment",
+      "existing_code": "class SelectModelRequest(BaseModel):\n    model_config = ConfigDict(extra=\"forbid\")\n\n    task_signals: dict[str, Any]\n    objective_profile: ObjectiveProfile | None = None",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 5,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Nit: `select_model_endpoint` maps `RoutingUnavailableError` to HTTP 503, but `contracts/openapi/v1.yaml` only documents 200/401/422 for `POST /routing/select_model`. Clients generated from the contract will not handle the empty-candidate failure mode.",
+      "disposition": "regenerate",
+      "axis": "compatibility",
+      "severity": "nit",
+      "resolution": "Document 503 (preferably as `application/problem+json`, consistent with the decision 404 path) on `POST /routing/select_model` and refresh generated models/tests.",
+      "file_path": "openspec/changes/add-adaptive-model-router/contracts/openapi/v1.yaml",
+      "line_range": {
+        "start": 12,
+        "end": 32
+      },
+      "evidence_class": "judgment",
+      "existing_code": "responses:\n        '200':\n          description: Selection with provenance\n          content:\n            application/json:\n              schema:\n                $ref: '#/components/schemas/SelectModelResponse'\n        '401':\n          $ref: '#/components/responses/Problem'\n        '422':\n          $ref: '#/components/responses/Problem'",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 6,
+      "type": "resilience",
+      "criticality": "medium",
+      "description": "Nit: `CatalogService.upsert` updates an existing row with the full `CatalogEntry.to_row()` payload, and `DirectPostgresClient.update` writes Python `None` as SQL NULL. `OpenRouterRefresher` therefore nulls `p50_latency_ms`, `quota_headroom_pct`, `quota_reset_at`, and `quota_source` on every successful refresh and forces `available=True`, wiping non-pricing fields that refresh does not own.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "nit",
+      "resolution": "Make refresh a partial patch (pricing/context/refreshed_at/stale only), or change `upsert` to omit nulls / merge over the existing row so unrelated columns survive.",
+      "file_path": "agent-coordinator/src/model_routing/catalog.py",
+      "line_range": {
+        "start": 90,
+        "end": 101
+      },
+      "evidence_class": "judgment",
+      "existing_code": "async def upsert(self, entry: CatalogEntry | dict[str, Any]) -> dict[str, Any]:\n        data = entry.to_row() if isinstance(entry, CatalogEntry) else dict(entry)\n        key = {\n            \"vendor\": data[\"vendor\"],\n            \"model\": data[\"model\"],\n            \"endpoint_kind\": data[\"endpoint_kind\"],\n        }\n        existing = await self.get_entry(**key)\n        if existing is None:\n            return await self.db.insert(\"model_catalog\", data)\n        updated = await self.db.update(\"model_catalog\", {\"id\": existing[\"id\"]}, data)",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 7,
+      "type": "performance",
+      "criticality": "low",
+      "description": "Optional: `usage_summary` filters `routing_spend_ledger` with `occurred_at` range predicates, but migration `040_model_routing.sql` only indexes `date_trunc('month', occurred_at AT TIME ZONE 'UTC')` plus `endpoint_kind`. That expression index does not support the actual gte/lte access path used by usage/rollup.",
+      "disposition": "fix",
+      "axis": "performance",
+      "severity": "optional",
+      "resolution": "Add a btree index on `routing_spend_ledger(occurred_at)` (and keep/drop the month expression index based on real query plans).",
+      "file_path": "agent-coordinator/database/migrations/040_model_routing.sql",
+      "line_range": {
+        "start": 74,
+        "end": 79
+      },
+      "evidence_class": "judgment",
+      "existing_code": "CREATE INDEX IF NOT EXISTS idx_spend_ledger_month\n    ON routing_spend_ledger (\n        date_trunc('month', occurred_at AT TIME ZONE 'UTC'), endpoint_kind\n    );",
+      "line_resolution": "vendor"
+    },
+    {
+      "id": 8,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: The `ROUTING_ADAPTIVE` kill switch, bounded thread/queue timeout, and degrade-to-exact-static path in `resolve_archetype_for_phase` match the static-tier fallback requirement, and `test_delegation.py` pins flag-off equality, signal forwarding, error fallback, and timeout bounds.",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "none",
+      "resolution": "No change.",
+      "file_path": "agent-coordinator/src/agents_config.py",
+      "line_range": {
+        "start": 2680,
+        "end": 2740
+      },
+      "evidence_class": "judgment",
+      "line_resolution": "vendor"
+    }
+  ]
+}

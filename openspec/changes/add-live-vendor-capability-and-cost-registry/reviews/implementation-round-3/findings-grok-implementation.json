@@ -1,0 +1,39 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: WAIT remediation verified against roadmap-orchestration Wait policy selected under budget constraints. With `policy.default_action == WAIT`, `select_registry_lane` and `_handle_vendor_limit` return wait without registry alternate selection; `_persist_policy_pause` writes schema-compatible `pause_state` (`paused`, `reason`, `blocked_vendor`, `expected_resume_at` when known via `capacity_reset_at` or safe `capacity_retry_after_seconds`); active pauses refuse redispatch until reset then clear and resume the same checkpoint phase; SWITCH still retries the exact selected lane with bounded `max_switch_attempts_per_item`. Focused WAIT tests 2/2 green.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "package_id": "wp-roadmap-policy",
+      "file_path": "skills/autopilot-roadmap/scripts/orchestrator.py",
+      "line_range": {
+        "start": 1151,
+        "end": 1382
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "observability",
+      "criticality": "low",
+      "description": "none: Snapshot persistence audit remediation verified against vendor-registry Snapshot write fails and D10. On per-lane `persist_probe` failure the existing structured lane error log is retained, then durable `vendor_probe_persistence_failed` audit emits exact lane (`target_agent_id`), failed outcome, and non-secret stable reason `probe_persistence_failed`; audit-backend exceptions are caught/logged and do not stop sibling snapshot persists or legacy transition events. Focused snapshot/registry audit tests 3/3 green.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "none",
+      "package_id": "wp-api-watchdog",
+      "file_path": "agent-coordinator/src/watchdog.py",
+      "line_range": {
+        "start": 476,
+        "end": 494
+      },
+      "evidence_class": "judgment"
+    }
+  ]
+}

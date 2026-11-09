@@ -66,6 +66,7 @@ def _copy_installer(scripts_dir: Path) -> Path:
     shared_dir = scripts_dir / "shared"
     shared_dir.mkdir(exist_ok=True)
     shutil.copy(SKILLS_ROOT / "shared" / "validate_install_manifest.py", shared_dir)
+    shutil.copy(SKILLS_ROOT / "shared" / "payload_hash.py", shared_dir)
     skill_names = sorted(
         path.parent.name for path in scripts_dir.glob("*/SKILL.md")
     )
@@ -348,6 +349,12 @@ def test_canonical_install_syncs_required_openspec_schemas(tmp_path: Path) -> No
         "schemas/roadmap/schema.yaml",
         "schemas/roadmap/templates/roadmap.yaml",
         "schemas/checkpoint.schema.json",
+        "schemas/dispatch-request.schema.json",
+        "schemas/dispatch-result.schema.json",
+        "contracts/roadmap-orchestration/schemas/delegated-dispatch-attempt.schema.json",
+        "contracts/roadmap-orchestration/schemas/bounded-dispatch-context.schema.json",
+        "contracts/roadmap-orchestration/schemas/supervised-dispatch-request.schema.json",
+        "contracts/roadmap-orchestration/schemas/supervised-dispatch-result.schema.json",
         "schemas/learning-log.schema.json",
         "schemas/convergence-state.schema.json",
         "schemas/archetypes.schema.json",

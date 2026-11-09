@@ -1,0 +1,663 @@
+{
+  "schema_version": 1,
+  "change_id": "add-local-agent-probe",
+  "items": [
+    {
+      "id": 1,
+      "status": "addressed",
+      "axis": "security",
+      "type": "security",
+      "criticality": "high",
+      "evidence_class": "judgment",
+      "file_path": "skills/parallel-infrastructure/scripts/vendor_probe.py",
+      "fingerprint": "3c2407c33c88bfd2",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code",
+        "grok"
+      ],
+      "description": "Critical: skills/parallel-infrastructure/scripts/vendor_probe.py:probe_lane executes version_args/help_args/auth_status_args verbatim with no client-side denylist. Probe-argv safety (print-api-key, print-bearer-token, --credentials, --show-token, logout; auth_status_args must not end in login) is enforced only in agent-coordinator load_agents_config/_check_probe_blocks. Skills-side readers (vendor_health.load_agents_yaml, vendor_probe._resolve_cli_configs via PyYAML, review_dispatcher --check-vendors) bypass that path, so a consumer agents.yaml with probe.auth_status_args: [logout] can log the operator out via install.sh --check or /vendor-status. contracts/cli-probe-block.schema.json already encodes the denylist but is never applied on the execute path.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 2,
+      "status": "addressed",
+      "axis": "observability",
+      "type": "observability",
+      "criticality": "high",
+      "evidence_class": "judgment",
+      "file_path": "skills/parallel-infrastructure/scripts/vendor_health.py",
+      "fingerprint": "b15877cdb145220a",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code",
+        "grok"
+      ],
+      "description": "Critical: skills/parallel-infrastructure/scripts/vendor_health.py:check_vendor sets healthy=False for auth_status=='auth_failed' or a remembered runtime_failure, but never sets health.error for those cases (error is only 'no_probe_method'). agent-coordinator/src/watchdog.py maps an unhealthy vendor's reason as getattr(vendor, 'error') or 'probe_failed', so an expired login or billing failure is persisted as status=unavailable, reason='probe_failed' \u2014 collapsing the tiers the probe was added to distinguish. Operators cannot tell 'log in again' from 'CLI broken'.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 3,
+      "status": "addressed",
+      "axis": "resilience",
+      "type": "resilience",
+      "criticality": "high",
+      "evidence_class": "judgment",
+      "file_path": "skills/parallel-infrastructure/scripts/vendor_probe.py",
+      "fingerprint": "58c0a43a444d5435",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code",
+        "grok"
+      ],
+      "description": "Critical: skills/parallel-infrastructure/scripts/vendor_probe.py:probe_lanes collects worker results with `[f.result() for f in futures.values()]`. Any unexpected exception from one lane's probe_lane (e.g. RuntimeError from Path.expanduser() on credential_files when HOME is unresolvable, or TypeError from a malformed probe block on the unvalidated skills-side path) propagates, aborts before store_probes(), and discards every other lane's result. Callers include the watchdog health cycle, vendor_health CLI, --check-vendors, and install.sh report, so one bad lane blanks the entire roster and nothing is cached. _run() only guards OSError/TimeoutExpired.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 4,
+      "status": "open",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "skills/parallel-infrastructure/scripts/vendor_probe.py",
+      "fingerprint": "46882dea83d0f07b",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code",
+        "grok"
+      ],
+      "description": "Nit: skills/parallel-infrastructure/scripts/vendor_probe.py:_clear_auth_failure compares runtime failure observed_at (stored by _iso() with whole-second resolution) against float auth_started_at. A failure at T=100.9 is stored as 100 and parses back as 100.0; an auth-status probe that started at 100.5 then satisfies observed < auth_started_at and wrongly clears it. Spec scenario 'A probe that started before the failure does not clear it' holds only when the gap exceeds one second. Re-verified open ledger [4].",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 5,
+      "status": "addressed",
+      "axis": "resilience",
+      "type": "resilience",
+      "criticality": "high",
+      "evidence_class": "judgment",
+      "file_path": "skills/parallel-infrastructure/scripts/vendor_probe.py",
+      "fingerprint": "8d238ddfb63c16d2",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code",
+        "grok"
+      ],
+      "description": "Critical: skills/parallel-infrastructure/scripts/vendor_probe.py:fresh_entry returns a cached lane after checking only probed_at/ttl/config_fingerprint/cli_realpath; _valid_doc validates only top-level document shape. A reused entry missing 'l0' (hand-edited cache or future schema that keeps SCHEMA_VERSION) raises KeyError in vendor_health.check_vendor (`entry[\"l0\"].get(\"ok\")`) and can fail format_report (`entry[\"l0\"]`), while mode_verdict uses .get and survives. Spec says an unparseable cache is treated as empty; per-entry shape should degrade the same way (treat entry as stale) instead of raising from the watchdog thread.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 6,
+      "status": "open",
+      "axis": "compatibility",
+      "type": "compatibility",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "skills/parallel-infrastructure/scripts/vendor_probe.py",
+      "fingerprint": "050cd8c385a5c7f4",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code",
+        "grok"
+      ],
+      "description": "Nit: skills/parallel-infrastructure/scripts/vendor_probe.py:cmd_report catches overall timeout with `except TimeoutError`. concurrent.futures.TimeoutError is only an alias of builtins.TimeoutError from Python 3.11+. install.sh print_vendor_probe_report falls back to system python3 when skills/.venv is absent, and that interpreter is not covered by skills requires-python >= 3.12. On 3.10 the timeout falls into the generic `except Exception` branch, prints 'probe report unavailable: ' with an empty reason (str() of the futures exception is empty), and returns 2 instead of os._exit(2), so interpreter shutdown joins the still-running worker until the outer shell timeout kills it.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 7,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "high",
+      "evidence_class": "judgment",
+      "file_path": "skills/install.sh",
+      "spec_file": "/home/jankneumann/Coding/agentic-coding-tools/.git-worktrees/add-local-agent-probe--impl-review/openspec/changes/add-local-agent-probe/specs/toolkit-distribution/spec.md",
+      "fingerprint": "6fd8d4c88f05d124",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code",
+        "grok"
+      ],
+      "description": "Critical: skills/install.sh:print_vendor_probe_report only maps EMPTY output to 'probe report unavailable: probe error'. If the Python process exits non-zero with a traceback on stdout/stderr (2>&1 merged) \u2014 e.g. exception in format_report(), or the usage error path \u2014 the traceback is printed verbatim as the 'report'. toolkit-distribution spec requires that when the report cannot be produced for any probe error the output is a single line beginning 'probe report unavailable:'. cmd_report also leaves print(format_report(probes)) outside its try/except, so a post-probe formatting failure escapes the Python-side single-line contract as well.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 8,
+      "status": "open",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/parallel-infrastructure/scripts/vendor_probe.py",
+      "fingerprint": "28107eda18a0216b",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code",
+        "grok"
+      ],
+      "description": "Nit: skills/parallel-infrastructure/scripts/vendor_probe.py:record_runtime_failure docstring claims 'Best-effort; never raises' but raises ValueError for an unsupported error_class before any cache I/O. I/O failures correctly return False. Production CliVendorAdapter._remember_runtime_failure pre-filters and wraps in try/except, so impact today is a false contract. Re-verified open ledger [8]/[14].",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 9,
+      "status": "open",
+      "axis": "observability",
+      "type": "observability",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "fingerprint": "584529c846d88070",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "In _probe_mode(), when a CLI lane has a probe entry but discover_reviewers did not select it, the reported 'unverified' reason is `verdict[0]` whenever the verdict is non-None \u2014 including the NON-excluding reason probe_timeout. A lane that discovery actually rejected for a different cause (can_dispatch() false because api_key_env is unset, the #383 fail-closed case) is then reported as probe_timeout rather than the pre-existing 'probe_unsupported'/'cli_not_found' fallback reason, hiding the real fix (set the env var). Only short-circuit on verdicts in EXCLUDING_REASONS; otherwise fall through to the existing reason computation.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 10,
+      "status": "open",
+      "axis": "compatibility",
+      "type": "compatibility",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "skills/setup-coordinator/scripts/setup_coordinator.py",
+      "fingerprint": "1e16d4b5ae11067a",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code",
+        "grok"
+      ],
+      "description": "Nit: skills/setup-coordinator/scripts/setup_coordinator.py calls check_all_vendors(agents_yaml) for CLI-on-PATH detection. Default path now spawns version/help/auth-status subprocesses on a cold or >1h-old cache, writes ~/.cache/agentic-coding-tools/vendor-probe.json, and can raise ImportError if vendor_probe.py is not beside vendor_health.py. setup-coordinator spec (openspec/specs/setup-coordinator/spec.md) says it reuses that function 'without modifying that module' for a PATH-and-env-var layer. New vendor-ux semantics are consistent with the probe change, but the setup-coordinator spec/docs and this change's impact list were not updated.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 11,
+      "status": "open",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/vendor-status/SKILL.md",
+      "fingerprint": "eee03bebd2bb5ecd",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code",
+        "grok"
+      ],
+      "description": "Nit: skills/vendor-status/SKILL.md states 'review_dispatcher.py reads the cache (it never probes)'. That is true of discover_reviewers/dispatch, but review_dispatcher.py --check-vendors now runs the full tiered probe with reuse_fresh=False and writes the cache (spec: Dispatchable Vendor Verification; _probe_cli_lanes). An operator can wrongly conclude that --check-vendors is side-effect free or that the cache can only be refreshed through this skill.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 12,
+      "status": "open",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "agent-coordinator/agents.yaml",
+      "fingerprint": "2cc4b8e05b42b55e",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code",
+        "grok"
+      ],
+      "description": "Optional: agent-coordinator/agents.yaml drops the three '--json-schema verified 2026-09-12 (claude 2.1.268 / agy 1.2.2 --help)' provenance comments on claude-local, claude-remote and agy-local without replacing them. Runtime L1 now checks dispatch-mode flags against --help, which justifies retiring those lines, but newly added probe argvs (notably pi's `auth check --provider openrouter --no-refresh` and codex's `login status`) carry no 'verified against version X' note; the validation-report real-CLI evidence table is the only record. Group 2 asks CLI-block flags be traceable to a verified CLI version.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 13,
+      "status": "addressed",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "high",
+      "evidence_class": "judgment",
+      "file_path": "skills/parallel-infrastructure/scripts/vendor_probe.py",
+      "fingerprint": "83d9324c62b74c92",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "In `vendor_probe.probe_lanes`, after `store_probes(...)` (whose failure is ignored), the function re-reads the cache and then calls `_clear_auth_failure(doc, probe)` on that in-memory document before attaching `runtime_failure`. When the cache is unwritable, `store_probes` cannot persist the clear, but the in-memory clear still runs, so the returned `LaneProbe.runtime_failure` is `None` while the on-disk `runtime_failures` entry remains. `--check-vendors` / `vendor_health` consume the returned object (lane looks clear), while later `discover_reviewers` reads the disk cache and still excludes with `runtime_auth_required` \u2014 breaking the D5/D6 agreement that check-vendors and discover use the same predicate. Reproduced with a seeded `auth_required` record, a succeeding status-command probe, and a read-only cache directory. Fix: drop the post-store in-memory `_clear_auth_failure` (clearing already happens inside `store_probes`' locked RMW) and/or only treat the failure as cleared when `store_probes` returns True; add a regression test covering unwritable cache + status-command clear.",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true
+    },
+    {
+      "id": 14,
+      "status": "open",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "fingerprint": "467d695a83ce9086",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "`record_runtime_failure` docstring claims \"Best-effort; never raises\" but raises `ValueError` for an unsupported `error_class` before the cache write. I/O failures correctly return False; the docstring should say it never raises on cache I/O (or the invalid-class path should return False). Callers today only pass `auth_required` / `vendor_unavailable`, so impact is limited to a false contract.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 15,
+      "status": "open",
+      "axis": "compatibility",
+      "type": "compatibility",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "agent-coordinator/agents.yaml",
+      "fingerprint": "314d832f81fab960",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Nit: agent-coordinator/agents.yaml claude-remote review args include `--remote`, which `claude --help` (2.1.314) does not list (related surface is remote-control / --remote-control). Because this lane declares probe:, L1 flag checking is on and the live report records review:missing_flags. MCP discover_reviewers only probes transport=mcp, so local review dispatch is unaffected; vendor_health / vendor_probe report still surface a false capability failure for a configured cloud CLI block. Re-verified open ledger [15]/[23].",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 16,
+      "status": "open",
+      "axis": "correctness",
+      "type": "behavioral_failure",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "agent-coordinator/tests/test_watchdog_vendor.py",
+      "fingerprint": "c253bd0b152ccd1e",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The test's docstring says it proves the watchdog's by-path load 'works with vendor_probe.py beside it', but it never loads vendor_probe.py. AGENTS_YAML points at a missing file, COORDINATION_API_URL is unset and cwd has no agent-coordinator/agents.yaml, so load_agents_yaml returns {} and check_all_vendors takes the `if clis else {}` branch (vendor_health.py:242-248) without ever calling _load_vendor_probe(). Delete the copied vendor_probe.py from tmp_path and the test still passes, so it would not catch the exact container-layout regression it exists for (sibling-path load of the stdlib probe). Fix: feed a one-lane config through the HTTP path (monkeypatch urlopen) or a minimal agents.yaml via a yaml-free loader, and assert the lane entry came from the copied module (e.g. sys.modules['vendor_probe'].__file__ startswith tmp_path).",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 17,
+      "status": "addressed",
+      "axis": "resilience",
+      "type": "resilience",
+      "criticality": "high",
+      "evidence_class": "judgment",
+      "file_path": "skills/parallel-infrastructure/scripts/vendor_probe.py",
+      "fingerprint": "adcde109715acc9c",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code",
+        "grok"
+      ],
+      "description": "Critical: skills/parallel-infrastructure/scripts/vendor_probe.py:_run sets start_new_session=True then on TimeoutExpired only returns 'timeout'. subprocess.run kills the direct child and waits for it; vendor CLIs that fork/exec leave hung grandchildren in the orphaned process group. report/health/--check-vendors probe every lane, so each timed-out lane leaks a process tree. Re-verified open ledger [17].",
+      "consensus_status": "unconfirmed",
+      "fix_touched_file": true,
+      "adjudication": {
+        "by": "autopilot IMPL_REVIEW sub-agent (orchestrator rubric check)",
+        "verdict": "confirmed",
+        "adjusted_criticality": "medium",
+        "rationale": "Verified: subprocess.run kills only the direct child on timeout; grandchildren leak. Fixed with process-group kill plus a regression test.",
+        "fix_commit": "fix(parallel-infrastructure): kill the probe's whole process group on timeout"
+      }
+    },
+    {
+      "id": 18,
+      "status": "open",
+      "axis": "resilience",
+      "type": "resilience",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "skills/parallel-infrastructure/scripts/vendor_probe.py",
+      "fingerprint": "30a755341b8a7702",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code",
+        "grok"
+      ],
+      "description": "Critical: skills/parallel-infrastructure/scripts/vendor_probe.py:cmd_report calls os._exit(2) on the overall report timeout while the worker may be inside update_cache()/store_probes(). os._exit skips finally/except that unlink the mkstemp `.vendor-probe-*.tmp` and close the flock handle, so each timed-out install.sh --check or report leaves a temp file beside the cache. Re-verified open ledger [18].",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 19,
+      "status": "open",
+      "axis": "architecture",
+      "type": "architecture",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/parallel-infrastructure/scripts/vendor_probe.py",
+      "fingerprint": "d6394e04665f5964",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "_resolve_cli_configs couples the stdlib probe's only non-stdlib entry point to three private ReviewOrchestrator methods (_explicit_agents_yaml_path, _load_from_http, _find_local_agents_yaml) and re-implements the YAML projection that vendor_health.load_agents_yaml already performs. A rename of any private helper breaks `vendor_probe.py report` and install.sh --check silently (caught by the broad `except Exception` \u2192 'probe report unavailable'). Consider exposing one public resolver on ReviewOrchestrator (or reusing vendor_health.load_agents_yaml) so the probe and the health script share a single config-resolution path.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 20,
+      "status": "open",
+      "axis": "compatibility",
+      "type": "compatibility",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/parallel-infrastructure/scripts/vendor_probe.py",
+      "fingerprint": "1e28d7e40ccb1b8b",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The report resolver (and vendor_health.check_all_vendors, lines 237-241) probe every lane with a cli.command regardless of transport, while the consumers that gate on the cache only look at transport=mcp lanes (review_dispatcher.py:2927 and _probe_cli_lanes/_cli_lane_for_vendor). agents.yaml declares claude-remote/codex-remote/grok-remote as transport: http, so the report and /vendor-status show e.g. `claude-remote review:missing_flags` (validation-report.md) and mark it unhealthy, even though no cache reader will ever exclude or dispatch that lane through the probed argv. Users will try to 'fix' a verdict that gates nothing. Either skip non-mcp lanes in _resolve_cli_configs/check_all_vendors or label them in the report as not cache-gated.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 21,
+      "status": "open",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/parallel-infrastructure/scripts/vendor_probe.py",
+      "fingerprint": "e88ba17515008010",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The .lock sidecar is created with the process umask (typically 0644) beside a cache that is deliberately written 0600, and it is never removed. It is empty so nothing leaks, but the mode asymmetry reads as an oversight next to the fchmod(0o600) two lines later; opening it via os.open(..., 0o600) would make the intent uniform.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 22,
+      "status": "open",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "fingerprint": "b735c7779a6e6be6",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Critical: skills/parallel-infrastructure/scripts/review_dispatcher.py:_probe_mode, when a CLI lane has a probe entry but discover_reviewers did not select it (reviewer is None), reports unverified reason as verdict[0] whenever verdict is non-None \u2014 including non-excluding probe_timeout. A lane rejected because can_dispatch is false (api_key_env unset, #383) is then reported as probe_timeout rather than not_dispatchable/cli_not_found, hiding the real fix. Re-verified open ledger [9]/[22].",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 23,
+      "status": "open",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "agent-coordinator/agents.yaml",
+      "fingerprint": "398b12f0b64d2236",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Nit: agent-coordinator/agents.yaml claude-remote review args include `--remote`, which `claude --help` (2.1.314) does not list (related surface is remote-control / --remote-control). Because this lane declares probe:, L1 flag checking is on and the live report records review:missing_flags. MCP discover_reviewers / --check-vendors only probe transport=mcp lanes, so local review dispatch is unaffected; vendor_health / vendor_probe report still surface a false capability failure for a configured cloud CLI block.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 24,
+      "status": "open",
+      "axis": "security",
+      "type": "security",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "skills/parallel-infrastructure/scripts/vendor_probe.py",
+      "fingerprint": "463edf00c969bfd7",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The execute-path safety gate `probe_argv_unsafe` mirrors the coordinator's denylist and the trailing-`login` rule but NOT the third load-time rule enforced by `agents_config._check_probe_blocks` (every `help_args` value must contain an exact `--help`/`-h`/`help` token). The module comment at lines 75-78 states this gate exists precisely because skills-side readers (`vendor_health.load_agents_yaml`, `_resolve_cli_configs`, `install.sh --check` in a consumer repo) bypass the coordinator's schema. With a raw `agents.yaml` declaring `probe: {help_args: {review: [\"-p\", \"summarize the repo\"]}}`, `probe_lane` executes `[command, \"-p\", \"summarize the repo\"]` as the L1 help command \u2014 a model request \u2014 contradicting the module docstring (\"The probe never executes a dispatch-mode argument vector\") and the parallel-infrastructure requirement. Add the help-token check to `probe_argv_unsafe` (same `_PROBE_HELP_TOKENS` set) so the gate is a complete mirror, and add a fail-closed test alongside `test_unsafe_probe_argv_executes_nothing_and_fails_closed`.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 25,
+      "status": "open",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "skills/parallel-infrastructure/scripts/vendor_health.py",
+      "fingerprint": "cfd9eda06eba9ba6",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "`check_vendor` sets `healthy` from `cli_installed` (L0) plus auth/runtime overrides only; L1 is ignored. A lane whose CLI is on PATH but whose `--version` exits non-zero (every mode `probe_failed`), or whose every mode fails `missing_flags`, is reported `healthy: true` with `dispatch_modes: []`, while `--check-vendors --json` lists the same lane `unverified` and `discover_reviewers` excludes it. This contradicts the comment claiming the same predicate and the vendor-ux requirement headline (\"so that /vendor-status and review_dispatcher.py --check-vendors report the same verdict for the same lane\"). `test_preserved_and_new_fields` only covers the partial-narrowing case (one mode still passes), so the all-modes-fail case is untested. Either make `healthy` require at least one mode passing L1 when the lane has dispatch modes, or narrow the comment and spec sentence to auth/runtime parity only.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 26,
+      "status": "open",
+      "axis": "correctness",
+      "type": "spec_gap",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-local-agent-probe/specs/parallel-infrastructure/spec.md",
+      "spec_file": "openspec/changes/add-local-agent-probe/specs/parallel-infrastructure/spec.md",
+      "fingerprint": "374576084762a98b",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The MODIFIED \"Dispatchable Vendor Verification\" requirement adds the clause \"`probe_command` naming the version argv\", but `check_vendors_report` emits a fixed string naming the `review_dispatcher.py --check-vendors --json` command, not any version argv. The same requirement keeps \"For an SDK or API lane, verification SHALL remain the adapter's own authenticated no-op ... 10-second timeout\", whereas `_probe_mode` reports every SDK/OpenAI lane as `unverified` with reason `probe_unsupported` (pinned by `test_sdk_lanes_without_an_authenticated_noop_are_unverified`). The SDK sentence was inherited from the main spec, but a MODIFIED requirement is the place to make the text match the implementation; the `probe_command` clause is new to this delta and is simply false. Reword both so the requirement describes the shipped contract.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 27,
+      "status": "open",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/tests/parallel-infrastructure/test_vendor_probe.py",
+      "fingerprint": "bddcde48e91b7faf",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "This test cannot fail if `stdin=subprocess.DEVNULL` is removed from `_run`: under pytest in CI (and under most non-interactive harnesses) fd 0 is already /dev/null or closed, so `cat` hits EOF immediately and the assertion passes regardless. It only distinguishes the two implementations when the parent process has a live, data-bearing stdin. Feed the parent a real stdin (e.g. run the check in a `subprocess.run(..., input=b\"SENTINEL\")` wrapper that calls `_run` and prints captured output) and assert the sentinel is absent, so the spec clause \"Every probe subprocess SHALL run with stdin bound to DEVNULL\" has a test that fails on revert.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 28,
+      "status": "open",
+      "axis": "resilience",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/tests/parallel-infrastructure/test_vendor_probe_cache.py",
+      "fingerprint": "a9e8ff92d2cc831f",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The only concurrency test uses threads inside one process, which the module-level `_cache_lock` alone serializes; the `fcntl.flock` file lock required by the Per-Machine Probe Cache requirement (\"where fcntl is available, an exclusive file lock\") is never exercised and the test stays green if the flock lines are deleted. The real contention is cross-process: `review_dispatcher` adapters, `vendor_health`, the watchdog container and `install.sh --check` all write the same file from different processes. Add a multiprocess variant (e.g. `multiprocessing` or N `subprocess.run([sys.executable, ...])` writers against one `AGENTIC_PROBE_CACHE`) asserting all records survive.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 29,
+      "status": "open",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/install.sh",
+      "fingerprint": "ef2780d88fd11a85",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "`AGENTIC_PROBE_REPORT_TIMEOUT` is a new operator-facing knob that overrides the report bound, but it is undocumented: absent from the `--check` help text in `install.sh`, from `skills/vendor-status/SKILL.md`, and from the toolkit-distribution requirement, which states a fixed \"60-second overall timeout\". Only the test file references it. Document it next to `AGENTIC_PROBE_CACHE` / `AGENTIC_PROBE_IGNORE_CACHE` or mark it test-only.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 30,
+      "status": "open",
+      "axis": "compatibility",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/parallel-infrastructure/scripts/vendor_health.py",
+      "fingerprint": "f3de0ce5acd5500e",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "For a `cli` block with a `command` but no `dispatch_modes`, `probe_lane` records its result under the pseudo-mode `_lane` (`LANE_PSEUDO_MODE`), and `check_vendor` copies that key verbatim into the public `dispatch_modes` / `missing_flags` JSON fields; `format_report` likewise prints `_lane:probe_failed` in the L1 column. No lane in the current `agents.yaml` lacks dispatch modes, so this is latent, but the pseudo-mode is an internal encoding that should be filtered before it reaches `VendorHealth` (the watchdog persists these fields).",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 31,
+      "status": "open",
+      "axis": "readability",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "agent-coordinator/src/agents_config.py",
+      "fingerprint": "44fd9726dfbaf692",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "claude_code"
+      ],
+      "description": "The coordinator's trailing-`login` check is case-sensitive while the execute-path mirror in `vendor_probe.probe_argv_unsafe` lowercases (`str(auth[-1]).lower() == \"login\"`) and the schema denylist is case-insensitive. `auth_status_args: [\"auth\", \"LOGIN\"]` therefore loads successfully but is rejected at probe time with the generic `probe_failed` reason and only a WARNING log, which is safe but confusing to diagnose. Lowercase the comparison in `_check_probe_blocks` so the two gates agree and the error surfaces at load with a named token.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 32,
+      "status": "open",
+      "axis": "correctness",
+      "type": "correctness",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "agent-coordinator/tests/test_watchdog_vendor.py",
+      "fingerprint": "4f00a8bd340eeeee",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Critical: agent-coordinator/tests/test_watchdog_vendor.py:test_real_loader_runs_check_all_vendors_without_yaml claims the watchdog by-path load 'works with vendor_probe.py beside it', but AGENTS_YAML points at a missing file, COORDINATION_API_URL is unset, and cwd has no agent-coordinator/agents.yaml, so load_agents_yaml returns {} and check_all_vendors takes the empty-clis branch without calling _load_vendor_probe(). Deleting the copied vendor_probe.py still passes. Re-verified open ledger [16].",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 33,
+      "status": "open",
+      "axis": "observability",
+      "type": "correctness",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "skills/parallel-infrastructure/scripts/vendor_health.py",
+      "fingerprint": "7028d08ab37fb8a1",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Critical: skills/parallel-infrastructure/scripts/vendor_health.py:check_all_vendors and vendor_probe._resolve_cli_configs probe every lane with a cli.command regardless of transport, while discover_reviewers / _probe_cli_lanes only gate transport=mcp lanes. agents.yaml declares claude-remote/codex-remote/grok-remote as transport: http, so report and /vendor-status show e.g. claude-remote review:missing_flags and mark them unhealthy even though no cache reader excludes or dispatches those lanes through the probed argv. Re-verified open ledger [20].",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 34,
+      "status": "open",
+      "axis": "observability",
+      "type": "observability",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/vendor-status/SKILL.md",
+      "fingerprint": "f78e3a89d3abfca2",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Nit: skills/vendor-status/SKILL.md states 'review_dispatcher.py reads the cache (it never probes)'. That is true of discover_reviewers/dispatch, but review_dispatcher.py --check-vendors now runs the full tiered probe with reuse_fresh=False and writes the cache. An operator can wrongly conclude that --check-vendors is side-effect free or that the cache can only be refreshed through this skill. Re-verified open ledger [11].",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 35,
+      "status": "open",
+      "axis": "performance",
+      "type": "performance",
+      "criticality": "medium",
+      "evidence_class": "judgment",
+      "file_path": "skills/setup-coordinator/scripts/setup_coordinator.py",
+      "fingerprint": "f693c93c2e050e32",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Nit: skills/setup-coordinator/scripts/setup_coordinator.py:build_harness_report calls check_all_vendors() (full tiered probe of every cli.command lane, including transport: http remotes), then keeps only agent_ids ending in '-local'. On a cold cache this pays LANE_DEADLINE-bounded subprocess work for claude-remote/codex-remote/grok-remote that the harness report immediately discards. Related to open ledger [10]/[20] but is a distinct caller-side cost.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 36,
+      "status": "open",
+      "axis": "architecture",
+      "type": "style",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "agent-coordinator/src/agents_config.py",
+      "fingerprint": "4b29dc708d372f90",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "Optional: agent-coordinator/src/agents_config.py inlines _PROBE_SCHEMA that mirrors openspec/changes/add-local-agent-probe/contracts/cli-probe-block.schema.json, but unlike HUMAN_PRINCIPAL_SCHEMA there is no pin test that the two stay equal. Contract tests exercise only the file schema; config tests exercise only the inline copy, so denylist or minItems drift can land unnoticed.",
+      "consensus_status": "unconfirmed"
+    },
+    {
+      "id": 37,
+      "status": "open",
+      "axis": "security",
+      "type": "correctness",
+      "criticality": "low",
+      "evidence_class": "judgment",
+      "file_path": "skills/parallel-infrastructure/scripts/vendor_probe.py",
+      "fingerprint": "c181cb1bd94d4d39",
+      "first_seen_round": 1,
+      "last_seen_round": 1,
+      "vendor_hits": [
+        "grok"
+      ],
+      "description": "none: skills/parallel-infrastructure/scripts/vendor_probe.py:probe_lane now fail-closes on probe_argv_unsafe before any subprocess, and probe_lanes isolates per-lane exceptions so one bad lane cannot blank the roster or skip store_probes. That closes the earlier confirmed security/resilience gaps from the pending-fixes set while keeping cache schema reason codes unchanged.",
+      "consensus_status": "unconfirmed"
+    }
+  ]
+}

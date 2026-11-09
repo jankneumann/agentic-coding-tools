@@ -2,6 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://agentic-coding-tools.dev/contracts/delegated-dispatch-attempt.schema.json",
   "title": "Delegated Dispatch Attempt",
+  "description": "The single definition of a checkpoint delegated dispatch attempt (dispatch-contract D2); openspec/schemas/checkpoint.schema.json dispatch_attempts.items $refs it.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -12,7 +13,7 @@
     "attempt",
     "status",
     "prepared_at",
-    "launch_token",
+    "launch_digest",
     "launch_marker_path",
     "lease_generation",
     "launch_history",
@@ -55,14 +56,13 @@
         "failed"
       ]
     },
-    "launch_token": {
+    "launch_digest": {
       "type": "string",
-      "minLength": 16,
-      "maxLength": 256
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "description": "sha256 of the current generation's raw launch token; the raw token is never persisted (D6)."
     },
     "launch_marker_path": {
-      "type": "string",
-      "minLength": 1
+      "$ref": "https://agentic-coding-tools.dev/schemas/dispatch-result.schema.json#/$defs/RelativePath"
     },
     "lease_generation": {
       "type": "integer",
@@ -102,29 +102,8 @@
       }
     },
     "isolation": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "mode",
-        "worktree_path",
-        "branch"
-      ],
-      "properties": {
-        "mode": {
-          "enum": [
-            "managed_worktree",
-            "harness_provided"
-          ]
-        },
-        "worktree_path": {
-          "type": "string",
-          "minLength": 1
-        },
-        "branch": {
-          "type": "string",
-          "minLength": 1
-        }
-      }
+      "$ref": "https://agentic-coding-tools.dev/schemas/dispatch-request.schema.json#/$defs/Isolation",
+      "description": "Host-portable isolation {mode, worktree_ref, branch, host_id} (D7). Absolute paths exist only in memory."
     },
     "context": {
       "$ref": "./bounded-dispatch-context.schema.json",
@@ -154,7 +133,7 @@
           ]
         },
         "result": {
-          "$ref": "./supervised-dispatch-result.schema.json"
+          "$ref": "https://agentic-coding-tools.dev/schemas/dispatch-result.schema.json"
         },
         "result_digest": {
           "type": "string",
@@ -200,7 +179,9 @@
         "kind": {
           "enum": [
             "pending_gate",
-            "policy_pause"
+            "policy_pause",
+            "permission_blocked",
+            "capability_unavailable"
           ]
         }
       }
@@ -281,12 +262,12 @@
               "parked",
               "quarantined",
               "terminal",
-              "stale_takeover"
+              "stale_takeover",
+              "rebound"
             ]
           },
           "marker_path": {
-            "type": "string",
-            "minLength": 1
+            "$ref": "https://agentic-coding-tools.dev/schemas/dispatch-result.schema.json#/$defs/RelativePath"
           },
           "handle": {
             "type": [
@@ -298,6 +279,9 @@
           "observed_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "host_id": {
+            "$ref": "https://agentic-coding-tools.dev/schemas/dispatch-result.schema.json#/$defs/HostId"
           }
         }
       }
@@ -350,8 +334,7 @@
               "minimum": 1
             },
             "marker_path": {
-              "type": "string",
-              "minLength": 1
+              "$ref": "https://agentic-coding-tools.dev/schemas/dispatch-result.schema.json#/$defs/RelativePath"
             },
             "observed_at": {
               "type": "string",
@@ -362,39 +345,7 @@
       ]
     },
     "parked": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "kind",
-        "reason"
-      ],
-      "properties": {
-        "kind": {
-          "enum": [
-            "pending_gate",
-            "policy_pause"
-          ]
-        },
-        "reason": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 1024
-        },
-        "gate": {
-          "type": [
-            "string",
-            "null"
-          ],
-          "maxLength": 128
-        },
-        "deadline": {
-          "type": [
-            "string",
-            "null"
-          ],
-          "format": "date-time"
-        }
-      }
+      "$ref": "https://agentic-coding-tools.dev/schemas/dispatch-result.schema.json#/$defs/Parked"
     },
     "handoff_id": {
       "type": [
@@ -485,6 +436,30 @@
           "format": "date-time"
         }
       }
+    },
+    "roadmap_approval_ref": {
+      "$ref": "https://agentic-coding-tools.dev/schemas/dispatch-request.schema.json#/$defs/ApprovalRef",
+      "description": "The roadmap_approval decision prepare verified for this attempt (D8); not a secret."
+    },
+    "needs_rebind": {
+      "type": "boolean",
+      "description": "Set by the legacy reader when an absolute worktree_path lay outside the managed and repo roots (D7)."
+    },
+    "degradations": {
+      "type": "array",
+      "maxItems": 32,
+      "items": {
+        "$ref": "https://agentic-coding-tools.dev/schemas/dispatch-result.schema.json#/$defs/Degradation"
+      },
+      "description": "The applied result's degradations, persisted as outcome metadata (D10)."
+    },
+    "execution_profile": {
+      "$ref": "https://agentic-coding-tools.dev/schemas/dispatch-request.schema.json#/$defs/ExecutionProfile",
+      "description": "The supervisor-resolved execution profile carried by every generation's request and marker (D10)."
+    },
+    "review_requirements": {
+      "$ref": "https://agentic-coding-tools.dev/schemas/dispatch-request.schema.json#/$defs/ReviewRequirements",
+      "description": "Review quorum requirements carried by every generation's request and marker (D10)."
     }
   },
   "allOf": [

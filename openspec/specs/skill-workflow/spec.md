@@ -4252,6 +4252,12 @@ In local CLI execution, completed planning, implementation, fix, validation, and
 artifact-generation work MUST reach main only through PR review followed by an
 explicit sync-point operation.
 
+A sync-point operation SHALL be explicitly user-invoked by default. A sync-point
+skill MAY instead run as a scheduled invocation only under a sync window that the
+repository's trust posture contract (`TRUST_POSTURE.md`, `sync_windows`) explicitly
+declares and that lists that skill. A scheduled invocation SHALL NOT relax the
+clean-tree check, the active-agent guard, or any validation gate.
+
 #### Scenario: Plan refinement completes
 
 - **WHEN** `/iterate-on-plan` updates proposal, design, task, contract, or spec
@@ -4263,10 +4269,86 @@ explicit sync-point operation.
 
 - **WHEN** `/merge-pull-requests`, `/update-specs`, or the main-touching portion
   of `/cleanup-feature` modifies the shared checkout
-- **THEN** the skill MUST be explicitly user-invoked
+- **THEN** the skill MUST be explicitly user-invoked, or run as a scheduled
+  invocation authorized by a declared sync window
 - **AND** it MUST verify a clean working tree
 - **AND** it MUST verify that no active agents hold non-stale worktrees unless
   the operator explicitly uses a force escape hatch
+
+#### Scenario: Scheduled invocation names a window and passes authorization first
+
+- **WHEN** a scheduler or any other non-user trigger starts a sync-point skill
+- **THEN** the trigger MUST name a sync window id, and MUST NOT start the skill
+  without one
+- **AND** the skill MUST call the trust posture sync-window authorization check
+  before any other work, including PR discovery, remediation, branch writes, or
+  any other externally visible side effect
+- **AND** when that check fails the skill MUST stop without performing any of
+  that work and without touching main
+- **AND** the trigger MUST start the skill only at times the window's declared
+  `cadence` permits; computing fire times and their tolerance is the
+  scheduler's responsibility
+
+#### Scenario: No sync window declared keeps the user-invoked default
+
+- **WHEN** the trust posture contract is absent, or declares no `sync_windows`
+- **AND** a scheduler or any other non-user trigger starts a sync-point skill
+- **THEN** the sync-window authorization check MUST fail for every window id
+- **AND** the skill MUST stop without touching main
+- **AND** user invocation MUST remain the only path by which the skill can
+  touch main
+
+#### Scenario: Scheduled invocation names an undeclared window or skill
+
+- **WHEN** a scheduled invocation names a sync window id that the trust posture
+  does not declare, or names a window that does not list the invoked skill
+- **THEN** the skill MUST refuse to touch main
+- **AND** it MUST report which declaration was missing
+
+#### Scenario: Scheduled invocation keeps the guards unchanged
+
+- **WHEN** a sync-point skill runs as a scheduled invocation under a declared
+  sync window
+- **THEN** it MUST run the same clean-tree check and active-agent guard as a
+  user-invoked run
+- **AND** it MUST NOT use the force escape hatch, which remains available only
+  to an explicit operator
+- **AND** when an active agent holds a non-stale worktree it MUST stop without
+  touching main
+
+#### Scenario: Scheduled invocation keeps validation gates unchanged
+
+- **WHEN** a sync-point skill runs as a scheduled invocation under a declared
+  sync window
+- **THEN** every validation gate, CI check, and readiness verdict that a
+  user-invoked run requires before merging MUST still be required
+- **AND** a PR that fails any of them MUST NOT be merged by the scheduled run
+
+#### Scenario: Scheduled invocation is bounded by the window's sources and ceiling
+
+- **WHEN** a sync-point skill runs as a scheduled invocation under a declared
+  sync window
+- **THEN** whenever it selects, remediates, or merges pull requests, it MUST
+  act only on pull requests whose origin is listed in the window's
+  `allowed_sources`
+- **AND** it MUST NOT merge unattended a pull request whose kind exceeds the
+  window's `auto_merge_ceiling`, or whose kind cannot be classified
+- **AND** a window whose `auto_merge_ceiling` is `none` MUST NOT merge any pull
+  request unattended
+
+#### Scenario: Sync window does not override gate dispositions
+
+- **WHEN** a sync-point skill runs as a scheduled invocation under a declared
+  sync window
+- **THEN** the window's authorization MUST be treated as necessary but not
+  sufficient
+- **AND** the window MUST NOT change any trust posture gate disposition; every
+  gate that applies to the scheduled action MUST be evaluated exactly as it
+  would be without the window
+- **AND** a gate that resolves to `block` MUST stop the scheduled run's action
+- **AND** which gates apply to a scheduled sync-point action is defined by the
+  change that adds that scheduled caller (`ri-12` headless merge, `ri-13`
+  drain); this requirement defines no new gate applicability
 
 ### Requirement: Engineering Methodology Skill Suite
 
@@ -5814,7 +5896,9 @@ property of the renderer so it can be verified by a unit test against
 invoke `/iterate-on-plan` and `/iterate-on-implementation` as remediations for
 open pull requests. Those invocations SHALL run in the iterate skill's managed
 feature worktree and SHALL NOT write `main`. The merge skill remains the
-user-invoked sync-point for merges into `main`.
+sync-point for merges into `main`: it is user-invoked by default, or runs as a
+scheduled invocation only under a declared sync window as defined by "Main
+Receives Work Through PR Sync Points".
 
 <!-- Scenario ID: skill-workflow.merge-invokes-iterate -->
 #### Scenario: Merge-triggered iterate writes the feature branch only
@@ -5830,6 +5914,15 @@ user-invoked sync-point for merges into `main`.
 - **WHEN** iterate returns and the node is mergeable
 - **THEN** only `/merge-pull-requests` SHALL merge into `main`
 - **AND** iterate SHALL NOT call `gh pr merge` or otherwise land the PR
+
+#### Scenario: Scheduled merge conductor keeps iterate on the feature branch
+
+- **WHEN** `/merge-pull-requests` runs as a scheduled invocation under a
+  declared sync window and invokes `/iterate-on-plan` or
+  `/iterate-on-implementation` for a node
+- **THEN** iterate SHALL still commit only on the feature branch
+- **AND** only the merge skill SHALL merge into `main`, subject to the window's
+  `allowed_sources` and `auto_merge_ceiling`
 
 ### Requirement: Iterate Multi-Vendor Review Required When Called From Merge
 
@@ -6154,6 +6247,29 @@ no longer appear in the file (or line window); return `addressed` items to
 - **GIVEN** an `addressed` finding whose tokens still appear in `file_path`
 - **WHEN** compact runs
 - **THEN** the item status SHALL be `open`
+
+### Requirement: Fresh Review Resolves Re-verified Items
+
+After merging a round's findings, the loop SHALL retire every item that was
+`open` when the round's review packet was built (and so was listed for
+re-verification) and that the round's quorum review did not re-raise. The
+loop SHALL record the round in the item's `resolution` and SHALL NOT delete
+the item. Compact's token presence alone SHALL NOT keep such an item open.
+
+#### Scenario: Fixed finding the fresh review no longer raises resolves
+
+- **GIVEN** a blocking finding that compact reopened because its tokens
+  survive the fix
+- **WHEN** the next round's review reports no matching finding
+- **THEN** the item status SHALL be `retired` with a `resolution` naming the
+  round
+- **AND** the item SHALL remain in the ledger
+
+#### Scenario: Finding the fresh review still raises stays open
+
+- **GIVEN** an open finding listed for re-verification
+- **WHEN** the round's review reports a matching finding
+- **THEN** the item status SHALL remain `open`
 
 ### Requirement: Delta Review After Round One
 
@@ -6758,4 +6874,370 @@ A coordinated Autopilot host SHALL project every durably persisted phase generat
 - **AND** the projection module SHALL NOT be imported
 - **AND** no projection submit, reconcile, or coordinator-only projection-label helper SHALL be called
 - **AND** pre-existing coordinator detection and archetype-resolution imports are outside this projection-isolation guarantee
+
+### Requirement: GATEKEEPER Shadow Judgment
+
+The autopilot loop's GATEKEEPER phase SHALL, on every run where `change_dir`
+is known, compute a second candidate verdict from a calibrated `Score`-based
+judgment and record it alongside the acting verdict without acting on it.
+
+The shadow judgment SHALL derive its candidate verdict in code from two
+`Score` distributions (`verifiability`, `risk`) against thresholds sourced
+from configuration; a `Choice(verdict, ...)` answer SHALL be recorded only as
+a cross-check and SHALL NOT itself determine the candidate verdict.
+
+The acting verdict returned by GATEKEEPER, and every field of `LoopState`
+that verdict affects (`gate_verdict`, `val_review_enabled`, any gate
+evaluation), SHALL be unaffected by the shadow judgment, for every run,
+whether or not the shadow judgment is available.
+
+#### Scenario: A shadow record per gatekeeper run appends judged verdict, both score distributions and the acting verdict
+
+- **GIVEN** a GATEKEEPER run with a known `change_dir` and an available
+  shadow judgment
+- **WHEN** `_phase_gatekeeper` completes
+- **THEN** exactly one `"GATEKEEPER_SHADOW"` entry is appended to
+  `state.phase_history` carrying the acting verdict, the code-computed
+  candidate verdict, the `Choice` cross-check answer, and both `Score`
+  distributions
+
+#### Scenario: The acting verdict is byte-identical to today's for every run in the shadow period
+
+- **GIVEN** a recorded `gate_signals` profile from a real prior autopilot run
+- **WHEN** that run is replayed through `_phase_gatekeeper` with the shadow
+  judgment enabled and configured to compute a candidate verdict that
+  differs from the originally recorded acting verdict
+- **THEN** the returned outcome and `state.gate_verdict` are byte-identical
+  to the originally recorded acting verdict
+
+#### Scenario: The code-computed verdict is derived from the two Score distributions with thresholds read from config
+
+- **GIVEN** a `verifiability` and a `risk` `Score` answer from the shadow
+  judgment
+- **WHEN** the candidate verdict is computed
+- **THEN** it is produced by a pure function of those two scores and
+  threshold values loaded from `gatekeeper_shadow.load_shadow_thresholds()`,
+  never from a bare literal in the computation itself, and the `Choice`
+  answer plays no role in that computation
+
+#### Scenario: The GATEKEEPER shadow judgment degrades silently on unavailability
+
+- **GIVEN** `system_one_decisions` is not installed, `decide()` returns
+  `None`, or the returned answer set is missing an expected key
+- **WHEN** `_phase_gatekeeper` runs
+- **THEN** no `"GATEKEEPER_SHADOW"` entry is appended to `state.phase_history`
+  and the acting verdict is computed exactly as it would be with no shadow
+  judgment at all
+
+#### Scenario: A reporting script emits the GATEKEEPER disagreement rate over the shadow period's runs
+
+- **GIVEN** one or more recorded `loop-state.json` files containing
+  `"GATEKEEPER_SHADOW"` `phase_history` entries
+- **WHEN** `gatekeeper_shadow_report.py` is run against those files
+- **THEN** it prints the fraction of entries where the candidate verdict
+  differs from the acting verdict, without making any model call itself
+
+#### Scenario: --force and the scope-safety floor are untouched
+
+- **GIVEN** `--force` is set, or the deterministic scope-safety floor in
+  `_phase_init` fires
+- **WHEN** the autopilot loop runs
+- **THEN** GATEKEEPER (and therefore the shadow judgment) is skipped exactly
+  as it is today, and every existing test covering `--force` and the
+  scope-safety floor continues to pass unmodified
+
+### Requirement: Phase Outcome Shadow Adjudication
+
+`phase_agent.apply_phase_outcome` SHALL, on every non-replay call, attempt a
+second, calibrated adjudication of the claimed phase outcome using whichever
+of the following signals are available: `expected_outcomes` (from
+`_expected_outcomes_for_phase`), a `git diff --stat` of the phase's worktree,
+the tail of any recorded test output, and the local-fallback handoff record
+for that phase when one exists.
+
+The claimed outcome recorded to `state["phase_history"]` and every field
+`transition()` reads SHALL be unaffected by this adjudication, for every
+call, whether or not the adjudication is available.
+
+#### Scenario: A shadow record per phase transition appends claimed and judged outcomes with the evidence Noul
+
+- **GIVEN** a non-replay `apply_phase_outcome` call with at least one
+  available signal
+- **WHEN** the call completes
+- **THEN** exactly one `"PHASE_OUTCOME_SHADOW"` entry is appended to
+  `state["phase_history"]` carrying the claimed outcome, the judged
+  `Choice` outcome, its distribution, and the evidence `Noul` answer
+
+#### Scenario: transition() runs on the claimed outcome unchanged
+
+- **GIVEN** a shadow adjudication whose judged outcome differs from the
+  claimed outcome
+- **WHEN** `transition(state, outcome)` is subsequently called with the
+  claimed outcome
+- **THEN** it returns the same next phase it would have returned had the
+  shadow adjudication never run
+
+#### Scenario: The adjudication degrades silently on unavailability
+
+- **GIVEN** `system_one_decisions` is not installed, `decide()` returns
+  `None`, or every one of `expected_outcomes`, the diff stat, the test
+  output tail, and the handoff record is unavailable
+- **WHEN** `apply_phase_outcome` runs
+- **THEN** no `"PHASE_OUTCOME_SHADOW"` entry is appended, and the claimed
+  outcome and existing `phase_history` entry are recorded exactly as they
+  are today; this degradation SHALL NOT be recorded via `record_degraded`,
+  which marks a different, unrelated acting-decision signal
+
+#### Scenario: A replayed apply-outcome call does not duplicate the shadow entry
+
+- **GIVEN** `apply_phase_outcome` is called twice with the same
+  `handoff_id` for the same phase (a retried `apply-outcome` invocation)
+- **WHEN** the second call is recognized as a replay
+- **THEN** no additional `decide()` call is made and no second
+  `"PHASE_OUTCOME_SHADOW"` entry is appended
+
+#### Scenario: Disagreement attribution is exercised against a fixture shadow period
+
+- **GIVEN** a constructed set of `"PHASE_OUTCOME_SHADOW"` entries and a
+  caller-supplied mapping of which claimed outcomes a later review round
+  found wrong
+- **WHEN** `attribute_disagreements` is run over them
+- **THEN** it reports, for each disagreement, which side — claimed or
+  judged — the review round vindicated
+
+### Requirement: Visual Code Explainer Skill
+
+The repository SHALL provide a user-invocable, prompt-only skill `explain-code` that answers a narrow question about the code with the smallest visual form that makes the key point clear, drawn from a fixed catalogue: indented call tree, component tree with file paths, file tree with one-line responsibility comments, Mermaid sequence diagram, and structural (tree) diff. The skill SHALL keep prose brief, SHALL place each visual next to the short text it supports, and SHALL include only the calls, files, and boundaries the current question needs. The skill's `SKILL.md` SHALL be an index of at most 150 lines that links directly to one `references/<form>.md` file per visual form, with no nested reference files. In this version the skill SHALL NOT write HTML files, SHALL NOT write any file, and SHALL NOT open a browser.
+
+#### Scenario: Narrow question answered with the smallest visual
+
+- **WHEN** a user asks how a specific function, module, or message path works or connects, and the named target is resolvable without an ambiguous-symbol clarification
+- **THEN** the skill SHALL reply with exactly one visual form from the catalogue and at most three sentences of prose
+- **AND** every node in the visual SHALL carry its file location
+
+#### Scenario: Whole-repository question redirected
+
+- **WHEN** a user asks for the whole architecture, the full dependency graph, or a repository-wide map
+- **THEN** the skill SHALL NOT render a repository-wide tree
+- **AND** it SHALL name `/codebase-atlas` as the tool for that question and stop
+
+#### Scenario: Progressive disclosure layout
+
+- **WHEN** the skill directory is inspected
+- **THEN** `SKILL.md` SHALL be at most 150 lines
+- **AND** each catalogue form SHALL have its own `references/<form>.md` reachable by a direct link from `SKILL.md`
+- **AND** no reference file SHALL link to a further reference file
+
+#### Scenario: No file or browser side effects
+
+- **WHEN** the skill answers any question
+- **THEN** it SHALL emit text and Mermaid inline in the reply only
+- **AND** it SHALL NOT create or modify any file, and SHALL NOT open a browser or otherwise present a user-facing file side effect
+- **AND** it MAY read the architecture graph and source files read-only as part of grounding
+
+### Requirement: Explainer Grounding and Coverage Disclosure
+
+Before sketching a call tree, the skill SHALL determine graph freshness by running the read-only `run_architecture.py --check` from the co-installed `refresh-architecture` skill via `<skill-base-dir>/../refresh-architecture/scripts/run_architecture.py`, treating exit code `0` alone as fresh (any non-zero exit means ungrounded; the script returns `1` when provenance is not fresh). When fresh, the skill SHALL obtain callers and callees from `build_atlas.py --tree` (co-installed `codebase-atlas`) and SHALL build the call tree only from nodes that `build_atlas.py --tree` returns. When `--tree` exits `3` (ambiguous target), the skill SHALL list the candidate ids from stderr and ask which one was meant, and SHALL NOT fall back to source reading or sketch a tree. When stale, absent, or failing (including `--tree` exit `2`, `--tree` spawn failure, or any `--tree` exit other than `0`/`2`/`3`), the skill SHALL read source directly and label the sketch unverified. Every sketching reply (a catalogue visual was emitted) SHALL end with exactly one disclosure line: `Grounding: graph @ <sha7>; <language> <percent>% / <language> <percent>% covered` when grounded (coverage list taken from the `--tree` footer by copying the substring after `· ` and before the trailing ` covered`, then re-appending ` covered`, preserving language order and ` / ` separators), or `Grounding: source read, unverified (<reason>)` when not, where `<reason>` is chosen by first-match order: `graph absent` (script or graph missing before `--check`), `graph check failed` (`--check` could not be spawned; or after a fresh `--check`, `--tree` could not be spawned, exits `1`, or returns any exit other than `0`/`2`/`3`), `graph stale` (`--check` ran and exited non-zero), `symbol not in graph` (`--tree` exited `2`), or `form not graph-backed` (non-call-tree catalogue form). For non-call-tree catalogue forms the skill SHALL read the relevant source files before sketching and SHALL still use reason `form not graph-backed` (they are not graph-backed). Ambiguous-symbol clarification replies and whole-repository redirect replies SHALL NOT carry a `Grounding:` line. Only a call tree built from `--tree` after a fresh `--check` MAY use the grounded form; other catalogue forms SHALL use `form not graph-backed`. The skill SHALL NOT run a refresh, `--ensure`, or the analysis pipeline itself.
+
+#### Scenario: Fresh graph grounds the call tree
+
+- **WHEN** `run_architecture.py --check` exits `0` and the question names a symbol present in the graph
+- **THEN** the call tree SHALL contain only nodes returned by `build_atlas.py --tree`
+- **AND** the disclosure line SHALL read `Grounding: graph @ <sha7>; …` with per-language coverage percentages copied from the `--tree` footer per the substring rule above
+
+#### Scenario: Stale or absent graph falls back to source
+
+- **WHEN** `run_architecture.py --check` exits non-zero, or the script or graph file is missing
+- **THEN** the skill SHALL still answer, drawing the sketch from the source files it reads
+- **AND** the disclosure line SHALL read `Grounding: source read, unverified (<reason>)` with reason `graph stale`, `graph absent`, or `graph check failed` per the first-match order above
+- **AND** the skill SHALL NOT invoke `--ensure` or the analysis pipeline
+
+#### Scenario: Symbol outside graph coverage
+
+- **WHEN** the graph is fresh but `build_atlas.py --tree` exits `2` (target not found) for the requested symbol
+- **THEN** the skill SHALL fall back to source reading for that symbol
+- **AND** the disclosure line SHALL read `Grounding: source read, unverified (symbol not in graph)`
+
+#### Scenario: Non-call-tree form is not graph-backed
+
+- **WHEN** the skill answers with a catalogue form other than a call tree
+- **THEN** the skill SHALL read the relevant source files before sketching
+- **AND** the disclosure line SHALL read `Grounding: source read, unverified (form not graph-backed)`
+- **AND** the skill SHALL NOT claim the grounded `graph @` form for that reply
+
+#### Scenario: Tree tool failure after fresh check
+
+- **WHEN** `run_architecture.py --check` exits `0` but `build_atlas.py --tree` cannot be spawned or returns an exit other than `0`, `2`, or `3`
+- **THEN** the skill SHALL fall back to source reading
+- **AND** the disclosure line SHALL read `Grounding: source read, unverified (graph check failed)`
+
+#### Scenario: Ambiguous symbol asks instead of guessing
+
+- **WHEN** the graph is fresh and `build_atlas.py --tree` exits `3` (ambiguous name) for the requested symbol
+- **THEN** the skill SHALL list the candidate ids from stderr and ask which one was meant
+- **AND** the skill SHALL NOT fall back to source reading or sketch a tree for any candidate
+- **AND** the reply SHALL NOT include a `Grounding:` line
+
+#### Scenario: Whole-repository redirect has no disclosure line
+
+- **WHEN** a user asks for the whole architecture, the full dependency graph, or a repository-wide map
+- **THEN** the skill SHALL name `/codebase-atlas` and stop
+- **AND** the reply SHALL NOT include a `Grounding:` line
+
+#### Scenario: Disclosure line present on every sketching answer
+
+- **WHEN** the skill produces a sketching reply (a catalogue visual was emitted), grounded or not
+- **THEN** the final line of the reply SHALL begin with `Grounding:`
+- **AND** the reply SHALL contain exactly one such line
+
+### Requirement: Explainer Frontmatter Without Triggers
+
+The `explain-code` `SKILL.md` frontmatter SHALL declare `name`, `description`, `category: Architecture`, `tags`, `user_invocable: true`, and `related: [codebase-atlas, refresh-architecture]`, and SHALL NOT declare a `triggers:` key. The `description` SHALL state, in third person, both what the skill does and when to use it, including that whole-repository views belong to `codebase-atlas`. The skill's `test_skill_md.py` SHALL assert the declared keys explicitly rather than through the shared `assert_required_keys_present` helper while that helper still requires `triggers`, so the test passes whether or not `rewrite-skill-frontmatter` has landed. The `SKILL.md` SHALL end with the `## Common Rationalizations`, `## Red Flags`, and `## Verification` sections required of user-invocable skills.
+
+#### Scenario: Frontmatter valid in both orderings
+
+- **WHEN** `skills/tests/explain-code/test_skill_md.py` runs before or after `rewrite-skill-frontmatter` merges
+- **THEN** it SHALL pass in both states
+- **AND** it SHALL fail if any of `name`, `description`, `category`, `tags`, `user_invocable`, or `related` is missing or empty
+
+#### Scenario: Frontmatter omits triggers and sets Architecture category
+
+- **WHEN** the `explain-code` `SKILL.md` frontmatter is read
+- **THEN** it SHALL NOT declare a `triggers:` key
+- **AND** `category` SHALL be `Architecture`
+- **AND** `user_invocable` SHALL be `true`
+- **AND** `related` SHALL include `codebase-atlas` and `refresh-architecture`
+
+#### Scenario: Skill markdown ends with required tail sections
+
+- **WHEN** the `explain-code` `SKILL.md` body is read
+- **THEN** it SHALL end with the `## Common Rationalizations`, `## Red Flags`, and `## Verification` sections
+
+#### Scenario: Description carries the trigger condition
+
+- **WHEN** the frontmatter `description` is read
+- **THEN** it SHALL name the capability (visual explanation of a specific piece of code) and the use condition (a narrow question about how code works or connects)
+- **AND** it SHALL direct whole-repository requests to `codebase-atlas`
+
+### Requirement: Explainer Distribution Wiring
+
+`skills/install-manifest.json` SHALL declare `"explain-code": {"distribution": "portable"}` and a `cross_skill_dependencies` entry `"explain-code": ["codebase-atlas", "refresh-architecture"]`. `skills/pyproject.toml` `testpaths` SHALL list `tests/explain-code`. All runtime references from `explain-code` to sibling skills SHALL use the `<skill-base-dir>/../<skill>/` form.
+
+#### Scenario: Manifest validation passes
+
+- **WHEN** `skills/install.sh --check` runs after the skill is added
+- **THEN** the manifest validator SHALL report zero errors
+- **AND** every sibling reference in `skills/explain-code/**` SHALL be covered by the declared cross-skill dependencies
+
+#### Scenario: Manifest declares portable distribution and atlas dependencies
+
+- **WHEN** `skills/install-manifest.json` is read after the skill is added
+- **THEN** `explain-code` SHALL declare `"distribution": "portable"`
+- **AND** `cross_skill_dependencies` SHALL list `codebase-atlas` and `refresh-architecture` for `explain-code`
+
+#### Scenario: Sibling skill paths use skill-base-dir form
+
+- **WHEN** `skills/explain-code/**` references a co-installed sibling skill
+- **THEN** the reference SHALL use the `<skill-base-dir>/../<skill>/` form
+
+#### Scenario: Tests collected by the default sweep
+
+- **WHEN** `skills/.venv/bin/python -m pytest` runs from `skills/` with no path arguments
+- **THEN** tests under `skills/tests/explain-code/` SHALL be collected without import errors
+
+### Requirement: Code-Emitted Dispatch Result
+
+`skills/autopilot/scripts/runner.py` SHALL provide `emit-result <change-id> --dispatch-id ID --generation N --attempt A` that derives a `dispatch-result.schema.json` version-2 result from the committed `loop-state.json` through `dispatch_contract.result_from_loop_state`, writes it to `openspec/changes/<change-id>/dispatch-results/<dispatch-slug>-g<N>.json` (where `dispatch-slug` replaces each character outside `[A-Za-z0-9._-]` with `-`), and prints it to stdout. The mapping SHALL be, first match wins: `park` set -> `parked/<park.kind>`; `pending_gate` set -> `parked/pending_gate` with the pending gate; `ESCALATE` -> `parked/policy_pause` with `previous_phase` in `resume_hint`; `DONE` with `goal_gate.verdict` `abandoned` -> `failed:abandoned`; `DONE` with verdict `passed` and a `last_handoff_id` -> `success`; any other `DONE` -> `failed:goal_gate_unverified`. Evidence SHALL be the loop-state path, the `HEAD` commit, and the SHA-256 of `loop-state.json` at `HEAD`. Worker prompts and SKILL.md files SHALL instruct workers to return only the path and commit of this file, never a hand-composed result.
+
+#### Scenario: Every terminal and parked shape maps to a schema-valid result
+- **WHEN** the end-to-end test builds a committed loop state for each of: `DONE`/passed, `DONE`/abandoned, `DONE`/refused, `ESCALATE`, `pending_gate` for each gate the result schema permits, `park` of kind `permission_blocked`, and `park` of kind `capability_unavailable`, and runs `emit-result` for each
+- **THEN** each written file SHALL validate against `dispatch-result.schema.json`, its outcome and kind SHALL equal the mapping above, and `ExecutionAdapter.apply` SHALL accept it for a matching prepared attempt
+
+#### Scenario: A non-terminal phase produces no result
+- **WHEN** `emit-result` runs while `current_phase` is `IMPLEMENT` with no `pending_gate` or `park`
+- **THEN** it SHALL exit 5, write no file, and print `runner: loop state is not terminal or parked`
+
+#### Scenario: Uncommitted loop state is refused
+- **WHEN** `loop-state.json` differs from its `HEAD` version
+- **THEN** `emit-result` SHALL exit 2 and write no file
+
+#### Scenario: Abandoned work is not reported as success
+- **WHEN** the loop reached `DONE` through `ESCALATE --abandoned-->`
+- **THEN** the result outcome SHALL be `failed:abandoned`
+
+### Requirement: Loop State Parks and Degradations
+
+`LoopState` SHALL advance to `schema_version` 6, adding `park: dict | None` and `degradations: list[dict]`, and `load_state()` SHALL migrate a version-5 file by defaulting both. `runner.py park <change-id> --kind permission_blocked --tool T --rule R --command C --reason X` and `runner.py park <change-id> --kind capability_unavailable --phase P --missing-lane L ...` SHALL be the only writers of `park`; `runner.py record-degradation <change-id> --code CODE --phase P --detail D` SHALL be the only writer of `degradations`, accepting only the enumerated codes of `dispatch-result.schema.json`. `_apply_transition` SHALL refuse to move a phase while `park` is set, and `runner.py gate-answer --gate escalate_resume --approval-ref R` SHALL clear it.
+
+#### Scenario: Version-5 state migrates
+- **WHEN** `load_state()` reads a `schema_version` 5 file
+- **THEN** the result SHALL have `schema_version` 6, `park` None, `degradations` [], and every v5 field unchanged
+
+#### Scenario: A park blocks transitions
+- **WHEN** `park` is set and `runner.py apply-outcome` is called
+- **THEN** it SHALL exit non-zero naming the park kind, and `current_phase` SHALL be unchanged
+
+#### Scenario: An unknown degradation code is rejected
+- **WHEN** `record-degradation` is called with `--code made_up`
+- **THEN** it SHALL exit 2 and `degradations` SHALL be unchanged
+
+#### Scenario: The park command is redacted before it is stored
+- **WHEN** `park --kind permission_blocked --command 'curl -H "Authorization: Bearer abc123def456ghi789"'` runs
+- **THEN** the stored `park.command` SHALL not contain `abc123def456ghi789`
+
+### Requirement: Gate Authority and Re-Evaluation on Resume
+
+Gate authority SHALL depend on whether the child is dispatched (a launch marker is returned by `dispatch_contract.read_launch_marker`). In a dispatched child the supervisor SHALL be authoritative: the child SHALL apply a gate decision only from the marker's `gate_answer` through `runner.py gate-answer --approval-ref`, SHALL NOT re-evaluate an existing `pending_gate` itself, and, when its worktree posture digest differs from the marker's `posture_digest`, SHALL NOT take an `auto` disposition for any gate but SHALL park `pending_gate` with `posture`-provenance instead. In a standalone run, `runner.py gate-check` SHALL, when a `pending_gate` has a `posture.posture_digest` different from the worktree's current posture digest, re-evaluate that gate before printing it: a `proceed` SHALL clear `pending_gate`, record a `posture`-provenance decision, apply the pending edge, and exit 3; a block SHALL replace `pending_gate` with one carrying the new digest; a gate whose last decision has `human` provenance SHALL NOT be re-evaluated. A human rejection of a gate SHALL stay in force until a later `human`-provenance `proceed` on `escalate_resume` (the operator resuming the run); while it is in force, `gate-check --gate` for that gate SHALL record nothing, SHALL enter `ESCALATE` if the loop is not already there, and SHALL exit 4, and a `posture`-provenance resume SHALL NOT end it. `gate-answer` SHALL record `--approval-ref gate-decision:<id>` in the decision's `provenance` and SHALL refuse (exit 2, nothing recorded) a dispatched child's reference that differs from the marker's `gate_answer.approval_ref`.
+
+#### Scenario: A dispatched child applies the supervisor's answer
+- **GIVEN** a dispatched child parked at `pending_gate/proposal_approval` and a resumed marker whose `gate_answer` is `{gate: proposal_approval, decision: approved, approval_ref: gate-decision:Y}`
+- **WHEN** the child runs `gate-answer --gate proposal_approval --decision approved --approval-ref gate-decision:Y`
+- **THEN** `pending_gate` SHALL be None, the last decision SHALL carry `provenance: {source: human, approval_ref: gate-decision:Y}` or, when the supervisor's decision was posture-derived, `{source: posture, posture_digest}` copied from the answer, and the pending edge SHALL have been applied
+
+#### Scenario: A dispatched child does not self-re-evaluate
+- **WHEN** a dispatched child with a `pending_gate` and no `gate_answer` in its marker runs `gate-check` after its worktree posture changed
+- **THEN** `pending_gate` SHALL be printed unchanged and exit 0, and no decision SHALL be recorded
+
+#### Scenario: Posture drift between child and supervisor blocks auto
+- **WHEN** a dispatched child's worktree posture has `proposal_approval: auto` but its digest differs from the marker's `posture_digest`
+- **THEN** the gate SHALL park as `pending_gate` with reason containing `posture digest differs from dispatch`, and the child SHALL NOT proceed
+
+#### Scenario: A standalone stale posture block clears without an answer
+- **GIVEN** a standalone run with `pending_gate` for `pr_creation` recorded under posture digest D1 (gate `block`)
+- **WHEN** the worktree posture changes `pr_creation` to `auto` and `gate-check` runs
+- **THEN** `pending_gate` SHALL be None, the last decision SHALL have `outcome: proceed` and `provenance.source: posture`, and the exit code SHALL be 3
+
+#### Scenario: A human rejection is not re-evaluated
+- **WHEN** the last decision for the gate has `provenance.source: human` and outcome `blocked`, and the posture changes to `auto`
+- **THEN** `gate-check` SHALL NOT record a new decision and the loop SHALL remain in `ESCALATE`
+
+#### Scenario: An operator resume ends a human rejection
+- **GIVEN** a human rejection of `merge` followed by a `human`-provenance `escalate_resume` `proceed`
+- **WHEN** the resumed phase runs `gate-check --gate merge`
+- **THEN** the gate SHALL be evaluated again under the current posture
+
+#### Scenario: A mismatched approval reference is refused
+- **WHEN** a dispatched child runs `gate-answer --approval-ref gate-decision:X` and the marker's `gate_answer.approval_ref` is `gate-decision:Y`
+- **THEN** it SHALL exit 2 and loop state SHALL be byte-identical
+
+### Requirement: Honest Review Quorum
+
+When the launch marker of a dispatched child carries `review_requirements`, a review phase whose verified lanes from `execution_profile` are fewer than `review_requirements.min_quorum[phase]` SHALL record `park(kind=capability_unavailable, phase, missing_lanes)` and stop, and SHALL NOT run the review with a lower quorum. A standalone run (no launch marker) SHALL keep disabling CLI review below quorum and SHALL record a `review_skipped` degradation, or a `single_vendor_review` degradation when exactly one lane reviewed.
+
+#### Scenario: Dispatched child below quorum parks
+- **WHEN** `review_requirements.min_quorum.PLAN_REVIEW` is 2 and only `claude_code` is verified
+- **THEN** the loop SHALL have `park.kind == capability_unavailable` with `missing_lanes` naming the counting lanes not verified, no review dispatch SHALL have run, and `emit-result` SHALL return `parked/capability_unavailable`
+
+#### Scenario: A single-lane review under a quorum-1 policy is recorded
+- **WHEN** a dispatched child's `review_requirements.min_quorum.PLAN_REVIEW` is 1 by policy data and exactly one review lane dispatches, the others having failed to dispatch
+- **THEN** the review SHALL run and `degradations` SHALL contain a `single_vendor_review` entry for `PLAN_REVIEW` whose detail names the vendor
+- **AND** the child SHALL NOT have read environment variables or credentials to decide that only one lane exists
+
+#### Scenario: GATEKEEPER review scheduling on the host-driven path
+- **WHEN** `runner.py transition --outcome proceed_with_review` is applied in `GATEKEEPER`
+- **THEN** `val_review_enabled` SHALL be True and `gate_verdict` SHALL be `proceed_with_review`
+
+#### Scenario: Standalone run below quorum records a degradation
+- **WHEN** no launch marker exists and `--check-vendors` reports one vendor
+- **THEN** `cli_review_enabled` SHALL be False and `degradations` SHALL contain one `review_skipped` entry for `PLAN_REVIEW`
 

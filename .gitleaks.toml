@@ -26,6 +26,10 @@ regexes = [
     # secret). Appears in the migration runbook's curl examples demonstrating that
     # the dev fallback is rejected (401) after key rotation.
     '''dev-key-001''',
+    # `sk-test-SENTINEL-…` — seeded fake keys that the vendor-probe tests (and the
+    # parallel-infrastructure spec scenarios describing them) assert never leak
+    # into probe output, logs, or the cache file.
+    '''sk-test-SENTINEL-[A-Z0-9-]+''',
 ]
 # Anonymized at HEAD by the kanban-viz PR (commit 9275908). Both fingerprints
 # below are the test fixture string "s3cr3t-32-byte-signing-key-abcdef", which
@@ -40,4 +44,20 @@ commits = [
     # MISSING_TEST_VAR, but the introducing commit is still in the PR's
     # diff range so gitleaks attributes the finding to it.
     "bcde916e524af7f1150513724afae46aa4a330d4",
+    # judge-transcript-struggle-triage-in-collect-transcripts PR (#595):
+    # test fixture string "sk-ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789ABCDEFGH",
+    # an openai-key-shaped value proving triage.py's new judged-call site
+    # sanitizes transcript text before it leaves the process. Replaced at
+    # HEAD with a low-entropy fixture that still matches the sanitizer's
+    # pattern without tripping gitleaks' entropy-based generic-api-key rule.
+    "e1c52a58e791115023cabe01f1cd027669dba8a9",
+    # multiplayer-collaboration roadmap branch (PR #662): supervised-dispatch
+    # launch nonces (`secrets.token_urlsafe(24)`) committed raw as
+    # `"launch_token"` in openspec/roadmaps/multiplayer-collaboration/
+    # checkpoint.json. They are single-use, run-scoped nonces, not
+    # credentials. dispatch-contract (ri-21) stores only a digest from here
+    # on, so only these introducing commits are exempt.
+    "ddd2c4a8e3fea7cfa7589cb48a5fdfc2016cb281",
+    "c6424d74d6bca96cd632da8f888bf4c5dd512107",
+    "3c06430ace19444a9762ae01b2ff422f08e01ae7",
 ]

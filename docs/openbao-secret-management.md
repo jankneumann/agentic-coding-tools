@@ -1,217 +1,71 @@
-# OpenBao Secret Management
+# OpenBao secret management and cutover
 
-OpenBao (open-source fork of HashiCorp Vault) manages API keys and credentials for multi-vendor agent dispatch. Agents authenticate via AppRoles and retrieve secrets at runtime — no keys in git, no keys in `agents.yaml`.
+The agent-coordinator/agents.yaml registry declares keyed agents, the credential_vendors catalog, and each agent's explicit vendor_credentials. The shared openbao_credentials.project_principals() projection creates one role and policy for each keyed agent, plus separate identity-reader and egress-gateway service roles. Agent documents live at secret/agents/<agent>, vendor documents at secret/vendors/<vendor>, and coordinator-internal settings remain at secret/coordinator. Those are KV-v2 logical paths; policies use secret/data/... API paths.
 
-## Architecture
+Setting BAO_ADDR selects OpenBao mode. Missing bootstrap files, failed authentication, denied reads, and malformed documents then fail closed. The non-Bao development mode uses existing file and environment inputs. CLI vendor processes retain their ambient environment in this release; SDK and OpenAI-compatible dispatch use scoped Bao lookup. A hand-authored openbao_role_id, shared BAO_SECRET_ID, or static coordinator API-key override cannot be used for cutover.
 
-```
-agents.yaml                .secrets.yaml (gitignored)
-  openbao_role_id ──┐        API keys ──┐
-                    │                    │
-                    ▼                    ▼
-              ┌──────────┐        ┌──────────┐
-              │ AppRoles │        │  KV v2   │
-              │ (auth)   │        │ (secrets)│
-              └────┬─────┘        └────┬─────┘
-                   │                   │
-                   ▼                   ▼
-              ┌─────────────────────────────┐
-              │         OpenBao             │
-              │    http://localhost:8200     │
-              └──────────┬──────────────────┘
-                         │
-            ┌────────────┼────────────────┐
-            ▼            ▼                ▼
-     ApiKeyResolver  profile_loader  coordination_api
-     (SDK dispatch)  (agent config)  (HTTP API auth)
-```
+## Local server and live matrix
 
-## Resolution Order
+From agent-coordinator/, run docker compose --profile openbao up -d openbao. The Compose service uses an immutable OpenBao image digest and ephemeral dev mode with BAO_DEV_ROOT_TOKEN_ID=dev-root-token. Production needs TLS, durable storage, unseal procedures, and a limited provisioning token. CI runs the same pinned image through bash skills/bao-vault/scripts/tests/integration/run_live_matrix.sh from the repository root. The runner starts its own server, checks health, fails on zero tests, and tears it down.
 
-The `ApiKeyResolver` (used by SDK dispatch) and `profile_loader` (used by the coordinator) both follow the same priority:
+## Prepare migration inputs
 
-1. **OpenBao** — if `BAO_ADDR` is set, authenticate with the agent's `openbao_role_id` and read the secret
-2. **Environment variable** — if OpenBao is unavailable, fall back to `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, etc.
-3. **Skip** — if neither is available, the vendor is silently skipped
+1. Back up the existing secret/coordinator KV-v2 document and previous deployable release outside git. Record the version and verify restoration.
+2. Copy agent-coordinator/.secrets.yaml.example to the gitignored agent-coordinator/.secrets.yaml, restrict it to mode 0600, and fill every keyed agent's coordinator API key. Before preflight, copy vendor keys currently present only in deployment environment variables into this protected flat file. Include every intentionally retained coordinator-internal key. The flat file is migration input; make bao-dev does not seed retained internal values to secret/coordinator.
+3. Create a versioned migration map outside git with source key names only. The agents mapping covers every keyed registry agent and agrees with each agent's exact environment placeholder. The vendors mapping covers every credential_vendors entry. retained_internal lists values that stay at secret/coordinator. Every flat-file key appears exactly once. Use legacy_role_aliases only for known pre-migration roles owned by listed agents.
 
-## Setup Options
+Example shape (replace names with the full current registry and flat file):
 
-### Option 1: Docker Dev Server (Recommended for Local Development)
+~~~yaml
+version: 1
+agents:
+  claude-code-local: CLAUDE_LOCAL_API_KEY
+vendors:
+  anthropic: ANTHROPIC_API_KEY
+retained_internal:
+  - LANGFUSE_PUBLIC_KEY
+  - LANGFUSE_SECRET_KEY
+  - LANGFUSE_HOST
+legacy_role_aliases: {}
+~~~
 
-Fastest way to get started. Data is ephemeral — lost when the container stops.
+Store the map and bootstrap directory under a protected operator location. The bootstrap directory must be owned by the runtime user with mode 0700; bundles and session files use 0600. Mount only each principal's relevant bundle and session files into its trusted consumer. Never pass the root bootstrap directory to an agent child process.
 
-```bash
-# Start OpenBao in dev mode
-docker run -d --name openbao \
-  -p 8200:8200 \
-  -e BAO_DEV_ROOT_TOKEN_ID=dev-root-token \
-  quay.io/openbao/openbao:latest server -dev
+## Preflight and provision
 
-# Verify it's running
-curl -s http://localhost:8200/v1/sys/health | python3 -m json.tool
-```
+From the repository root, set BAO_ADDR, a provisioning BAO_TOKEN, BAO_BOOTSTRAP_DIR, and the input paths. BAO_MOUNT_PATH defaults to secret and must name an existing KV-v2 mount. Run the complete dry-run before mutation:
 
-Then seed it (see [Seeding](#seeding) below).
+~~~bash
+BAO_SECRETS_FILE=agent-coordinator/.secrets.yaml \
+AGENTS_YAML=agent-coordinator/agents.yaml \
+skills/.venv/bin/python skills/bao-vault/scripts/bao_seed.py \
+  --migration-map /secure/bao/migration.yaml \
+  --bootstrap-dir /secure/bao/bootstrap --dry-run
+~~~
 
-### Option 2: Docker with Persistent Storage
+Resolve every preflight error and inspect the printed role, policy, path, and retirement plan. No credential values are printed. Then rerun without --dry-run to reconcile exact policies and data paths and issue one-use, response-wrapped SecretIDs. Apply emits sanitized mutation events. Reissuing a bundle after token revocation or expiry requires a provisioning run.
 
-Data survives container restarts. Good for long-running development.
+The coordinator identity reader uses principal spiffe://coordinator.rotkohl.ai/service/identity-reader and role service-identity-reader. It reads all keyed agent documents to build one atomic API-key snapshot. The egress gateway reads only declared vendor paths. Each agent reads its own agent document and its listed vendor documents. Verify denial cases with the live matrix before switching consumers.
 
-```bash
-# Create volume for persistence
-docker volume create openbao-data
+## Internal coordinator handoff
 
-# Start with persistent storage (not dev mode — requires manual init + unseal)
-docker run -d --name openbao \
-  -p 8200:8200 \
-  -v openbao-data:/openbao/data \
-  -e BAO_LOCAL_CONFIG='
-    storage "file" { path = "/openbao/data" }
-    listener "tcp" { address = "0.0.0.0:8200", tls_disable = true }
-    api_addr = "http://localhost:8200"
-  ' \
-  quay.io/openbao/openbao:latest server
+Keep secret/coordinator for internal settings such as Langfuse. Explicitly stage or restore retained values there, then provision a separate internal AppRole and set BAO_INTERNAL_ROLE_ID and BAO_INTERNAL_SECRET_ID for profile_loader.py and langfuse_env.sh. BAO_SECRET_PATH defaults to coordinator for this internal loader only. The migration seeder does not copy retained internal values into that path.
 
-# Initialize (first time only — save the unseal keys and root token!)
-docker exec openbao bao operator init -key-shares=1 -key-threshold=1
+Switch coordinator and dispatch deployments to BAO_ADDR, BAO_BOOTSTRAP_DIR, and BAO_MOUNT_PATH, delivering principal-specific protected files. The coordinator's GET /ready reports identity: ready|degraded|disabled separately from database status. On failed refresh it serves only the last complete snapshot for at most 120 seconds, then rejects authentication until a complete reload succeeds. Confirm identity: ready, inspect sanitized refresh events, and verify rotated keys revoke old access before retiring the legacy policy.
 
-# Unseal (required after every restart)
-docker exec openbao bao operator unseal <UNSEAL_KEY>
-```
+For final retirement, supply --confirm-cutover --internal-role-name <existing-internal-role> and matching BAO_INTERNAL_ROLE_ID and BAO_INTERNAL_SECRET_ID to the seeder. It verifies that this role reads secret/coordinator under the isolated policy and refuses unknown roles still using coordinator-read. Drain or restart processes holding old internal tokens before deleting the shared policy; a token issued before policy change can retain access until its lease ends. Review the cutover dry-run, then apply. The operation retires only owned legacy agent roles, aliases, paths, and the old shared policy. It preserves secret/coordinator and unrelated engines.
 
-### Option 3: Native Binary
-
-Install OpenBao directly for maximum control.
-
-```bash
-# macOS
-brew install openbao
-
-# Start dev server
-bao server -dev -dev-root-token-id=dev-root-token
-
-# Or start production server with config file
-bao server -config=/path/to/config.hcl
-```
-
-### Option 4: Environment Variables Only (No OpenBao)
-
-For quick testing or CI where OpenBao isn't available. Set API keys directly:
-
-```bash
-export ANTHROPIC_API_KEY=sk-ant-...
-export OPENAI_API_KEY=sk-...
-export GOOGLE_API_KEY=...
-```
-
-The `ApiKeyResolver` falls back to these automatically when `BAO_ADDR` is not set.
-
-## Seeding
-
-Once OpenBao is running, populate it with secrets and AppRoles:
-
-### 1. Create `.secrets.yaml`
-
-```bash
-# agent-coordinator/.secrets.yaml (gitignored — never commit this file)
-cat > agent-coordinator/.secrets.yaml << 'EOF'
-ANTHROPIC_API_KEY: sk-ant-your-key-here
-OPENAI_API_KEY: sk-your-openai-key-here
-GOOGLE_API_KEY: your-google-api-key
-CLAUDE_WEB_API_KEY: your-claude-web-key
-CODEX_API_KEY: your-codex-api-key
-OPENROUTER_API_KEY: your-openrouter-api-key
-EOF
-```
-
-### 2. Run the Seed Script
-
-```bash
-# Preview what will be written (safe — no changes made)
-BAO_ADDR=http://localhost:8200 BAO_TOKEN=dev-root-token \
-  python3 skills/bao-vault/scripts/bao_seed.py --dry-run
-
-# Seed secrets and create AppRoles
-BAO_ADDR=http://localhost:8200 BAO_TOKEN=dev-root-token \
-  python3 skills/bao-vault/scripts/bao_seed.py
-
-# Optional: also configure database secrets engine
-BAO_ADDR=http://localhost:8200 BAO_TOKEN=dev-root-token \
-  python3 skills/bao-vault/scripts/bao_seed.py --with-db-engine
-```
-
-The seed script:
-- Writes all keys from `.secrets.yaml` to `secret/coordinator` (KV v2)
-- Creates AppRoles for each HTTP-transport agent in `agents.yaml` (`claude-code-web`, `codex-cloud`)
-- Each AppRole gets a read-only policy on the secrets path
-
-### 3. Verify
-
-```bash
-# Read secrets (using root token)
-BAO_ADDR=http://localhost:8200 BAO_TOKEN=dev-root-token \
-  bao kv get secret/coordinator
-
-# List AppRoles
-BAO_ADDR=http://localhost:8200 BAO_TOKEN=dev-root-token \
-  bao list auth/approle/role
-```
-
-## Runtime Configuration
-
-### For SDK Dispatch (ApiKeyResolver)
-
-Set these environment variables so the dispatcher can resolve API keys:
-
-```bash
-export BAO_ADDR=http://localhost:8200
-export BAO_SECRET_ID=<secret-id>       # Shared bootstrap secret for AppRole login
-export BAO_MOUNT_PATH=secret           # Default: "secret"
-export BAO_SECRET_PATH=coordinator     # Default: "coordinator" (was "agents" in some configs)
-```
-
-To get the `BAO_SECRET_ID` for an agent's AppRole:
-
-```bash
-BAO_TOKEN=dev-root-token \
-  bao write -f auth/approle/role/claude-code-web/secret-id
-```
-
-### For the Coordinator (HTTP API)
-
-The coordinator uses the same OpenBao instance for API key identity resolution:
-
-```bash
-export BAO_ADDR=http://localhost:8200
-export BAO_ROLE_ID=<coordinator-role-id>
-export BAO_SECRET_ID=<coordinator-secret-id>
-```
-
-## Security Notes
-
-- **Never commit `.secrets.yaml`** — it's in `.gitignore`
-- **Dev mode is insecure** — data is in-memory, root token is static. Use only for local development
-- **Production should use TLS** — configure `tls_cert_file` and `tls_key_file` in the listener
-- **Rotate AppRole secret IDs** — the seed script creates initial ones; rotate periodically in production
-- **The `BAO_SECRET_PATH` default differs** between components: `bao_seed.py` uses `"coordinator"`, `ApiKeyResolver` uses `"agents"`. Ensure they match via environment variables
+Rollback restores the previous release and the backed-up secret/coordinator document, then reissues previous deployment credentials through the normal secure channel. There is no dual-read or static-key override in OpenBao mode. Do not put role IDs, SecretIDs, wrap tokens, session tokens, API keys, or backups in git or logs.
 
 ## Troubleshooting
 
-| Problem | Cause | Fix |
-|---------|-------|-----|
-| `BAO_ADDR not set` | OpenBao not configured | Set `BAO_ADDR` or use env var fallback (Option 4) |
-| `Authentication failed` | Bad token or unsealed vault | Check `BAO_TOKEN` or unseal the vault |
-| `Permission denied` | AppRole doesn't have read access | Re-run `bao_seed.py` to recreate policies |
-| `Connection refused` | OpenBao not running | Start the container: `docker start openbao` |
-| API key resolves to `None` | Key name mismatch | Ensure `.secrets.yaml` key names match `sdk.api_key_env` in `agents.yaml` |
+| Symptom | Check |
+| --- | --- |
+| Dry-run rejects a source key | Map every flat-file key once, including retained keys, and match registry placeholders. |
+| CONFIGURATION_INVALID | Check BAO_ADDR, BAO_BOOTSTRAP_DIR ownership and modes, and the KV-v2 mount. |
+| BOOTSTRAP_INVALID or TOKEN_EXPIRED | Deliver a fresh, one-use wrapped bundle. A consumed bundle cannot recover a revoked token. |
+| AUTHORIZATION_DENIED | Check declared vendor scope and exact policy path. Do not broaden it to secret/coordinator. |
+| identity: degraded | Inspect sanitized identity events, restore all keyed agent documents, and wait for a complete reload. |
+| Langfuse values absent | Check retained values at secret/coordinator and the isolated BAO_INTERNAL_* AppRole. |
 
-## Related Files
-
-| File | Purpose |
-|------|---------|
-| `skills/bao-vault/scripts/bao_seed.py` | Seeds secrets and AppRoles from config files |
-| `skills/parallel-infrastructure/scripts/api_key_resolver.py` | Runtime API key resolution (OpenBao → env var → None) |
-| `agent-coordinator/src/agents_config.py` | Parses `openbao_role_id` from `agents.yaml` |
-| `agent-coordinator/src/profile_loader.py` | Resolves secrets for coordinator startup |
-| `agent-coordinator/.secrets.yaml` | Local secrets file (gitignored) |
-| `agent-coordinator/agents.yaml` | Agent definitions with `openbao_role_id` fields |
+See packages/openbao-credentials/ for the projection and typed adapter, skills/bao-vault/scripts/bao_seed.py for reconciliation, and agent-coordinator/src/openbao_identity.py for snapshot behavior.

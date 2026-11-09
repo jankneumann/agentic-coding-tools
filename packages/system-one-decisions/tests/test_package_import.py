@@ -9,6 +9,7 @@ Spec: specs/system-one-decisions/spec.md
 
 from __future__ import annotations
 
+import subprocess
 import sys
 
 import system_one_decisions
@@ -21,4 +22,24 @@ def test_module_exports_decision_decide_and_decide_intent() -> None:
 
 
 def test_no_vendor_sdk_imported_at_load_time() -> None:
-    assert "typesafe_sdk" not in sys.modules
+    """Run in a fresh subprocess, not this test process's `sys.modules`.
+
+    In-process, sibling test files (`test_decide_live.py`,
+    `test_decide_event_sink.py`) import `typesafe_sdk` at their own top
+    level to build real SDK fixtures (design D5) -- that's a property of
+    this test *session*, not of `system_one_decisions` importing it eagerly.
+    A subprocess that imports nothing else is the only way to check what
+    this assertion actually means: that `import system_one_decisions` alone
+    never pulls in the vendor SDK.
+    """
+    probe = (
+        "import system_one_decisions, sys, json; "
+        "print(json.dumps('typesafe_sdk' in sys.modules))"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", probe],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert result.stdout.strip() == "false"

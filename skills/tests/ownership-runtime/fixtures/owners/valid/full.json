@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "default_owner": "jan",
+  "registry": "agent-coordinator/agents.yaml",
+  "assignments": {
+    "capabilities": {
+      "agent-identity": {
+        "owners": [
+          "jan"
+        ],
+        "decision_rights": [
+          "jan"
+        ],
+        "acceptance_rights": [
+          "kim"
+        ]
+      }
+    },
+    "roadmap_items": {
+      "multiplayer-collaboration/ri-02": {
+        "owners": [
+          "jan"
+        ]
+      }
+    },
+    "paths": {
+      "openspec/contracts/**": {
+        "owners": [
+          "jan"
+        ]
+      },
+      "schemas/": {
+        "owners": [
+          "kim"
+        ]
+      },
+      "/README.md": {
+        "owners": [
+          "jan"
+        ]
+      },
+      "*.md": {
+        "owners": [
+          "kim"
+        ]
+      },
+      "docs/*/guide?.md": {
+        "owners": [
+          "jan"
+        ]
+      }
+    }
+  }
+}

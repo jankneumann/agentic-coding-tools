@@ -1,0 +1,178 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "critical",
+      "description": "Critical: `_complete_completion_ledger` passes `agent_id=os.environ.get(\"AGENT_ID\")` into `complete_work`, but atomic `claim_immediately` submit always claims as `resolve_identity(principal, None, None)` (bound principal or unbound `cloud-agent`). When `AGENT_ID` is set under an unbound key, complete runs as the session id against a row claimed by `cloud-agent` and `complete_task` returns `task_not_found_or_not_claimed_by_agent`; bound keys with a mismatched `AGENT_ID` 403. Design D2 and the bridge handoff path already require omitting request identity so the server resolves ownership \u2014 this breaks ledger persistence and withholds terminal envelopes.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Pass `agent_id=None` from `_complete_completion_ledger` (same pattern as `try_handoff_write` when an API key is present) so complete uses the authenticated principal that owned the atomic claim. Add an end-to-end test: claim_immediately submit then complete with `AGENT_ID` set under unbound and bound keys.",
+      "package_id": "whole-branch",
+      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "line_range": {
+        "start": 836,
+        "end": 840
+      },
+      "evidence_class": "judgment",
+      "existing_code": "response = self._ledger_completer(\n            task_id=ledger_task_id,\n            agent_id=os.environ.get(\"AGENT_ID\"),\n            success=success,\n            result=result,\n            error_message=error_message,\n        )"
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: `http_proxy.proxy_submit_work` does not forward `claim_immediately`, so the MCP/HTTP-proxy path cannot open an atomically claimed completion-ledger row. Design D2 and the dispatcher bridge path require atomic submit-and-claim before vendor launch; MCP consumers of `proxy_submit_work` are stuck on the race-prone submit-then-claim path the recovery removed.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "critical",
+      "resolution": "Add `claim_immediately: bool = False` to `proxy_submit_work` and include it in the POST `/work/submit` body. Mirror any MCP `submit_work` tool signature the same way. Cover with a proxy unit test asserting the flag is sent.",
+      "package_id": "whole-branch",
+      "file_path": "agent-coordinator/src/http_proxy.py",
+      "line_range": {
+        "start": 489,
+        "end": 519
+      },
+      "evidence_class": "judgment",
+      "existing_code": "async def proxy_submit_work(\n    task_type: str,\n    description: str,\n    input_data: dict[str, Any] | None = None,\n    priority: int = 5,\n    depends_on: list[str] | None = None,\n    agent_requirements: dict[str, Any] | None = None,\n    projection_key: dict[str, Any] | None = None,\n    projection_labels: list[str] | None = None,\n) -> dict[str, Any]:"
+    },
+    {
+      "id": 3,
+      "type": "security",
+      "criticality": "medium",
+      "description": "Nit: `042_atomic_submit_claim.sql` creates `submit_claimed_task` without `REVOKE ALL ... FROM PUBLIC`, explicit `GRANT EXECUTE ... TO service_role`, `SECURITY INVOKER`, or pinned `search_path`, unlike sibling `042_atomic_routing_audit.sql`. PostgreSQL still grants EXECUTE to PUBLIC by default, so the privileged insert-as-claimed RPC is wider than the hardened sibling.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "nit",
+      "resolution": "Match the sibling migration: `SECURITY INVOKER`, `SET search_path = public, pg_temp`, `REVOKE ALL ON FUNCTION submit_claimed_task(...) FROM PUBLIC`, and `GRANT EXECUTE ... TO service_role`. Extend `test_atomic_submit_claim_migration.py` to assert those clauses.",
+      "package_id": "whole-branch",
+      "file_path": "agent-coordinator/database/migrations/042_atomic_submit_claim.sql",
+      "line_range": {
+        "start": 7,
+        "end": 67
+      },
+      "evidence_class": "judgment",
+      "existing_code": "CREATE OR REPLACE FUNCTION submit_claimed_task(\n    p_task_type TEXT,\n    p_description TEXT,\n    p_agent_id TEXT,\n    p_input_data JSONB DEFAULT NULL,\n    p_priority INTEGER DEFAULT 5,\n    p_deadline TIMESTAMPTZ DEFAULT NULL\n) RETURNS JSONB AS $$"
+    },
+    {
+      "id": 4,
+      "type": "compatibility",
+      "criticality": "medium",
+      "description": "Nit: This recovery adds a second migration numbered `042` (`042_atomic_submit_claim.sql`) beside adaptive-router\u2019s `042_atomic_routing_audit.sql`. The runner applies both by filename, so boot is fine, but ops docs and \u201capply migration 042\u201d language become ambiguous; the file should be `043_...` on this branch.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "nit",
+      "resolution": "Rename to `043_atomic_submit_claim.sql` (and update the migration unit-test path). Prefer unique numeric prefixes going forward even though filename+checksum tracking tolerates collisions.",
+      "package_id": "whole-branch",
+      "file_path": "agent-coordinator/database/migrations/042_atomic_submit_claim.sql",
+      "line_range": {
+        "start": 1,
+        "end": 7
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "security",
+      "criticality": "medium",
+      "description": "Nit: Migration comments and Python enforce that atomic claim is only for dependency-free, non-projection tasks without `agent_requirements`, but `submit_claimed_task` itself performs a bare INSERT into `claimed` with no SQL-side checks. Any direct RPC caller can bypass queue eligibility and create self-owned claimed rows.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "nit",
+      "resolution": "Reject non-null `depends_on` / projection / `agent_requirements` inside the SQL function (or refuse unexpected `input_data` keys), mirroring the Python `atomic_claim_incompatible_options` gate, so the database remains the authority.",
+      "package_id": "whole-branch",
+      "file_path": "agent-coordinator/database/migrations/042_atomic_submit_claim.sql",
+      "line_range": {
+        "start": 1,
+        "end": 56
+      },
+      "evidence_class": "judgment",
+      "existing_code": "-- This closes the submit-then-claim race for completion-ledger rows. The\n-- runtime exposes this only for dependency-free, non-projection tasks without\n-- agent requirements; those restrictions prevent bypassing queue eligibility."
+    },
+    {
+      "id": 6,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Nit: The vendor-result envelope schema allows terminal states (`succeeded`/`failed`/`cancelled`) with null or omitted `vendor_task_id`, and `parse_vendor_result_envelope` accepts that, but `poll_for_result` treats `envelope.vendor_task_id != task_id` as protocol corruption \u2014 so a schema-valid terminal envelope with `vendor_task_id: null` fails the ledger closed.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "Either require `vendor_task_id` on terminal poll responses in the schema/parser, or treat null terminal `vendor_task_id` as \u201cunchecked\u201d and only compare when present. Add a contract test covering both sides.",
+      "package_id": "whole-branch",
+      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "line_range": {
+        "start": 1718,
+        "end": 1728
+      },
+      "evidence_class": "judgment",
+      "existing_code": "if envelope.vendor_task_id != task_id:\n                message = (\n                    \"Invalid structured async status: vendor_task_id does not \"\n                    \"match submitted task\"\n                )"
+    },
+    {
+      "id": 7,
+      "type": "observability",
+      "criticality": "medium",
+      "description": "Nit: Async submit logs only the vendor `task_id` (`Async task submitted for %s: task_id=%s`) and `write_manifest` omits `ledger_task_id`, `task_id`, and `async_dispatch` from durable dispatch records, so operators cannot correlate coordinator ledger rows with review artifacts despite NFR observability requiring one ledger work id per async lifecycle.",
+      "disposition": "fix",
+      "axis": "observability",
+      "severity": "nit",
+      "resolution": "Log both `ledger_task_id` and `vendor_task_id` on submit/poll/complete paths, and include `ledger_task_id` / `task_id` / `async_dispatch` in manifest dispatch entries.",
+      "package_id": "whole-branch",
+      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "line_range": {
+        "start": 1599,
+        "end": 1611
+      },
+      "evidence_class": "judgment",
+      "existing_code": "logger.info(\n                \"Async task submitted for %s: task_id=%s\",\n                self.vendor,\n                envelope.vendor_task_id,\n            )"
+    },
+    {
+      "id": 8,
+      "type": "security",
+      "criticality": "medium",
+      "description": "FYI: `GET /locks` and `POST /locks/release-by-agent` correctly bind identity for bound API keys, but under legacy unbound keys `resolve_identity` trusts the request `agent_id`, so a shared unbound key can list/bulk-release another agent\u2019s locks. This matches pre-existing unbound acquire/release semantics and design\u2019s cloud-agent fallback, but bulk release widens blast radius versus single-path release.",
+      "disposition": "accept",
+      "axis": "security",
+      "severity": "fyi",
+      "resolution": "Accept while unbound keys remain supported; prefer bound keys in production. If unbound keys stay long-term, consider restricting release-by-agent to the `cloud-agent` fallback identity only unless an explicit admin capability is present.",
+      "package_id": "whole-branch",
+      "file_path": "agent-coordinator/src/coordination_api.py",
+      "line_range": {
+        "start": 1155,
+        "end": 1171
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 9,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "Optional: A non-zero async status CLI exit immediately completes the ledger as failed and returns, while a poll subprocess timeout only retries. A flaky status command can therefore permanently fail a still-running vendor task.",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "optional",
+      "resolution": "Accept fail-closed for now, or treat transient status exit codes like poll timeouts (retry until deadline) while still failing closed on definitive protocol/auth errors.",
+      "package_id": "whole-branch",
+      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "line_range": {
+        "start": 1680,
+        "end": 1697
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 10,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Atomic `claim_immediately` + `submit_claimed_task` closes the submit-then-claim race; ledger open failure prevents vendor launch; malformed/timeout/mismatch paths complete the ledger failed; successful findings are withheld when `complete_work` fails; regex poll fields are removed; live async CLI lanes are unadvertised per D4; SDK alternative/quick reject before SDK calls; lock list/release-by-agent and deregister hook wiring match the lock-recovery requirement.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "Keep these patterns; fix finding #1 before relying on the async ledger in sessions where `AGENT_ID` is set.",
+      "package_id": "whole-branch",
+      "evidence_class": "judgment"
+    }
+  ]
+}

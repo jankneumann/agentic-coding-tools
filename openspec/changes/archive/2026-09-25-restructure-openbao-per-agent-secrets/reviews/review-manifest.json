@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "change_id": null,
+  "review_type": "plan",
+  "created_at": "2026-09-24T23:25:07Z",
+  "target": "cli-dispatch",
+  "dispatches": [
+    {
+      "vendor": "antigravity",
+      "success": true,
+      "model_used": "gemini-3.8-flash-high",
+      "models_attempted": [
+        "gemini-3.8-flash-high"
+      ],
+      "elapsed_seconds": 454.26989902183414,
+      "error": null,
+      "error_class": null,
+      "async_dispatch": false,
+      "task_id": null,
+      "ledger_task_id": null
+    },
+    {
+      "vendor": "claude_code",
+      "success": true,
+      "model_used": "fable",
+      "models_attempted": [
+        "fable"
+      ],
+      "elapsed_seconds": 286.84567407518625,
+      "error": null,
+      "error_class": null,
+      "async_dispatch": false,
+      "task_id": null,
+      "ledger_task_id": null
+    },
+    {
+      "vendor": "grok",
+      "success": true,
+      "model_used": "grok-4.5",
+      "models_attempted": [
+        "grok-4.5"
+      ],
+      "elapsed_seconds": 224.59390069590881,
+      "error": null,
+      "error_class": null,
+      "async_dispatch": false,
+      "task_id": null,
+      "ledger_task_id": null
+    },
+    {
+      "vendor": "pi",
+      "success": false,
+      "model_used": "nvidia/nemotron-3-ultra-550b-a55b",
+      "models_attempted": [
+        "nvidia/nemotron-3-ultra-550b-a55b"
+      ],
+      "elapsed_seconds": 85.54689201479778,
+      "error": "{\"type\":\"session\",\"version\":3,\"id\":\"01a0d5b5-c09c-7715-b4df-cb1074a8d334\",\"timestamp\":\"2026-09-24T23:17:33.469Z\",\"cwd\":\"/home/jankneumann/Coding/agentic-coding-tools/.git-worktrees/restructure-openbao-per-agent-secrets\"}\n{\"type\":\"agent_start\"}\n{\"type\":\"turn_start\"}\n{\"type\":\"message_start\",\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Review the pca-02 plan in this checkout independently. Read proposal.md, design.md, tasks.md, specs/**/spec.md, contracts/**, and work-packages.yaml un",
+      "error_class": "auth_required",
+      "async_dispatch": false,
+      "task_id": null,
+      "ledger_task_id": null
+    }
+  ],
+  "quorum_requested": 4,
+  "quorum_received": 3,
+  "vendors": [
+    {
+      "name": "antigravity",
+      "findings_path": "findings-antigravity-plan.json",
+      "finding_count": 9,
+      "unanchored_findings": 0,
+      "coverage_rate": null,
+      "coverage_eligibility": "full",
+      "coverage": "unreported"
+    },
+    {
+      "name": "claude_code",
+      "findings_path": "findings-claude_code-plan.json",
+      "finding_count": 14,
+      "unanchored_findings": 0,
+      "coverage_rate": null,
+      "coverage_eligibility": "full",
+      "coverage": "unreported"
+    },
+    {
+      "name": "grok",
+      "findings_path": "findings-grok-plan.json",
+      "finding_count": 12,
+      "unanchored_findings": 0,
+      "coverage_rate": null,
+      "coverage_eligibility": "full",
+      "coverage": "unreported"
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "change_id": "implement-the-task-router-vendor-x-location-x-model",
+  "base_head": "bc906af48696f8088c7f1f565e11bb4818694ee3",
+  "core_manifest_sha256": "218697ec07e8910d47d819f0fa1a305cfa3b6c65885778b374d210505526631d",
+  "panel_status": "max_rounds_remediated",
+  "adjudicator": "sol",
+  "verdict": "accept_implementation_start",
+  "blocking_fixes_verified": [
+    "bounded persisted routing_profile and roadmap_policy reject unknown and oversized path-like payloads",
+    "successful Candidate.assignment and response assignment/provenance are non-null; runtime equality probe planned"
+  ],
+  "accepted_decisions": [
+    "preserve linear package DAG",
+    "dynamic phase and lane cross-reference checks belong to strict loader",
+    "ROUTING_CONFIG remains an explicit operator path"
+  ]
+}

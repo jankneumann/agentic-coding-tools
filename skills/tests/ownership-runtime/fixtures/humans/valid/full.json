@@ -1,0 +1,21 @@
+{
+  "display_name": "Jan Neumann",
+  "github": "jankneumann",
+  "email": "jan@example.org",
+  "domains": [
+    "agent-coordinator",
+    "skills"
+  ],
+  "availability": {
+    "timezone": "Europe/Berlin",
+    "hours": "09:00-18:00",
+    "days": [
+      "mon",
+      "tue",
+      "wed",
+      "thu",
+      "fri"
+    ]
+  },
+  "description": "Repository maintainer"
+}

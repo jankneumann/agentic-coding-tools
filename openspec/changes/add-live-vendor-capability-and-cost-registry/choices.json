@@ -1,0 +1,37 @@
+{
+  "header": {
+    "schema_version": 1,
+    "generated_at": "2026-09-16T19:42:54Z",
+    "git_sha": "b4f2840d668fe38798fdd5fd291a5456d5f2c90b",
+    "generator": "audit-choices@1.0",
+    "run_id": "dg01-wp-registry-core-2026-09-16",
+    "event_kind": "choices-ledger"
+  },
+  "change_id": "add-live-vendor-capability-and-cost-registry",
+  "audited_range": {
+    "base_sha": "973fa03434606c1bc87558d9147a4070b44dcdf1",
+    "head_sha": "b4f2840d668fe38798fdd5fd291a5456d5f2c90b"
+  },
+  "entries": [
+    {
+      "choice": "Quantize quoted USD to six decimal places using explicit ROUND_HALF_UP, including rounding exact half-microdollar values upward.",
+      "scenario": "A request-scoped quote computes a decimal USD value exactly halfway between two six-decimal values.",
+      "gap": "The design requires decimal arithmetic and six-place rounding but does not specify a tie-breaking mode.",
+      "reach": "All request-scoped exact-model USD quotes at a six-decimal tie boundary; ordinary non-tie values are unaffected.",
+      "verdict": "sound",
+      "verdict_rationale": "An explicit rounding mode is necessary for deterministic six-place results. ROUND_HALF_UP is a conventional monetary tie rule, preserves the required decimal calculation, and avoids behavior changing with the ambient Decimal context. The choice is narrowly scoped and guarded by a named boundary test. It should be documented as part of the quote contract because clients may observe the final microdollar digit.",
+      "confidence": "high",
+      "provenance": {
+        "commits": [
+          "b4f2840d668fe38798fdd5fd291a5456d5f2c90b"
+        ],
+        "files": [
+          "agent-coordinator/src/vendor_registry.py",
+          "agent-coordinator/tests/test_vendor_registry.py"
+        ]
+      },
+      "self_reported": false,
+      "stable_id": "e8f46f8d94de4e89ac0a78ebf7995cf3138c18fa73e89f78ab795a5b6eafbbac"
+    }
+  ]
+}

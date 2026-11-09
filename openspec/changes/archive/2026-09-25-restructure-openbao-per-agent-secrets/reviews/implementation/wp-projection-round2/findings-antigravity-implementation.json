@@ -1,0 +1,41 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "axis": "correctness",
+      "criticality": "high",
+      "description": "Critical: _classify() does not map hvac.exceptions.InvalidRequest (HTTP 400) to AUTHENTICATION_FAILED on rejected AppRole login or BOOTSTRAP_INVALID on expired/consumed wrapping lookup/unwrap, falling through to BACKEND_UNAVAILABLE.",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "packages/openbao-credentials/src/openbao_credentials/adapter.py",
+      "id": 1,
+      "line_range": {
+        "end": 187,
+        "start": 175
+      },
+      "package_id": "wp-projection",
+      "resolution": "Explicitly handle hvac.exceptions.InvalidRequest in _bootstrap() or _classify(): classify as AUTHENTICATION_FAILED during AppRole login, and as BOOTSTRAP_INVALID during sys/wrapping/lookup and unwrap, complying with contracts/README.md and openbao-event.schema.json.",
+      "severity": "critical",
+      "type": "contract_mismatch"
+    },
+    {
+      "axis": "compatibility",
+      "criticality": "high",
+      "description": "Critical: Adding credential_vendors as a required top-level property in AGENTS_SCHEMA causes load_agents_config() to fail with ValidationError on existing test suite agent-coordinator/tests/test_setup_cloud.py.",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "agent-coordinator/src/agents_config.py",
+      "id": 2,
+      "line_range": {
+        "end": 397,
+        "start": 389
+      },
+      "package_id": "wp-projection",
+      "resolution": "Update agent-coordinator/tests/test_setup_cloud.py to include credential_vendors: [] in CUSTOM_REGISTRY (and expand wp-projection write_allow in work-packages.yaml to include this test file, as done in revision 7 for test_agents_config_isolation.py), or provide default handling in load_agents_config for test configurations.",
+      "severity": "critical",
+      "type": "compatibility"
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.dev/events/vendor-availability.schema.json",
+  "title": "Vendor availability observation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["observation_id", "agent_id", "kind", "source_agent_id", "observed_at"],
+  "properties": {
+    "observation_id": {"type": "string", "minLength": 1, "maxLength": 200},
+    "agent_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "kind": {"type": "string", "enum": ["probe", "rate_limit"]},
+    "status": {"type": "string", "enum": ["available", "unavailable", "unknown"]},
+    "source_agent_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "reason": {"type": ["string", "null"], "maxLength": 2000},
+    "scope": {"type": "string", "enum": ["lane", "model"]},
+    "model": {"type": ["string", "null"], "minLength": 1, "maxLength": 200},
+    "observed_at": {"type": "string", "format": "date-time"},
+    "reset_at": {"type": "string", "format": "date-time"},
+    "stale_after": {"type": "string", "format": "date-time"},
+    "metadata": {"type": "object", "maxProperties": 20}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"kind": {"const": "rate_limit"}}},
+      "then": {
+        "required": ["reason", "scope", "reset_at"],
+        "properties": {
+          "reason": {"type": "string", "minLength": 1, "maxLength": 2000},
+          "status": false,
+          "stale_after": false
+        }
+      }
+    },
+    {
+      "if": {"properties": {"kind": {"const": "probe"}}},
+      "then": {
+        "required": ["status", "stale_after"],
+        "properties": {"scope": false, "model": false, "reset_at": false}
+      }
+    },
+    {
+      "if": {
+        "required": ["scope"],
+        "properties": {"scope": {"const": "model"}}
+      },
+      "then": {
+        "required": ["model"],
+        "properties": {
+          "model": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": ".*\\S.*"
+          }
+        }
+      }
+    }
+  ]
+}

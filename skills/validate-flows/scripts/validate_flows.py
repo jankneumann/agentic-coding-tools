@@ -672,6 +672,59 @@ def check_pattern_consistency(
 # Orchestrator
 # ---------------------------------------------------------------------------
 
+_SOURCE_ROOT_KEYS = ("python_src_dir", "ts_src_dir", "migrations_dir")
+
+
+def _source_roots(graph_path: Path) -> list[str]:
+    """Analyzer source roots declared in the nearest ``architecture.config.yaml``.
+
+    Found by walking up from the graph file, so the result does not depend on
+    the working directory.
+    """
+    for directory in graph_path.resolve().parents:
+        config = directory / "architecture.config.yaml"
+        if not config.is_file():
+            continue
+        try:
+            import yaml
+
+            raw = yaml.safe_load(config.read_text())
+        except Exception as exc:  # noqa: BLE001 - scoping falls back to exact paths
+            logger.warning("could not read %s: %s", config, exc)
+            return []
+        section = raw.get("analysis") if isinstance(raw, dict) else None
+        if not isinstance(section, dict):
+            return []
+        return [
+            str(section[key]).strip("/")
+            for key in _SOURCE_ROOT_KEYS
+            if isinstance(section.get(key), str) and section[key].strip("/")
+        ]
+    return []
+
+
+def _with_source_root_aliases(
+    changed_files: list[str] | None, graph_path: Path
+) -> list[str] | None:
+    """Add each changed file's path relative to its analyzer source root.
+
+    Graph nodes record ``file`` relative to the analyzer's source root
+    (``model_routing/api.py``), while ``--files`` / ``--diff`` give repo-relative
+    paths (``agent-coordinator/src/model_routing/api.py``). Matching only the
+    repo-relative form checked 0 entrypoints on every scoped run (#635).
+    """
+    if changed_files is None:
+        return None
+    roots = [root + "/" for root in _source_roots(graph_path)]
+    aliases = list(changed_files)
+    for changed in changed_files:
+        normalized = changed.replace("\\", "/")
+        for root in roots:
+            if normalized.startswith(root):
+                aliases.append(normalized[len(root):])
+    return aliases
+
+
 def validate_flows(
     graph_path: Path,
     output_path: Path,
@@ -680,6 +733,8 @@ def validate_flows(
     """Run all flow validation checks and produce the diagnostics report."""
     with open(graph_path) as f:
         graph = json.load(f)
+    # Match against both forms; the report still names the caller's files.
+    scope = _with_source_root_aliases(changed_files, graph_path)
 
     nodes = _build_node_index(graph)
     forward, reverse = _build_adjacency(graph)
@@ -688,30 +743,30 @@ def validate_flows(
 
     # 1. Reachability
     reachability_findings, entrypoints_checked = check_reachability(
-        graph, nodes, forward, changed_files,
+        graph, nodes, forward, scope,
     )
     all_findings.extend(reachability_findings)
 
     # 2. Disconnected flows
     disconnected_findings = check_disconnected_flows(
-        graph, nodes, forward, reverse, changed_files,
+        graph, nodes, forward, reverse, scope,
     )
     all_findings.extend(disconnected_findings)
 
     # 3. Test coverage alignment
     coverage_findings, flows_with, flows_without = check_test_coverage(
-        graph, nodes, forward, reverse, changed_files,
+        graph, nodes, forward, reverse, scope,
     )
     all_findings.extend(coverage_findings)
 
     # 4. Orphaned code
     orphan_findings = check_orphaned_code(
-        graph, nodes, forward, reverse, changed_files,
+        graph, nodes, forward, reverse, scope,
     )
     all_findings.extend(orphan_findings)
 
     # 5. Pattern consistency
-    pattern_findings = check_pattern_consistency(graph, nodes, changed_files)
+    pattern_findings = check_pattern_consistency(graph, nodes, scope)
     all_findings.extend(pattern_findings)
 
     # Build summary

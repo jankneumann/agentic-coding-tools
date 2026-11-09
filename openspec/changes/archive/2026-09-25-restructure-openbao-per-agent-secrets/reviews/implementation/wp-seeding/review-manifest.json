@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "change_id": null,
+  "review_type": "implementation",
+  "created_at": "2026-09-25T01:21:46Z",
+  "target": "cli-dispatch",
+  "dispatches": [
+    {
+      "vendor": "antigravity",
+      "success": true,
+      "model_used": "gemini-3.8-flash-high",
+      "models_attempted": [
+        "gemini-3.8-flash-high"
+      ],
+      "elapsed_seconds": 520.887922486756,
+      "error": null,
+      "error_class": null,
+      "async_dispatch": false,
+      "task_id": null,
+      "ledger_task_id": null
+    },
+    {
+      "vendor": "claude_code",
+      "success": true,
+      "model_used": "fable",
+      "models_attempted": [
+        "fable"
+      ],
+      "elapsed_seconds": 355.00983451260254,
+      "error": null,
+      "error_class": null,
+      "async_dispatch": false,
+      "task_id": null,
+      "ledger_task_id": null
+    },
+    {
+      "vendor": "grok",
+      "success": true,
+      "model_used": "grok-4.5",
+      "models_attempted": [
+        "grok-4.5"
+      ],
+      "elapsed_seconds": 298.4767364067957,
+      "error": null,
+      "error_class": null,
+      "async_dispatch": false,
+      "task_id": null,
+      "ledger_task_id": null
+    },
+    {
+      "vendor": "pi",
+      "success": false,
+      "model_used": "nvidia/nemotron-3-ultra-550b-a55b",
+      "models_attempted": [
+        "nvidia/nemotron-3-ultra-550b-a55b"
+      ],
+      "elapsed_seconds": 84.95082428818569,
+      "error": "{\"type\":\"session\",\"version\":3,\"id\":\"01a0d61f-86ae-71ef-a67d-c3dcc8a3f471\",\"timestamp\":\"2026-09-25T01:13:05.455Z\",\"cwd\":\"/home/jankneumann/Coding/agentic-coding-tools/.git-worktrees/restructure-openbao-per-agent-secrets--wp-seeding\"}\n{\"type\":\"agent_start\"}\n{\"type\":\"turn_start\"}\n{\"type\":\"message_start\",\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Independently review the completed wp-seeding implementation for OpenSpec restructure-openbao-per-agent-secrets. Read only. Worktree: /home",
+      "error_class": "auth_required",
+      "async_dispatch": false,
+      "task_id": null,
+      "ledger_task_id": null
+    }
+  ],
+  "quorum_requested": 4,
+  "quorum_received": 3,
+  "vendors": [
+    {
+      "name": "antigravity",
+      "findings_path": "findings-antigravity-implementation.json",
+      "finding_count": 5,
+      "unanchored_findings": 0,
+      "coverage_rate": null,
+      "coverage_eligibility": "full",
+      "coverage": "unreported"
+    },
+    {
+      "name": "claude_code",
+      "findings_path": "findings-claude_code-implementation.json",
+      "finding_count": 13,
+      "unanchored_findings": 0,
+      "coverage_rate": null,
+      "coverage_eligibility": "full",
+      "coverage": "unreported"
+    },
+    {
+      "name": "grok",
+      "findings_path": "findings-grok-implementation.json",
+      "finding_count": 9,
+      "unanchored_findings": 0,
+      "coverage_rate": null,
+      "coverage_eligibility": "full",
+      "coverage": "unreported"
+    }
+  ]
+}

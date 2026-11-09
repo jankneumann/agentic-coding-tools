@@ -1,270 +1,218 @@
 # Proposal Prioritization Report
 
-**Run ID**: 2026-09-08-025559-39d0f08
-**Generated**: 2026-09-08T02:55:59Z
-**Analyzed Range**: `HEAD~50..HEAD` (50 commits, 186 files touched)
-**Proposals Analyzed**: 64 active changes
+**Run ID**: 2026-09-16-111153-45c529b
+**Generated**: 2026-09-16T11:11:54Z
+**Analyzed Range**: `HEAD~50..HEAD` (50 commits, ~282 files touched)
+**Proposals Analyzed**: 55 active changes
+**Previous report**: `openspec/priorities/2026-09-08-025559-39d0f08/` (64 → 55; archive sweep landed)
 
 ## Headline
 
-The active backlog is 64 changes, but only **~14 are actually implementable right now**.
-The rest split into two piles that `openspec list` renders identically to real work:
+The active backlog is **55** changes. Only **~16 are implementable without first planning**.
+The rest split into populations that `openspec list` renders identically to real work:
 
 | Population | Count | Signal | Action |
 |---|---:|---|---|
-| **Done, unarchived** | 12 | 100% tasks, or only `Review`/`Done`/`Merge`/`Archive` boxes left, artifact verified on `main` | archive sweep |
-| **Genuinely near-complete** | 5 | real remaining tasks, implementation partly landed | finish |
-| **Planned & ready** | 15 | real `design.md` + decomposed tasks, 0 started | implement |
-| **Roadmap scaffolds** | 31 | boilerplate 10-task template, no design, spec dir == change-id | plan first |
-| **Blocked** | 1 | archive gated on an external issue | unblock |
+| **Done, unarchived** | 1 | 100% tasks + validation report on change | archive |
+| **Genuinely near-complete** | 3 | real remaining tasks, core already on `main` | finish |
+| **XS follow-ups** | 2 | post-archive docs/scoping (3 tasks each) | quick close |
+| **Planned & ready** | 11 | real `design.md` + decomposed tasks, 0–partial started | implement |
+| **Needs decomposition** | 2 | `design.md` but **zero** tasks | decompose first |
+| **Validating roadmap scaffolds** | 33 | acceptance text + boilerplate 10-task template (or change-id-named spec) | `/iterate-on-plan` / plan before implement |
+| **Blocked** | 1 | archive gated on an OpenSpec issue | unblock |
 
-Totals to 64. Two of the fifteen "planned & ready" (`add-dispatch-sandbox-enforcement`,
-`add-update-documentation-skill`) carry a `design.md` but **zero tasks** — decompose before dispatch.
+**Recent history signal (last 50 commits):** almost entirely the landing of
+`add-deterministic-review-preprocessing` (fact-check, line resolver, OCR vendor,
+file selection, coverage quorum) plus plan iteration on `add-visual-code-explainer`
+and a `skill-rightsizing` roadmap refine. That makes the adjudication gate the
+natural *plan-next* item, and the visual explainer the natural *implement-next*
+greenfield.
 
-**Task counts in `openspec list` are not a readiness signal here.** Readiness in this
-report was verified against the filesystem (does the artifact exist on `main`?), not
-against checkboxes.
+**Soft conflicts:** many proposals only share `skills/install.sh`. Treat that as a
+merge-serialization tip, not a hard blocker — parallel streams are still valid.
+
+---
 
 ## Priority Order
 
-### Tier 0 — Archive sweep (zero risk, removes 19% of backlog)
+### Tier 0 — Archive sweep (zero risk)
 
-These are complete. Their implementations were verified present on `main`; the open
-checkboxes are process ceremony or explicitly-labelled out-of-scope follow-ups.
-
-#### 1. Archive the seven `✓ Complete` changes
-- **Relevance**: Likely Addressed
-- **Readiness**: N/A — 100% tasks complete
-- **Conflicts**: None
-- **Members**: `extract-gen-eval-package` (43/43), `make-setup-coordinator-script-backed` (41/41),
-  `inject-scoped-semantic-context-into-coding-jobs` (40/40), `derive-agent-identity-from-registry` (24/24),
-  `add-local-model-provider-tier` (17/17), `rename-descriptor-model-levels` (11/11),
-  `extend-coordinator-keys-to-new-harnesses` (6/6)
-- **Next Step**: `openspec archive <id>` for each, or one `/cleanup-feature` pass
-
-#### 2. Archive the five "done-pending-ceremony" changes
-- **Relevance**: Likely Addressed — no branch survives, artifact is on `main`
+#### 1. `add-deterministic-review-preprocessing` — Change: add-deterministic-review-preprocessing
+- **Relevance**: Likely Addressed — 47/47 tasks; artifacts on `main`
+  (`fact_check.py`, `line_resolver.py`, `file_selection.py`, `ocr_adapter.py`);
+  validation report records 1115 tests passed
 - **Readiness**: N/A
+- **Conflicts**: N/A (archiving)
+- **Recommendation**: Verify then archive; unlocks cleaner rebase surface for
+  `ambient-review-ledger` and related review work
+- **Next Step**: `openspec archive add-deterministic-review-preprocessing` (or `/cleanup-feature`)
+
+#### 2. `iterate-traceability-sweep-over-touched-changes` — unblock archive
+- **Relevance**: Likely Addressed — CI iterate-over-touched-changes is on `main`
+- **Readiness**: **Blocked** — sole open task `1.4 Archive…` marked BLOCKED on an OpenSpec issue
 - **Conflicts**: None
-- **Evidence per change**:
-
-| Change | Count | Open boxes are | Verified on `main` |
-|---|---|---|---|
-| `fix-autopilot-archetype-and-apply-outcome` | 54/59 | commit+push "left for the orchestrator" + 3 explicit out-of-scope | `write_capable` present in `agent-coordinator/archetypes.yaml` |
-| `build-approval-gate-service-interviewer-abstraction` | 33/36 | `Review`, `Done`, `6.4 Review and merge` | `skills/shared/approval_gate.py` (30 KB) |
-| `add-trust-posture-contract-file` | 29/33 | `Review`, `Done`, `6.1 Orchestrator review`, `6.2 Merge` | `skills/shared/trust_posture.py` (15 KB) |
-| `fix-compact-hook-phase-boundary-detection` | 22/25 | commit+push + 1 out-of-scope | `skills/session-bootstrap/scripts/hooks/check_compact.py` |
-| `require-validating-roadmap-scaffolds` | 4/5 | `1.5 Archive after merge` | superseded by archived `2026-09-02-scaffold-validating-roadmap-changes` |
-
-- **Next Step**: verify then `openspec archive <id>`
-
-#### 3. `iterate-traceability-sweep-over-touched-changes` — unblock the archive
-- **Relevance**: Likely Addressed (`2725da99 ci(traceability): iterate the pull-request sweep over every touched change` is on `main`)
-- **Readiness**: **Blocked** — sole open task `1.4 Archive so the canonical spec merge lands` is
-  marked **BLOCKED on an OpenSpec** issue; `8825a298` records the blocker
-- **Next Step**: resolve the recorded OpenSpec blocker, then archive
+- **Recommendation**: Resolve the recorded OpenSpec blocker, then archive
+- **Next Step**: inspect the blocker note in `tasks.md`, then `openspec archive …`
 
 ---
 
-### Tier 1 — Finish the genuinely near-complete
+### Tier 1 — Finish near-complete and XS follow-ups
 
-#### 4. `factory-missions-architecture-alignment` — 51/53
-- **Relevance**: Still Relevant
-- **Readiness**: Ready — 2 real tasks left, both verification
-  - `8.1` full `validate-feature` end-to-end on the sample frontend
-  - `8.3` confirm `harness-engineering-features` rebases cleanly
-- **Conflicts**: hub-file only (`skills/install.sh`, `review_dispatcher.py`, `consensus_synthesizer.py`)
-- **Recommendation**: Highest-value *implementation* item — 96% done, and task 8.3 is a
-  rebase-conflict check that decays as `main` moves
-- **Next Step**: `/validate-feature factory-missions-architecture-alignment`
-
-#### 5. `axi-align-coordinator-output` — 16/18
-- **Relevance**: Still Relevant — no `toon` support found in `agent-coordinator/src/*.py`
-- **Readiness**: Ready — `5.1` pilot `--format=toon` behind a flag + A/B token delta; `5.2` doc refresh
-- **Conflicts**: `agent-coordinator/spec.md` with `add-sandboxed-harness-execution`
+#### 3. `axi-align-coordinator-output` — AXI-Align Coordinator Agent-Output Contract
+- **Relevance**: Still Relevant — envelope/`truncated`/`next_steps` helpers exist; `--format=toon` pilot does not
+- **Readiness**: Partially Ready (16/18)
+  - Remaining: `5.1` pilot `--format=toon` + A/B token delta; `5.2` doc refresh
+- **Conflicts**: Soft — `coordination_api.py` with `add-coordinator-llm-gateway`, `usage-stats-multi-model`, router/sandbox cluster
+- **Recommendation**: **Highest-value finish** — 89% done, small scope, decays least if parked briefly but cheap to close now
 - **Next Step**: `/implement-feature axi-align-coordinator-output`
 
-#### 6. `build-agent-trajectory-scenario-harness` — 29/34
-- **Relevance**: Still Relevant — `packages/agent-scenarios/` **is** on `main` (pyproject, src, scenarios, tests)
-- **Readiness**: Partially Ready — remaining tasks are the *operational* half:
-  live multi-vendor GX10 execution, the 10-scenario suite + nightly cadence,
-  `/improve-harness` wiring, incident auto-seeding
-- **Conflicts**: `openspec/schemas/review-findings.schema.json` with `factory-missions` and `ambient-review-ledger`
-- **Recommendation**: Real work, needs hardware/keys. Schedule after #4.
-- **Next Step**: `/implement-feature build-agent-trajectory-scenario-harness`
+#### 4. `followup-fix-compact-hook-phase-boundary-detection` — compact-hook gate docs
+- **Relevance**: Still Relevant — conditional lessons-learned entry
+- **Readiness**: Ready (0/3) — evaluate recurrence since parent merge; write entry or record negative finding
+- **Conflicts**: None meaningful (`docs/lessons-learned.md` only)
+- **Recommendation**: XS quick close; can run in parallel with #3
+- **Next Step**: `/implement-feature followup-fix-compact-hook-phase-boundary-detection` (or `/quick-task`)
 
-#### 7. `add-frontier-model-tier` — 11/13
-- **Relevance**: Still Relevant — `frontier` appears 13× in `archetypes.yaml`, so core landed
-- **Readiness**: Ready — 2 follow-ups: translate `thinking` to vendor CLI flags; OpenRouter Pareto consult
-- **Conflicts**: **Router hub** — `agents_config.py` + `archetypes.yaml` with 4 others
-- **Branch**: `origin/openspec/add-frontier-model-tier` still open
-- **Next Step**: `/implement-feature add-frontier-model-tier` — but see the router serialization note below
+#### 5. `followup-fix-autopilot-archetype-and-apply-outcome` — docs + two scoping decisions
+- **Relevance**: Still Relevant
+- **Readiness**: Ready (0/3) — update `docs/parallel-agentic-development.md`; decide on loop-state structural enforcement and silent-no-op detection
+- **Conflicts**: Soft — mentions `archetypes.yaml` (docs-only in practice)
+- **Recommendation**: XS/S; schedule beside #4
+- **Next Step**: `/implement-feature followup-fix-autopilot-archetype-and-apply-outcome`
 
-#### 8. `add-adaptive-model-router` — 21/71
-- **Relevance**: Needs Verification — 50 tasks open, draft PR #417 stale since ~13d
-- **Readiness**: Partially Ready
-- **Conflicts**: **Router hub anchor** — conflicts with 7 other changes
-- **Branches**: local `openspec/add-adaptive-model-router` + `--cleanup` + remote
-- **Recommendation**: This is the keystone of the router cluster. Either drive it or
-  explicitly park it — it is blocking 7 downstream changes by owning `agents_config.py`.
-- **Next Step**: `/iterate-on-plan add-adaptive-model-router` (rescope 71 tasks) or resume PR #417
+#### 6. `add-frontier-model-tier` — finish dispatch/OpenRouter follow-ups
+- **Relevance**: Needs Verification — `frontier` tier present in `archetypes.yaml`; 11/13 tasks done
+- **Readiness**: Partially Ready — remaining: translate `thinking` → vendor CLI flags; OpenRouter Pareto consult
+- **Conflicts**: **Router hub** — `agents_config.py` + `archetypes.yaml` with adaptive-router, atomic, sandboxed, harbor, prime-agent
+- **Branches**: `origin/openspec/add-frontier-model-tier`
+- **Recommendation**: Finish only if not colliding with an active router PR; otherwise park behind #3/#7
+- **Next Step**: `/implement-feature add-frontier-model-tier`
+
+#### 7. `build-agent-trajectory-scenario-harness` — operational half
+- **Relevance**: Needs Verification — `packages/agent-scenarios/` is on `main` (29/34)
+- **Readiness**: Partially Ready — remaining are live GX10 multi-vendor runs, nightly cadence, `/improve-harness` wiring, incident auto-seed (plus Review/Done ceremony)
+- **Conflicts**: Soft — `review-findings.schema.json` (just churned), `packages/agent-scenarios/` with harbor/prime-agent
+- **Recommendation**: Needs hardware/keys; schedule as a dedicated session, not interleaved with greenfield
+- **Next Step**: `/implement-feature build-agent-trajectory-scenario-harness` when GX10/keys available
 
 ---
 
-### Tier 2 — Planned and ready, unstarted (isolated first)
+### Tier 2 — Planned and ready (prefer isolated)
 
-Ranked by conflict isolation, then scope. All have real `design.md` and decomposed tasks.
+Ranked by conflict isolation, then momentum/scope. All have real designs and decomposed tasks.
 
-| # | Change | Tasks | Effort | Conflict profile |
+| # | Change | Tasks | Conflict profile | Next step |
 |---|---|---:|---|---|
-| 9  | `add-cross-harness-flow-display` | 0/16 | — | **Isolated** — `agentic-flow-display` spec, no overlaps |
-| 10 | `add-visual-plan-review` | 0/12 | — | Hub-only (`install.sh`, `skills/shared/`) |
-| 11 | `usage-stats-multi-model` | 0/28 | — | `agents.yaml` + `database/migrations/` only |
-| 12 | `add-supervisor-candidate-work-digest` | 0/23 | S | `scripts/digest.py` w/ arbitrage; **deps** `ri-02 ri-05 ri-11 ri-16` |
-| 13 | `add-product-management-skills` | 0/37 | — | Hub-only (`install.sh`, `docs/skills-catalogue.md`) |
-| 14 | `add-harbor-benchmark-routing` | 0/49 | — | Near-isolated; **23 recent commits touch its dir — active** |
-| 15 | `add-coordinator-llm-gateway` | 0/19 | — | `coordination_api.py`/`coordination_mcp.py`/migrations |
-| 16 | `ambient-review-ledger` | 0/33 | — | `review-findings.schema.json`, `parallel-infrastructure/` |
-| 17 | `cross-vendor-arbitrage-instrument` | 0/33 | — | `audit.py`, `review_dispatcher.py` |
-| 18 | `add-atomic-harness` | 0/37 | — | **Router hub** — conflicts with 8 changes |
-| 19 | `add-sandboxed-harness-execution` | 0/28 | — | **Router hub** — conflicts with 7 changes |
-| 20 | `followup-add-prime-agent-harness` | 0/33 | M–L | **Router hub** — conflicts with 7 changes |
-| 21 | `clamp-trust-by-isolation-posture` | 0/13 | M | deps `add-isolation-posture-detection` (a scaffold) |
-| 22 | `add-dispatch-sandbox-enforcement` | **0 tasks** | M | **Router hub**; needs decomposition first |
-| 23 | `add-update-documentation-skill` | **0 tasks** | — | Hub-only; needs decomposition first |
+| 8 | `add-visual-code-explainer` | 0/24 | **Near-isolated** — `skills/codebase-atlas/`, new `skills/explain-code/`; only hub touch is `install.sh`. Just planned (remote branch). | `/implement-feature add-visual-code-explainer` |
+| 9 | `add-cross-harness-flow-display` | 0/16 | **Isolated-ish** — `apps/kanban-viz/` + `agentic-flow-display` spec | `/implement-feature add-cross-harness-flow-display` |
+| 10 | `add-visual-plan-review` | 0/12 | Hub-only (`install.sh`) | `/implement-feature add-visual-plan-review` |
+| 11 | `add-product-management-skills` | 0/37 | Hub-only (`install.sh`) | `/implement-feature add-product-management-skills` |
+| 12 | `add-harbor-benchmark-routing` | 0/49 | `archetypes.yaml` + `packages/agent-scenarios/` | `/implement-feature add-harbor-benchmark-routing` |
+| 13 | `add-coordinator-llm-gateway` | 0/19 | `coordination_api.py` / migrations — serialize after #3 | `/implement-feature add-coordinator-llm-gateway` |
+| 14 | `usage-stats-multi-model` | 0/28 | migrations + `agents.yaml` + kanban-viz | `/implement-feature usage-stats-multi-model` |
+| 15 | `ambient-review-ledger` | 0/33 | **Review hub** — rebase onto archived preprocessing first | `/implement-feature ambient-review-ledger` after Tier 0 |
+| 16 | `cross-vendor-arbitrage-instrument` | 0/33 | Router + review hubs | after router decision |
+| 17 | `add-atomic-harness` | 0/37 | **Router hub** (conflicts with ~8) | serialize |
+| 18 | `add-sandboxed-harness-execution` | 0/28 | **Router hub** | serialize |
+| 19 | `followup-add-prime-agent-harness` | 0/33 | **Router hub** (widest overlap) | serialize |
+| 20 | `add-adaptive-model-router` | 21/71 | **Keystone** — PR #417 open; conflicts with ~7 downstream | `/iterate-on-plan` to rescope **or** drive PR #417 |
+
+#### Needs decomposition before dispatch
+- `add-dispatch-sandbox-enforcement` — design-ish / no tasks
+- `add-update-documentation-skill` — design, **0 tasks**
 
 ---
 
-### Tier 3 — Roadmap scaffolds (31) — plan before implementing
+### Tier 3 — Plan-next (high leverage scaffolds)
 
-These carry the literal `plan-roadmap` boilerplate (`Define detailed requirements /
-Implement core functionality / Write tests / Update documentation / Review and merge`),
-no `design.md`, and a spec directory named identically to the change-id. They are
-**Needs Planning**, not **Ready**. Do not dispatch `/implement-feature` at them.
+These are **not** ready for `/implement-feature`. They have validating acceptance text
+(or SCAFFOLD designs) but boilerplate tasks.
 
-By parent roadmap:
+#### 21. `add-orchestrator-adjudication-review-gate` — **plan this next among scaffolds**
+- **Relevance**: Still Relevant — motivated by PR #484 (7 single-vendor criticals slipped through); sits directly atop the just-landed deterministic preprocessing
+- **Readiness**: Needs Planning — SCAFFOLD `design.md`, boilerplate 10-task template; proposal acceptance outcomes are real
+- **Conflicts**: Will touch `skills/autopilot/` + `skills/merge-pull-requests/` (expect overlap with ambient-review / review hub)
+- **Recommendation**: `/iterate-on-plan add-orchestrator-adjudication-review-gate` immediately after Tier 0 archive — highest-leverage plan in the `skill-rightsizing` DAG (`ri-21`, no deps)
+- **Next Step**: `/iterate-on-plan add-orchestrator-adjudication-review-gate`
 
-- **`skill-rightsizing`** (20): `add-mutation-score-guardrail`, `add-self-describing-cli-entry-points`,
-  `aggregate-process-telemetry-scorecard`, `apply-progressive-disclosure-oversized-skills`,
-  `assert-generated-artifacts-validate-in-ci`, `build-task-replay-runner`,
-  `calibrate-llm-judge-against-human-labels`, `collapse-mechanical-preamble-session-start`,
-  `collect-uncollected-skill-tests`, `convert-failure-record-to-regression-scenarios`,
-  `cut-competence-rules-relocate-policy`, `delete-rationalizations-relax-tail-block`,
-  `invert-skill-test-suite-to-behavioural`, `measure-validator-recall-seeded-defects`,
-  `publish-arm-a-baseline-scorecard`, `record-doctor-context-cost-baseline`,
-  `rescope-review-convergence-disagreement-routing`, `rewrite-skill-frontmatter`,
-  `run-sealed-holdout-decision`, `seal-archive-benchmark-corpus-split`
-- **`repo-improvement`** (7): `add-live-vendor-capability-and-cost-registry`,
-  `build-structured-vendor-result-channel`, `gate-drift-with-mirrors-hooks-and-blocking-ci`,
-  `harden-the-resume-contract`, `implement-the-task-router-vendor-x-location-x-model`,
-  `make-the-orchestrator-obey-the-router`, `reconcile-versions-and-stale-docs-to-one-truth`
-- **`codeviz`** (2): `add-map-state-ir` (dep `artifact-header-schema`),
-  `add-agent-activity-map-lens` (dep `map-state-ir`, `spa-scaffold-render`, `lens-framework`) —
-  both touched in the last 50 commits, so this roadmap is warm
-- **`dispatch-governance`** (2): `add-isolation-posture-detection`, `pin-isolation-contract`
+#### 22–23. Codeviz pair (dependency order)
+- `add-map-state-ir` (deps: artifact-header-schema) → then `add-agent-activity-map-lens` (deps: map-state-ir, spa-scaffold, lens-framework)
+- Both are validating scaffolds under `codeviz` — plan IR first
 
-The `skill-rightsizing` cluster has an internal dependency spine (`ri-01` → `ri-05` →
-`ri-10`/`ri-12`/`ri-13`/`ri-14` → `run-sealed-holdout-decision`) that cannot be
-scheduled until those items are planned.
+#### Skill-rightsizing Priority-1 independents (boilerplate; plan via roadmap)
+Independent or lightly gated candidates to flesh next (from roadmap phase table):
+- `convert-failure-record-to-regression-scenarios` (ri-01)
+- `seal-archive-benchmark-corpus-split` (ri-02)
+- `assert-generated-artifacts-validate-in-ci` (ri-19)
+- `collect-uncollected-skill-tests` (ri-20)
+- `aggregate-process-telemetry-scorecard` (ri-03)
+- `record-doctor-context-cost-baseline` (ri-04)
+
+Do **not** `/implement-feature` these until `/iterate-on-plan` (or roadmap refine) replaces the boilerplate tasks.
 
 ---
 
 ## Parallel Workstreams
 
-### Stream A — start immediately (fully independent)
-- **Archive sweep** (Tier 0, items 1–2) — touches only `openspec/changes/`, conflicts with nothing
-- `factory-missions-architecture-alignment` — validation only
-- `add-cross-harness-flow-display` — isolated spec
-- `usage-stats-multi-model` — isolated `usage-*` specs
+### Stream A — start immediately (independent)
+- `axi-align-coordinator-output` — finish 2 remaining tasks
+- `add-visual-code-explainer` — greenfield implement
+- `followup-fix-compact-hook-phase-boundary-detection` — XS docs decision
 
-### Stream B — after A (light hub contention on `skills/install.sh`, `skills/shared/`)
-- `add-visual-plan-review`
-- `add-product-management-skills`
-- `add-update-documentation-skill` (decompose first)
-- `axi-align-coordinator-output`
+### Stream B — parallel with A (docs / light)
+- `followup-fix-autopilot-archetype-and-apply-outcome`
+- `/iterate-on-plan add-orchestrator-adjudication-review-gate` (planning only — no code conflict)
 
-### Stream C — independent of A/B, own subsystem
-- `add-harbor-benchmark-routing` (already warm)
-- `add-coordinator-llm-gateway`
-- `build-agent-trajectory-scenario-harness`
+### Stream C — after Stream A (or when keys/hardware ready)
+- `add-cross-harness-flow-display` **or** `add-visual-plan-review`
+- `build-agent-trajectory-scenario-harness` (GX10 session)
 
-### Sequential — the router hub (strictly one at a time)
-Nine changes contend over `agent-coordinator/src/agents_config.py` (9 proposals),
-`skills/parallel-infrastructure/scripts/review_dispatcher.py` (7),
-`agent-coordinator/agents.yaml` (7) and `agent-coordinator/archetypes.yaml` (4).
-Recommended order (dependency-respecting):
-
-1. `add-adaptive-model-router` — owns the policy surface; unblocks the rest
-2. `add-frontier-model-tier` — small, already 11/13
-3. `add-isolation-posture-detection` *(scaffold — plan first)*
-4. `clamp-trust-by-isolation-posture` — depends on #3
-5. `pin-isolation-contract` *(scaffold — plan first)*
-6. `add-dispatch-sandbox-enforcement` — decompose first
-7. `add-sandboxed-harness-execution`
-8. `add-atomic-harness`
-9. `followup-add-prime-agent-harness`
+### Sequential — router / review hubs
+- Wait for adaptive-router decision (drive #417 vs park) before: `add-frontier-model-tier` remaining, `add-atomic-harness`, `add-sandboxed-harness-execution`, `followup-add-prime-agent-harness`, `cross-vendor-arbitrage-instrument`
+- Archive preprocessing **before** starting `ambient-review-ledger`
 
 ---
 
-## Conflict Matrix — hub files
+## Conflict Matrix (implementable subset)
 
-Files named by 3+ proposals. Two classes, and they need different handling:
+Hub-only overlaps on `skills/install.sh` omitted when that is the sole shared path.
 
-| File | Proposals | Class |
-|---|---:|---|
-| `skills/install.sh` | 12 | **Registration hub** — append-only; low true-conflict risk, but serialize the final edit |
-| `agent-coordinator/src/agents_config.py` | 9 | **True hot spot** — semantic contention |
-| `skills/parallel-infrastructure/scripts/review_dispatcher.py` | 7 | **True hot spot** |
-| `agent-coordinator/agents.yaml` | 7 | **True hot spot** |
-| `agent-coordinator/src/coordination_api.py` | 5 | True hot spot |
-| `skills/shared/environment_profile.py` | 4 | True hot spot (isolation cluster) |
-| `agent-coordinator/archetypes.yaml` | 4 | True hot spot (router cluster) |
-| `docs/skills-workflow.md`, `docs/parallel-agentic-development.md`, `docs/lessons-learned.md` | 4 each | Doc hub — mergeable |
-| `openspec/schemas/review-findings.schema.json` | 3 | Schema hub — **breaking-change risk**, serialize |
-| `openspec/schemas/provider-model-map.schema.json` | 3 | Schema hub — serialize |
-| `skills/shared/approval_gate.py` | 3 | Hot spot |
-| `agent-coordinator/src/coordination_mcp.py` | 3 | Hot spot |
-| `agent-coordinator/database/migrations/` | 3 | **Ordering-sensitive** — serialize migration numbering |
-
-Selected true pairwise conflicts (hub noise removed):
-
-| Pair | Contested files |
-|---|---|
-| `add-atomic-harness` ↔ `followup-add-prime-agent-harness` | `agents.yaml`, `agents_config.py`, `provider-model-map.schema.json`, `CLAUDE.md`, `README.md` |
-| `add-dispatch-sandbox-enforcement` ↔ `add-sandboxed-harness-execution` | `agents_config.py`, `network_policies.py`, `environment_profile.py`, `sandbox_profile.py`, `review_dispatcher.py` |
-| `add-trust-posture-contract-file` ↔ `build-approval-gate-service` | `skills/shared/approval_gate.py`, `skills/shared/trust_posture.py` |
-| `add-adaptive-model-router` ↔ `add-atomic-harness` | `agents_config.py`, `review_dispatcher.py` |
-| `factory-missions` ↔ `add-atomic-harness` | `agents.yaml`, `consensus_synthesizer.py`, `review_dispatcher.py` |
-| `add-coordinator-llm-gateway` ↔ `usage-stats-multi-model` | `database/migrations/` |
+| | axi | visual-explainer | cross-harness | frontier | trajectory | gateway | usage | ambient | adaptive-router |
+|---|---|---|---|---|---|---|---|---|---|
+| axi | — | none | none | none | none | `coordination_api.py` | `coordination_api.py` | none | `coordination_api.py` |
+| visual-explainer | none | — | none | none | none | none | none | none | none |
+| cross-harness | none | none | — | none | none | none | `kanban-viz` | `kanban-viz` | `kanban-viz` |
+| frontier | none | none | none | — | none | none | none | `autopilot/` | **agents_config + archetypes** |
+| trajectory | none | none | none | none | — | none | none | review-findings schema | none |
+| gateway | `coordination_api.py` | none | none | none | none | — | api+migrations | none | `coordination_api.py` |
+| usage | `coordination_api.py` | none | `kanban-viz` | none | none | api+migrations | — | `kanban-viz` | agents.yaml+api |
+| ambient | none | none | `kanban-viz` | `autopilot/` | schema | none | `kanban-viz` | — | review+autopilot |
+| adaptive-router | `coordination_api.py` | none | `kanban-viz` | **hub** | none | `coordination_api.py` | hub | hub | — |
 
 ---
 
 ## Proposals Needing Attention
 
-### Likely Addressed — archive (12)
-`extract-gen-eval-package`, `make-setup-coordinator-script-backed`,
-`inject-scoped-semantic-context-into-coding-jobs`, `derive-agent-identity-from-registry`,
-`add-local-model-provider-tier`, `rename-descriptor-model-levels`,
-`extend-coordinator-keys-to-new-harnesses`, `fix-autopilot-archetype-and-apply-outcome`,
-`build-approval-gate-service-interviewer-abstraction`, `add-trust-posture-contract-file`,
-`fix-compact-hook-phase-boundary-detection`, `require-validating-roadmap-scaffolds`
+### Likely Addressed
+- `add-deterministic-review-preprocessing`: implementation + validation on `main`. Archive.
+- `iterate-traceability-sweep-over-touched-changes`: code landed; archive blocked on OpenSpec issue.
 
-### Blocked (1)
-- `iterate-traceability-sweep-over-touched-changes` — archive blocked on a recorded OpenSpec issue (`8825a298`)
+### Needs Refinement / Planning
+- `add-orchestrator-adjudication-review-gate`: rich acceptance, SCAFFOLD design, boilerplate tasks — `/iterate-on-plan`
+- `add-map-state-ir`, `add-agent-activity-map-lens`: validating codeviz scaffolds — plan IR before lens
+- Entire `skill-rightsizing` scaffold set (20+): use roadmap phase table; do not treat 0/10 as ready
+- `add-adaptive-model-router`: 21/71 + stale-ish PR #417 — rescope or explicitly park; it blocks the router cluster by owning `agents_config.py`
+- `add-dispatch-sandbox-enforcement`, `add-update-documentation-skill`: missing task decomposition
 
-### Missing task decomposition (3)
-- `add-dispatch-sandbox-enforcement` — 0 tasks, `dg-07`, effort M
-- `add-update-documentation-skill` — 0 tasks, has `design.md`
-- 31 roadmap scaffolds — boilerplate tasks only (see Tier 3)
+### Needs Verification
+- `add-frontier-model-tier`, `build-agent-trajectory-scenario-harness`: core on `main`, operational tails remain
+- Review-hub proposals (`ambient-review-ledger`, etc.): rebase assumptions after preprocessing merge
 
-### Needs Refinement — scope drift (1)
-- `add-adaptive-model-router` — 71 tasks, 21 done, stale draft PR #417, three live branches
-  (`openspec/add-adaptive-model-router`, `…--cleanup`, remote). Owns the hottest file in
-  the repo while parked. Rescope or resume.
+---
 
-### Process observation
-`build-agent-trajectory-scenario-harness` marks `Implementation` and `Testing` as `[x]`
-while its `Live multi-vendor execution` and `10-scenario suite` tasks remain open. The
-package **is** on `main`, so the count is honest — but the `Status` block and the task
-list disagree about what "Implementation complete" means. Worth a convention check if
-the archive sweep is to be automated.
+## Suggested operator move (next 24h)
+
+1. Archive `add-deterministic-review-preprocessing`
+2. Parallel: `/implement-feature axi-align-coordinator-output` + `/implement-feature add-visual-code-explainer`
+3. Parallel (planning): `/iterate-on-plan add-orchestrator-adjudication-review-gate`
+4. Decide fate of PR #417 (`add-adaptive-model-router`) — drive, rescope, or park — before touching any other router-hub change

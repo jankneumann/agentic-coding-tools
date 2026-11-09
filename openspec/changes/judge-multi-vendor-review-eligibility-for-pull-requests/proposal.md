@@ -5,21 +5,53 @@
 > Effort: M
 > Priority: 3
 
-## Summary
+## Why
 
-Replace the under-50-lines / under-3-files skip in vendor_review.check_review_eligibility with Noul("This PR warrants independent multi-vendor review") and Score(risk, ["docs/config only", "internal refactor", "behaviour change", "security or data path"]) over the PR title, body, file list and diff stat, keeping the size rule as the degraded path.
+`vendor_review.check_review_eligibility` (`skills/merge-pull-requests/scripts/vendor_review.py:38,103`)
+skips multi-vendor review for PRs under 50 changed lines or 3 files. A
+40-line change to `guardrails.py` or a Cedar policy is "small" by this rule;
+a 300-line docs move is "large." The size threshold routes review effort by
+the wrong variable — line count is not a proxy for risk.
 
-## Dependencies
+## What Changes
 
-- `ri-05`
+- **MODIFIED**: `check_review_eligibility` asks a calibrated judgment —
+  `Noul("This PR warrants independent multi-vendor review")` plus
+  `Score(risk, ["docs/config only", "internal refactor", "behaviour change",
+  "security or data path"])` — over the PR's title, body, file list and diff
+  stat (never the diff itself), before falling back to the existing
+  size-threshold rule when the judgment is unavailable.
+- The deterministic origin-provenance skip (`SKIP_ORIGINS`:
+  dependabot/renovate/Jules subtypes) and the draft-PR skip stay
+  deterministic and run **before** any judgment call — those are facts, not
+  judgments.
+- `SMALL_PR_MAX_CHANGED_LINES` and `SMALL_PR_MAX_FILES` move to an optional
+  config sidecar (`vendor-review-judgment.json`), mirroring the
+  threshold-loading precedent from `gatekeeper_shadow`, `triage`, and
+  `implementation_strategy_selector`, and remain the fallback when the
+  judgment helper returns `None`.
+- The eligibility record's `details` carries `evidence_class: "judgment"`,
+  the risk score, and its probability when the judged path drove the
+  decision.
 
-## Acceptance Outcomes
+## Impact
 
-- A fixture PR of under 50 changed lines touching guardrails.py or a policy file is routed to multi-vendor review; a docs-only PR of over 300 lines is not.
-- The dependabot/renovate/Jules-subtype origin skip list still short-circuits before any decision call, asserted by a call-count test.
-- SMALL_PR_MAX_CHANGED_LINES and SMALL_PR_MAX_FILES move to config and remain the fallback when the helper returns None.
-- The eligibility record in the merge report carries evidence_class "judgment", the risk score and its probability.
+- Affected capability: `merge-pull-requests` (MODIFIED requirement: "Vendor
+  Review Artifact Resilience").
+- Affected code: `skills/merge-pull-requests/scripts/vendor_review.py`
+  (`check_review_eligibility`, `compute_pr_size`), consumed unchanged by
+  `execute_plan.py`'s `_default_vendor_review`.
+- No change to the existing-reviews check (fresh approval / unresolved
+  change requests), which stays deterministic and still short-circuits
+  eligibility independently of the judgment.
 
-## Rationale
+## Non-Goals
 
-Pilot step 4. A 40-line change to guardrails.py or a Cedar policy is "small" under the current rule while a 300-line docs move is "large", so the size threshold routes review effort by the wrong variable. Provenance-based skips are facts and stay deterministic.
+- Not changing `SKIP_ORIGINS` or the draft-PR skip — those remain
+  deterministic facts about provenance, per the parent proposal
+  (`docs/proposals/jev-system-one-integration-assessment.md` A4).
+- Not sending the PR diff itself to the judgment — only title, body, file
+  list and diff stat, to keep the eligibility check cheap and within the
+  32K-token budget `system_one_decisions.decide()` already enforces.
+- Not changing `dispatch_vendor_reviews` or the review prompt/consensus
+  machinery — only the eligibility gate that decides whether to call it.
