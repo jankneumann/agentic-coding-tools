@@ -483,3 +483,26 @@ def test_preview_creates_no_round_directory_files(tmp_path: Path) -> None:
         rule_config=_empty_rule_config(),
     )
     assert not cache_dir.exists()
+
+
+def test_diff_base_falls_back_to_origin_when_only_the_remote_ref_exists(tmp_path: Path) -> None:
+    """A checkout with only `origin/main` (no local `main`) still diffs against
+    the base instead of producing an empty packet."""
+    from review_packet import _git_diff, resolve_base_ref
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init", "-q", "-b", "main")
+    (repo / "a.txt").write_text("base\n")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "base")
+    _git(repo, "update-ref", "refs/remotes/origin/main", "HEAD")
+    _git(repo, "checkout", "-q", "-b", "openspec/feature")
+    _git(repo, "branch", "-D", "main")
+    (repo / "a.txt").write_text("base\nchanged\n")
+    _git(repo, "commit", "-q", "-am", "change")
+
+    assert resolve_base_ref(repo, "main") == "origin/main"
+    assert "+changed" in _git_diff(repo, "main", "HEAD")
+    assert resolve_base_ref(repo, "origin/main") == "origin/main"
+    assert resolve_base_ref(repo, "no-such-base") == "no-such-base"

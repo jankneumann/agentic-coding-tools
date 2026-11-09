@@ -83,8 +83,14 @@ db-shell: ## Open psql shell to the running database
 
 BAO_PORT         ?= $(or $(AGENT_COORDINATOR_BAO_PORT),8200)
 
+.PHONY: bao-require-inputs
+bao-require-inputs:
+	@test -n "$(BAO_MIGRATION_MAP)" || (echo "ERROR: BAO_MIGRATION_MAP is required" >&2; exit 1)
+	@test -n "$(BAO_BOOTSTRAP_DIR)" || (echo "ERROR: BAO_BOOTSTRAP_DIR is required" >&2; exit 1)
+	@$(if $(filter 1 true yes,$(BAO_CONFIRM_CUTOVER)),test -n "$(BAO_INTERNAL_ROLE_NAME)" || (echo "ERROR: BAO_INTERNAL_ROLE_NAME is required for cutover" >&2; exit 1),true)
+
 .PHONY: bao-dev
-bao-dev: ## Start OpenBao dev server + seed from .secrets.yaml
+bao-dev: bao-require-inputs ## Start OpenBao dev server and reconcile from an explicit migration map
 	AGENT_COORDINATOR_BAO_PORT=$(BAO_PORT) $(COMPOSE) --profile openbao up -d openbao
 	@echo "Waiting for OpenBao on port $(BAO_PORT)…"
 	@for i in $$(seq 1 15); do \
@@ -94,13 +100,13 @@ bao-dev: ## Start OpenBao dev server + seed from .secrets.yaml
 	@curl -sf http://localhost:$(BAO_PORT)/v1/sys/health >/dev/null 2>&1 \
 		&& echo "OpenBao is ready" \
 		|| (echo "ERROR: OpenBao did not become ready within 15s" && exit 1)
-	BAO_ADDR=http://localhost:$(BAO_PORT) BAO_TOKEN=dev-root-token \
-		$(CURDIR)/.venv/bin/python3 ../skills/bao-vault/scripts/bao_seed.py
+	$(MAKE) bao-seed
 
 .PHONY: bao-seed
-bao-seed: ## Re-seed OpenBao from .secrets.yaml and agents.yaml
+bao-seed: bao-require-inputs ## Reconcile OpenBao; requires BAO_MIGRATION_MAP and BAO_BOOTSTRAP_DIR
 	BAO_ADDR=http://localhost:$(BAO_PORT) BAO_TOKEN=dev-root-token \
-		$(CURDIR)/.venv/bin/python3 ../skills/bao-vault/scripts/bao_seed.py
+		$(CURDIR)/.venv/bin/python3 ../skills/bao-vault/scripts/bao_seed.py \
+		--migration-map "$(BAO_MIGRATION_MAP)" --bootstrap-dir "$(BAO_BOOTSTRAP_DIR)" $(if $(filter 1 true yes,$(BAO_CONFIRM_CUTOVER)),--confirm-cutover --internal-role-name "$(BAO_INTERNAL_ROLE_NAME)",)
 
 # ---------------------------------------------------------------------------
 # Phase: Services

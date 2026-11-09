@@ -499,8 +499,8 @@ class PhaseRecord:
                     session_id=self.session_id,
                     content=payload,
                 )
-                # Bridge returns a dict like {"available": bool, "result": {...}, "error": str}
-                # or a direct success dict from the API. Look for handoff_id either way.
+                # Bridge returns {"status": "ok", "data": <API body>, ...} or a
+                # skipped/error dict; an injected writer may return the API body.
                 handoff_id = self._extract_handoff_id(response)
                 if handoff_id:
                     return handoff_id, None
@@ -637,31 +637,64 @@ class PhaseRecord:
             pass
         return None
 
+    # Where a handoff write's API body can sit. coordination_bridge normalizes
+    # a 2xx into {"status": "ok", "response": <body>, "data": <body>, ...};
+    # an injected writer may return the API body itself.
+    _RESPONSE_BODY_KEYS = ("data", "response")
+
+    def _response_bodies(self, response: dict[str, Any]) -> list[dict[str, Any]]:
+        bodies = [response]
+        for key in self._RESPONSE_BODY_KEYS:
+            body = response.get(key)
+            if isinstance(body, dict):
+                bodies.append(body)
+        return bodies
+
     def _extract_handoff_id(self, response: Any) -> str | None:
         if not isinstance(response, dict):
             return None
-        # Direct API shape
-        direct = response.get("handoff_id")
-        if isinstance(direct, str):
-            return direct
-        # Bridge wrapper shape: {"available": True, "result": {"handoff_id": "..."}}
-        result = response.get("result")
-        if isinstance(result, dict):
-            nested = result.get("handoff_id")
-            if isinstance(nested, str):
-                return nested
+        if response.get("status") not in (None, "ok"):
+            return None
+        for body in self._response_bodies(response):
+            # An id beside success=false is not a stored handoff.
+            if body.get("success") is False:
+                return None
+            handoff_id = body.get("handoff_id")
+            if isinstance(handoff_id, str) and handoff_id:
+                return handoff_id
         return None
 
     def _extract_coordinator_error(self, response: Any) -> str:
         if not isinstance(response, dict):
             return f"non-dict response: {type(response).__name__}"
-        for key in ("error", "detail", "message"):
-            val = response.get(key)
-            if isinstance(val, str) and val:
-                return val
-        if response.get("available") is False:
-            return "coordinator unavailable"
-        return "unspecified coordinator error"
+        message = None
+        for body in self._response_bodies(response):
+            for key in ("error", "detail", "message"):
+                val = body.get(key)
+                if isinstance(val, str) and val:
+                    message = val
+                    break
+                if isinstance(val, (list, dict)) and val:
+                    message = json.dumps(val)[:300]
+                    break
+            if message:
+                break
+        # Bridge context: which outcome, and the HTTP status behind it.
+        context = [
+            str(part)
+            for part in (response.get("status"), response.get("reason"))
+            if isinstance(part, str) and part and part != "ok"
+        ]
+        status_code = response.get("status_code")
+        if isinstance(status_code, int):
+            context.append(f"HTTP {status_code}")
+        if message is None and response.get("available") is False:
+            message = "coordinator unavailable"
+        if message is None and not context:
+            return "unspecified coordinator error"
+        if message is None:
+            return ", ".join(context)
+        return f"{message} ({', '.join(context)})" if context else message
 
     def _write_local_fallback(
         self,

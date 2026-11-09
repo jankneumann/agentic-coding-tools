@@ -8,8 +8,8 @@
 # path configured by BAO_MOUNT_PATH/BAO_SECRET_PATH (defaults: secret/coordinator),
 # computes LANGFUSE_BASIC_AUTH from the public+secret pair, and prints export lines.
 #
-# Authentication uses BAO_TOKEN if set, otherwise BAO_ROLE_ID + BAO_SECRET_ID via
-# the AppRole login flow (matching skills/bao-vault/scripts/bao_seed.py).
+# Authentication uses BAO_TOKEN if set, otherwise the isolated
+# BAO_INTERNAL_ROLE_ID + BAO_INTERNAL_SECRET_ID AppRole.
 #
 # Falls back to existing environment values when OpenBao is unavailable, so it is
 # safe to eval unconditionally during shell init.
@@ -21,13 +21,13 @@ secret_path="${BAO_SECRET_PATH:-coordinator}"
 
 emit_export() {
     local name="$1" value="$2"
-    [ -z "$value" ] && return
+    if [ -z "$value" ]; then return 0; fi
     printf 'export %s=%q\n' "$name" "$value"
 }
 
 emit_basic_auth() {
     local pk="$1" sk="$2"
-    [ -z "$pk" ] || [ -z "$sk" ] && return
+    if [ -z "$pk" ] || [ -z "$sk" ]; then return 0; fi
     local token
     token=$(printf '%s:%s' "$pk" "$sk" | base64 | tr -d '\n')
     printf 'export LANGFUSE_BASIC_AUTH=%q\n' "$token"
@@ -49,11 +49,11 @@ else
         echo "# langfuse_env.sh: curl missing, cannot reach OpenBao" >&2
     else
         token="${BAO_TOKEN:-}"
-        if [ -z "$token" ] && [ -n "${BAO_ROLE_ID:-}" ] && [ -n "${BAO_SECRET_ID:-}" ]; then
+        if [ -z "$token" ] && [ -n "${BAO_INTERNAL_ROLE_ID:-}" ] && [ -n "${BAO_INTERNAL_SECRET_ID:-}" ]; then
             token=$(curl -fsS \
                 -X POST \
                 -H "Content-Type: application/json" \
-                --data "{\"role_id\":\"${BAO_ROLE_ID}\",\"secret_id\":\"${BAO_SECRET_ID}\"}" \
+                --data "{\"role_id\":\"${BAO_INTERNAL_ROLE_ID}\",\"secret_id\":\"${BAO_INTERNAL_SECRET_ID}\"}" \
                 "${bao_addr}/v1/auth/approle/login" \
                 | sed -n 's/.*"client_token":"\([^"]*\)".*/\1/p')
         fi

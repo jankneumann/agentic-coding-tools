@@ -1,0 +1,559 @@
+{
+  "convention": "rightsizing",
+  "dispatch_profile": [
+    {
+      "archetype": "validator",
+      "degraded_from": null,
+      "model": "sonnet",
+      "phases": [
+        "VALIDATE"
+      ],
+      "procedure_mode": null,
+      "provider": "claude_code",
+      "thinking": null,
+      "tier": "standard"
+    },
+    {
+      "archetype": "validator",
+      "degraded_from": null,
+      "model": "gpt-5.6-terra",
+      "phases": [
+        "VALIDATE"
+      ],
+      "procedure_mode": null,
+      "provider": "codex",
+      "thinking": null,
+      "tier": "standard"
+    },
+    {
+      "archetype": "validator",
+      "degraded_from": null,
+      "model": "gemini-3.6-flash-medium",
+      "phases": [
+        "VALIDATE"
+      ],
+      "procedure_mode": null,
+      "provider": "antigravity",
+      "thinking": null,
+      "tier": "standard"
+    },
+    {
+      "archetype": "validator",
+      "degraded_from": null,
+      "model": "grok-4.5",
+      "phases": [
+        "VALIDATE"
+      ],
+      "procedure_mode": null,
+      "provider": "grok",
+      "thinking": "medium",
+      "tier": "standard"
+    },
+    {
+      "archetype": "validator",
+      "degraded_from": null,
+      "model": "qwen/qwen3-coder",
+      "phases": [
+        "VALIDATE"
+      ],
+      "procedure_mode": null,
+      "provider": "pi",
+      "thinking": null,
+      "tier": "standard"
+    },
+    {
+      "archetype": "validator",
+      "degraded_from": null,
+      "model": "gpt-oss-120b",
+      "phases": [
+        "VALIDATE"
+      ],
+      "procedure_mode": null,
+      "provider": "local",
+      "thinking": null,
+      "tier": "standard"
+    },
+    {
+      "archetype": "implementer",
+      "degraded_from": null,
+      "model": "sonnet",
+      "phases": [
+        "VAL_FIX"
+      ],
+      "procedure_mode": null,
+      "provider": "claude_code",
+      "thinking": null,
+      "tier": "standard"
+    },
+    {
+      "archetype": "implementer",
+      "degraded_from": null,
+      "model": "gpt-5.6-terra",
+      "phases": [
+        "VAL_FIX"
+      ],
+      "procedure_mode": null,
+      "provider": "codex",
+      "thinking": null,
+      "tier": "standard"
+    },
+    {
+      "archetype": "implementer",
+      "degraded_from": null,
+      "model": "gemini-3.6-flash-medium",
+      "phases": [
+        "VAL_FIX"
+      ],
+      "procedure_mode": null,
+      "provider": "antigravity",
+      "thinking": null,
+      "tier": "standard"
+    },
+    {
+      "archetype": "implementer",
+      "degraded_from": null,
+      "model": "grok-4.5",
+      "phases": [
+        "VAL_FIX"
+      ],
+      "procedure_mode": null,
+      "provider": "grok",
+      "thinking": "medium",
+      "tier": "standard"
+    },
+    {
+      "archetype": "implementer",
+      "degraded_from": null,
+      "model": "qwen/qwen3-coder",
+      "phases": [
+        "VAL_FIX"
+      ],
+      "procedure_mode": null,
+      "provider": "pi",
+      "thinking": null,
+      "tier": "standard"
+    },
+    {
+      "archetype": "implementer",
+      "degraded_from": null,
+      "model": "gpt-oss-120b",
+      "phases": [
+        "VAL_FIX"
+      ],
+      "procedure_mode": null,
+      "provider": "local",
+      "thinking": null,
+      "tier": "standard"
+    }
+  ],
+  "evidence": {
+    "reason": "unauthorized",
+    "status": "unavailable",
+    "tier_rows": []
+  },
+  "findings": [
+    {
+      "evidence": {},
+      "id": "F001",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#00-frontmatter"
+    },
+    {
+      "evidence": {},
+      "id": "F002",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#08-0-detect-coordinator-and-recall-memory"
+    },
+    {
+      "evidence": {},
+      "id": "F003",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#14-4-smoke-phase"
+    },
+    {
+      "evidence": {},
+      "id": "F004",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#17-6-e2e-phase"
+    },
+    {
+      "evidence": {},
+      "id": "F005",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#24-8-log-analysis-phase"
+    },
+    {
+      "evidence": {},
+      "id": "F006",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#25-9-ci-cd-status-phase"
+    },
+    {
+      "evidence": {},
+      "id": "F007",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#26-10-teardown"
+    },
+    {
+      "evidence": {},
+      "id": "F008",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#29-12-5-finalize-ephemeral-validation-scope"
+    },
+    {
+      "evidence": {},
+      "id": "F009",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#30-13-pr-comment"
+    },
+    {
+      "evidence": {},
+      "id": "F010",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#32-after-validation"
+    },
+    {
+      "evidence": {},
+      "id": "F011",
+      "kind": "contract_unpinned",
+      "layer": "contract",
+      "rationale": "No test cites this contract section; drift would go unnoticed.",
+      "remediation": "add_probe",
+      "section_id": "SKILL.md#35-next-step"
+    },
+    {
+      "evidence": {
+        "rule": "max_lines"
+      },
+      "id": "F012",
+      "kind": "convention_drift",
+      "layer": "contract",
+      "rationale": "SKILL.md has 1289 lines; the rightsizing cap is 500",
+      "remediation": "move_to_reference",
+      "section_id": "SKILL.md"
+    }
+  ],
+  "freshness": {
+    "archetypes_sha256": "5cfdd2f5e34d7ae83201695604a0382adcd9e2a2fe003b854959112e4800ed7a",
+    "evidence_window_days": 30,
+    "reviewed_dates": [
+      "2026-08-16"
+    ]
+  },
+  "generated_at": "2026-09-16T11:40:34+00:00",
+  "layers": [
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "frontmatter",
+      "layer": "contract",
+      "rule": "frontmatter",
+      "section_id": "SKILL.md#00-frontmatter"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Durable state artifact authority",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#01-durable-state-artifact-authority"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Arguments",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#02-arguments"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Prerequisites",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#03-prerequisites"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Provider-Neutral Dispatch",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#04-provider-neutral-dispatch"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "OpenSpec Execution Preference",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#05-openspec-execution-preference"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "Coordinator Integration (Optional)",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#06-coordinator-integration-optional"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Local CLI Mutation Boundary",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#07-local-cli-mutation-boundary"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "0. Detect Coordinator and Recall Memory",
+      "layer": "contract",
+      "rule": "skill_base_dir",
+      "section_id": "SKILL.md#08-0-detect-coordinator-and-recall-memory"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "1. Determine Change ID and Configuration",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#09-1-determine-change-id-and-configuration"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "2. Verify Prerequisites",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#10-2-verify-prerequisites"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "2.25. Enter Ephemeral Validation Scope (Optional)",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#11-2-25-enter-ephemeral-validation-scope-op"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "2.5. Prepare Validation Artifacts",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#12-2-5-prepare-validation-artifacts"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "3. Deploy Phase",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#13-3-deploy-phase"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "4. Smoke Phase",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#14-4-smoke-phase"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "4b. Gen-Eval Phase (Optional)",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#15-4b-gen-eval-phase-optional"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "5. Security Phase",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#16-5-security-phase"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "6. E2E Phase",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#17-6-e2e-phase"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "6b. Architecture Diagnostics Phase",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#18-6b-architecture-diagnostics-phase"
+    },
+    {
+      "decided_by": "none",
+      "file": "SKILL.md",
+      "heading": "7. Spec Compliance Phase (via Change Context)",
+      "layer": "unclassified",
+      "section_id": "SKILL.md#19-7-spec-compliance-phase-via-change-conte"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "7.0. Task Checkbox Drift Gate (CRITICAL)",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#20-7-0-task-checkbox-drift-gate-critical"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "7.0b. Requirement-to-Contract Traceability Gate (CRITICAL, change-scoped)",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#21-7-0b-requirement-to-contract-traceabilit"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "7.1. Requirement Traceability (per-requirement live verification)",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#22-7-1-requirement-traceability-per-require"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "7.5. Work Package Evidence Completeness [local-parallel+]",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#23-7-5-work-package-evidence-completeness-l"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "8. Log Analysis Phase",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#24-8-log-analysis-phase"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "9. CI/CD Status Phase",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#25-9-ci-cd-status-phase"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "10. Teardown",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#26-10-teardown"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "11. Validation Report",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#27-11-validation-report"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "12. Persist Report",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#28-12-persist-report"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "12.5. Finalize Ephemeral Validation Scope",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#29-12-5-finalize-ephemeral-validation-scope"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "13. PR Comment",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#30-13-pr-comment"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "14. Append Session Log",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#31-14-append-session-log"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "After Validation",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#32-after-validation"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Semantic Code Context",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#33-semantic-code-context"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Output",
+      "layer": "contract",
+      "rule": "skill_base_dir",
+      "section_id": "SKILL.md#34-output"
+    },
+    {
+      "decided_by": "pre-pass",
+      "file": "SKILL.md",
+      "heading": "Next Step",
+      "layer": "contract",
+      "rule": "fenced_command",
+      "section_id": "SKILL.md#35-next-step"
+    }
+  ],
+  "schema_version": 1,
+  "skill": "validate-feature"
+}

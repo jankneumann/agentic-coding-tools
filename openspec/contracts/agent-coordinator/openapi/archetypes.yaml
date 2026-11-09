@@ -47,6 +47,17 @@ paths:
                   system_prompt: {type: string}
                   archetype: {type: string}
                   reasons: {type: array, items: {type: string}}
+                  procedure_mode:
+                    type: string
+                    enum: [verbatim, guided, goal-directed]
+                    description: >-
+                      How much of a skill's written procedure an agent under
+                      this archetype follows (archetypes.yaml schema_version 4,
+                      add-skill-audit D3). Optional on the wire: an archetype
+                      that declares no mode resolves as `guided`, and an older
+                      coordinator omits the field entirely, which clients treat
+                      as `guided`. For a non-guided mode the server appends one
+                      fixed sentence to `system_prompt` before returning it.
         "400": {description: Malformed request body (spec 2752)}
         "404": {description: Unknown phase name (spec 2751)}
 components:

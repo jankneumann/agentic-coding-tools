@@ -61,7 +61,26 @@
             "finding_ids": {"type": "array", "items": {"type": "string"}},
             "generator": {"type": ["string", "null"]}
           }
+        },
+        "scoring_provenance": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Per-factor Jev provenance (evidence_class + probability), present only for factors a calibrated Score judgment produced; absent factors were scored by the analyst sub-agent.",
+          "properties": {
+            "relevance": {"$ref": "#/$defs/factorProvenance"}, "value": {"$ref": "#/$defs/factorProvenance"},
+            "readiness": {"$ref": "#/$defs/factorProvenance"}, "scope_fit": {"$ref": "#/$defs/factorProvenance"},
+            "risk": {"$ref": "#/$defs/factorProvenance"}
+          }
         }
+      }
+    },
+    "factorProvenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidence_class"],
+      "properties": {
+        "evidence_class": {"type": "string", "enum": ["judgment"]},
+        "probability": {"type": "number", "minimum": 0, "maximum": 1}
       }
     }
   },

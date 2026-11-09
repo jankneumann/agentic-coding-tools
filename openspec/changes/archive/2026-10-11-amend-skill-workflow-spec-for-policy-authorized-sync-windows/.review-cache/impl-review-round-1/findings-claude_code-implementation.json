@@ -1,0 +1,111 @@
+{
+  "review_type": "implementation",
+  "target": "amend-skill-workflow-spec-for-policy-authorized-sync-windows",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Re-verification of ledger [2]: the spec now correctly delegates gate applicability to ri-12/ri-13 ('this requirement defines no new gate applicability'), but TRUST_POSTURE.template.md still states 'A scheduled /merge-pull-requests run still evaluates the merge gate (and any other gate that applies)', and design D8 repeats it. The proposal's own Out-of-scope section says the merge gate governs autopilot's SUBMIT_PR -> DONE edge, and no sync-point skill evaluates it today. The operator-facing template therefore asserts a gate mapping the spec explicitly declines to define. Reword the template bullet (and D8) to 'every gate that the scheduled caller's change (ri-12/ri-13) declares applicable' and drop the merge-gate example, or make it a hypothetical ('for example, if ri-12 maps the merge gate ...').",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "evidence_class": "judgment",
+      "file_path": "TRUST_POSTURE.template.md",
+      "line_range": {
+        "start": 147,
+        "end": 149
+      },
+      "existing_code": "- **Necessary, never sufficient.** A window does not change any gate\n  disposition. A scheduled `/merge-pull-requests` run still evaluates the\n  `merge` gate (and any other gate that applies), and `block` stops it.",
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "TestPrOriginsVocabulary never exercises the plain 'jules' origin and cannot detect a new origin added to classify_pr. The fixtures use author='google-labs-jules[bot]', but is_jules_author only accepts 'jules', 'jules[bot]' and 'jules-bot' (JULES_AUTHORS), so _pr('feature/x', author='google-labs-jules[bot]') classifies as 'other', not 'jules'; the sentinel/bolt/palette fixtures only hit via branch tokens. The test also asserts only `seen \u2286 PR_ORIGINS` (plus `assert seen`), so if classify_pr grows a new origin (e.g. 'gemini') with no fixture, the test still passes and the window vocabulary silently drifts, which is exactly the drift D3 claims this test prevents. Fix: use author='jules[bot]' for the Jules fixtures and assert `seen == gc.PR_ORIGINS` so every member is reachable and every reachable origin is declared.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "evidence_class": "judgment",
+      "file_path": "skills/tests/merge-pull-requests/test_classify.py",
+      "line_range": {
+        "start": 154,
+        "end": 154
+      },
+      "existing_code": "        _pr(\"feature/x\", author=\"google-labs-jules[bot]\"),",
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 3,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "Loader and JSON-schema mirror disagree on cadence whitespace. The loader uses str.split(), which accepts tabs, newlines, and leading/trailing whitespace ('0\\t3 * * 1', ' 0 3 * * 1'), while the schema pattern '^[0-9*/,-]+( +[0-9*/,-]+){4}$' accepts only ASCII spaces and is anchored. A posture with a tab-separated cadence validates in the Python loader (the authoritative validator) but fails the declarative mirror, and test_schema_enums_equal_python_frozensets does not cover this because it only compares enums. The spec says 'whitespace-separated', so the schema is the stricter side. Either tighten the loader to `cadence.split(' ')` with no empty fields (and say 'space-separated' in spec/template), or loosen the schema pattern to `\\s+`, and add a tab-cadence case to both the loader and schema malformed-window tables so the two cannot drift again.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "nit",
+      "evidence_class": "judgment",
+      "file_path": "skills/shared/trust_posture.py",
+      "line_range": {
+        "start": 338,
+        "end": 340
+      },
+      "existing_code": "    cadence = raw[\"cadence\"]\n    fields = cadence.split() if isinstance(cadence, str) else []\n    if len(fields) != 5 or not all(_CADENCE_FIELD_RE.fullmatch(f) for f in fields):",
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 4,
+      "type": "style",
+      "criticality": "low",
+      "description": "test_live_posture_digest_pinned hard-codes the SHA-256 of the repository's live TRUST_POSTURE.md. This proves the no-window digest is byte-identical today (the stated intent, and tasks.md asked for a literal), but after merge any legitimate gate edit to the live posture will fail a shared unit test unrelated to the edit, and the operator fixing it will have to re-derive the hash. test_digest_without_windows_is_gates_only already proves the structural invariant. Consider keeping the literal but documenting in the test docstring that it is expected to change whenever TRUST_POSTURE.md gates change, so the next failure is understood as a config change rather than a regression.",
+      "disposition": "accept",
+      "axis": "readability",
+      "severity": "fyi",
+      "evidence_class": "judgment",
+      "file_path": "skills/shared/tests/test_trust_posture_sync_windows.py",
+      "line_range": {
+        "start": 20,
+        "end": 20
+      },
+      "existing_code": "LIVE_DIGEST = \"e8262346bb6004a61154ca0832650ed5ec4fa6a4d9b5cde30302333c0f067a24\"",
+      "line_resolution": "hunk_new"
+    },
+    {
+      "id": 5,
+      "type": "style",
+      "criticality": "low",
+      "description": "The schema's top-level description line was rewritten from a literal em-dash to the escape '\u2014', which indicates the file was round-tripped through json.dump(ensure_ascii=True) rather than edited by hand. Harmless, but it adds an unrelated hunk to the diff and will keep re-flipping if the next editor writes UTF-8. Restore the literal character (or standardise the repo on ensure_ascii=False). Mirror check for Group 3: no live mirrored copy of trust-posture.schema.json exists outside openspec/schemas/ (only archived change copies), so nothing else needs the sync_windows extension.",
+      "disposition": "accept",
+      "axis": "readability",
+      "severity": "fyi",
+      "evidence_class": "judgment",
+      "file_path": "openspec/schemas/trust-posture.schema.json",
+      "line_range": "5"
+    },
+    {
+      "id": 6,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Re-verification of ledger [6]: work-packages.yaml still files contracts/README.md under the `openapi` sub-type even though the README states OpenAPI does not apply. The validator accepts it and the README is explicit, so this remains a labelling nit only.",
+      "disposition": "accept",
+      "axis": "readability",
+      "severity": "optional",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/work-packages.yaml",
+      "line_range": "9-13"
+    },
+    {
+      "id": 7,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "Re-verification of ledger [7]: allowed_sources and auto_merge_ceiling remain required and non-empty for every window, including windows that list only update-specs or cleanup-feature, which never select PRs. The skill-workflow scenario scopes the fields to 'whenever it selects, remediates, or merges pull requests', so this is still ergonomic only; a future change could make the two fields conditionally required once ri-12 shows the real shape. Ledger items [1], [3], [4] and [5] are confirmed resolved in this diff (scenario split, docs/decisions in write_allow, null-vs-list wording, ValueError usage-error scenario).",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "optional",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/amend-skill-workflow-spec-for-policy-authorized-sync-windows/specs/trust-posture/spec.md",
+      "line_range": "16-22"
+    }
+  ]
+}

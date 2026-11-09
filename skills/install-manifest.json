@@ -74,9 +74,6 @@
     "fix-scrub": [
       "worktree"
     ],
-    "improve-harness": [
-      "shared"
-    ],
     "implement-feature": [
       "coordination-bridge",
       "coordinator-task-status-renderer",
@@ -84,6 +81,10 @@
       "project-context-refresh",
       "validate-feature",
       "worktree"
+    ],
+    "improve-harness": [
+      "session-log",
+      "shared"
     ],
     "iterate-on-implementation": [
       "audit-choices",
@@ -156,6 +157,11 @@
       "coordination-bridge",
       "parallel-infrastructure",
       "project-context-runtime"
+    ],
+    "skill-audit": [
+      "shared",
+      "coordination-bridge",
+      "improve-harness"
     ],
     "supervise": [
       "plan-roadmap",
@@ -317,6 +323,9 @@
     "obsidian-markdown": {
       "distribution": "portable"
     },
+    "ownership-runtime": {
+      "distribution": "portable"
+    },
     "parallel-infrastructure": {
       "distribution": "portable"
     },
@@ -381,6 +390,9 @@
       ]
     },
     "simplify": {
+      "distribution": "portable"
+    },
+    "skill-audit": {
       "distribution": "portable"
     },
     "source-driven-development": {
@@ -459,6 +471,18 @@
     {
       "path": "validate-flows/scripts/validate_flows.py",
       "mode": "import"
+    },
+    {
+      "path": "shared/payload_hash.py",
+      "args": [
+        "--help"
+      ]
+    },
+    {
+      "path": "improve-harness/scripts/export_shared_learnings.py",
+      "args": [
+        "--help"
+      ]
     }
   ],
   "declared_external_prerequisites": [

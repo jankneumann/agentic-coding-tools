@@ -17,8 +17,10 @@ from src.model_routing.resolver import (
     OBJECTIVE_PROFILES,
     CandidateInput,
     Posterior,
+    RoutingAssignment,
     Weights,
     blend_quality,
+    build_feasible_assignments,
     effective_cost,
     feasibility_reason,
     score_and_rank,
@@ -116,6 +118,21 @@ def test_unavailable_local_endpoint_excluded():
     ) == "unavailable"
 
 
+def test_stale_catalog_provenance_survives_scoring():
+    ranked, _ = score_and_rank(
+        [
+            CandidateInput(
+                vendor="local",
+                model="m",
+                endpoint_kind="local",
+                stale_catalog=True,
+            )
+        ]
+    )
+
+    assert ranked[0].stale_catalog is True
+
+
 # ── D13 (rev3): resilience objective rewards quota headroom ───────────────────
 
 def test_resilience_downranks_near_cap_provider():
@@ -176,3 +193,241 @@ def test_empty_candidate_set_returns_none():
 def test_all_profiles_have_weights():
     for name in ("quality-first", "balanced", "cost-first", "resilience"):
         assert isinstance(OBJECTIVE_PROFILES[name], Weights)
+
+
+def _lane(
+    agent_id: str,
+    *,
+    location: str = "local",
+    available: bool = True,
+    dispatch_modes: list[str] | None = None,
+    isolation_by_dispatch_mode: dict[str, str] | None = None,
+) -> dict:
+    return {
+        "agent_id": agent_id,
+        "vendor_type": "codex",
+        "policy_vendor": "codex",
+        "catalog_vendor": "codex",
+        "location": location,
+        "isolation": "worktree",
+        "isolation_by_dispatch_mode": isolation_by_dispatch_mode or {},
+        "archetypes": ["implementer"],
+        "dispatch_modes": dispatch_modes or ["quick"],
+        "dispatchable": True,
+        "availability": {"available": available, "rate_limits": []},
+        "cost": {
+            "models": [
+                {
+                    "catalog_vendor": "codex",
+                    "model": "gpt-5.6-terra",
+                    "endpoint_kind": "vendor-cli",
+                    "base_url": None,
+                    "available": True,
+                }
+            ]
+        },
+    }
+
+
+def test_exact_lane_catalog_association_rejects_near_matches() -> None:
+    candidates = [
+        CandidateInput(
+            vendor="codex", model="gpt-5.6-terra", endpoint_kind="vendor-cli"
+        ),
+        CandidateInput(
+            vendor="publisher-codex",
+            model="gpt-5.6-terra-preview",
+            endpoint_kind="vendor-cli",
+        ),
+    ]
+
+    feasible, excluded = build_feasible_assignments(
+        [_lane("codex-local")],
+        candidates,
+        archetype="implementer",
+        dispatch_mode="quick",
+    )
+
+    assert len(feasible) == 1
+    assert feasible[0].assignment == RoutingAssignment(
+        agent_id="codex-local",
+        vendor_type="codex",
+        policy_vendor="codex",
+        catalog_vendor="codex",
+        location="local",
+        isolation="worktree",
+        dispatch_mode="quick",
+        model="gpt-5.6-terra",
+        endpoint_kind="vendor-cli",
+        base_url=None,
+    )
+    assert [(item.vendor, item.model, item.reason) for item in excluded] == [
+        ("publisher-codex", "gpt-5.6-terra-preview", "catalog:no-configured-lane")
+    ]
+
+
+def test_assignment_uses_mode_isolation_after_dispatch_mode_is_known() -> None:
+    lane = _lane(
+        "codex-local",
+        dispatch_modes=["review", "alternative"],
+        isolation_by_dispatch_mode={
+            "review": "sandbox",
+            "alternative": "worktree",
+        },
+    )
+    candidate = CandidateInput(
+        vendor="codex", model="gpt-5.6-terra", endpoint_kind="vendor-cli"
+    )
+
+    review, _ = build_feasible_assignments(
+        [lane],
+        [candidate],
+        archetype="implementer",
+        dispatch_mode="review",
+        required_isolation="sandbox",
+    )
+    alternative, _ = build_feasible_assignments(
+        [lane],
+        [candidate],
+        archetype="implementer",
+        dispatch_mode="alternative",
+        required_isolation="worktree",
+    )
+
+    assert review[0].assignment is not None
+    assert review[0].assignment.isolation == "sandbox"
+    assert alternative[0].assignment is not None
+    assert alternative[0].assignment.isolation == "worktree"
+
+
+def test_invalid_mode_isolation_fails_instead_of_defaulting() -> None:
+    lane = _lane(
+        "codex-local",
+        dispatch_modes=["review"],
+        isolation_by_dispatch_mode={"review": "container"},
+    )
+    candidate = CandidateInput(
+        vendor="codex", model="gpt-5.6-terra", endpoint_kind="vendor-cli"
+    )
+
+    with pytest.raises(ValueError, match="agents_yaml.*container"):
+        build_feasible_assignments(
+            [lane], [candidate], archetype="implementer", dispatch_mode="review"
+        )
+
+
+def test_lane_declared_model_missing_from_catalog_is_excluded() -> None:
+    """Codex review on PR #605: a configured lane's declared model with no
+    matching catalog row must be recorded as registry:no-catalog-projection,
+    not silently dropped -- spec scenario "Missing exact projection is
+    excluded"."""
+    feasible, excluded = build_feasible_assignments(
+        [_lane("codex-local")],
+        [],  # empty catalog snapshot -- the lane's one declared model has no row
+        archetype="implementer",
+        dispatch_mode="quick",
+    )
+
+    assert feasible == []
+    assert [(item.agent_id, item.vendor, item.model, item.reason) for item in excluded] == [
+        ("codex-local", "codex", "gpt-5.6-terra", "registry:no-catalog-projection")
+    ]
+
+
+def test_lane_registry_miss_is_excluded_even_when_another_model_projects() -> None:
+    """Codex review on PR #605 (round 3): VendorRegistryService._cost_projection
+    drops an unmatched declared model from cost.models BEFORE resolver.py ever
+    sees it, so a lane where model A projects fine while model B is missing
+    must still record B's exclusion from the registry's own cost.misses list
+    -- not just from a by_key miss, which never fires for B since B was never
+    in cost.models to begin with."""
+    lane = _lane("codex-local")
+    lane["cost"] = {
+        "models": lane["cost"]["models"],  # model A: gpt-5.6-terra, still projects
+        "misses": [
+            {
+                "catalog_vendor": "codex",
+                "model": "gpt-5.6-terra-missing",  # model B: dropped upstream
+                "endpoint_kind": "vendor-cli",
+                "base_url": None,
+                "reason": "missing",
+            }
+        ],
+    }
+    candidate = CandidateInput(vendor="codex", model="gpt-5.6-terra", endpoint_kind="vendor-cli")
+
+    feasible, excluded = build_feasible_assignments(
+        [lane],
+        [candidate],
+        archetype="implementer",
+        dispatch_mode="quick",
+    )
+
+    assert len(feasible) == 1
+    assert feasible[0].model == "gpt-5.6-terra"
+    assert [(item.agent_id, item.model, item.reason) for item in excluded] == [
+        ("codex-local", "gpt-5.6-terra-missing", "registry:no-catalog-projection")
+    ]
+
+
+def test_lane_with_no_declared_models_is_excluded() -> None:
+    """A lane whose cost.models is empty has no unique exact catalog
+    projection either -- same exclusion, not a silent no-op."""
+    lane = _lane("codex-local")
+    lane["cost"] = {"models": []}
+
+    feasible, excluded = build_feasible_assignments(
+        [lane],
+        [CandidateInput(vendor="codex", model="gpt-5.6-terra", endpoint_kind="vendor-cli")],
+        archetype="implementer",
+        dispatch_mode="quick",
+    )
+
+    assert feasible == []
+    codex_local_exclusions = [
+        (item.agent_id, item.reason) for item in excluded if item.agent_id == "codex-local"
+    ]
+    assert codex_local_exclusions == [("codex-local", "registry:no-catalog-projection")]
+
+
+def test_lane_feasibility_excludes_unavailable_before_utility_scoring() -> None:
+    candidate = CandidateInput(
+        vendor="codex",
+        model="gpt-5.6-terra",
+        endpoint_kind="vendor-cli",
+        benchmark_prior=1.0,
+    )
+
+    feasible, excluded = build_feasible_assignments(
+        [_lane("codex-local", available=False)],
+        [candidate],
+        archetype="implementer",
+        dispatch_mode="quick",
+    )
+    ranked, scorer_excluded = score_and_rank(feasible)
+
+    assert ranked == []
+    assert scorer_excluded == []
+    assert [item.reason for item in excluded] == ["lane:unavailable"]
+
+
+def test_equal_utility_is_stable_by_agent_id_then_catalog_identity() -> None:
+    candidate = CandidateInput(
+        vendor="codex",
+        model="gpt-5.6-terra",
+        endpoint_kind="vendor-cli",
+        benchmark_prior=0.8,
+    )
+    feasible, _ = build_feasible_assignments(
+        [_lane("z-lane"), _lane("a-lane")],
+        [candidate],
+        archetype="implementer",
+        dispatch_mode="quick",
+    )
+
+    ranked, _ = score_and_rank(feasible)
+
+    assert [item.assignment.agent_id for item in ranked if item.assignment] == [
+        "a-lane",
+        "z-lane",
+    ]

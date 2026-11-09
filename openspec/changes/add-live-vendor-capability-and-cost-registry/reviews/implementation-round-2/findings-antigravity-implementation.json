@@ -1,0 +1,151 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "axis": "correctness",
+      "criticality": "low",
+      "description": "none: Verified remediation 1: `report_vendor_rate_limit` is derived at trust level 3 under `TRUST_DERIVED_OPERATIONS` without being added to `ADMIN_ACTIONS`, allowing elevated agents to report cross-lane observations while preserving least privilege for admin-only operations.",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "agent-coordinator/src/agents_config.py",
+      "id": 1,
+      "line_range": {
+        "end": 1075,
+        "start": 1065
+      },
+      "package_id": "wp-api-watchdog",
+      "severity": "none",
+      "type": "correctness"
+    },
+    {
+      "axis": "observability",
+      "criticality": "low",
+      "description": "none: Verified remediation 2: Both the production API singleton (`get_vendor_registry()`) and the watchdog registry property (`WatchdogService.vendor_registry`) explicitly inject `audit=get_audit_service()`, ensuring coordinator-side operations are durably logged to the audit service.",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "agent-coordinator/src/coordination_api.py",
+      "id": 2,
+      "line_range": {
+        "end": 165,
+        "start": 155
+      },
+      "package_id": "wp-api-watchdog",
+      "severity": "none",
+      "type": "observability"
+    },
+    {
+      "axis": "correctness",
+      "criticality": "low",
+      "description": "none: Verified remediation 3: When any configured model fallback fails exact unique catalog lookup due to a missing row or ambiguous multi-row match, `_cost_projection` marks the overall lane cost `known: false` and emits a durable `vendor_catalog_projection_miss` audit event with the model, reason, and match count.",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "agent-coordinator/src/vendor_registry.py",
+      "id": 3,
+      "line_range": {
+        "end": 375,
+        "start": 335
+      },
+      "package_id": "wp-registry-core",
+      "severity": "none",
+      "type": "correctness"
+    },
+    {
+      "axis": "resilience",
+      "criticality": "low",
+      "description": "none: Verified remediation 4: `dispatch_phase` reports terminal capacity exhaustion exactly once via `_report_terminal_capacity` in a best-effort try-except block, guaranteeing reporting failures never mask or alter the underlying dispatch outcome.",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "skills/autopilot/scripts/provider_dispatch.py",
+      "id": 4,
+      "line_range": {
+        "end": 756,
+        "start": 703
+      },
+      "package_id": "wp-dispatch-reporting",
+      "severity": "none",
+      "type": "resilience"
+    },
+    {
+      "axis": "correctness",
+      "criticality": "low",
+      "description": "none: Verified remediation 5: SDK, sync CLI, and async CLI adapters invoke capacity callbacks only for intermediate model attempts prior to successful fallback; the shared orchestrator collector exclusively owns reporting terminal lane capacity, preventing duplicate reports during multi-model or single-model exhaustion.",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "id": 5,
+      "line_range": {
+        "end": 1618,
+        "start": 1565
+      },
+      "package_id": "wp-dispatch-reporting",
+      "severity": "none",
+      "type": "correctness"
+    },
+    {
+      "axis": "correctness",
+      "criticality": "low",
+      "description": "none: Verified remediation 6: `_execute_item_phases` accepts provider carrier `agent_id` alongside `dispatch_agent_id`, executes a `while True` loop per phase so `vendor_limit` retries the same failed phase rather than advancing, and preserves `selected_agent_id` across both `dispatch_agent_id` and `agent_id` context fields.",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "skills/autopilot-roadmap/scripts/orchestrator.py",
+      "id": 6,
+      "line_range": {
+        "end": 1115,
+        "start": 1020
+      },
+      "package_id": "wp-roadmap-policy",
+      "severity": "none",
+      "type": "correctness"
+    },
+    {
+      "axis": "observability",
+      "criticality": "low",
+      "description": "none: Verified remediation 7: Roadmap policy provenance tracks exact report status (`persisted`, `failed`, `skipped`, `skipped_ambiguous`, or `delegated_unconfirmed`) without claiming unverified persistence, and `select_registry_lane` logs a warning when `cost_ceiling_usd` is configured but cost deltas cannot be computed.",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "skills/autopilot-roadmap/scripts/policy.py",
+      "id": 7,
+      "line_range": {
+        "end": 462,
+        "start": 448
+      },
+      "package_id": "wp-roadmap-policy",
+      "severity": "none",
+      "type": "observability"
+    },
+    {
+      "axis": "observability",
+      "criticality": "low",
+      "description": "none: Verified remediation 8: Lifecycle audit events durably record accepted, duplicate, rejected (with specific validation error reasons), catalog-miss, and compaction outcomes using non-secret audit payloads.",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "agent-coordinator/src/vendor_registry.py",
+      "id": 8,
+      "line_range": {
+        "end": 605,
+        "start": 472
+      },
+      "package_id": "wp-registry-core",
+      "severity": "none",
+      "type": "observability"
+    },
+    {
+      "axis": "architecture",
+      "criticality": "low",
+      "description": "none: Watchdog snapshot persistence isolates per-lane failures, seeds snapshot state on first poll with `stale_after` ttl, and runs periodic compaction. `GET /vendors` and `GET /vendors/{id}/availability` enforce RFC7807 problem contracts, typed lane queries, deterministic six-decimal ROUND_HALF_UP cost quotes, and SQL atomic RPC idempotency without duplicate cost stores.",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "agent-coordinator/src/watchdog.py",
+      "id": 9,
+      "line_range": {
+        "end": 515,
+        "start": 435
+      },
+      "package_id": "wp-api-watchdog",
+      "severity": "none",
+      "type": "architecture"
+    }
+  ]
+}

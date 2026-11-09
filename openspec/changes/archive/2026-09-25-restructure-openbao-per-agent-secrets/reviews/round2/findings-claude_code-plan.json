@@ -1,0 +1,103 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "severity": "critical",
+      "axis": "architecture",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/restructure-openbao-per-agent-secrets/contracts/README.md",
+      "line_range": "5-11",
+      "description": "The dispatch-config payload has no replacement for the field the plan removes. Today `openbao_role_id` is the only identity carrier on the coordinator-to-dispatcher wire: agents_config.get_dispatch_configs (agent-coordinator/src/agents_config.py:1891) emits it, GET /agents/dispatch-configs (coordination_api.py:1842) and the agents.yaml direct-load path (review_dispatcher.py:2659) forward it, and review_dispatcher.py:2585/2620 store it for the two resolve() call sites. AI-02 makes `openbao_role_id` invalid and D2 requires `resolve(principal_id, vendor_id)` with the principal derived from the registry entry, but no contract, task, or openapi delta defines `principal_id` / `vendor_credentials` on the dispatch-config document, and the producer (wp-projection, owner of agents_config.py) runs in parallel with the consumer (wp-dispatch, owner of review_dispatcher.py). Resolution: add a dispatch-config delta to contracts/openapi/v1.yaml (GET /agents/dispatch-configs agents[] gains required `principal_id` and `vendor_credentials`, drops `openbao_role_id`), list it in work-packages.yaml contracts.files and wp-contracts locks.keys, assign the producer change to task 1.2 (both get_dispatch_configs and the agents.yaml direct-load shape) and the consumer change to task 4.2 so both branches of review_dispatcher._config_from_agents_yaml / API load read the same keys."
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "high",
+      "severity": "critical",
+      "axis": "correctness",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/restructure-openbao-per-agent-secrets/design.md",
+      "line_range": "74-77",
+      "description": "Bundle, session-cache, and lock file names under BAO_BOOTSTRAP_DIR are not specified anywhere, yet wp-seeding writes them and wp-coordinator and wp-dispatch read them in separate isolated worktrees. D2 says the adapter 'selects a principal-specific bundle/session filename from the canonical projection' while D3 (line 95) says 'each consumer receives only its own bundle path ... through its deployment configuration'; those are contradictory (derived vs configured), and contracts/README.md and the bootstrap/session schemas name no file layout or lock file. Resolution: add a 'Bootstrap directory layout' section to contracts/README.md fixing `<BAO_BOOTSTRAP_DIR>/<role_name>.bundle.json` (0600), `<role_name>.session.json` (0600), and `<role_name>.lock` (0600, flock) as derived from the projection's role_name, delete the 'bundle path through deployment configuration' sentence in D3, and reference the layout from tasks 2.3, 3.1, and 4.1."
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "medium",
+      "severity": "nit",
+      "axis": "security",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/restructure-openbao-per-agent-secrets/contracts/README.md",
+      "line_range": "15",
+      "description": "hvac==2.4.0 has no wrapping-lookup helper: hvac/api/system_backend/wrapping.py exposes only `unwrap` and `wrap`, so the 'lookup, check exact creation path, then unwrap once' flow required by CFG-05/CFG-06 and D3 cannot use the explicit hvac surface the design promises. Left unspecified, the likely implementations are (a) comparing the bundle's own `creation_path` field, which the provisioner wrote and is therefore self-attested, or (b) unwrapping first and checking `creation_path` afterwards, which consumes the single-use token before validation. Resolution: state in contracts/README.md that the adapter performs `POST /v1/sys/wrapping/lookup` via the hvac adapter's raw `client.adapter.post` (the one permitted raw call), compares the server-returned `creation_path` (not the bundle field) to `auth/approle/role/<role_name>/secret-id`, and only then calls `client.sys.unwrap`; add the lookup fake to task 1.3 and the live assertion to task 5.2."
+    },
+    {
+      "id": 4,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "severity": "nit",
+      "axis": "compatibility",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/restructure-openbao-per-agent-secrets/work-packages.yaml",
+      "line_range": "68-77",
+      "description": "agent-coordinator/tests/model_routing/test_agent_endpoints.py:65-78 asserts the exact get_dispatch_configs dict including `\"openbao_role_id\": None`. Removing the field (AI-02, task 1.2) breaks that test, and the file is in no package's write_allow or verification command, so wp-projection will fail scope checks or leave the suite red until wp-integration. Resolution: add `agent-coordinator/tests/model_routing/test_agent_endpoints.py` to wp-projection write_allow and to its 'Registry projection tests' verification command."
+    },
+    {
+      "id": 5,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "severity": "nit",
+      "axis": "correctness",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/restructure-openbao-per-agent-secrets/contracts/migration-map.schema.json",
+      "line_range": "11",
+      "description": "The migration map's required `agents` mapping duplicates information the registry already carries: every keyed entry in agent-coordinator/agents.yaml declares `api_key: \"${CLAUDE_LOCAL_API_KEY}\"`-style placeholders naming the flat-file source key. Neither D1, CFG-18, nor the README says what preflight does when the map's source key for an agent differs from the registry placeholder (for example map says CODEX_API_KEY, registry says CODEX_LOCAL_API_KEY), so two 'canonical' sources can disagree and the seeder can copy the wrong key into `secret/agents/<name>`. Resolution: either drop `agents` from the map and derive agent source keys from the registry placeholder (keeping `vendors`, `retained_internal`, `legacy_role_aliases`), or add a preflight rule to contracts/README.md and CFG-18 that a map entry must equal the registry placeholder variable name or preflight fails."
+    },
+    {
+      "id": 6,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "severity": "nit",
+      "axis": "readability",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/restructure-openbao-per-agent-secrets/specs/configuration/spec.md",
+      "line_range": "9-12",
+      "description": "CFG-01 and the proposal's BREAKING bullet say configured dispatch SHALL NOT use an ambient vendor key, but the CLI dispatch tier in review_dispatcher.py (CliVendorAdapter, api_key_env presence check at line 866) hands vendor credentials to the vendor CLI purely through the ambient environment, and D2 says no credential injection lands before pca-04. Task 4.2 only names the two SDK/OpenAI-compatible resolve() call sites. It is therefore ambiguous whether a configured registry agent dispatched via CLI must be refused, must have its env populated from `secret/vendors/<vendor>`, or is simply out of scope. Resolution: add one sentence to CFG-01 (and D2) stating that only SDK and OpenAI-compatible tiers resolve through the adapter in pca-02 and CLI-tier processes keep their ambient vendor environment until pca-04 injection, so the implementer and the live matrix test the same boundary."
+    },
+    {
+      "id": 7,
+      "type": "spec_gap",
+      "criticality": "low",
+      "severity": "fyi",
+      "axis": "compatibility",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/restructure-openbao-per-agent-secrets/tasks.md",
+      "line_range": "103-106",
+      "description": "The flat secrets file only carries OPENROUTER_API_KEY as a vendor key (agent-coordinator/.secrets.yaml.example:51); the other vendor keys the registry uses (ANTHROPIC_API_KEY, OPENAI_API_KEY via `api_key_env`) live only in ambient env. CFG-18 requires every declared `credential_vendors` entry to have one source key in the flat file, so first-run preflight fails until the operator adds those keys, and nothing in tasks 5.4 or wp-integration scope updates `.secrets.yaml.example`. Resolution: task 5.4 should list 'add each declared vendor key to .secrets.yaml' as the first cutover step and wp-integration (which already owns `.secrets.yaml.example`) should add the vendor keys with empty values."
+    },
+    {
+      "id": 8,
+      "type": "compatibility",
+      "criticality": "low",
+      "severity": "fyi",
+      "axis": "compatibility",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/restructure-openbao-per-agent-secrets/design.md",
+      "line_range": "176-177",
+      "description": "D6 says the coordinator Docker build 'copies the new shared package in both builder and runtime stages'. agent-coordinator/Dockerfile installs sibling path dependencies as non-editable wheels in the builder only (lines 30-41, 70-73 explain the runtime tree is intentionally absent), so a runtime COPY is unnecessary and contradicts the documented image contract, while the builder COPY is mandatory or `uv sync --locked` fails as soon as wp-projection adds the path dependency to agent-coordinator/pyproject.toml. Resolution: change D6 and task 5.6 to 'COPY packages/openbao-credentials/ into the builder stage before uv sync, and add the module to the docker-smoke-import modules list'; note in wp-projection's description that the image build stays red until wp-integration lands."
+    }
+  ]
+}

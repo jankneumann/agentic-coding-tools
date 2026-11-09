@@ -269,7 +269,38 @@ def _select_diff(
     return text, kind
 
 
+def _ref_exists(worktree_path: Path, ref: str) -> bool:
+    try:
+        proc = subprocess.run(
+            ["git", "rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}"],
+            cwd=worktree_path,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return proc.returncode == 0
+
+
+def resolve_base_ref(worktree_path: Path, base_ref: str) -> str:
+    """``base_ref`` when it resolves, else ``origin/<base_ref>`` when that does.
+
+    A clone or harness checkout often has only the remote-tracking
+    ``origin/main``; diffing against the missing local ``main`` used to yield an
+    empty packet (no changes to review).
+    """
+    if _ref_exists(worktree_path, base_ref):
+        return base_ref
+    remote = f"origin/{base_ref}"
+    if "/" not in base_ref and _ref_exists(worktree_path, remote):
+        return remote
+    return base_ref
+
+
 def _git_diff(worktree_path: Path, base_ref: str, head_ref: str) -> str:
+    base_ref = resolve_base_ref(worktree_path, base_ref)
     try:
         proc = subprocess.run(
             ["git", "diff", f"{base_ref}...{head_ref}"],

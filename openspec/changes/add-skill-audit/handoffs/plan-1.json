@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-15T13:05:24.546626+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Planned add-skill-audit: a recurring, evidence-joined audit of SKILL.md files by layer (contract / constraint / procedure / teaching) with a roster-driven dispatch profile, a memory-to-tier evidence join, a stamped report, and candidate-work stubs, plus an optional procedure_mode field on archetypes injected at coordinator resolution. Coordinated tier (all capabilities present); planning ran in the cloud checkout because the designated branch was already checked out there. Gate 1 approved Approach 1; Gate 2 pending.",
+    "completed_work": [],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Position as a recurring audit over the skill-rightsizing substrates, not a roadmap item",
+        "rationale": "Roadmap items ri-01..ri-20 are all candidate at 0/10; the roster rotated twice in a month; the audit consumes their outputs when present and degrades until then.",
+        "capability": "skill-audit",
+        "supersedes": null
+      },
+      {
+        "title": "v1 is static classification plus evidence join; no benchmark runs",
+        "rationale": "Runs belong to add-harbor-benchmark-routing (combo sweep) or packages/agent-scenarios; the findings schema reserves evidence.benchmark for them.",
+        "capability": "skill-audit",
+        "supersedes": null
+      },
+      {
+        "title": "procedure_mode is an optional field on the archetype, injected only in resolve_archetype_for_phase",
+        "rationale": "The tier is known there and nowhere else; the autopilot fold forwards system_prompt verbatim; the review dispatcher never composes an archetype prompt; guided default keeps output byte-identical.",
+        "capability": "agent-archetypes",
+        "supersedes": null
+      },
+      {
+        "title": "Rightsizing conventions are canonical for the audit's lint; --convention current remains during the transition",
+        "rationale": "rewrite-skill-frontmatter and delete-rationalizations-relax-tail-block define the target shape; add-product-management-skills is flagged as needing rebase.",
+        "capability": "skill-audit",
+        "supersedes": null
+      },
+      {
+        "title": "Deterministic pre-pass first, at most one batched analyst call per skill, invalid output labels unclassified",
+        "rationale": "Makes determinism and cost NFRs testable without an LLM in CI and mirrors the audit_triage strict-schema posture.",
+        "capability": "skill-audit",
+        "supersedes": null
+      },
+      {
+        "title": "Gate 1 selection: Approach 1 (standalone skill + procedure_mode)",
+        "rationale": "User selected the recommended approach on 2026-09-15 after four discovery answers, all on the recommended option.",
+        "capability": "skill-audit",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Gate 2 approval, then /implement-feature add-skill-audit; wp-procedure-mode and wp-skill-audit run in parallel, wp-integration last.",
+      "First audits: merge-pull-requests, validate-feature, and the four teaching-heavy skills."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/add-skill-audit/proposal.md",
+        "description": "approved direction (Approach 1) with discovery answers recorded"
+      },
+      {
+        "path": "openspec/changes/add-skill-audit/design.md",
+        "description": "D1-D10, fitness functions, risks, migration"
+      },
+      {
+        "path": "openspec/changes/add-skill-audit/tasks.md",
+        "description": "23 tasks in three packages, TDD-ordered, 8 checkpoints"
+      },
+      {
+        "path": "openspec/changes/add-skill-audit/work-packages.yaml",
+        "description": "wp-procedure-mode, wp-skill-audit (parallel), wp-integration"
+      },
+      {
+        "path": "openspec/changes/add-skill-audit/contracts/schemas/skill-audit-findings.schema.json",
+        "description": "findings ledger contract with the contract-delete guard"
+      }
+    ]
+  }
+}

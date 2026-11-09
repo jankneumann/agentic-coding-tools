@@ -1,0 +1,30 @@
+{
+  "agents": [
+    {
+      "agent_id": "agent-rev",
+      "agent_type": "codex",
+      "session_id": "sess-rev-1",
+      "status": "active",
+      "started_at": "2026-09-13T08:00:00+00:00",
+      "last_heartbeat": "2026-09-13T12:00:00+00:00",
+      "phase_archetype": "reviewer"
+    },
+    {
+      "agent_id": "agent-rev",
+      "agent_type": "codex",
+      "session_id": "sess-rev-0",
+      "status": "completed",
+      "started_at": "2026-09-01T08:00:00+00:00",
+      "last_heartbeat": "2026-09-01T09:00:00+00:00",
+      "phase_archetype": "implementer"
+    },
+    {
+      "agent_id": "agent-legacy",
+      "agent_type": "codex",
+      "session_id": "sess-legacy",
+      "started_at": "2026-09-13T08:00:00+00:00",
+      "last_heartbeat": "2026-09-13T12:00:00+00:00",
+      "phase_archetype": null
+    }
+  ]
+}

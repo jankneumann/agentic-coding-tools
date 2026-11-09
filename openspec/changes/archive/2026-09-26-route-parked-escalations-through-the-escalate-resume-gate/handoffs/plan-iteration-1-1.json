@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-08T03:42:57.059936+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "architect",
+    "session_id": null,
+    "summary": "Closed the plan failure-atomicity gap by separating the mandatory post-apply escalation routing call from delegated batch application, so gate/coordinator errors cannot replay dispatch_fn effects.",
+    "completed_work": [
+      "plan self-review",
+      "retry boundary correction",
+      "strict revalidation"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Use retryable route_parked_escalations operation",
+        "rationale": "A persisted parked attempt is safe to re-route; an already applied callback is not safe to replay.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "multi-vendor PLAN_REVIEW"
+    ],
+    "relevant_files": []
+  }
+}

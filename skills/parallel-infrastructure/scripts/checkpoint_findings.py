@@ -366,6 +366,7 @@ def write_manifest(
     dispatches: list[dict[str, Any]] | None = None,
     quorum_requested: int | None = None,
     quorum_received: int | None = None,
+    excluded_lanes: list[dict[str, Any]] | None = None,
 ) -> Path:
     """Write the review-cache manifest with the superset schema.
 
@@ -375,6 +376,9 @@ def write_manifest(
     ``quorum_received`` defaults to count of ``dispatches[].success=True``,
     or ``len(vendors)`` when ``dispatches`` is empty (in-process callers
     have no per-dispatch metadata, so all listed vendors count as received).
+
+    ``excluded_lanes`` (additive) lists lanes the probe cache kept out of this
+    round as ``{vendor, mode, reason, since}``; the key is omitted when empty.
     """
     if review_type not in _REVIEW_TYPES:
         raise ValueError(
@@ -459,6 +463,8 @@ def write_manifest(
         "quorum_received": quorum_received,
         "vendors": list(vendors),
     }
+    if excluded_lanes:
+        manifest["excluded_lanes"] = list(excluded_lanes)
     mpath = safe_dir / "review-manifest.json"
     _atomic_write_json(mpath, manifest)
     return mpath

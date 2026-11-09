@@ -1,0 +1,7 @@
+{
+  "findings": [],
+  "review_type": "validation",
+  "reviewer_vendor": "validate-feature",
+  "target": "add-adaptive-model-router",
+  "validated_commit": "081d76453690444f28a228079eb6d04008135d81"
+}

@@ -293,6 +293,23 @@ def _clean_pending_gate(value: Any) -> dict[str, Any] | None:
     if decision_id is None or isinstance(decision_id, str):
         if "decision_id" in value:
             cleaned["decision_id"] = _clean_optional_text(decision_id)
+    # dispatch-contract D9: one escalation entry per dedupe fingerprint lists
+    # every parked dispatch (with its projected generation) one answer resumes.
+    fingerprint = value.get("dedupe_fingerprint")
+    if isinstance(fingerprint, str) and re.fullmatch(r"[0-9a-f]{64}", fingerprint):
+        cleaned["dedupe_fingerprint"] = fingerprint
+    listed = value.get("dispatch_ids")
+    if isinstance(listed, list):
+        cleaned["dispatch_ids"] = [
+            {"dispatch_id": item["dispatch_id"], "lease_generation": item["lease_generation"]}
+            for item in listed[:64]
+            if isinstance(item, dict)
+            and isinstance(item.get("dispatch_id"), str)
+            and 1 <= len(item["dispatch_id"]) <= 256
+            and isinstance(item.get("lease_generation"), int)
+            and not isinstance(item["lease_generation"], bool)
+            and item["lease_generation"] >= 1
+        ]
     return cleaned
 
 
@@ -1165,6 +1182,9 @@ def _cmd_rehydrate(args: argparse.Namespace) -> int:
     mirror = _read_json_file(str(mirror_path))
     handoff_record = _extract_supervisor_record(handoff)
     prior, source = _select_prior_with_source(handoff, mirror)
+    from gate_router import reconcile_escalation_pending_gates
+
+    prior = reconcile_escalation_pending_gates(repo, prior, now=args.now)
     if handoff_record is None:
         print("Degraded: handoff", file=sys.stderr)
     elif source == "mirror":
@@ -1265,6 +1285,10 @@ def _cmd_gate_answer(args: argparse.Namespace) -> int:
     context: dict[str, Any] = {"verb": "cycle"}
     if args.dispatch_id:
         context["dispatch_id"] = args.dispatch_id
+    if args.lease_generation is not None:
+        context["lease_generation"] = args.lease_generation
+    if getattr(args, "resume_at", None):
+        context["resume_at"] = args.resume_at
 
     try:
         routed = gate_router.answer(
@@ -1341,6 +1365,14 @@ def main(argv: list[str] | None = None) -> int:
     p_gate_answer.add_argument("--decision", required=True, choices=["approved", "rejected"])
     p_gate_answer.add_argument("--note")
     p_gate_answer.add_argument("--dispatch-id", dest="dispatch_id")
+    p_gate_answer.add_argument("--lease-generation", dest="lease_generation", type=int)
+    p_gate_answer.add_argument(
+        "--resume-at", dest="resume_at", choices=["VALIDATE", "IMPLEMENT"],
+        help=(
+            "escalate_resume only: resume the child at VALIDATE, or at IMPLEMENT from "
+            "PLAN_REVIEW (operator_accept), instead of its parked phase."
+        ),
+    )
 
     p_gate_log = sub.add_parser("gate-log", help="Print the sidecar + child gate_decisions for a roadmap (D6).")
     p_gate_log.add_argument("--roadmap", required=True)

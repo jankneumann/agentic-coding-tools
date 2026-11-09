@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "feature_id": "restructure-openbao-per-agent-secrets",
+  "package_id": "wp-dispatch",
+  "plan_revision": 10,
+  "contracts_revision": 6,
+  "status": "completed",
+  "locks": {
+    "files": [
+      "skills/parallel-infrastructure/scripts/api_key_resolver.py"
+    ],
+    "keys": [
+      "feature:pca02:dispatch"
+    ]
+  },
+  "scope": {
+    "write_allow": [
+      "skills/parallel-infrastructure/scripts/api_key_resolver.py",
+      "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "skills/parallel-infrastructure/scripts/tests/test_api_key_resolver.py",
+      "skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py",
+      "openspec/changes/restructure-openbao-per-agent-secrets/tasks.md"
+    ],
+    "read_allow": [
+      "**"
+    ],
+    "deny": []
+  },
+  "files_modified": [
+    "openspec/changes/restructure-openbao-per-agent-secrets/tasks.md",
+    "skills/parallel-infrastructure/scripts/api_key_resolver.py",
+    "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+    "skills/parallel-infrastructure/scripts/tests/test_api_key_resolver.py",
+    "skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py"
+  ],
+  "scope_check": {
+    "passed": true,
+    "violations": []
+  },
+  "git": {
+    "base": {
+      "ref": "bb77ca4d"
+    },
+    "head": {
+      "commit": "60879fea",
+      "branch": "openspec/restructure-openbao-per-agent-secrets--wp-dispatch",
+      "worktree": "/home/jankneumann/Coding/agentic-coding-tools/.git-worktrees/restructure-openbao-per-agent-secrets--wp-dispatch"
+    }
+  },
+  "verification": {
+    "tier": "B",
+    "passed": true,
+    "steps": [
+      {
+        "name": "Dispatch resolver tests",
+        "kind": "command",
+        "command": "skills/.venv/bin/python -m pytest skills/parallel-infrastructure/scripts/tests/test_api_key_resolver.py skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py -q",
+        "exit_code": 0,
+        "passed": true,
+        "evidence": {
+          "artifacts": [],
+          "metrics": {
+            "test_count": 155
+          }
+        }
+      },
+      {
+        "name": "Strict OpenSpec",
+        "kind": "command",
+        "command": "openspec validate restructure-openbao-per-agent-secrets --strict",
+        "exit_code": 0,
+        "passed": true,
+        "evidence": {
+          "artifacts": [],
+          "metrics": {}
+        }
+      }
+    ]
+  },
+  "escalations": [],
+  "notes": "Focused resolver/dispatcher tests 155 passed; related dispatch suite 185 passed. Canonical direct registry projection negative tests pass. CLI-only dispatch works without the Bao package; configured Bao fails closed. Independent final audit passed; multi-vendor review quorum 3/4 with findings resolved in ledger. context_impact declaration is unmigrated."
+}

@@ -1,0 +1,87 @@
+{
+  "memories": [
+    {
+      "id": "m-loop",
+      "event_type": "capability_gap",
+      "summary": "implementer skipped the probe step",
+      "details": {"change_id": "fixture-change"},
+      "outcome": "failed",
+      "lessons": [],
+      "tags": ["capability_gap", "failure_type:skipped_step", "capability_gap:probe-omitted", "affected_skill:implement-feature", "severity:high", "source:self-reported"],
+      "created_at": "2026-09-11T11:00:00+00:00",
+      "session_id": "sess-impl-1",
+      "agent_id": "agent-impl",
+      "agent_type": "claude_code"
+    },
+    {
+      "id": "m-disc",
+      "event_type": "capability_gap",
+      "summary": "reviewer missed a contract drift",
+      "details": {},
+      "outcome": "failed",
+      "lessons": [],
+      "tags": ["capability_gap", "failure_type:missed_finding", "capability_gap:contract-drift", "affected_skill:implement-feature", "severity:medium", "source:coordinator-emitted"],
+      "created_at": "2026-09-13T10:00:00+00:00",
+      "session_id": "sess-rev-1",
+      "agent_id": "agent-rev",
+      "agent_type": "codex"
+    },
+    {
+      "id": "m-unknown",
+      "event_type": "capability_gap",
+      "summary": "no attribution available",
+      "details": {},
+      "outcome": "failed",
+      "lessons": [],
+      "tags": ["capability_gap", "failure_type:other", "capability_gap:orphan", "affected_skill:implement-feature", "severity:low", "source:session-log"],
+      "created_at": "2026-09-14T10:00:00+00:00",
+      "session_id": "sess-orphan"
+    },
+    {
+      "id": "m-dup-a",
+      "event_type": "capability_gap",
+      "summary": "same gap, session-log",
+      "details": {},
+      "outcome": "failed",
+      "lessons": [],
+      "tags": ["capability_gap", "failure_type:other", "capability_gap:shared-gap", "affected_skill:implement-feature", "severity:medium", "source:session-log"],
+      "created_at": "2026-09-14T11:00:00+00:00",
+      "session_id": "sess-shared"
+    },
+    {
+      "id": "m-dup-b",
+      "event_type": "capability_gap",
+      "summary": "same gap, transcript",
+      "details": {},
+      "outcome": "failed",
+      "lessons": [],
+      "tags": ["capability_gap", "failure_type:other", "capability_gap:shared-gap", "affected_skill:implement-feature", "severity:medium", "source:transcript-mined"],
+      "created_at": "2026-09-14T11:05:00+00:00",
+      "session_id": "sess-shared"
+    },
+    {
+      "id": "m-other-skill",
+      "event_type": "capability_gap",
+      "summary": "belongs to another skill",
+      "details": {},
+      "outcome": "failed",
+      "lessons": [],
+      "tags": ["capability_gap", "capability_gap:x", "affected_skill:validate-feature", "severity:low", "source:self-reported"],
+      "created_at": "2026-09-14T11:05:00+00:00",
+      "session_id": "sess-x"
+    },
+    {
+      "id": "m-too-old",
+      "event_type": "capability_gap",
+      "summary": "outside the window",
+      "details": {},
+      "outcome": "failed",
+      "lessons": [],
+      "tags": ["capability_gap", "capability_gap:old", "affected_skill:implement-feature", "severity:low", "source:self-reported"],
+      "created_at": "2026-01-01T00:00:00+00:00",
+      "session_id": "sess-old"
+    }
+  ],
+  "limit": 500,
+  "truncated": false
+}

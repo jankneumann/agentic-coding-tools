@@ -1,0 +1,10 @@
+350181cc6f082c6f91335e5f026cbb5a0ea9edcc64f3908fe6d9236c42007715  openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/README.md
+ed4e1d51ebfaabc80eb1666cf2f901904d7d7032862f1dc20381bd45f28af744  openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/config/routing.schema.json
+5ffc1ee5789601eb16e164b1a9e0edd5722ecf47aa698d8e5b3d5636584ea9ff  openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/events/routing-decision-record.schema.json
+aa9bdebe20de7c9a01a5a19da9b262e5439bee9e5da28caa8b23a01eb8fa2e3f  openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/events/routing-decision.schema.json
+3f078e476fcb8020877b580f337a43108add96d5e53af95ac6e33366888368a4  openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/openapi/v1.1.yaml
+5590a2cabde896b85617cdc6c3031e0519fdebda32f8146f153f782fd47c4bf9  openspec/changes/implement-the-task-router-vendor-x-location-x-model/design.md
+92aea981eb17ea6eb7a11c57e804cd5eff29877bb6d04d4cd98b25a6ff4f2c98  openspec/changes/implement-the-task-router-vendor-x-location-x-model/proposal.md
+412055fd0003dbaddc11d304a1f40b9b64dcf673c338b3034156f4b8d94f07dc  openspec/changes/implement-the-task-router-vendor-x-location-x-model/specs/task-routing/spec.md
+546720fff9b0dd91dc7969412fc781bf9985c40e340263a9d64d7d8037d438d4  openspec/changes/implement-the-task-router-vendor-x-location-x-model/tasks.md
+5bc8de57a594f40ec4e9edde515f143a713863ed8eaafffcbd0af223e58e8b7c  openspec/changes/implement-the-task-router-vendor-x-location-x-model/work-packages.yaml

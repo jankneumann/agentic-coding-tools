@@ -1,0 +1,484 @@
+schema_version: 1
+
+feature:
+  id: ownership-map
+  title: "Human principals in the registry and the git-native ownership map (multiplayer-collaboration ri-02)"
+  plan_revision: 2
+  created_by: claude-code
+  # No running service: a library skill, a coordinator schema extension, config and docs.
+  # validate-feature skips deploy/smoke/scan phases and runs spec compliance + tests.
+  deployable: false
+
+contracts:
+  revision: 1
+  # No OpenAPI surface (see contracts/README.md); the schema requires an openapi block, so
+  # `primary` points at the README documenting that decision. The JSON schemas are the real
+  # coordination boundary between packages.
+  openapi:
+    primary: "openspec/changes/ownership-map/contracts/README.md"
+    files:
+      - "openspec/changes/ownership-map/contracts/README.md"
+      - "openspec/changes/ownership-map/contracts/schemas/owners.schema.json"
+      - "openspec/changes/ownership-map/contracts/schemas/human-principals.schema.json"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  # ─────────────────────────────────────────────────────────────────────
+  # wp-contracts — promote the two schemas to their stable homes (DAG root)
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp-contracts
+    title: "Contracts — owners.schema.json and human-principals.schema.json promoted and pinned"
+    task_type: contracts
+    description: |
+      tasks.md 1.1-1.3. Promote contracts/schemas/*.schema.json to openspec/schemas/ and to
+      skills/ownership-runtime/install_assets/openspec/schemas/; add fixture instances, the
+      byte-identity test, and the skills/tests/ownership-runtime package skeleton
+      (__init__.py, conftest.py fixture builder) so wp-registry/wp-resolver/wp-codeowners only
+      add modules to an existing package (design D2, D12). Every downstream package validates
+      against the promoted copies, never the change-local drafts.
+    role: contracts-author
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "openspec/schemas/owners.schema.json"
+        - "openspec/schemas/human-principals.schema.json"
+      keys:
+        - "contract:owners-schema"
+        - "contract:human-principals-schema"
+      ttl_minutes: 60
+      reason: "Ownership map and human principal schemas for downstream packages"
+    scope:
+      write_allow:
+        - "openspec/changes/ownership-map/contracts/**"
+        - "openspec/schemas/owners.schema.json"
+        - "openspec/schemas/human-principals.schema.json"
+        - "skills/ownership-runtime/install_assets/**"
+        - "skills/tests/ownership-runtime/__init__.py"
+        - "skills/tests/ownership-runtime/conftest.py"
+        - "skills/tests/ownership-runtime/test_schema_copies.py"
+        - "skills/tests/ownership-runtime/fixtures/**"
+      read_allow:
+        - "openspec/**"
+        - "skills/**"
+        - "docs/guides/**"
+    worktree:
+      name: ownership-map-wp-contracts
+      mode: isolated
+    timeout_minutes: 30
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Schemas parse and the three copies are byte-identical"
+          kind: command
+          command: "uv run pytest tests/ownership-runtime/test_schema_copies.py -q"
+          cwd: "skills"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["contracts_valid"]
+    metadata:
+      loc_estimate: 100
+      complexity: low
+      package_kind: config
+    context_impact:
+      surfaces: [apis, capabilities, documentation, semantic_code]
+    inputs: {}
+    outputs:
+      result_keys: ["contracts_valid"]
+      artifacts:
+        - "openspec/schemas/owners.schema.json"
+        - "openspec/schemas/human-principals.schema.json"
+
+  # ─────────────────────────────────────────────────────────────────────
+  # wp-registry — agents.yaml humans block, HumanEntry loader, invariant rule 6
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp-registry
+    title: "Registry extension — humans: block, HumanEntry, namespace collision, invariant rule 6"
+    task_type: backend
+    description: |
+      tasks.md 2.1-2.6. Add HUMAN_PRINCIPAL_SCHEMA and the optional `humans` property to
+      AGENTS_SCHEMA, the HumanEntry dataclass, load_human_principals(), and the agent/human
+      namespace collision check (design D1); pin the inline schema to the promoted JSON (D2);
+      extend test_registry_projection.py with rule 6 and its negative test; declare the
+      maintainer as the first human principal in agents.yaml. load_agents_config() keeps its
+      return type; no projection code changes.
+    role: implementer
+    priority: 2
+    depends_on: [wp-contracts]
+    locks:
+      files:
+        - "agent-coordinator/src/agents_config.py"
+        - "agent-coordinator/agents.yaml"
+        - "agent-coordinator/tests/test_registry_projection.py"
+      keys:
+        - "feature:ownership-map:registry"
+      ttl_minutes: 120
+      reason: "Human principal registry extension"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/agents_config.py"
+        - "agent-coordinator/agents.yaml"
+        - "agent-coordinator/tests/test_human_principals.py"
+        - "agent-coordinator/tests/test_registry_projection.py"
+      read_allow:
+        - "agent-coordinator/**"
+        - "openspec/**"
+        - "packages/openbao-credentials/**"
+        - "docs/**"
+    worktree:
+      name: ownership-map-wp-registry
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Human principal, agents_config and projection invariant tests pass"
+          kind: command
+          command: "uv run pytest tests/test_human_principals.py tests/test_agents_config.py tests/test_registry_projection.py tests/test_profile_sync.py -q"
+          cwd: "agent-coordinator"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["registry_green"]
+        - name: "Types and lint clean for the touched module"
+          kind: command
+          command: "uv run mypy --strict src/agents_config.py && uv run ruff check src/agents_config.py tests/test_human_principals.py tests/test_registry_projection.py"
+          cwd: "agent-coordinator"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["registry_static_green"]
+    metadata:
+      loc_estimate: 320
+      complexity: medium
+      package_kind: data_model
+    context_impact:
+      surfaces: [capabilities, semantic_code]
+    inputs: {}
+    outputs:
+      result_keys: ["registry_green", "registry_static_green"]
+      artifacts:
+        - "agent-coordinator/src/agents_config.py"
+        - "agent-coordinator/agents.yaml"
+
+  # ─────────────────────────────────────────────────────────────────────
+  # wp-resolver — principals.py, owners.py, check_owners.py (skills/ownership-runtime)
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp-resolver
+    title: "Resolver — principals reader, solo derivation, owners.yaml loader, resolution, check CLI"
+    task_type: backend
+    description: |
+      tasks.md 3.1-3.7. Build skills/ownership-runtime/scripts/{principals,owners,check_owners}.py
+      against the promoted schemas: registry location order (D10), solo principal derivation
+      (D5), mode (D6), OwnershipContext/OwnerSet with most-specific-wins path ranking (D4),
+      fail-closed OwnershipConfigError (D4, D13), and the check CLI with error/warning
+      semantics (D9). Zero imports from agent-coordinator; pyyaml + jsonschema only (D7).
+      Runs in parallel with wp-registry: scopes are disjoint, and resolver tests use tmp_path
+      fixture registries rather than the real agents.yaml.
+    role: implementer
+    priority: 2
+    depends_on: [wp-contracts]
+    locks:
+      files:
+        - "skills/ownership-runtime/scripts/owners.py"
+        - "skills/ownership-runtime/scripts/principals.py"
+        - "skills/ownership-runtime/scripts/check_owners.py"
+      keys:
+        - "feature:ownership-map:resolver"
+      ttl_minutes: 120
+      reason: "Ownership resolver library and check"
+    scope:
+      write_allow:
+        - "skills/ownership-runtime/scripts/__init__.py"
+        - "skills/ownership-runtime/scripts/owners.py"
+        - "skills/ownership-runtime/scripts/principals.py"
+        - "skills/ownership-runtime/scripts/check_owners.py"
+        - "skills/tests/ownership-runtime/test_principals.py"
+        - "skills/tests/ownership-runtime/test_owners.py"
+        - "skills/tests/ownership-runtime/test_check_owners.py"
+        - "skills/tests/ownership-runtime/test_coordinator_independence.py"
+      read_allow:
+        - "skills/**"
+        - "openspec/**"
+        - "docs/guides/**"
+    worktree:
+      name: ownership-map-wp-resolver
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Resolver, principals, check and independence tests pass"
+          kind: command
+          command: "uv run pytest tests/ownership-runtime/test_principals.py tests/ownership-runtime/test_owners.py tests/ownership-runtime/test_check_owners.py tests/ownership-runtime/test_coordinator_independence.py -q"
+          cwd: "skills"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["resolver_green"]
+        - name: "Lint clean"
+          kind: command
+          command: "uv run ruff check ownership-runtime/scripts tests/ownership-runtime"
+          cwd: "skills"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["resolver_lint_green"]
+    metadata:
+      loc_estimate: 650
+      complexity: medium
+      package_kind: algorithm
+    context_impact:
+      surfaces: [capabilities, semantic_code]
+    inputs: {}
+    outputs:
+      result_keys: ["resolver_green", "resolver_lint_green"]
+      artifacts:
+        - "skills/ownership-runtime/scripts/owners.py"
+        - "skills/ownership-runtime/scripts/principals.py"
+        - "skills/ownership-runtime/scripts/check_owners.py"
+
+  # ─────────────────────────────────────────────────────────────────────
+  # wp-codeowners — emit and reconcile
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp-codeowners
+    title: "CODEOWNERS projection — emit with specificity ordering, reconcile with probe set"
+    task_type: backend
+    description: |
+      tasks.md 4.1-4.4. skills/ownership-runtime/scripts/codeowners.py: managed block emit
+      ordered by ascending specificity so GitHub last-match-wins agrees with the resolver,
+      @handle rendering with fail-closed missing-handle error, unmanaged text preserved;
+      reconcile with CODEOWNERS-semantics matcher, probe set, disagreement and stale detection
+      (design D8). Depends on wp-resolver's OwnershipContext.
+    role: implementer
+    priority: 3
+    depends_on: [wp-resolver]
+    locks:
+      files:
+        - "skills/ownership-runtime/scripts/codeowners.py"
+      keys:
+        - "feature:ownership-map:codeowners"
+      ttl_minutes: 120
+      reason: "CODEOWNERS emit/reconcile"
+    scope:
+      write_allow:
+        - "skills/ownership-runtime/scripts/codeowners.py"
+        - "skills/tests/ownership-runtime/test_codeowners_emit.py"
+        - "skills/tests/ownership-runtime/test_codeowners_reconcile.py"
+      read_allow:
+        - "skills/**"
+        - "openspec/**"
+        - ".github/**"
+    worktree:
+      name: ownership-map-wp-codeowners
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Emit and reconcile tests pass"
+          kind: command
+          command: "uv run pytest tests/ownership-runtime/test_codeowners_emit.py tests/ownership-runtime/test_codeowners_reconcile.py -q"
+          cwd: "skills"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["codeowners_green"]
+    metadata:
+      loc_estimate: 400
+      complexity: medium
+      package_kind: algorithm
+    context_impact:
+      surfaces: [semantic_code]
+    inputs: {}
+    outputs:
+      result_keys: ["codeowners_green"]
+      artifacts:
+        - "skills/ownership-runtime/scripts/codeowners.py"
+
+  # ─────────────────────────────────────────────────────────────────────
+  # wp-dogfood-docs — owners.yaml, CODEOWNERS, guide row, SKILL.md, manifest, catalogue
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp-dogfood-docs
+    title: "Dogfood and docs — repository owners.yaml, generated CODEOWNERS, state-artifacts row, SKILL.md, manifest"
+    task_type: docs
+    description: |
+      tasks.md 5.1-5.7. Author openspec/owners.yaml for this repository (maintainer as
+      default_owner plus a representative set of explicit assignments exercising every resolver
+      branch — not exhaustive: the repository is in solo mode, so unowned_* findings are
+      suppressed per design D14 and the file must not churn with every new capability or
+      roadmap item), generate .github/CODEOWNERS, add the repository-level invariant test, the
+      state-artifacts.md row (D11) with its test, SKILL.md documenting the import surface and
+      mode contract, install-manifest and skills-catalogue entries (D7), and the solo-mode
+      regression run with the map moved aside.
+    role: documenter
+    priority: 4
+    depends_on: [wp-registry, wp-codeowners]
+    locks:
+      files:
+        - "openspec/owners.yaml"
+        - ".github/CODEOWNERS"
+        - "docs/guides/state-artifacts.md"
+        - "skills/install-manifest.json"
+      keys:
+        - "feature:ownership-map:dogfood"
+      ttl_minutes: 90
+      reason: "Repository ownership map, projection and documentation"
+    scope:
+      write_allow:
+        - "openspec/owners.yaml"
+        - ".github/CODEOWNERS"
+        - "docs/guides/state-artifacts.md"
+        - "docs/skills-catalogue.md"
+        - "skills/ownership-runtime/SKILL.md"
+        - "skills/install-manifest.json"
+        - "skills/tests/ownership-runtime/test_repository_invariant.py"
+        - "skills/tests/state-artifacts/test_state_artifacts_guide.py"
+      read_allow:
+        - "skills/**"
+        - "openspec/**"
+        - "docs/**"
+        - "agent-coordinator/agents.yaml"
+        - ".github/**"
+    worktree:
+      name: ownership-map-wp-dogfood-docs
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Repository invariant, state-artifacts guide and install manifest tests pass"
+          kind: command
+          command: "uv run pytest tests/ownership-runtime/test_repository_invariant.py tests/state-artifacts tests/install_sh/test_install_manifest.py -q"
+          cwd: "skills"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["dogfood_green"]
+        - name: "Install payload check passes"
+          kind: command
+          command: "bash skills/install.sh --check"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["install_check_green"]
+    metadata:
+      loc_estimate: 220
+      complexity: low
+      package_kind: config
+    context_impact:
+      surfaces: [documentation, semantic_code]
+    inputs: {}
+    outputs:
+      result_keys: ["dogfood_green", "install_check_green"]
+      artifacts:
+        - "openspec/owners.yaml"
+        - ".github/CODEOWNERS"
+        - "skills/ownership-runtime/SKILL.md"
+
+  # ─────────────────────────────────────────────────────────────────────
+  # wp-integration — merge, full gates (runs alone; scope is the union of the above)
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp-integration
+    title: "Integration — merge package branches, full skills + coordinator gates, openspec validate"
+    task_type: integration
+    description: |
+      tasks.md 6.1. Merge package branches; run skills/install.sh --check,
+      openspec validate --strict --all, the full skills suite, and the agent-coordinator unit
+      suite with mypy --strict and ruff; fix integration fallout within the union of the
+      package scopes. Runs after every other package, so its scope overlaps none of them at
+      the same time.
+    role: integrator
+    priority: 6
+    depends_on: [wp-contracts, wp-registry, wp-resolver, wp-codeowners, wp-dogfood-docs]
+    locks:
+      files: []
+      keys:
+        - "feature:ownership-map:integrate"
+      ttl_minutes: 120
+      reason: "Feature integration"
+    scope:
+      write_allow:
+        - "openspec/changes/ownership-map/**"
+        - "openspec/schemas/owners.schema.json"
+        - "openspec/schemas/human-principals.schema.json"
+        - "openspec/owners.yaml"
+        - ".github/CODEOWNERS"
+        - "agent-coordinator/src/agents_config.py"
+        - "agent-coordinator/agents.yaml"
+        - "agent-coordinator/tests/test_human_principals.py"
+        - "agent-coordinator/tests/test_registry_projection.py"
+        - "skills/ownership-runtime/**"
+        - "skills/tests/ownership-runtime/**"
+        - "skills/tests/state-artifacts/test_state_artifacts_guide.py"
+        - "skills/install-manifest.json"
+        - "docs/guides/state-artifacts.md"
+        - "docs/skills-catalogue.md"
+      read_allow:
+        - "agent-coordinator/**"
+        - "skills/**"
+        - "openspec/**"
+        - "docs/**"
+        - ".github/**"
+    context_impact:
+      surfaces: [apis, capabilities, documentation, semantic_code]
+    worktree:
+      name: ownership-map-wp-integration
+      mode: shared
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Skills suite green"
+          kind: command
+          command: "uv run pytest tests/ -q"
+          cwd: "skills"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["skills_suite_green"]
+        - name: "Coordinator unit suite, types and lint green"
+          kind: command
+          command: "uv run pytest -m 'not e2e and not integration' -q && uv run mypy --strict src/ && uv run ruff check ."
+          cwd: "agent-coordinator"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["coordinator_suite_green"]
+        - name: "OpenSpec and install payload valid"
+          kind: command
+          command: "openspec validate --strict --all && bash skills/install.sh --check"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["artifacts_valid"]
+    metadata:
+      loc_estimate: 40
+      complexity: low
+      package_kind: integration
+    inputs: {}
+    outputs:
+      result_keys: ["skills_suite_green", "coordinator_suite_green", "artifacts_valid"]
+      artifacts: []

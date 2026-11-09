@@ -1,0 +1,7 @@
+{
+  "change_id": "add-the-adapter-backed-test-substitute-and-dry-run-policy",
+  "validator_vendors": [],
+  "worker_vendors": [
+    "claude"
+  ]
+}

@@ -1,0 +1,218 @@
+{
+  "text": "{\"findings\":[]}{\"findings\":[]}{\"findings\":[]}{\"findings\":[]}{\"findings\":[]}{\"findings\":[{\"id\":1,\"type\":\"contract_mismatch\",\"criticality\":\"high\",\"description\":\"Critical: `contracts/openapi/v1.1.yaml` regresses dg-00 `weight_overrides` typing. The dg-00 contract at `openspec/changes/add-adaptive-model-router/contracts/openapi/v1.yaml` pins `weight_overrides` as an object with `w_quality`/`w_cost`/`w_latency`, and live `RoutingService` reads those attributes in `agent-coordinator/src/model_routing/api.py`. The v1.1 overlay collapses it to `{type: [object, \\\"null\\\"], default: null}`, so an overlay that claims to extend rather than replace the existing operation (`contracts/README.md`) would accept arbitrary objects and, if used to regenerate models, break `_weights()`. Restore the dg-00 typed shape beside the additive `routing_profile`.\",\"disposition\":\"fix\",\"axis\":\"compatibility\",\"severity\":\"critical\",\"resolution\":\"Replace the untyped `weight_overrides` entry in `contracts/openapi/v1.1.yaml` with the dg-00 `anyOf` object/`null` schema that names `w_quality`, `w_cost`, and `w_latency`.\",\"file_path\":\"openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/openapi/v1.1.yaml\",\"line_range\":{\"start\":129,\"end\":129},\"evidence_class\":\"deterministic\",\"existing_code\":\"weight_overrides: {type: [object, \\\"null\\\"], default: null}\"},{\"id\":2,\"type\":\"spec_gap\",\"criticality\":\"medium\",\"description\":\"Nit: Task 1.5 and design D7 require a bounded persisted-request projection, but no contract schema pins it. `tasks.md` 1.5 says “Pin bounded persistence projection … in contracts”; `design.md` D7 says the sanitized `request` stores only declared task signals and the strict routing profile and never permissive extras such as `write_allow`; `specs/task-routing/spec.md` “Persistence projection is bounded” repeats that SHALL. Yet `contracts/` only types the live request (`task_signals.additionalProperties: true` in `openapi/v1.1.yaml`) and the link-only audit event—there is no `PersistedSelectModelRequest` (or equivalent) allowlist schema for `routing_decisions.request`. Without it, redaction stays prose-only while today’s service persists `request.model_dump()` verbatim.\",\"disposition\":\"fix\",\"axis\":\"security\",\"severity\":\"nit\",\"resolution\":\"Add a strict persisted-request schema under `contracts/` (declared `task_signals` fields + optional `routing_profile` only; `additionalProperties: false`), reference it from task 1.5/contract tests, and require a test that a request carrying `write_allow` persists without that extra.\",\"package_id\":\"wp-contract-config\",\"file_path\":\"openspec/changes/implement-the-task-router-vendor-x-location-x-model/tasks.md\",\"line_range\":{\"start\":12,\"end\":14},\"evidence_class\":\"judgment\",\"existing_code\":\"- [ ] 1.5 Pin bounded persistence projection, typed exclusions, and exact local-fallback\\n  invariants in contracts.\"},{\"id\":3,\"type\":\"architecture\",\"criticality\":\"medium\",\"description\":\"Optional: Design D8 places the reusable local fallback helper in `skills/coordination-bridge/scripts/routing_fallback.py` and says it “is used by bridge and HTTP-proxy degradation paths,” but packaging that path into the coordinator image is unassigned. `agent-coordinator/src/http_proxy.py` runs in the container under the Dockerfile COPY contract; importing the skills helper needs a new `COPY` and env-based config resolution (`AGENTS_YAML`/`ROUTING_CONFIG`), because there is no discovered checkout root in the image. `work-packages.yaml` locks `agent-coordinator/Dockerfile` to `wp-contract-config`, which finishes before `wp-transports-fallback` (the only package allowed to edit `http_proxy.py`). As drawn, the transport package cannot land the import it is told to use.\",\"disposition\":\"fix\",\"axis\":\"architecture\",\"severity\":\"optional\",\"resolution\":\"Either scope local fallback to the skills-side bridge only (drop the HTTP-proxy claim), or move a coordinator-local helper under `agent-coordinator/src/`, assign the Dockerfile `COPY`/env resolution to the package that needs it, and keep skills as a thin caller.\",\"package_id\":\"wp-transports-fallback\",\"file_path\":\"openspec/changes/implement-the-task-router-vendor-x-location-x-model/design.md\",\"line_range\":{\"start\":164,\"end\":167},\"evidence_class\":\"judgment\",\"existing_code\":\"The reusable helper lives in\\n`skills/coordination-bridge/scripts/routing_fallback.py`, resolves repository config from\\nan explicit root or discovered checkout root, and is used by bridge and HTTP-proxy\\ndegradation paths.\"},{\"id\":4,\"type\":\"spec_gap\",\"criticality\":\"medium\",\"description\":\"Nit: Local fallback selection is under-specified for deterministic tests. `design.md` D8 says the helper combines the caller’s already-resolved static provider/model with the fallback dimension order and that the fallback table chooses among the lane’s exact configured values, while `contracts/config/routing.schema.json` only requires `location_order` and `isolation_order` (no dispatch-mode order). The plan does not state: (a) whether local evaluation applies `rules` / `defaults.phase_dispatch_modes` or only the `fallback` table; (b) how one lane is chosen when several `agents.yaml` lanes share the caller’s provider type (e.g. local vs cloud); (c) what happens when the phase dispatch default is not in that lane’s configured modes; (d) the failure when no lane matches. Spec scenario “Coordinator is unreachable” only pins provenance flags (`fallback=true`, `source=local-static`, `persisted=false`, `durable_audit=false`, null catalog key).\",\"disposition\":\"fix\",\"axis\":\"correctness\",\"severity\":\"nit\",\"resolution\":\"Document the local selection order and tie-break (e.g. apply rules/defaults, then `location_order`/`isolation_order`, then `agent_id` ascending), define dispatch-mode choice when the phase default is unsupported, and name the no-lane failure mode so tasks 4.1–4.2 can be written first.\",\"package_id\":\"wp-transports-fallback\",\"file_path\":\"openspec/changes/implement-the-task-router-vendor-x-location-x-model/design.md\",\"line_range\":{\"start\":150,\"end\":163},\"evidence_class\":\"judgment\",\"existing_code\":\"then combines the caller's already-resolved static provider/model with the fallback\\ndimension order.\"},{\"id\":5,\"type\":\"architecture\",\"criticality\":\"medium\",\"description\":\"Optional: `wp-contract-config` cannot pass its own verification as scoped. `work-packages.yaml` requires exit 0 on `test_task_routing_contracts.py` and `test_routing_policy_config.py` for “OpenAPI/runtime parity” and loader validation, but its `write_allow` covers only `contracts/**`, `routing.yaml`, `Dockerfile`, and those tests—not `agent-coordinator/src/model_routing/api.py` or `routing_policy.py`, which are locked to `wp-policy-service`. dg-00 avoided this by shipping `contracts/generated/models.py` and testing parity against it (`tests/model_routing/test_contracts_generated.py`); this overlay names no generated models. As written, the first package must either edit files outside its scope or fail verification.\",\"disposition\":\"fix\",\"axis\":\"architecture\",\"severity\":\"optional\",\"resolution\":\"Add generated models under `contracts/generated/` (covered by `contracts/**`) and keep contract/schema-only tests in `wp-contract-config`, or move runtime parity and Python loader tests into `wp-policy-service`.\",\"package_id\":\"wp-contract-config\",\"file_path\":\"openspec/changes/implement-the-task-router-vendor-x-location-x-model/work-packages.yaml\",\"line_range\":{\"start\":43,\"end\":61},\"evidence_class\":\"judgment\",\"existing_code\":\"write_allow:\\n        - \\\"openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/**\\\"\\n        - \\\"agent-coordinator/routing.yaml\\\"\\n        - \\\"agent-coordinator/Dockerfile\\\"\\n        - \\\"agent-coordinator/tests/model_routing/test_task_routing_contracts.py\\\"\\n        - \\\"agent-coordinator/tests/model_routing/test_routing_policy_config.py\\\"\\n        - \\\"agent-coordinator/tests/test_dockerfile_routing_config.py\\\"\"},{\"id\":6,\"type\":\"compatibility\",\"criticality\":\"low\",\"description\":\"Nit: Empty feasible-set behavior is contracted only as a renamed 503 detail. `contracts/openapi/v1.1.yaml` 503 text invents `no-feasible-routing-assignment`, but `specs/task-routing/spec.md` scenarios cover `routing-registry-unavailable` and `routing-durability-unavailable` only, and `design.md` D5 never states the HTTP/MCP outcome when every lane/model pair is excluded. Live dg-00 raises `RoutingUnavailableError(\\\"no feasible model-routing candidate\\\")` (`api.py` ~311) and MCP tests assert that string. Renaming the detail on the existing operation is a wire change D1 does not call out.\",\"disposition\":\"fix\",\"axis\":\"compatibility\",\"severity\":\"nit\",\"resolution\":\"Add a spec scenario for the empty feasible set, either keep the dg-00 detail string or explicitly document the rename and the dg-00 tests to update.\",\"file_path\":\"openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/openapi/v1.1.yaml\",\"line_range\":{\"start\":29,\"end\":34},\"evidence_class\":\"judgment\",\"existing_code\":\"'503':\\n          description: >\\n            Registry unavailable, no feasible exact lane/model assignment, or atomic\\n            decision/audit durability unavailable. The response detail distinguishes\\n            routing-registry-unavailable, no-feasible-routing-assignment, and\\n            routing-durability-unavailable.\"},{\"id\":7,\"type\":\"contract_mismatch\",\"criticality\":\"low\",\"description\":\"Nit: `Candidate` provenance placement disagrees with design D6. D6 says selected/alternatives carry additive `assignment`, while assignment/provenance are retained at response top level for convenience. `contracts/openapi/v1.1.yaml` also puts optional `provenance` (and a top-level `agent_id`) on every `Candidate`, duplicating `assignment.agent_id` and leaving parity tests without a single answer for whether `selected.provenance` is populated, null, or mirrored.\",\"disposition\":\"fix\",\"axis\":\"readability\",\"severity\":\"nit\",\"resolution\":\"Either drop `Candidate.provenance`/`Candidate.agent_id` from the overlay and keep lane identity only under `assignment`, or update D6 to state exactly which provenance fields are populated on `selected` vs alternatives.\",\"file_path\":\"openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/openapi/v1.1.yaml\",\"line_range\":{\"start\":146,\"end\":156},\"evidence_class\":\"judgment\",\"existing_code\":\"agent_id: {type: [string, \\\"null\\\"], default: null}\\n        assignment:\\n          anyOf:\\n            - {$ref: '#/components/schemas/RoutingAssignment'}\\n            - {type: \\\"null\\\"}\\n          default: null\\n        provenance:\"},{\"id\":8,\"type\":\"observability\",\"criticality\":\"low\",\"description\":\"FYI: Successful coordinator decisions are durably linked (`design.md` D7; `contracts/events/routing-decision.schema.json`), but the plan defines no operator-facing signals for fail-closed outcomes or local-fallback activations (`routing-registry-unavailable`, `no-feasible-routing-assignment`, `routing-durability-unavailable`, `source=local-static`). Detection would rely on log/audit scraping unless metrics or structured warnings are added later.\",\"disposition\":\"accept\",\"axis\":\"observability\",\"severity\":\"fyi\",\"resolution\":\"Accept for dg-04 if structured WARNING logs are enough; otherwise add bounded counters/log fields in a follow-up.\",\"file_path\":\"openspec/changes/implement-the-task-router-vendor-x-location-x-model/design.md\",\"line_range\":{\"start\":124,\"end\":141},\"evidence_class\":\"judgment\"},{\"id\":9,\"type\":\"correctness\",\"criticality\":\"low\",\"description\":\"Plan correctly forbids a second routing surface: `proposal.md` non-goals and `design.md` D1/`contracts/README.md` state that DG-04 extends only `POST /routing/select_model` and `select_model_for_task`, and `specs/task-routing/spec.md` requires that no `POST /route/task` route be registered.\",\"disposition\":\"accept\",\"axis\":\"compatibility\",\"severity\":\"none\",\"file_path\":\"openspec/changes/implement-the-task-router-vendor-x-location-x-model/proposal.md\",\"line_range\":{\"start\":50,\"end\":52},\"evidence_class\":\"judgment\",\"existing_code\":\"- No `/route/task` endpoint or parallel scoring implementation.\"},{\"id\":10,\"type\":\"correctness\",\"criticality\":\"low\",\"description\":\"Plan correctly keeps exact dg-01 association and feasibility-before-utility: `design.md` D4–D5 and `specs/task-routing/spec.md` require in-process `VendorRegistryService`, the four-field `(catalog_vendor, model, endpoint_kind, base_url)` join, no name/publisher heuristics, registry failure fail-closed as `routing-registry-unavailable`, and only feasible pairs entering the existing dg-00 scorer.\",\"disposition\":\"accept\",\"axis\":\"architecture\",\"severity\":\"none\",\"file_path\":\"openspec/changes/implement-the-task-router-vendor-x-location-x-model/design.md\",\"line_range\":{\"start\":49,\"end\":105},\"evidence_class\":\"judgment\"},{\"id\":11,\"type\":\"correctness\",\"criticality\":\"low\",\"description\":\"Plan correctly makes local fallback provenance honest and coordinator durability atomic: `specs/task-routing/spec.md` requires `fallback=true`, `source=local-static`, `persisted=false`, `durable_audit=false`, and null catalog key; `design.md` D7 plus migration `042_atomic_routing_audit.sql` / tasks 3.3–3.5 require an awaited decision+audit RPC with `routing-durability-unavailable` rollback rather than fire-and-forget audit; D9 keeps dg-05/dg-06 out of scope.\",\"disposition\":\"accept\",\"axis\":\"observability\",\"severity\":\"none\",\"file_path\":\"openspec/changes/implement-the-task-router-vendor-x-location-x-model/specs/task-routing/spec.md\",\"line_range\":{\"start\":151,\"end\":159},\"evidence_class\":\"judgment\",\"existing_code\":\"- **THEN** the local helper SHALL return the normal assignment shape with\\n  `fallback=true`, `source=local-static`, `persisted=false`, and\\n  `durable_audit=false`\\n- **AND** SHALL NOT embed a roster, synthesize live availability, or claim a coordinator\\n  audit record exists\\n- **AND** its catalog key SHALL be null because no live catalog join occurred.\"}]}",
+  "stopReason": "end_turn",
+  "sessionId": "01a0ac8d-9f54-76e2-8991-f481f79d2860",
+  "requestId": "6f5fe7b7-648b-4f56-855e-6a7e9449444a",
+  "thought": "The user wants me to independently review an OpenSpec plan for a change called `implement-the-task-router-vendor-x-location-x-model`. I need to read the relevant files and produce a structured JSON fi...I need to independently review the plan artifacts. The user wants me to read proposal.md, design.md, tasks.md, work-packages.yaml, specs/task-routing/spec.md, and every file under contracts/. Let me r...Let me read all the contract files carefully to check for consistency with the specs and design.I've read the main plan artifacts. Let me dig deeper into potential issues by comparing against:\n{\n  \"findings\": [\n    {\n      \"id\": 1,\n      \"type\": \"contract_mismatch\",\n      \"criticality\": \"high\",\n      \"description\": \"OpenAPI SelectModelRequest schema in contracts/ has additionalProperties: false, but design.md D2 explicitly states legacy task_signals remain accepted with permissive extra-field behavior. task_signals itself uses additionalProperties: true, but top-level request schema conflicts with stated legacy acceptance.\",\n      \"axis\": \"compatibility\",\n      \"severity\": \"nit\",\n      \"disposition\": \"fix\",\n      \"file\": \"contracts/openapi.yaml\"\n    },\n    {\n      \"id\": 2,\n       \"type\": \"spec_gap\",\n       \"criticality\": \"medium\",\n       \"description\": \"routing.yaml policy versioned but no explicit cedar: namespace documented in specs/task-routing/spec.md or design.md D5. cedar: reasons appear in pattern but no definition or usage.\",\n       \"axis\": \"correctness\",\n        \"severity\": \"optional\",\n        \"disposition\": \"fix\",\n        \"file\": \"specs/task-routing/spec.md\"\n    },\n    {\n      \"id\": 3,\n      \"type\": \"architecture\",\n      \"criticality\": \"high\",\n      \"description\": \" 3.2 task return spans both wp-policy-service (api.py) and wp-transports-fallback (coordination_mcp.py). Ownership split creates integration risk for additive provenance across HTTP/MCP.\",\n      \"axis\": \"architecture\",\n      \"severity\": \"critical\",\n      \"disposition\": \"fix\",\n      \" file\": \"work-packages.yaml\"\n    },\n    {\n      \"id\": 4,\n      \"type\": \"behavioral_failure\",\n      \"criticality\": \"high\",\n      \"description\": \"SelectModelRequest additionalProperties: false breaks dg-00 callers sending extra top-level fields.Looking at the current plan carefully - plan_revision is 3, and design.md D5 now says:\nGood - `cedar:modality-ineligible` is an actual dg-00 reason, so the cedar namespace is intentional (not unexplained). The pattern now accepts unavailable, quota:exhausted, and namespaced reasons incl...{\n  \"findings\": [\n    {\n      \"id\": 1,\n      \"type\": \"contract_mismatch\",\n      \"axis\": \"compatibility\",\n      \"criticality\": \"high\",\n      \"severity\": \"nit\",\n      \"description\": \"SelectModelRequest additionalProperties: false in v1.Looking at the CURRENT revision (plan_revision: 3), many round-1 and some round-2 findings appear to have been addressed. Let me carefully verify which issues remain in the CURRENT artifacts.\n{\n  \"findings\": [\n    {\n      \"id\": 1,\n      \"type\": \"contract_mismatch\",\n      \"criticality\": \"high\",\n      \"severity\": \"nit\",\n      \"axis\": \"compatibility\",\n      \"description\": \"OpenAPI Candidate schema allows optional provenance field (default null) while D6 requires additive assignment/provenance on candidates and top-level provenance for selected candidate. This creates ambiguity for consumers expecting exact D6 shape.\",\n      \"disposition\": \"fix\",\n      \"axis\": \"compatibility\",\n      \"file\": \"specs/task-routing/spec.Let me read the dg-04 roadmap item fully and also check http_proxy's select_model behavior for fallback, and weight_overrides schema narrowing.Key findings emerging from careful analysis of CURRENT revision 3:\n{\n  \"findings\": [\n    {\n      \"id\": 1,\n      \"type\": \"contract_mismatch\",\n      \"axis\": \"compatibility\",\n      \"criticality\": \"medium\",\n      \"severity\": \"nit\",\n      \"description\": \"weight_overrides schema regression: dg-00 pins weight_over overrides with typed properties w_quality/w_cost/w_latency. v1.1 collapses it to {type: [object, \\\"null\\\"], default: null} — untyped object. That's a contract regression (loosening the typed shape), not additive.\",\n      \"disposition\": \"fix\",\n      \"file\": \"contracts /routing.yaml\"\n    },\n    {\n      \"id\": 2,\n      \"type\": \"spec_gap\",\n      \"axis\": \"security\",\n      \"criticality\": \"medium\",\n      \"severity\": \"nit\",\n      \"description\": \"No PersistedRequest schema (security/spec_gap): Task 1. 5 says \\\"Pin bounded persistence projection\\\" in contracts. Spec and design require sanitizing persistence. But there's no PersistedRequest/PersistedTaskSignals schema in contracts — only prose. The OpenAPI request still has additionalProperties: true on task_signals. Without a contract schema for what gets persisted, task 1.Looking at design D4 again carefully for the ConfiguredCatalogSync - it DOES address the catalog population. Round-2 finding about missing population was against an earlier version of the plan, or the...{\n  \"findings\": [\n    {\n      \"id\": 1,\n      \"type\": \"contract_mismatch\",\n      \"criticality\": \"high\",\n      \"description\": \"weight_overrides field is untyped in routing.yaml policy and task profile, violating dg-00 deterministic contract and static fallback equality requirement 2.3\",\n      \"disposition\": \"fix\",\n      \"axis\": \"correctness\",\n      \"severity\": \"critical\",\n      \"file\": \"specs/task-routing/spec.md\",\n      \"text\": \"weight_overrides must be typed object with exact lane-to-catalog association\"\n    },\n    {\n      \" \"id\": 2,\n      \"type\": \"spec_gap\",\n      \"criticality\": \"high\",\n      \"description\": \"PersistedRequest schema is missing despite task 1.5 requirement to pin bounded persistence projection in contracts\",\n      \"disposition\": \"fix\",\n      \"axis\": \"correctness\",\n \"severity\": \"critical\",\n      \"file\": \"contracts/\",\n      \"text\": \"No PersistedRequest schema exists\"\n    },\n    {\n      \"id\": 3,\n      \"type\": \"architecture\",\n      \"criticality\": \"medium\",\n      \"description\": \"http_proxy and Dockerfile packaging for routing_f allback conflict with D8 design\",\n      \"disposition\": \"fix\",\n      \"axis\": \"architecture\",\n      \"severity\": \"nit\",\n      \"file\": \"design.md\",\n      \"text\": \"D8 conflict with http_proxy + Dockerfile\"\n    },\n    {\n      \"id\": 4,\n      \"type\": \"spec_gap\",\n      \"criticality\": \"medium\",\n      \"description\": \"Local fallback dispatch_mode selection algorithm is underspecified when phase default is not in lane modes\",\n      \"disposition\": \"fix\",\n      \"axis\": \"correctness\",\n      \"severity\": \"nit\",\n      \"file \": \"design.md\",\n      \"text\": \"D8 fallback table order only location/isolation; dispatch_mode from D3 phase default\"\n    },\n    {\n      \"id\": 5,\n      \"type\": \"spec_gap\",\n      \"criticality\": \"low\",\n      \"description\": \"no-feasible-routing assignment only in OpenAPI, not in spec.md\",\n      \"disposition\": \"fix\",\n      \"axis\": \"compatibility\",\n      \"severity\": \"nit\",\n      \"file\": \"specs/task-routing/spec.I have enough to produce a solid independent review. Let me finalize findings.\n",
+  "usage": {
+    "input_tokens": 101339,
+    "cache_read_input_tokens": 628608,
+    "cache_creation_input_tokens": 0,
+    "output_tokens": 15125,
+    "reasoning_tokens": 9941,
+    "total_tokens": 745072
+  },
+  "num_turns": 11,
+  "total_cost_usd": 0.163883536,
+  "total_cost_usd_ticks": 1638835360,
+  "modelUsage": {
+    "grok-4.5-build": {
+      "inputTokens": 101339,
+      "outputTokens": 15125,
+      "cacheReadInputTokens": 628608,
+      "cacheCreationInputTokens": 0,
+      "modelCalls": 11,
+      "costUSD": 0.163883536
+    }
+  },
+  "structuredOutput": {
+    "findings": [
+      {
+        "id": 1,
+        "type": "contract_mismatch",
+        "criticality": "high",
+        "description": "Critical: `contracts/openapi/v1.1.yaml` regresses dg-00 `weight_overrides` typing. The dg-00 contract at `openspec/changes/add-adaptive-model-router/contracts/openapi/v1.yaml` pins `weight_overrides` as an object with `w_quality`/`w_cost`/`w_latency`, and live `RoutingService` reads those attributes in `agent-coordinator/src/model_routing/api.py`. The v1.1 overlay collapses it to `{type: [object, \"null\"], default: null}`, so an overlay that claims to extend rather than replace the existing operation (`contracts/README.md`) would accept arbitrary objects and, if used to regenerate models, break `_weights()`. Restore the dg-00 typed shape beside the additive `routing_profile`.",
+        "disposition": "fix",
+        "axis": "compatibility",
+        "severity": "critical",
+        "resolution": "Replace the untyped `weight_overrides` entry in `contracts/openapi/v1.1.yaml` with the dg-00 `anyOf` object/`null` schema that names `w_quality`, `w_cost`, and `w_latency`.",
+        "file_path": "openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/openapi/v1.1.yaml",
+        "line_range": {
+          "start": 129,
+          "end": 129
+        },
+        "evidence_class": "deterministic",
+        "existing_code": "weight_overrides: {type: [object, \"null\"], default: null}"
+      },
+      {
+        "id": 2,
+        "type": "spec_gap",
+        "criticality": "medium",
+        "description": "Nit: Task 1.5 and design D7 require a bounded persisted-request projection, but no contract schema pins it. `tasks.md` 1.5 says “Pin bounded persistence projection … in contracts”; `design.md` D7 says the sanitized `request` stores only declared task signals and the strict routing profile and never permissive extras such as `write_allow`; `specs/task-routing/spec.md` “Persistence projection is bounded” repeats that SHALL. Yet `contracts/` only types the live request (`task_signals.additionalProperties: true` in `openapi/v1.1.yaml`) and the link-only audit event—there is no `PersistedSelectModelRequest` (or equivalent) allowlist schema for `routing_decisions.request`. Without it, redaction stays prose-only while today’s service persists `request.model_dump()` verbatim.",
+        "disposition": "fix",
+        "axis": "security",
+        "severity": "nit",
+        "resolution": "Add a strict persisted-request schema under `contracts/` (declared `task_signals` fields + optional `routing_profile` only; `additionalProperties: false`), reference it from task 1.5/contract tests, and require a test that a request carrying `write_allow` persists without that extra.",
+        "package_id": "wp-contract-config",
+        "file_path": "openspec/changes/implement-the-task-router-vendor-x-location-x-model/tasks.md",
+        "line_range": {
+          "start": 12,
+          "end": 14
+        },
+        "evidence_class": "judgment",
+        "existing_code": "- [ ] 1.5 Pin bounded persistence projection, typed exclusions, and exact local-fallback\n  invariants in contracts."
+      },
+      {
+        "id": 3,
+        "type": "architecture",
+        "criticality": "medium",
+        "description": "Optional: Design D8 places the reusable local fallback helper in `skills/coordination-bridge/scripts/routing_fallback.py` and says it “is used by bridge and HTTP-proxy degradation paths,” but packaging that path into the coordinator image is unassigned. `agent-coordinator/src/http_proxy.py` runs in the container under the Dockerfile COPY contract; importing the skills helper needs a new `COPY` and env-based config resolution (`AGENTS_YAML`/`ROUTING_CONFIG`), because there is no discovered checkout root in the image. `work-packages.yaml` locks `agent-coordinator/Dockerfile` to `wp-contract-config`, which finishes before `wp-transports-fallback` (the only package allowed to edit `http_proxy.py`). As drawn, the transport package cannot land the import it is told to use.",
+        "disposition": "fix",
+        "axis": "architecture",
+        "severity": "optional",
+        "resolution": "Either scope local fallback to the skills-side bridge only (drop the HTTP-proxy claim), or move a coordinator-local helper under `agent-coordinator/src/`, assign the Dockerfile `COPY`/env resolution to the package that needs it, and keep skills as a thin caller.",
+        "package_id": "wp-transports-fallback",
+        "file_path": "openspec/changes/implement-the-task-router-vendor-x-location-x-model/design.md",
+        "line_range": {
+          "start": 164,
+          "end": 167
+        },
+        "evidence_class": "judgment",
+        "existing_code": "The reusable helper lives in\n`skills/coordination-bridge/scripts/routing_fallback.py`, resolves repository config from\nan explicit root or discovered checkout root, and is used by bridge and HTTP-proxy\ndegradation paths."
+      },
+      {
+        "id": 4,
+        "type": "spec_gap",
+        "criticality": "medium",
+        "description": "Nit: Local fallback selection is under-specified for deterministic tests. `design.md` D8 says the helper combines the caller’s already-resolved static provider/model with the fallback dimension order and that the fallback table chooses among the lane’s exact configured values, while `contracts/config/routing.schema.json` only requires `location_order` and `isolation_order` (no dispatch-mode order). The plan does not state: (a) whether local evaluation applies `rules` / `defaults.phase_dispatch_modes` or only the `fallback` table; (b) how one lane is chosen when several `agents.yaml` lanes share the caller’s provider type (e.g. local vs cloud); (c) what happens when the phase dispatch default is not in that lane’s configured modes; (d) the failure when no lane matches. Spec scenario “Coordinator is unreachable” only pins provenance flags (`fallback=true`, `source=local-static`, `persisted=false`, `durable_audit=false`, null catalog key).",
+        "disposition": "fix",
+        "axis": "correctness",
+        "severity": "nit",
+        "resolution": "Document the local selection order and tie-break (e.g. apply rules/defaults, then `location_order`/`isolation_order`, then `agent_id` ascending), define dispatch-mode choice when the phase default is unsupported, and name the no-lane failure mode so tasks 4.1–4.2 can be written first.",
+        "package_id": "wp-transports-fallback",
+        "file_path": "openspec/changes/implement-the-task-router-vendor-x-location-x-model/design.md",
+        "line_range": {
+          "start": 150,
+          "end": 163
+        },
+        "evidence_class": "judgment",
+        "existing_code": "then combines the caller's already-resolved static provider/model with the fallback\ndimension order."
+      },
+      {
+        "id": 5,
+        "type": "architecture",
+        "criticality": "medium",
+        "description": "Optional: `wp-contract-config` cannot pass its own verification as scoped. `work-packages.yaml` requires exit 0 on `test_task_routing_contracts.py` and `test_routing_policy_config.py` for “OpenAPI/runtime parity” and loader validation, but its `write_allow` covers only `contracts/**`, `routing.yaml`, `Dockerfile`, and those tests—not `agent-coordinator/src/model_routing/api.py` or `routing_policy.py`, which are locked to `wp-policy-service`. dg-00 avoided this by shipping `contracts/generated/models.py` and testing parity against it (`tests/model_routing/test_contracts_generated.py`); this overlay names no generated models. As written, the first package must either edit files outside its scope or fail verification.",
+        "disposition": "fix",
+        "axis": "architecture",
+        "severity": "optional",
+        "resolution": "Add generated models under `contracts/generated/` (covered by `contracts/**`) and keep contract/schema-only tests in `wp-contract-config`, or move runtime parity and Python loader tests into `wp-policy-service`.",
+        "package_id": "wp-contract-config",
+        "file_path": "openspec/changes/implement-the-task-router-vendor-x-location-x-model/work-packages.yaml",
+        "line_range": {
+          "start": 43,
+          "end": 61
+        },
+        "evidence_class": "judgment",
+        "existing_code": "write_allow:\n        - \"openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/**\"\n        - \"agent-coordinator/routing.yaml\"\n        - \"agent-coordinator/Dockerfile\"\n        - \"agent-coordinator/tests/model_routing/test_task_routing_contracts.py\"\n        - \"agent-coordinator/tests/model_routing/test_routing_policy_config.py\"\n        - \"agent-coordinator/tests/test_dockerfile_routing_config.py\""
+      },
+      {
+        "id": 6,
+        "type": "compatibility",
+        "criticality": "low",
+        "description": "Nit: Empty feasible-set behavior is contracted only as a renamed 503 detail. `contracts/openapi/v1.1.yaml` 503 text invents `no-feasible-routing-assignment`, but `specs/task-routing/spec.md` scenarios cover `routing-registry-unavailable` and `routing-durability-unavailable` only, and `design.md` D5 never states the HTTP/MCP outcome when every lane/model pair is excluded. Live dg-00 raises `RoutingUnavailableError(\"no feasible model-routing candidate\")` (`api.py` ~311) and MCP tests assert that string. Renaming the detail on the existing operation is a wire change D1 does not call out.",
+        "disposition": "fix",
+        "axis": "compatibility",
+        "severity": "nit",
+        "resolution": "Add a spec scenario for the empty feasible set, either keep the dg-00 detail string or explicitly document the rename and the dg-00 tests to update.",
+        "file_path": "openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/openapi/v1.1.yaml",
+        "line_range": {
+          "start": 29,
+          "end": 34
+        },
+        "evidence_class": "judgment",
+        "existing_code": "'503':\n          description: >\n            Registry unavailable, no feasible exact lane/model assignment, or atomic\n            decision/audit durability unavailable. The response detail distinguishes\n            routing-registry-unavailable, no-feasible-routing-assignment, and\n            routing-durability-unavailable."
+      },
+      {
+        "id": 7,
+        "type": "contract_mismatch",
+        "criticality": "low",
+        "description": "Nit: `Candidate` provenance placement disagrees with design D6. D6 says selected/alternatives carry additive `assignment`, while assignment/provenance are retained at response top level for convenience. `contracts/openapi/v1.1.yaml` also puts optional `provenance` (and a top-level `agent_id`) on every `Candidate`, duplicating `assignment.agent_id` and leaving parity tests without a single answer for whether `selected.provenance` is populated, null, or mirrored.",
+        "disposition": "fix",
+        "axis": "readability",
+        "severity": "nit",
+        "resolution": "Either drop `Candidate.provenance`/`Candidate.agent_id` from the overlay and keep lane identity only under `assignment`, or update D6 to state exactly which provenance fields are populated on `selected` vs alternatives.",
+        "file_path": "openspec/changes/implement-the-task-router-vendor-x-location-x-model/contracts/openapi/v1.1.yaml",
+        "line_range": {
+          "start": 146,
+          "end": 156
+        },
+        "evidence_class": "judgment",
+        "existing_code": "agent_id: {type: [string, \"null\"], default: null}\n        assignment:\n          anyOf:\n            - {$ref: '#/components/schemas/RoutingAssignment'}\n            - {type: \"null\"}\n          default: null\n        provenance:"
+      },
+      {
+        "id": 8,
+        "type": "observability",
+        "criticality": "low",
+        "description": "FYI: Successful coordinator decisions are durably linked (`design.md` D7; `contracts/events/routing-decision.schema.json`), but the plan defines no operator-facing signals for fail-closed outcomes or local-fallback activations (`routing-registry-unavailable`, `no-feasible-routing-assignment`, `routing-durability-unavailable`, `source=local-static`). Detection would rely on log/audit scraping unless metrics or structured warnings are added later.",
+        "disposition": "accept",
+        "axis": "observability",
+        "severity": "fyi",
+        "resolution": "Accept for dg-04 if structured WARNING logs are enough; otherwise add bounded counters/log fields in a follow-up.",
+        "file_path": "openspec/changes/implement-the-task-router-vendor-x-location-x-model/design.md",
+        "line_range": {
+          "start": 124,
+          "end": 141
+        },
+        "evidence_class": "judgment"
+      },
+      {
+        "id": 9,
+        "type": "correctness",
+        "criticality": "low",
+        "description": "Plan correctly forbids a second routing surface: `proposal.md` non-goals and `design.md` D1/`contracts/README.md` state that DG-04 extends only `POST /routing/select_model` and `select_model_for_task`, and `specs/task-routing/spec.md` requires that no `POST /route/task` route be registered.",
+        "disposition": "accept",
+        "axis": "compatibility",
+        "severity": "none",
+        "file_path": "openspec/changes/implement-the-task-router-vendor-x-location-x-model/proposal.md",
+        "line_range": {
+          "start": 50,
+          "end": 52
+        },
+        "evidence_class": "judgment",
+        "existing_code": "- No `/route/task` endpoint or parallel scoring implementation."
+      },
+      {
+        "id": 10,
+        "type": "correctness",
+        "criticality": "low",
+        "description": "Plan correctly keeps exact dg-01 association and feasibility-before-utility: `design.md` D4–D5 and `specs/task-routing/spec.md` require in-process `VendorRegistryService`, the four-field `(catalog_vendor, model, endpoint_kind, base_url)` join, no name/publisher heuristics, registry failure fail-closed as `routing-registry-unavailable`, and only feasible pairs entering the existing dg-00 scorer.",
+        "disposition": "accept",
+        "axis": "architecture",
+        "severity": "none",
+        "file_path": "openspec/changes/implement-the-task-router-vendor-x-location-x-model/design.md",
+        "line_range": {
+          "start": 49,
+          "end": 105
+        },
+        "evidence_class": "judgment"
+      },
+      {
+        "id": 11,
+        "type": "correctness",
+        "criticality": "low",
+        "description": "Plan correctly makes local fallback provenance honest and coordinator durability atomic: `specs/task-routing/spec.md` requires `fallback=true`, `source=local-static`, `persisted=false`, `durable_audit=false`, and null catalog key; `design.md` D7 plus migration `042_atomic_routing_audit.sql` / tasks 3.3–3.5 require an awaited decision+audit RPC with `routing-durability-unavailable` rollback rather than fire-and-forget audit; D9 keeps dg-05/dg-06 out of scope.",
+        "disposition": "accept",
+        "axis": "observability",
+        "severity": "none",
+        "file_path": "openspec/changes/implement-the-task-router-vendor-x-location-x-model/specs/task-routing/spec.md",
+        "line_range": {
+          "start": 151,
+          "end": 159
+        },
+        "evidence_class": "judgment",
+        "existing_code": "- **THEN** the local helper SHALL return the normal assignment shape with\n  `fallback=true`, `source=local-static`, `persisted=false`, and\n  `durable_audit=false`\n- **AND** SHALL NOT embed a roster, synthesize live availability, or claim a coordinator\n  audit record exists\n- **AND** its catalog key SHALL be null because no live catalog join occurred."
+      }
+    ]
+  }
+}

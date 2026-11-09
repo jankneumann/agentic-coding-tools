@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "review_type": "implementation",
+  "target": "add-live-vendor-capability-and-cost-registry",
+  "round": 3,
+  "valid_for_consensus": [
+    "grok"
+  ],
+  "excluded": [
+    {
+      "vendor": "antigravity",
+      "reason": "invalid_json_empty_response"
+    },
+    {
+      "vendor": "codex",
+      "reason": "timeout"
+    },
+    {
+      "vendor": "claude_code",
+      "reason": "review_contract_violation",
+      "details": [
+        "finding 4 uses axis=security with disposition=accept, forbidden by the review contract"
+      ]
+    },
+    {
+      "vendor": "pi",
+      "reason": "review_contract_violation",
+      "details": [
+        "all five findings use severity=none with Critical: descriptions and disposition=fix"
+      ]
+    }
+  ],
+  "quorum_requested": 2,
+  "quorum_received": 1,
+  "quorum_met": false,
+  "blocking_count": null,
+  "disposition": "rerun_after_security_remediation"
+}
