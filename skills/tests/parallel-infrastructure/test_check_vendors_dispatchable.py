@@ -116,13 +116,16 @@ def test_the_probe_never_discloses_credentials(roster, capsys, monkeypatch) -> N
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test-SENTINEL-1234567890")
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test-SENTINEL-0987654321")
     spawned: list[list[str]] = []
-    real_run = subprocess.run
+    real_popen = subprocess.Popen
 
-    def recording_run(argv, *args, **kwargs):
-        spawned.append(list(argv))
-        return real_run(argv, *args, **kwargs)
+    # Record at Popen, which subprocess.run also goes through, so the check
+    # holds whichever API the probe uses to spawn its dry invocations.
+    class RecordingPopen(real_popen):  # type: ignore[misc, valid-type]
+        def __init__(self, argv, *args, **kwargs):
+            spawned.append(list(argv))
+            super().__init__(argv, *args, **kwargs)
 
-    monkeypatch.setattr(rd.subprocess, "run", recording_run)
+    monkeypatch.setattr(rd.subprocess, "Popen", RecordingPopen)
     roster(_Orch({"claude_code": sys.executable, "codex": sys.executable}, {"claude_code", "codex"}))
 
     rd._check_vendors(min_vendors=2, as_json=True)

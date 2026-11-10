@@ -160,7 +160,7 @@ def _origin_with_only_rm(worker: Path) -> None:
     _git(worker, "add", "-A")
     _git(worker, "commit", "-q", "-m", "second roadmap")
     _git(worker, "update-ref", "refs/remotes/origin/openspec/roadmap-gone", "HEAD")
-    bare = worker.parent / "origin.git"
+    bare = worker.parent / f"{worker.name}-origin.git"  # per test: tmp_path.parent is shared
     _git(worker.parent, "init", "-q", "--bare", str(bare))
     _git(worker, "remote", "add", "origin", str(bare))
     _git(worker, "push", "-q", "origin", "refs/remotes/origin/openspec/roadmap-rm:refs/heads/openspec/roadmap-rm")
