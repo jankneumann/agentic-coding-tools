@@ -1,10 +1,12 @@
 # Agent coordinator on GX-10.
 #
-# A SEPARATE compose project from the analyzer (`aca-gx10`), joining its
-# networks as external. The coordinator can be rebuilt and restarted without
-# touching the analyzer. The reverse is not true and cannot be: the analyzer
-# OWNS these networks, so stopping it takes the coordinator with it. The
-# systemd unit encodes that with PartOf= rather than leaving it to discover.
+# A SEPARATE compose project from the analyzer (`aca-gx10`). Either one can be
+# updated and restarted without the other. The coordinator owns its networks
+# and borrows exactly one, `aca-gx10_application`, for Langfuse, Squid and the
+# kanban Caddy. The analyzer recreates its networks at each start but keeps any
+# with a container still attached, so a running coordinator keeps that one
+# through an analyzer restart; tracing, outbound calls and the board pause
+# while the analyzer is down, and the coordination API itself does not.
 #
 # Reused from the analyzer rather than duplicated: Langfuse (its own project,
 # its own keys), OpenBao (rendered to an env file, never read live), and Squid
@@ -151,8 +153,8 @@ services:
   #
   # This container is a DELIBERATE exception to the egress policy: it holds an
   # outbound connection to Cloudflare that does not pass through Squid. That is
-  # why it sits alone on the egress network with no access to `stateful`, and
-  # why the firewall unit needs an explicit rule for it.
+  # why it sits alone on this project's `tunnel` network with no access to
+  # `stateful` or `application`.
   #
   # The tunnel config must never publish OpenBao, Postgres, Langfuse or the MCP
   # transport. On this host OpenBao is the real sealed instance holding every
@@ -171,7 +173,7 @@ services:
     - /run/aca/gx10/cloudflared/credentials.json:/etc/cloudflared/credentials.json:ro
     networks:
       coord: {}
-      egress: {}
+      tunnel: {}
     tmpfs:
     - /tmp:rw,noexec,nosuid,size=64m
     depends_on:
@@ -180,13 +182,10 @@ services:
 
 networks:
   # Owned by the analyzer's compose project. Declared external so this project
-  # joins them instead of creating a second, colliding set.
+  # joins it instead of creating a second, colliding one.
   application:
     external: true
     name: aca-gx10_application
-  egress:
-    external: true
-    name: aca-gx10_egress
   # This project's own. The subnet is pinned because netavark allocates from
   # 10.89.0.0/16 by default and the analyzer already holds .0, .1 and .2 --
   # letting podman choose would eventually collide. The /25 ip_range keeps the
@@ -198,3 +197,12 @@ networks:
       config:
       - subnet: 10.89.3.0/24
         ip_range: 10.89.3.0/25
+  # The tunnel's own route out. It used the analyzer's egress network until an
+  # analyzer restart recreated that network and took the tunnel down with it.
+  tunnel:
+    internal: false
+    driver: bridge
+    ipam:
+      config:
+      - subnet: 10.89.4.0/24
+        ip_range: 10.89.4.0/25
