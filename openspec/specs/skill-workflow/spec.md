@@ -6248,6 +6248,29 @@ no longer appear in the file (or line window); return `addressed` items to
 - **WHEN** compact runs
 - **THEN** the item status SHALL be `open`
 
+### Requirement: Fresh Review Resolves Re-verified Items
+
+After merging a round's findings, the loop SHALL retire every item that was
+`open` when the round's review packet was built (and so was listed for
+re-verification) and that the round's quorum review did not re-raise. The
+loop SHALL record the round in the item's `resolution` and SHALL NOT delete
+the item. Compact's token presence alone SHALL NOT keep such an item open.
+
+#### Scenario: Fixed finding the fresh review no longer raises resolves
+
+- **GIVEN** a blocking finding that compact reopened because its tokens
+  survive the fix
+- **WHEN** the next round's review reports no matching finding
+- **THEN** the item status SHALL be `retired` with a `resolution` naming the
+  round
+- **AND** the item SHALL remain in the ledger
+
+#### Scenario: Finding the fresh review still raises stays open
+
+- **GIVEN** an open finding listed for re-verification
+- **WHEN** the round's review reports a matching finding
+- **THEN** the item status SHALL remain `open`
+
 ### Requirement: Delta Review After Round One
 
 Round N>1 review prompts SHALL include open ledger items and the last-fix

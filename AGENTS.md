@@ -31,6 +31,30 @@ Scope and limits:
   dispatching. Fallback is for genuine adapter or coordinator unavailability only,
   and must be reported: state which phase fell back and why.
 
+## External Review Data-Sharing Authorization (standing grant)
+
+  The repository owner explicitly authorizes repository review workflows to
+  transmit repository material to these external AI review harnesses:
+
+  - OpenAI Codex CLI / OpenAI
+  - Google Antigravity CLI / Google
+  - Pi with included models
+  - Grok / X.AI
+
+  Authorized material includes PR titles and descriptions, review comments,
+  unified diffs, changed-file contents, tests, specifications, and documentation
+  needed to review a change, including material from private branches.
+
+  This authorization applies to `merge-pull-requests` vendor review and the
+  repository's parallel review workflows. It is standing authorization and does
+  not require per-run confirmation.
+
+  Limits:
+  - Never transmit secrets, credentials, tokens, `.env` contents, or unrelated
+    untracked files.
+  - Use the material only for review and analysis.
+  - Any provider not named above requires separate authorization.
+
 ## Python Environment
 
 Use `uv` for all Python environments. Two venvs: `agent-coordinator/.venv` and `skills/.venv`.

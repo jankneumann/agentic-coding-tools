@@ -102,3 +102,13 @@ def descriptor_v3() -> dict:
             "layout": True,
         },
     }
+
+
+@pytest.fixture(autouse=True)
+def _isolated_probe_cache(tmp_path_factory, monkeypatch):
+    """Never let a test touch the real ~/.cache vendor-probe.json.
+
+    Tests that need a specific cache path override this with their own setenv.
+    """
+    cache = tmp_path_factory.mktemp("probe-cache") / "vendor-probe.json"
+    monkeypatch.setenv("AGENTIC_PROBE_CACHE", str(cache))

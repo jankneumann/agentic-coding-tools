@@ -49,6 +49,7 @@ import phase_agent  # type: ignore[import-not-found]  # noqa: E402
 from shared import approval_gate as shared_approval_gate  # noqa: E402
 from shared import dispatch_contract  # noqa: E402
 from shared.approval_gate import ApprovalDecision  # noqa: E402
+from shared.mirror_freshness import stale_mirror  # noqa: E402
 from shared.trust_posture import SCOPED_GATES, Gate, load_posture, posture_digest  # noqa: E402
 
 logger = logging.getLogger("autopilot.runner")
@@ -421,6 +422,15 @@ def _answer_park(
         return 2
     gate = Gate.ESCALATE_RESUME
     approved = args.decision == "approved"
+    resume_at = getattr(args, "resume_at", None)
+    if resume_at == "IMPLEMENT" and state.current_phase != "PLAN_REVIEW":
+        # Checked before anything is recorded: operator_accept leaves PLAN_REVIEW
+        # only, so a decision recorded here would authorize an edge that cannot apply.
+        sys.stderr.write(
+            "runner: --resume-at IMPLEMENT requires a run parked in PLAN_REVIEW "
+            f"(current phase {state.current_phase!r}); nothing was recorded\n"
+        )
+        return 2
     decision = _console_decision(
         gate,
         {"posture": {}},
@@ -439,6 +449,15 @@ def _answer_park(
     if not approved:
         note = f" — {args.note}" if args.note else ""
         autopilot.enter_escalate(state, f"{kind} park: rejected{note}")
+    elif resume_at == "IMPLEMENT":
+        # The operator accepted the reviewed plan without quorum convergence;
+        # phase_history records operator_accept, never a claimed `converged`.
+        autopilot._apply_transition(
+            state,
+            autopilot.OPERATOR_ACCEPT,
+            change_dir=_change_dir(args.change_id),
+            operator_authorized=True,
+        )
     autopilot.save_state(state, _state_path(args.change_id))
     return 0
 
@@ -550,6 +569,8 @@ def _cmd_gate_answer(args: argparse.Namespace) -> int:
     outcome = str(edge.get("outcome", ""))
     if resume_at == "VALIDATE" and outcome == "resolved":
         outcome = "revalidate"
+    if resume_at == "IMPLEMENT" and outcome == "resolved":
+        outcome = autopilot.OPERATOR_ACCEPT
     if edge.get("target") == "ESCALATE":
         # enter_escalate (not the bare table edge) so previous_phase and
         # escalation_reason are populated for the resume path.
@@ -561,7 +582,10 @@ def _cmd_gate_answer(args: argparse.Namespace) -> int:
 
     try:
         autopilot._apply_transition(
-            state, outcome, change_dir=_change_dir(args.change_id)
+            state,
+            outcome,
+            change_dir=_change_dir(args.change_id),
+            operator_authorized=resume_at == "IMPLEMENT",
         )
     except autopilot.GoalGateRefused as exc:
         autopilot.enter_escalate(state, f"goal gate refused: {exc.reason}")
@@ -573,6 +597,92 @@ def _cmd_gate_answer(args: argparse.Namespace) -> int:
         return 1
     autopilot.save_state(state, state_path)
     return 0
+
+
+def _remote_branch_absent(branch: str) -> bool:
+    """True only when origin answers that ``branch`` does not exist.
+
+    ``git ls-remote --exit-code`` exits 2 for "reached the remote, no matching
+    ref"; any other failure (no remote, network, auth) is not proof of absence.
+    """
+    try:
+        done = subprocess.run(
+            ["git", "ls-remote", "--exit-code", "--heads", "origin", branch],
+            capture_output=True, text=True, check=False, timeout=120,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return done.returncode == 2
+
+
+def _cmd_relayed_gate_answer(args: argparse.Namespace) -> int:
+    """Apply a supervisor-relayed answer only after checking the committed ledger.
+
+    For a cloud worker (no launch marker): the answer is applied only when
+    ``dispatch_contract.read_committed_gate_answer`` finds the decision it names
+    on the fetched roadmap branch. This is the one form of ``gate-answer`` that
+    ``.claude/settings.json`` pre-approves, so it must never record an
+    unverified answer.
+    """
+    try:
+        phase_agent._validate_change_id(args.change_id)
+    except ValueError as exc:
+        sys.stderr.write(f"runner: {exc}\n")
+        return 2
+    if _launch_marker(args.change_id) is not None:
+        sys.stderr.write(
+            "runner: this worktree has a launch marker; use gate-answer, which checks "
+            "the marker's gate_answer. Nothing was recorded\n"
+        )
+        return 2
+    if not args.no_fetch:
+        # A stale remote-tracking ref could hide a newer, superseding decision,
+        # so a failed fetch refuses rather than verifying against old state.
+        for roadmap_id in dispatch_contract.committed_roadmap_ids(repo_root=Path.cwd()):
+            branch = f"openspec/roadmap-{roadmap_id}"
+            try:
+                done = subprocess.run(
+                    ["git", "fetch", "--quiet", "origin", f"+{branch}:refs/remotes/origin/{branch}"],
+                    capture_output=True, text=True, check=False, timeout=120,
+                )
+                failure = done.stderr.strip() if done.returncode != 0 else None
+            except (OSError, subprocess.SubprocessError) as exc:
+                failure = str(exc)
+            if failure is not None and _remote_branch_absent(branch):
+                # The remote answered that the branch does not exist (e.g. a
+                # roadmap recovered onto a differently named branch). Drop the
+                # tracking ref so a stale copy cannot verify, and keep going.
+                subprocess.run(
+                    ["git", "update-ref", "-d", f"refs/remotes/origin/{branch}"],
+                    capture_output=True, text=True, check=False, timeout=30,
+                )
+                continue
+            if failure is not None:
+                sys.stderr.write(
+                    f"runner: could not fetch {branch} ({failure or 'git fetch failed'}); "
+                    "nothing was recorded\n"
+                )
+                return 2
+    verified = dispatch_contract.read_committed_gate_answer(
+        args.change_id,
+        gate=args.gate,
+        decision=args.decision,
+        approval_ref=args.approval_ref,
+        resume_at=args.resume_at,
+        repo_root=Path.cwd(),
+    )
+    if verified is None:
+        sys.stderr.write(
+            "runner: no matching supervisor decision on the fetched roadmap branch "
+            f"({args.approval_ref}, {args.gate}, {args.decision}, resume_at={args.resume_at!r}); "
+            "nothing was recorded\n"
+        )
+        return 2
+    sys.stderr.write(
+        f"runner: verified {args.approval_ref} in {verified['checkpoint_path']} "
+        f"at {verified['checkpoint_commit'][:12]} (generation {verified['generation']})\n"
+    )
+    return _cmd_gate_answer(args)
 
 
 def _cmd_build_dispatch(args: argparse.Namespace) -> int:
@@ -707,6 +817,15 @@ def _cmd_transition(args: argparse.Namespace) -> int:
 
     if state.current_phase == "DONE":
         return 0
+    if args.outcome == autopilot.OPERATOR_ACCEPT:
+        # Only the supervisor's recorded escalate_resume (resume_at=IMPLEMENT)
+        # applies this edge, through gate-answer. Refused before any mutation so
+        # it is not logged as a transition_failed escalation either.
+        sys.stderr.write(
+            "runner: operator_accept is applied only by gate-answer with "
+            "--resume-at IMPLEMENT; nothing was recorded\n"
+        )
+        return 2
 
     try:
         autopilot._apply_transition(
@@ -1146,14 +1265,43 @@ def _build_parser() -> argparse.ArgumentParser:
     ga.add_argument(
         "--resume-at",
         default=None,
-        choices=["VALIDATE"],
+        choices=["VALIDATE", "IMPLEMENT"],
         help=(
             "Resume an approved escalate_resume at VALIDATE instead of the parked "
-            "phase, so validation evidence is regenerated by this run. Must match "
+            "phase, so validation evidence is regenerated by this run; or at "
+            "IMPLEMENT from PLAN_REVIEW (outcome operator_accept: the operator "
+            "accepts the reviewed plan without quorum convergence). Must match "
             "the launch marker's gate_answer when one is present."
         ),
     )
     ga.set_defaults(func=_cmd_gate_answer)
+
+    rga = sub.add_parser(
+        "relayed-gate-answer",
+        help="Apply a supervisor-relayed gate answer after verifying it in the committed ledger.",
+        description=(
+            "For a cloud worker without a launch marker. Fetches the roadmap branch, "
+            "then applies the answer as gate-answer does only when the decision "
+            "--approval-ref names is committed there: a console decision for this "
+            "change, gate, decision and resume_at, the latest for its dispatch and "
+            "gate, whose attempt is at the generation that decision leaves it (an approval relaunches it, a rejection does not). A failed fetch refuses. "
+            "Exits 2 without recording anything otherwise."
+        ),
+    )
+    rga.add_argument("change_id", help="OpenSpec change identifier.")
+    rga.add_argument("--gate", required=True, choices=[g.value for g in Gate])
+    rga.add_argument("--decision", required=True, choices=["approved", "rejected"])
+    rga.add_argument(
+        "--approval-ref", required=True,
+        help="gate-decision:<id> the supervisor relayed; must be committed on the roadmap branch.",
+    )
+    rga.add_argument("--resume-at", default=None, choices=["VALIDATE", "IMPLEMENT"])
+    rga.add_argument("--note", default=None, help="Note recorded with the decision.")
+    rga.add_argument(
+        "--no-fetch", action="store_true",
+        help="Verify against the already-fetched roadmap branch (tests, offline).",
+    )
+    rga.set_defaults(func=_cmd_relayed_gate_answer)
 
     pk = sub.add_parser(
         "park",
@@ -1197,9 +1345,22 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _warn_if_stale_mirror() -> None:
+    # A runtime mirror that predates merged toolkit fixes runs the old logic
+    # silently; say so on every invocation until the mirror is resynced.
+    # The check is advisory: no failure in it may abort the subcommand.
+    try:
+        drift = stale_mirror(__file__)
+    except Exception:  # noqa: BLE001
+        return
+    if drift is not None:
+        print(f"autopilot: WARNING: {drift.message()}", file=sys.stderr)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
+    _warn_if_stale_mirror()
     func = args.func
     return int(func(args))
 

@@ -351,7 +351,7 @@ def test_checkpoint_attempts_and_results_are_single_definitions() -> None:
     }
 
 
-def test_gate_answer_may_name_validate_as_the_resume_target(
+def test_gate_answer_may_name_validate_or_implement_as_the_resume_target(
     validators: dict[str, Draft202012Validator],
 ) -> None:
     request = _v2_request()
@@ -368,6 +368,8 @@ def test_gate_answer_may_name_validate_as_the_resume_target(
     }
     assert _errors(validators["request_v2"], request) == []
     request["gate_answer"]["resume_at"] = "IMPLEMENT"
+    assert _errors(validators["request_v2"], request) == []
+    request["gate_answer"]["resume_at"] = "DONE"
     assert _errors(validators["request_v2"], request)
 
 
@@ -387,5 +389,9 @@ def test_the_continuation_answer_carries_the_recorded_resume_target() -> None:
     attempt = {"continuation": {"kind": "policy_pause", "approval_ref": ref}}
 
     assert execution._gate_answer(checkpoint, attempt)["resume_at"] == "VALIDATE"
+    record["resume_at"] = "IMPLEMENT"
+    assert execution._gate_answer(checkpoint, attempt)["resume_at"] == "IMPLEMENT"
+    record["resume_at"] = "DONE"
+    assert "resume_at" not in execution._gate_answer(checkpoint, attempt)
     record.pop("resume_at")
     assert "resume_at" not in execution._gate_answer(checkpoint, attempt)
