@@ -23,7 +23,7 @@ Read these two in the analyzer repo before changing anything here:
 
 | Assumption | Why |
 |---|---|
-| The analyzer runtime is up | It owns `aca-gx10_application` and `aca-gx10_egress`, renders the secrets, and hosts Langfuse. The unit declares `Requires=` and `PartOf=aca-gx10.service`. |
+| The analyzer runtime is up at boot | It owns `aca-gx10_application` (Langfuse, Squid, the kanban Caddy), runs OpenBao, and renders `proxy.env`. The unit declares only `Wants=` and `After=aca-gx10.service`: it starts after the analyzer and is never stopped or restarted with it. |
 | Nothing is published to the host | The only inbound path is the Cloudflare tunnel, terminating at `coordinator-api` over the internal network. |
 | Images are pinned `tag@sha256` | `GX10_COORD_IMAGE`, `GX10_COORD_POSTGRES_IMAGE`, `GX10_CLOUDFLARED_IMAGE` in `/etc/aca/gx10-images.env`. The compose fails closed on an unset one. `GX10_NODE_IMAGE` builds the kanban board and fails closed the same way. |
 | The container uid is 10001 | Pinned in the Dockerfile so `make ownership` has a number to chown to. |
@@ -71,10 +71,14 @@ These need credentials or a UI and cannot be scripted from here.
    token per client (see [Cutover](#cutover-from-railway)). Without it the tunnel publishes the API with only
    `X-API-Key` in front of it, which is the weak version of this design and
    looks identical from outside until you test an unauthenticated request.
-6. **A firewall rule** for the tunnel's egress. `cloudflared` holds an
-   outbound connection that does not pass through Squid — a deliberate,
-   documented exception to the egress policy, which is why it sits alone on
-   the egress network with no route to `stateful`.
+6. **The tunnel's own network.** `cloudflared` holds an outbound connection
+   that does not pass through Squid — a deliberate, documented exception to the
+   egress policy, which is why it sits alone on this project's `tunnel` network
+   (`10.89.4.0/24`) with no route to `stateful` or `application`. No host
+   firewall rule is needed: `ufw` drops forwarded traffic by default, and
+   netavark installs its own forwarding ahead of it for every non-internal
+   network, as it does for the analyzer's egress. Check after any change that
+   the tunnel registers its four connections.
 
 ## Bring-up
 
@@ -104,9 +108,18 @@ rebuilt before debugging the code.
 - **Never add a tunnel ingress rule for OpenBao, Postgres, ClickHouse, MinIO or
   the MCP transport.** On this host OpenBao is the real sealed instance holding
   every secret for both projects. The renderer greps the config and refuses.
-- **`systemctl stop aca-gx10` stops this too.** `PartOf=` makes that explicit
-  rather than leaving it to be discovered as network removal under a running
-  container.
+- **The analyzer and the coordinator restart independently.** Stopping,
+  restarting or updating `aca-gx10` leaves the coordinator running: the
+  analyzer keeps `aca-gx10_application` while a coordinator container is
+  attached to it. While the analyzer is down, traces, outbound calls through
+  Squid and the kanban board pause; the coordination API, its database and the
+  tunnel keep serving. The coordinator therefore also keeps the Squid
+  credentials it started with: after rotating them, restart the coordinator.
+  The same attachment means an analyzer change to the `application` network's
+  own definition (subnet, labels) is not applied while the coordinator runs:
+  stop `aca-gx10-coordinator`, restart `aca-gx10`, then start the coordinator.
+  Before 2026-11-09 the unit was `PartOf=aca-gx10.service`, and an analyzer
+  image-pin took the coordinator down for a day.
 - **The frontend is static.** `apps/kanban-viz` builds to `dist/` and is served
   by the analyzer's Caddy; there is no frontend container here. See below.
 

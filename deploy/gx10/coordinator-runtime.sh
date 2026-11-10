@@ -12,6 +12,8 @@ PROJECT="${COMPOSE_PROJECT_NAME:-aca-gx10-coord}"
 PODMAN="${COORD_PODMAN_BIN:-/usr/bin/podman}"
 COMPOSE_BIN="${COORD_COMPOSE_BIN:-/usr/bin/podman-compose}"
 WAIT_SECONDS="${COORD_WAIT_SECONDS:-240}"
+NETWORK_WAIT_SECONDS="${COORD_NETWORK_WAIT_SECONDS:-60}"
+NETWORK_RETRY_INTERVAL="${COORD_NETWORK_RETRY_INTERVAL:-5}"
 DOWN_TIMEOUT="${COORD_DOWN_TIMEOUT_SECONDS:-30}"
 
 SERVICES=(coordinator-postgres coordinator-api cloudflared)
@@ -23,19 +25,19 @@ fi
 
 compose() { "$COMPOSE_BIN" -p "$PROJECT" -f "$COMPOSE_FILE" "$@"; }
 
-# The analyzer owns `aca-gx10_application` and `aca-gx10_egress`. If they are
-# missing, podman-compose creates its own networks with those names and the
-# coordinator comes up unable to see Langfuse -- a working stack wired to
-# nothing. Fail loudly instead.
-require_external_networks() {
-  local missing=()
-  for net in aca-gx10_application aca-gx10_egress; do
-    "$PODMAN" network exists "$net" || missing+=("$net")
+# The analyzer owns `aca-gx10_application`. If it is missing, podman-compose
+# creates its own network with that name and the coordinator comes up unable
+# to see Langfuse -- a working stack wired to nothing. At boot the analyzer may
+# still be creating it, so wait a bounded time, then fail loudly.
+require_external_network() {
+  local net=aca-gx10_application deadline=$((SECONDS + NETWORK_WAIT_SECONDS))
+  until "$PODMAN" network exists "$net"; do
+    if ((SECONDS >= deadline)); then
+      printf 'the analyzer runtime must be up first; missing network: %s\n' "$net" >&2
+      exit 1
+    fi
+    sleep "$NETWORK_RETRY_INTERVAL"
   done
-  if ((${#missing[@]})); then
-    printf 'the analyzer runtime must be up first; missing network: %s\n' "${missing[*]}" >&2
-    exit 1
-  fi
 }
 
 wait_healthy() {
@@ -78,7 +80,7 @@ sweep_project_containers() {
 
 case "${1:-}" in
   up)
-    require_external_networks
+    require_external_network
     # A failed start leaves its containers for a post-mortem; this is where
     # they go. All state lives on bind mounts, as in the analyzer's runtime.
     sweep_project_containers

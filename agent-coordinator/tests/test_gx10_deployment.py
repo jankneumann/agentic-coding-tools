@@ -30,13 +30,15 @@ def test_it_is_a_separate_compose_project(compose: dict) -> None:
     assert compose["name"] == "aca-gx10-coord"
 
 
-def test_the_analyzer_owns_the_shared_networks(compose: dict) -> None:
-    """Declaring them external joins them; omitting it creates a second,
-    identically-named set and the coordinator comes up wired to nothing."""
-    for name, expected in (("application", "aca-gx10_application"), ("egress", "aca-gx10_egress")):
-        net = compose["networks"][name]
-        assert net["external"] is True, name
-        assert net["name"] == expected, name
+def test_application_is_the_only_network_borrowed_from_the_analyzer(compose: dict) -> None:
+    """The API reaches Langfuse, Squid and the kanban Caddy there. Declaring it
+    external joins it; omitting that creates a second, identically-named
+    network and the coordinator comes up wired to nothing. Every other network
+    is this project's own, so an analyzer restart cannot pull it away."""
+    external = {
+        name: net["name"] for name, net in compose["networks"].items() if net.get("external")
+    }
+    assert external == {"application": "aca-gx10_application"}
 
 
 def test_the_private_network_subnet_is_pinned(compose: dict) -> None:
@@ -121,16 +123,38 @@ def test_the_tunnel_is_isolated_from_the_data_network(compose: dict) -> None:
     """It is the one container holding a connection that bypasses Squid, so it
     gets no route to the databases."""
     networks = set(compose["services"]["cloudflared"]["networks"])
-    assert networks == {"coord", "egress"}
+    assert networks == {"coord", "tunnel"}
 
 
-def test_the_unit_stops_with_the_analyzer_it_depends_on() -> None:
-    """Without PartOf=, stopping the analyzer removes the networks from under a
-    still-running coordinator, which reads as a coordinator bug."""
+def test_the_tunnel_has_its_own_route_out(compose: dict) -> None:
+    """On the analyzer's egress network, every analyzer restart recreated the
+    tunnel's only route out. Its own network survives those restarts. Pinned
+    clear of the analyzer's 10.89.0-2 and this project's 10.89.3."""
+    tunnel = compose["networks"]["tunnel"]
+    assert tunnel["internal"] is False
+    assert tunnel["ipam"]["config"][0]["subnet"] == "10.89.4.0/24"
+
+
+def test_an_analyzer_restart_does_not_restart_the_coordinator() -> None:
+    """PartOf= and Requires= both propagate the analyzer's stop and restart.
+    On 2026-11-08 that turned an analyzer image-pin into a day-long coordinator
+    outage. Wants= + After= keeps the boot order and nothing else."""
     unit = UNIT.read_text(encoding="utf-8")
-    assert "Requires=aca-gx10.service" in unit
+    assert "PartOf=aca-gx10.service" not in unit
+    assert "Requires=aca-gx10.service" not in unit
+    assert "Wants=aca-gx10.service" in unit
     assert "After=aca-gx10.service" in unit
-    assert "PartOf=aca-gx10.service" in unit
+
+
+def test_an_openbao_restart_does_not_cascade_into_the_coordinator() -> None:
+    """Requires= would restart the secrets unit with OpenBao's container unit,
+    and the coordinator, which requires the secrets unit, with it. The secrets
+    are already rendered; a restarting OpenBao only matters to the next login,
+    which waits for it."""
+    unit = SECRETS_UNIT.read_text(encoding="utf-8")
+    assert "Requires=aca-gx10-openbao-container.service" not in unit
+    assert "Wants=aca-gx10-openbao-container.service" in unit
+    assert "aca-gx10-openbao-container.service" in unit.split("After=", 1)[1].splitlines()[0]
 
 
 def test_the_unit_does_not_let_systemd_kill_the_containers() -> None:

@@ -1,13 +1,13 @@
 [Unit]
 Description=Agent coordinator on GX-10 (shares the analyzer's Langfuse and OpenBao)
-# The analyzer owns the networks this project joins and renders the secrets it
-# reads, so it is a hard requirement rather than an ordering preference.
-Requires=aca-gx10.service
+# Ordered after the analyzer at boot, and nothing more. Requires= and PartOf=
+# would carry the analyzer's stop and restart into this unit: on 2026-11-08 an
+# analyzer image-pin took the coordinator down for a day that way. The one
+# network borrowed from the analyzer stays while this project is attached to
+# it, and coordinator-runtime.sh waits for it when the analyzer is still
+# starting.
+Wants=aca-gx10.service
 After=aca-gx10.service
-# PartOf propagates the analyzer's stop and restart to this unit. Without it,
-# `systemctl stop aca-gx10` removes the networks from underneath a coordinator
-# that is still running, which looks like a coordinator bug and is not one.
-PartOf=aca-gx10.service
 Requires=aca-gx10-coordinator-secrets.service
 After=aca-gx10-coordinator-secrets.service
 StartLimitIntervalSec=300
