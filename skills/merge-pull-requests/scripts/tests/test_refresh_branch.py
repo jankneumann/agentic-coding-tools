@@ -109,17 +109,14 @@ class TestCiMergeBaseStaleness:
     def test_stale_when_shas_differ(self, mock_run_gh, mock_run_cmd) -> None:
         from check_staleness import _get_ci_merge_base_staleness
 
-        mock_run_gh.return_value = json.dumps({
-            "headRefOid": "aaaa",
-            "baseRefOid": "bbbb",
-        })
-        # First call: rev-parse origin/main
-        # Second call: rev-list --count
-        mock_run_cmd.side_effect = ["cccc\n", "13\n"]
+        mock_run_gh.return_value = json.dumps({"headRefOid": "aaaa"})
+        # fetch pull head, rev-parse origin/main, merge-base, rev-list --count
+        mock_run_cmd.side_effect = ["", "cccc\n", "bbbb\n", "13\n"]
 
         info = _get_ci_merge_base_staleness(42, "main")
 
         assert info["ci_merge_base_stale"] is True
+        assert info["pr_base_oid"] == "bbbb"
         assert info["commits_behind"] == 13
 
     @patch("check_staleness.run_cmd")
@@ -127,16 +124,41 @@ class TestCiMergeBaseStaleness:
     def test_fresh_when_shas_match(self, mock_run_gh, mock_run_cmd) -> None:
         from check_staleness import _get_ci_merge_base_staleness
 
-        mock_run_gh.return_value = json.dumps({
-            "headRefOid": "aaaa",
-            "baseRefOid": "bbbbccccdddd",
-        })
-        mock_run_cmd.return_value = "bbbbccccdddd\n"
+        mock_run_gh.return_value = json.dumps({"headRefOid": "aaaa"})
+        mock_run_cmd.side_effect = ["", "bbbbccccdddd\n", "bbbbccccdddd\n"]
 
         info = _get_ci_merge_base_staleness(42, "main")
 
         assert info["ci_merge_base_stale"] is False
         assert "commits_behind" not in info
+
+    @patch("check_staleness.run_cmd")
+    @patch("check_staleness.run_gh")
+    def test_requests_only_fields_old_gh_supports(
+        self, mock_run_gh, mock_run_cmd,
+    ) -> None:
+        """gh 2.45 rejects ``baseRefOid``; asking for it made the result None."""
+        from check_staleness import _get_ci_merge_base_staleness
+
+        mock_run_gh.return_value = json.dumps({"headRefOid": "aaaa"})
+        mock_run_cmd.side_effect = ["", "bbbb\n", "bbbb\n"]
+
+        _get_ci_merge_base_staleness(42, "main")
+
+        requested = mock_run_gh.call_args.args[0]
+        fields = requested[requested.index("--json") + 1].split(",")
+        assert fields == ["headRefOid"]
+
+    @patch("check_staleness.run_cmd")
+    @patch("check_staleness.run_gh")
+    def test_missing_head_oid_returns_none(self, mock_run_gh, mock_run_cmd) -> None:
+        from check_staleness import _get_ci_merge_base_staleness
+
+        mock_run_gh.return_value = json.dumps({})
+        info = _get_ci_merge_base_staleness(42, "main")
+
+        assert info["ci_merge_base_stale"] is None
+        mock_run_cmd.assert_not_called()
 
     @patch("check_staleness.run_gh")
     def test_api_error_returns_none(self, mock_run_gh) -> None:

@@ -320,22 +320,33 @@ def _get_ci_merge_base_staleness(
     When ``ci_merge_base_stale`` is True, ``gh run rerun`` will NOT pick up
     base-branch fixes because it replays against the same merge commit.
     Use ``merge_pr.py refresh-branch`` or a local rebase instead.
+
+    The merge base is computed with git rather than read from ``gh``: the
+    ``baseRefOid`` JSON field does not exist in older gh releases (2.45 rejects
+    it), and the resulting ``None`` made every post-refresh gate fail closed.
     """
     try:
-        # Get the PR's merge base (the common ancestor of PR head + base)
         raw = run_gh([
             "pr", "view", str(pr_number),
-            "--json", "headRefOid,baseRefOid",
+            "--json", "headRefOid",
         ], timeout=GH_TIMEOUT)
-        pr_data = json.loads(raw)
-        base_oid = pr_data.get("baseRefOid", "")
+        head_oid = json.loads(raw).get("headRefOid", "")
+        if not head_oid:
+            return {"ci_merge_base_stale": None}
 
-        # Get the current tip of the remote base branch
-        head_result = run_cmd(
+        # pull/<n>/head also resolves fork PRs, whose head is not on origin.
+        run_cmd(
+            ["git", "fetch", "-q", "origin", f"pull/{pr_number}/head"],
+            timeout=60,
+        )
+        current_base_head = run_cmd(
             ["git", "rev-parse", f"origin/{base_branch}"],
             timeout=10,
-        )
-        current_base_head = head_result.strip()
+        ).strip()
+        base_oid = run_cmd(
+            ["git", "merge-base", head_oid, current_base_head],
+            timeout=10,
+        ).strip()
 
         stale = bool(base_oid and current_base_head and base_oid != current_base_head)
         info: dict = {
