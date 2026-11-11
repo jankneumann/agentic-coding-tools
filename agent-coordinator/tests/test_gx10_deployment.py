@@ -166,6 +166,15 @@ def test_the_unit_does_not_let_systemd_kill_the_containers() -> None:
     assert "RemainAfterExit=yes" in unit
 
 
+def test_the_unit_can_create_its_networks() -> None:
+    """ProtectSystem=full leaves /etc read-only, where podman writes network
+    definitions. The coord network predated the unit; the tunnel network did
+    not, and its first start failed with EROFS."""
+    unit = UNIT.read_text(encoding="utf-8")
+    assert "ProtectSystem=full" in unit
+    assert "ReadWritePaths=/etc/containers/networks" in unit
+
+
 def test_the_unit_refuses_to_run_a_stale_installed_copy() -> None:
     """Three rounds of analyzer fixes had no effect against a stale unit in
     /etc/systemd/system while the repo copy was correct."""
