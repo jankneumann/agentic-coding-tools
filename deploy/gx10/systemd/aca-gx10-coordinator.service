@@ -39,6 +39,10 @@ NoNewPrivileges=yes
 # units with 203/EXEC before anyone looked at the sandboxing.
 ProtectHome=read-only
 ProtectSystem=full
+# ProtectSystem=full makes /etc read-only, and podman writes each network's
+# definition under /etc/containers/networks. On 2026-11-11 the new tunnel
+# network could not be created and the start failed with EROFS.
+ReadWritePaths=/etc/containers/networks
 
 [Install]
 WantedBy=multi-user.target
