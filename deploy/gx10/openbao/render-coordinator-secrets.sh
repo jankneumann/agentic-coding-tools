@@ -51,8 +51,10 @@ emit_optional() {
 # come from the same stored password so they cannot drift.
 COORD_DB_PASSWORD="$(fetch "$COORD_PATH" postgres_password)"
 printf 'POSTGRES_PASSWORD=%s\n' "$COORD_DB_PASSWORD" >>"$COORD_TMP"
+# The DSN is a URI, so a reserved character (/ @ : ? # %) in the password
+# would change what it parses to; Postgres itself gets the raw value above.
 printf 'POSTGRES_DSN=postgresql://coordinator:%s@coordinator-postgres:5432/coordinator\n' \
-  "$COORD_DB_PASSWORD" >>"$COORD_TMP"
+  "$(/usr/bin/jq -rn --arg p "$COORD_DB_PASSWORD" '$p|@uri')" >>"$COORD_TMP"
 
 # API authentication. COORDINATION_API_KEYS is the server's accepted set;
 # COORDINATION_API_KEY is what this instance presents when it calls out.
