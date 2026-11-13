@@ -181,6 +181,19 @@ def test_the_outbound_key_is_not_an_accepted_key(run, bao, tmp_path: Path) -> No
     assert stored["coordination_api_key"] not in stored["coordination_api_keys"].split(",")
 
 
+def test_no_gx10_script_installs_from_stdin() -> None:
+    """`install /dev/stdin` over an existing file fails under uutils coreutils
+    (Ubuntu 26.04), which broke every re-run of this script in CI. A GNU
+    coreutils host passes the behavioural tests either way, so pin the idiom."""
+    offenders = [
+        f"{path.relative_to(ROOT)}:{n}"
+        for path in sorted((ROOT / "deploy" / "gx10").rglob("*.sh"))
+        for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1)
+        if "install" in line and "/dev/stdin" in line and not line.lstrip().startswith("#")
+    ]
+    assert offenders == []
+
+
 def test_a_rerun_with_blank_answers_changes_nothing(run, bao, tmp_path: Path) -> None:
     fake, _ = bao
     run(FULL_ANSWERS, "--import-keys", str(_import_file(tmp_path, RAILWAY)))
