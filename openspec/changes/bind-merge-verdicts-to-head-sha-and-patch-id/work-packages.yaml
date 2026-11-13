@@ -1,0 +1,370 @@
+schema_version: 1
+
+feature:
+  id: bind-merge-verdicts-to-head-sha-and-patch-id
+  title: "Bind merge verdicts to head SHA and patch-id"
+  plan_revision: 1
+  created_by: claude_code
+  created_at: "2026-10-15T00:00:00Z"
+  deployable: false
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/bind-merge-verdicts-to-head-sha-and-patch-id/contracts/README.md"
+    files:
+      - "openspec/changes/bind-merge-verdicts-to-head-sha-and-patch-id/contracts/README.md"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 1
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-binding
+    title: "Verdict-binding module"
+    task_type: implement
+    role: implementer
+    description: >-
+      Tasks 1.1-1.3. New pure module verdict_binding.py: bind, verdict_currency,
+      stale_reason, independence_violation, derive_author, family_of,
+      patch_id_from_diff, patch_id, validate_binding, POLICY_WAIVABLE_REASONS
+      (D1-D3, D5). Tested against real throwaway git repos.
+    priority: 1
+    depends_on: []
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "skills/merge-pull-requests/scripts/verdict_binding.py"
+      keys:
+        - "feature:bind-merge-verdicts-to-head-sha-and-patch-id:binding"
+      ttl_minutes: 120
+      reason: "Owns the verdict-binding and currency rule"
+    scope:
+      write_allow:
+        - "skills/merge-pull-requests/scripts/verdict_binding.py"
+        - "skills/merge-pull-requests/scripts/tests/test_verdict_binding.py"
+      read_allow:
+        - "openspec/changes/bind-merge-verdicts-to-head-sha-and-patch-id/**"
+        - "skills/merge-pull-requests/**"
+        - "skills/tests/merge-pull-requests/**"
+      deny: []
+    context_impact:
+      surfaces:
+        - "semantic_code"
+    worktree:
+      name: wp-binding
+      mode: isolated
+    verification:
+      tier_required: B
+      steps:
+        - name: "Verdict-binding tests"
+          kind: command
+          command: "cd skills && .venv/bin/python -m pytest merge-pull-requests/scripts/tests/test_verdict_binding.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["binding_tests"]
+    outputs:
+      result_keys: ["binding_tests"]
+    metadata:
+      loc_estimate: 320
+      package_kind: algorithm
+
+  - package_id: wp-schema
+    title: "Merge plan schema 1.2"
+    task_type: implement
+    role: implementer
+    description: >-
+      Tasks 2.1-2.4. Schema const 1.2 adds state.review_waiver and removes
+      state.iterate_consensus_path; validate_plan rejects any other version with
+      a rebuild message; build_plan emits 1.2 (D8).
+    priority: 1
+    depends_on: []
+    timeout_minutes: 45
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "skills/merge-pull-requests/contracts/merge-plan.schema.json"
+        - "skills/merge-pull-requests/scripts/merge_plan.py"
+        - "skills/merge-pull-requests/scripts/build_plan.py"
+      keys:
+        - "feature:bind-merge-verdicts-to-head-sha-and-patch-id:schema"
+      ttl_minutes: 120
+      reason: "Owns the merge plan schema version and its loader"
+    scope:
+      write_allow:
+        - "skills/merge-pull-requests/contracts/merge-plan.schema.json"
+        - "skills/merge-pull-requests/scripts/merge_plan.py"
+        - "skills/merge-pull-requests/scripts/build_plan.py"
+        - "skills/merge-pull-requests/scripts/tests/test_merge_plan_contract.py"
+        - "skills/merge-pull-requests/scripts/tests/test_build_plan.py"
+      read_allow:
+        - "openspec/changes/bind-merge-verdicts-to-head-sha-and-patch-id/**"
+        - "skills/merge-pull-requests/**"
+      deny: []
+    context_impact:
+      surfaces:
+        - "semantic_code"
+    worktree:
+      name: wp-schema
+      mode: isolated
+    verification:
+      tier_required: B
+      steps:
+        - name: "Plan contract and build tests"
+          kind: command
+          command: "cd skills && .venv/bin/python -m pytest merge-pull-requests/scripts/tests/test_merge_plan_contract.py merge-pull-requests/scripts/tests/test_build_plan.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["schema_tests"]
+    outputs:
+      result_keys: ["schema_tests"]
+    metadata:
+      loc_estimate: 90
+      package_kind: data_model
+
+  - package_id: wp-merge-pin
+    title: "Head-pinned merge"
+    task_type: implement
+    role: implementer
+    description: >-
+      Tasks 3.1-3.5. get_pr_status requests headRefOid; merge_pr takes
+      expected_head_sha and review_waiver, adds --match-head-commit on the
+      direct and merge-queue paths, and records waiver fields on the merge
+      event (D6). Callers that pass neither are unchanged.
+    priority: 1
+    depends_on: []
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "skills/merge-pull-requests/scripts/merge_pr.py"
+        - "skills/merge-pull-requests/scripts/merge_events.py"
+      keys:
+        - "feature:bind-merge-verdicts-to-head-sha-and-patch-id:merge"
+      ttl_minutes: 120
+      reason: "Owns the gh pr merge invocation and the merge event record"
+    scope:
+      write_allow:
+        - "skills/merge-pull-requests/scripts/merge_pr.py"
+        - "skills/merge-pull-requests/scripts/merge_events.py"
+        - "skills/merge-pull-requests/scripts/tests/test_merge_pr_head_pin.py"
+        - "skills/merge-pull-requests/scripts/tests/test_merge_pr_records_events.py"
+      read_allow:
+        - "openspec/changes/bind-merge-verdicts-to-head-sha-and-patch-id/**"
+        - "skills/merge-pull-requests/**"
+        - "skills/tests/merge-pull-requests/**"
+      deny: []
+    context_impact:
+      surfaces:
+        - "semantic_code"
+    worktree:
+      name: wp-merge-pin
+      mode: isolated
+    verification:
+      tier_required: B
+      steps:
+        - name: "Merge pin and event tests"
+          kind: command
+          command: "cd skills && .venv/bin/python -m pytest merge-pull-requests/scripts/tests/test_merge_pr_head_pin.py merge-pull-requests/scripts/tests/test_merge_pr_records_events.py merge-pull-requests/scripts/tests/test_merge_events.py tests/merge-pull-requests/test_merge_events.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["merge_pin_tests"]
+    outputs:
+      result_keys: ["merge_pin_tests"]
+    metadata:
+      loc_estimate: 140
+      package_kind: integration
+
+  - package_id: wp-vendor-review
+    title: "Reviewer identity at dispatch"
+    task_type: implement
+    role: implementer
+    description: >-
+      Tasks 4.1-4.4. review_dispatcher widens exclude_vendor to accept a
+      collection (string form unchanged for other callers); vendor_review
+      excludes the author's vendor alongside claude_code and keeps agent_id and
+      model_used in each per-vendor summary (D1, D5).
+    priority: 1
+    depends_on: []
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "skills/merge-pull-requests/scripts/vendor_review.py"
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+      keys:
+        - "feature:bind-merge-verdicts-to-head-sha-and-patch-id:dispatch"
+      ttl_minutes: 120
+      reason: "Owns reviewer exclusion and reviewer identity in the review summary"
+    scope:
+      write_allow:
+        - "skills/merge-pull-requests/scripts/vendor_review.py"
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+        - "skills/parallel-infrastructure/scripts/tests/test_review_dispatcher_exclude_vendor.py"
+        - "skills/tests/merge-pull-requests/test_vendor_review_identity.py"
+      read_allow:
+        - "openspec/changes/bind-merge-verdicts-to-head-sha-and-patch-id/**"
+        - "skills/merge-pull-requests/**"
+        - "skills/parallel-infrastructure/**"
+        - "skills/tests/merge-pull-requests/**"
+      deny: []
+    context_impact:
+      surfaces:
+        - "semantic_code"
+    worktree:
+      name: wp-vendor-review
+      mode: isolated
+    verification:
+      tier_required: B
+      steps:
+        - name: "Dispatcher and vendor-review tests"
+          kind: command
+          command: "cd skills && .venv/bin/python -m pytest parallel-infrastructure/scripts/tests tests/merge-pull-requests/test_vendor_review_identity.py tests/merge-pull-requests/test_vendor_review_judgment.py tests/merge-pull-requests/test_vendor_review_prompt.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["dispatch_tests"]
+    outputs:
+      result_keys: ["dispatch_tests"]
+    metadata:
+      loc_estimate: 110
+      package_kind: integration
+
+  - package_id: wp-predicate-execute
+    title: "Total review predicate and execution wiring"
+    task_type: implement
+    role: implementer
+    description: >-
+      Tasks 5.1-5.5. vendor_review_block_reason becomes total (D4); execute_plan
+      binds every stored review, routes the skip path through the predicate,
+      records policy waivers, adds --waive-review (D7), deletes
+      _iterate_consensus_current, and passes the live head SHA and waiver to
+      merge (D6). Shares execution_safety.py with
+      add-orchestrator-adjudication-review-gate wp-merge-gate; this change
+      lands first.
+    priority: 2
+    depends_on: ["wp-binding", "wp-schema", "wp-merge-pin", "wp-vendor-review"]
+    timeout_minutes: 120
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "skills/merge-pull-requests/scripts/execution_safety.py"
+        - "skills/merge-pull-requests/scripts/execute_plan.py"
+      keys:
+        - "feature:bind-merge-verdicts-to-head-sha-and-patch-id:predicate"
+      ttl_minutes: 120
+      reason: "Owns the merge-time vendor gate predicate and its execution wiring"
+    scope:
+      write_allow:
+        - "skills/merge-pull-requests/scripts/execution_safety.py"
+        - "skills/merge-pull-requests/scripts/execute_plan.py"
+        - "skills/merge-pull-requests/scripts/tests/test_execute_plan.py"
+        - "skills/tests/merge-pull-requests/test_review_predicate_total.py"
+        - "skills/tests/merge-pull-requests/test_execute_plan_review_evidence.py"
+      read_allow:
+        - "openspec/changes/bind-merge-verdicts-to-head-sha-and-patch-id/**"
+        - "skills/merge-pull-requests/**"
+        - "skills/tests/merge-pull-requests/**"
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+      deny: []
+    context_impact:
+      surfaces:
+        - "semantic_code"
+    worktree:
+      name: wp-predicate-execute
+      mode: isolated
+    verification:
+      tier_required: B
+      steps:
+        - name: "Merge-pull-requests isolated suites"
+          kind: command
+          command: "cd skills && .venv/bin/python -m pytest merge-pull-requests/scripts/tests tests/merge-pull-requests -q"
+          evidence:
+            artifacts: []
+            result_keys: ["merge_suite"]
+    outputs:
+      result_keys: ["merge_suite"]
+    metadata:
+      loc_estimate: 380
+      package_kind: integration
+
+  - package_id: wp-docs
+    title: "Verdict-binding reference and mirrors"
+    task_type: implement
+    role: implementer
+    description: >-
+      Tasks 6.1-6.5 and 7.x. New references/verdict-binding.md; SKILL.md lines
+      141-142 rewritten line-neutral (D9); a lint assertion in test_skill_md;
+      a coordination note in the adjudication design; runtime mirrors
+      re-synced; final verification.
+    priority: 3
+    depends_on: ["wp-predicate-execute"]
+    timeout_minutes: 45
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "skills/merge-pull-requests/SKILL.md"
+      keys:
+        - "feature:bind-merge-verdicts-to-head-sha-and-patch-id:docs"
+      ttl_minutes: 120
+      reason: "Owns the merge-pull-requests SKILL.md and its verdict-binding reference"
+    scope:
+      write_allow:
+        - "skills/merge-pull-requests/SKILL.md"
+        - "skills/merge-pull-requests/references/verdict-binding.md"
+        - "skills/tests/merge-pull-requests/test_skill_md.py"
+        - ".claude/skills/merge-pull-requests/**"
+        - ".agents/skills/merge-pull-requests/**"
+        - "openspec/changes/add-orchestrator-adjudication-review-gate/design.md"
+      read_allow:
+        - "openspec/changes/bind-merge-verdicts-to-head-sha-and-patch-id/**"
+        - "skills/**"
+      deny: []
+    context_impact:
+      surfaces:
+        - "semantic_code"
+    worktree:
+      name: wp-docs
+      mode: isolated
+    verification:
+      tier_required: B
+      steps:
+        - name: "Isolated suites including the shared dispatcher"
+          kind: command
+          command: "cd skills && .venv/bin/python -m pytest merge-pull-requests/scripts/tests tests/merge-pull-requests parallel-infrastructure/scripts/tests -q"
+          evidence:
+            artifacts: []
+            result_keys: ["full_suite"]
+        - name: "No iterate_consensus_path references remain"
+          kind: command
+          command: "! git grep -n iterate_consensus_path -- skills/merge-pull-requests skills/tests"
+          evidence:
+            artifacts: []
+            result_keys: ["dead_field_gone"]
+        - name: "Runtime mirrors in sync"
+          kind: command
+          command: "bash skills/install.sh --check"
+          evidence:
+            artifacts: []
+            result_keys: ["mirrors_in_sync"]
+        - name: "Strict OpenSpec validation"
+          kind: command
+          command: "openspec validate bind-merge-verdicts-to-head-sha-and-patch-id --strict"
+          evidence:
+            artifacts: []
+            result_keys: ["openspec_strict"]
+    outputs:
+      result_keys: ["full_suite", "dead_field_gone", "mirrors_in_sync", "openspec_strict"]
+    metadata:
+      loc_estimate: 90
+      package_kind: config

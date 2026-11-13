@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-10-15T20:43:56.333764+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "rpc_failed: ForeignKeyViolationError: insert or update on table \"handoff_documents\" violates foreign key constraint \"handoff_documents_session_id_fkey\"\nDETAIL:  Key (session_id)=(session_017qfSLYuSiyd2b5URwLucoq) is not present in table \"agent_sessions\". (HTTP 200)",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": "session_017qfSLYuSiyd2b5URwLucoq",
+    "summary": "Planned roadmap item ri-02: expedite returns fail when no validation-report.md exists, with a recorded --accept-missing-validation \"<reason>\" override and a SKILL.md drift test.",
+    "completed_work": [
+      "Full artifact set; all three validators pass; planning lock claim registered."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Approach A: strict fail-closed with a recorded operator override",
+        "rationale": "Selected at Gate 1. Matches gate_logic ALWAYS_REQUIRED_PHASES; adds no self-certifying exemption surface.",
+        "capability": "expedite",
+        "supersedes": null
+      },
+      {
+        "title": "Derive change_dir from the change id, not the report's parent",
+        "rationale": "A report under reports/ or a worktree silently loses the change dir today, so the deployable flag is unreadable.",
+        "capability": "expedite",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Gate 2 approval",
+      "seed_tasks_from_md.py"
+    ],
+    "relevant_files": []
+  }
+}
