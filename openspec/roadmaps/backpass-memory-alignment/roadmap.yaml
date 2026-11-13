@@ -1,0 +1,446 @@
+schema_version: 1
+roadmap_id: backpass-memory-alignment
+source_proposal: docs/proposals/backpass-memory-alignment.md
+status: planning
+policy:
+  default_action: wait_if_budget_exceeded
+  max_switch_attempts_per_item: 2
+items:
+- item_id: ri-01
+  title: Run backpass spike and record engine-versus-port decision
+  status: candidate
+  priority: 1
+  effort: M
+  depends_on: []
+  description: Install backpass, write a .backpassrc.json pointing memoryFiles at
+    AGENTS.md and CLAUDE.md and skillsDir at skills/, run scan, status, and one full
+    proposal run (never apply) against this checkout, and record the always-loaded
+    budget bar, a per-edit evidence review of the first proposal, and a comparison
+    of its orchestration-domain diagnostics against /improve-harness. Write the engine-versus-port
+    decision as a capability-timeline entry in docs/decisions/.
+  rationale: Phase 0 of the proposal. The spike costs no code and its output (budget
+    number, instruction index, evidence rows) is needed whether the outcome is to
+    wrap backpass as the engine or to port its concepts into collect-transcripts.
+    Its budget bar is the harness-neutral denominator that skill-rightsizing ri-04
+    (record-doctor-context-cost-baseline) asks for. Every Phase 3 and Phase 4 item
+    is shaped by this decision.
+  change_id: spike-backpass-engine-versus-port
+  acceptance_outcomes:
+  - .backpassrc.json exists with memoryFiles [AGENTS.md, CLAUDE.md], skillsDir skills,
+    and a discovery.since covering the autopilot history; .backpass/ is excluded from
+    git via .git/info/exclude.
+  - A dated context-cost baseline file records the backpass budget bar (memory file
+    plus all skill descriptions, bytes/4) alongside the /doctor figure used by skill-rightsizing
+    ri-04.
+  - A review table lists every edit in the first backpass proposal with its action
+    kind, quoted sessions, and a yes/no judgement on whether the evidence meets this
+    repo's standard.
+  - The comparison of backpass orchestration-domain diagnostics against the /improve-harness
+    report over the same window is recorded with counts of overlapping and unique
+    findings.
+  - A docs/decisions/ capability-timeline entry states engine or port with the spike
+    numbers attached, and no backpass apply was run against the shared checkout.
+- item_id: ri-02
+  title: Flip canonical instruction file to AGENTS.md with CLAUDE.md import pointer
+  status: candidate
+  priority: 2
+  effort: M
+  depends_on: []
+  description: Replace the AGENTS.md symlink with a self-contained canonical AGENTS.md
+    and rewrite CLAUDE.md as a Claude-specific preamble (Sub-Agent Authorization block)
+    ending in @AGENTS.md. Retarget test_claude_md_restructure.py, README.md line 7,
+    the context-engineering skill, the skill-workflow spec text that says either file
+    may exceed 300 lines, and the three skills that describe the two files as divergent.
+  rationale: Section 3.3 of the proposal. A mode-120000 symlink degrades to a one-line
+    text file under core.symlinks=false, Claude-specific text is currently read by
+    Codex through the link, AGENTS.md is the cross-vendor convention matching the
+    repo's harness-agnostic identity, and backpass recognises the pointer form as
+    canonical. Also closes defect 6 in section 6 and overlaps repo-improvement stale-doc
+    reconciliation.
+  change_id: flip-canonical-instruction-file-to-agents-md
+  acceptance_outcomes:
+  - AGENTS.md is a regular file (git mode 100644) containing the full shared contract,
+    and CLAUDE.md contains only Claude-specific content followed by a final @AGENTS.md
+    line.
+  - skills/session-log/tests/test_claude_md_restructure.py asserts the line cap against
+    AGENTS.md and passes.
+  - README.md, skills/context-engineering/SKILL.md, and openspec/specs/skill-workflow/spec.md
+    no longer describe AGENTS.md as a symlink or as a second file that can diverge;
+    grep for 'symlink' near AGENTS.md returns no stale hits in docs, specs, or skills.
+  - Codex-style consumers that ignore @ imports still receive the complete contract
+    by reading AGENTS.md alone (verified by a test that AGENTS.md contains every section
+    heading that the previous CLAUDE.md had, minus the Claude-specific block).
+- item_id: ri-03
+  title: Define memory actions and placement policy in the documentation guide
+  status: candidate
+  priority: 2
+  effort: M
+  depends_on:
+  - ri-02
+  description: Add a section to docs/guides/documentation.md defining the five memory
+    actions (add, rewrite, remove, extract, move) with their evidence floors and mechanical
+    checks, and a single what-goes-where placement policy that merges the keep/cut
+    test, the broad/narrow/trigger table, and the progressive-disclosure tiers with
+    measured relevance as the criterion. Reference the section from the skill-workflow
+    spec.
+  rationale: 'Sections 3.4 and 4 (adapt item 3). No action vocabulary exists in the
+    repo today; the keep/cut/relocate heuristic lives only in prose. The definitions
+    are the contract that the Phase 4 proposal-commit format and the skill-rightsizing
+    ri-14 (cut-competence-rules-relocate-policy) and ri-15 extract work will be judged
+    against: relevance prioritizes a cut, the replay benchmark accepts it.'
+  change_id: define-memory-actions-and-placement-policy
+  acceptance_outcomes:
+  - docs/guides/documentation.md contains a table with exactly five actions, each
+    row naming its evidence floor (2 distinct sessions with quotes; 2 sessions with
+    harm for remove; exempt for extract and move) and its mechanical check.
+  - The same guide contains a placement section mapping broad (20 percent of sessions
+    or safety) to AGENTS.md, narrow-with-trigger to a skill, and narrow-without-trigger
+    to deletion, and states the corroboration unit chosen for this corpus (distinct
+    changes or distinct interactive sessions).
+  - openspec/specs/skill-workflow/spec.md references the memory-actions section by
+    path and no longer carries its own contradictory keep/cut wording.
+  - The extract action text states that every removed line must reappear in the created
+    or extended SKILL.md and that the description delta is charged to the always-loaded
+    budget.
+- item_id: ri-04
+  title: Split the documentation surface into agent-memory and docs in context-impact
+    rules
+  status: candidate
+  priority: 3
+  effort: S
+  depends_on:
+  - ri-02
+  description: Replace the single documentation surface in openspec/schemas/context-impact-rules.yaml
+    with an agent-memory surface (AGENTS.md, CLAUDE.md, SKILL.md frontmatter) and
+    a docs surface (README, docs/guides, docs/proposals, docs/decisions), and have
+    the documentation.inventory producer report the byte and estimated-token size
+    of the agent-memory surface.
+  rationale: Section 3.3. The agent surface is paid on every session while human docs
+    are free until pulled; the schema currently lumps both together so nothing machine-visible
+    distinguishes them and nothing reports the always-loaded budget. This gives skill-rightsizing
+    ri-04 and ri-10 (rewrite-skill-frontmatter) a repeatable in-repo measurement of
+    the surface they cut.
+  change_id: split-agent-memory-surface-in-context-impact-rules
+  acceptance_outcomes:
+  - context-impact-rules.yaml validates against its schema with agent-memory and docs
+    surfaces and no remaining documentation surface.
+  - A test asserts AGENTS.md, CLAUDE.md, and skills/*/SKILL.md frontmatter classify
+    as agent-memory while README.md and docs/guides/*.md classify as docs.
+  - The documentation.inventory producer output includes agent_memory_bytes and agent_memory_tokens_est
+    (bytes/4) fields and its check mode fails when the value exceeds a configured
+    budget.
+- item_id: ri-05
+  title: Fix improve-harness memory query payload and capability_gap tag matching
+  status: candidate
+  priority: 1
+  effort: M
+  depends_on: []
+  description: Make analyze_failures.py send the fields MemoryQueryRequest declares
+    (including agent_id, dropping time_window_days) and match capability_gap:* tags
+    by prefix instead of the bare capability_gap tag, either by expanding tags client-side
+    or by adding a prefix predicate to the coordinator memory query; apply the same
+    fix to skills/agent-metrics/scripts/query_metrics.py. Add a test against a fake
+    or live coordinator.
+  rationale: 'Section 6 defects 1 and 2, filed as GitHub issue #493. The consumer
+    of the four-source capability-gap pipeline cannot currently read from the coordinator
+    at all: the request fails validation and even a valid request would never match
+    stored tags because the SQL predicate is exact array overlap. Nothing downstream
+    in Phase 3 or 4 is testable until this works.'
+  change_id: fix-improve-harness-memory-query-contract
+  acceptance_outcomes:
+  - POST /memory/query issued by analyze_failures.py passes MemoryQueryRequest validation
+    (test asserts a 200 from a fake coordinator with the exact payload).
+  - A memory entry tagged capability_gap:missing-retry is returned by the improve-harness
+    query and by query_metrics.py; a test seeds such an entry and asserts it appears.
+  - 'GitHub issue #493 is closed by the merged change.'
+- item_id: ri-06
+  title: Rank deduplicated multi-source findings in analyze_failures
+  status: candidate
+  priority: 2
+  effort: S
+  depends_on:
+  - ri-05
+  description: Make analyze_failures.py rank the deduplicated multi-source findings
+    it already computes instead of raw memory entries, call generate_report_multi_source
+    from main(), and make cross-source agreement a filter or ranking input rather
+    than a printed percentage.
+  rationale: 'Section 6 defect 3, filed as GitHub issue #494. Section 2 notes that
+    cross-source agreement is described as the strongest signal yet never filters;
+    the dedup path is a self-documented dead branch. The gap ledger and corroboration
+    floor in Phase 3 build on this ranking.'
+  change_id: rank-deduplicated-multi-source-findings
+  acceptance_outcomes:
+  - Running analyze_failures.py over a fixture with the same gap reported by two sources
+    yields one ranked finding with source_count 2 rather than two raw entries.
+  - generate_report_multi_source is invoked from main() and its output section appears
+    in the generated improvement report (asserted by test).
+  - 'GitHub issue #494 is closed by the merged change.'
+- item_id: ri-07
+  title: 'Resolve the collect-transcripts --enable contract: implement or amend'
+  status: candidate
+  priority: 2
+  effort: L
+  depends_on: []
+  description: Implement the --enable flag, define analyze_session_llm behind the
+    repo's vendor routing, and make the CLIs write structured findings to episodic
+    memory when enabled, keeping dry-run as the default. If the LLM path is deliberately
+    deferred, amend the spec and SKILL.md instead so documentation matches the heuristic-only
+    behaviour; the item is complete only when code and spec agree.
+  rationale: 'Section 6 defect 4, filed as GitHub issue #495. The pipeline never calls
+    a model and never writes memory, so the transcript emitter of the capability-gap
+    contract does not exist. Phase 3 distillation and Phase 4 memory emission both
+    need a working model call and write path to sit behind.'
+  change_id: resolve-collect-transcripts-enable-contract
+  acceptance_outcomes:
+  - 'If the implement path is chosen: collect-transcripts --enable runs end to end
+    on a fixture transcript and writes at least one episodic memory entry with a capability_gap:*
+    tag and source:transcript-mined (verified against a fake coordinator).'
+  - 'If the implement path is chosen: analyze_session_llm is defined, unit-tested
+    with a stubbed model client, and discards any finding that lacks a verbatim quote.'
+  - Without --enable both CLIs remain dry-run and write nothing; a test asserts zero
+    memory writes.
+  - 'If the amend path is chosen: the spec and SKILL.md describe heuristic-only, print-only
+    behaviour, the unused prompt files are removed, and the RI-12 scheduling assumption
+    in docs/proposals/repo-improvement-roadmap.md is corrected.'
+  - 'openspec/specs and skills/collect-transcripts/SKILL.md describe exactly the behaviour
+    the code implements, and GitHub issue #495 is closed.'
+- item_id: ri-08
+  title: Wire or remove the coordinator audit-triage classifier
+  status: candidate
+  priority: 3
+  effort: S
+  depends_on: []
+  description: Decide whether agent-coordinator/src/audit_triage.py is wired to a
+    background task that runs over audit events or removed, record the decision, and
+    implement it so the classifier is no longer documented-but-uncalled.
+  rationale: 'Section 6 defect 5, filed as GitHub issue #496. A classifier with no
+    caller outside its tests is dead code that misleads the pipeline documentation;
+    resolving it either adds a fourth working emitter to the capability-gap contract
+    or removes a false claim.'
+  change_id: wire-or-remove-audit-triage-classifier
+  acceptance_outcomes:
+  - Either a background task invokes the classifier and an integration test shows
+    an audit event producing a classification, or the module and its docs references
+    are deleted and the test suite passes.
+  - The decision is recorded in docs/decisions/ or the coordinator README with the
+    reason.
+  - 'GitHub issue #496 is closed by the merged change.'
+- item_id: ri-09
+  title: Build instruction index with stable AG-nnn ids and memory-surface hash
+  status: candidate
+  priority: 3
+  effort: M
+  depends_on:
+  - ri-01
+  - ri-02
+  description: Add a shared script that parses AGENTS.md into units (list items and
+    paragraphs under headings), hashes each, assigns stable AG-nnn aliases that survive
+    reordering, and computes a surface hash over the memory file plus every skill
+    description line. Expose both as importable functions and a CLI.
+  rationale: Adopt items 2 and 7 in section 4. Attribution of evidence to a specific
+    instruction is the missing piece that lets the pipeline justify removing a line,
+    not only adding one; the surface hash is the cache key that invalidates exactly
+    the evidence an edit depends on. If the spike chose backpass as engine this wraps
+    its index output; if it chose port this is the Python equivalent of src/memory.js.
+  change_id: build-instruction-index-and-surface-hash
+  acceptance_outcomes:
+  - Running the index CLI over AGENTS.md emits a JSON list of units each with id (AG-nnn),
+    content hash, heading path, and line range; reordering two sections leaves every
+    id unchanged.
+  - Editing one skill description changes the surface hash; editing README.md does
+    not (asserted by test).
+  - The instruction index produced matches the ids backpass reported in the ri-01
+    spike for the same file version, or the difference is documented.
+- item_id: ri-10
+  title: Extend capability-gap tag schema with instruction, polarity, class, and domain
+    prefixes
+  status: candidate
+  priority: 3
+  effort: S
+  depends_on:
+  - ri-01
+  - ri-09
+  description: Add instruction:AG-nnn, polarity:positive|negative, class:harm|non-compliance|irrelevant,
+    and domain:project|orchestration tag prefixes to the D4 tag schema, document them
+    in docs/guides/memory-conventions.md, and update the session-log emitter and the
+    collect-transcripts writer to emit them.
+  rationale: Adopt item 3 in section 4 and section 3.1. The current failure_type enum
+    cannot express harm versus non-compliance and records only what was missing, never
+    that an existing instruction helped or hurt. Positive evidence and harm class
+    are what the remove action floor and the relevance metric are computed from.
+  change_id: extend-capability-gap-tag-schema-with-evidence-prefixes
+  acceptance_outcomes:
+  - docs/guides/memory-conventions.md documents the four prefixes with allowed values
+    and an example entry carrying all four.
+  - 'A memory entry written by collect-transcripts with --enable carries instruction:,
+    polarity:, class:, and domain: tags when the finding is anchored to an instruction,
+    and a test asserts the tag set.'
+  - Queries by prefix (from ri-05) return entries filtered by polarity:negative and
+    class:harm.
+- item_id: ri-11
+  title: Add deterministic distillation and surface-hash evidence cache to collect-transcripts
+  status: candidate
+  priority: 3
+  effort: L
+  depends_on:
+  - ri-01
+  - ri-07
+  - ri-09
+  description: Insert a deterministic reduction pass before any model call (user and
+    assistant turns verbatim, each tool call collapsed to one line, output truncated,
+    scaffolding dropped, secrets redacted) and cache per-transcript evidence keyed
+    on transcript content, surface hash, and analysis-index version. Report the measured
+    reduction percentage and cache hit rate in the dry-run output.
+  rationale: Adapt item 6 and adopt item 7 in section 4. backpass reaches 96-99 percent
+    reduction before spending a model token; our pipeline passes the full event stream
+    forward. The cache makes reruns after a description edit re-analyze only the transcripts
+    whose evidence that edit could change.
+  change_id: add-transcript-distillation-and-evidence-cache
+  acceptance_outcomes:
+  - Dry-run output prints original and distilled token estimates per transcript and
+    the reduction is at least 90 percent on the golden fixtures.
+  - Distilled output for a fixture containing a fake API key contains no substring
+    of that key (redaction test).
+  - Running twice over the same transcripts with an unchanged surface hash makes zero
+    model calls on the second run; changing one skill description invalidates only
+    the cached entries whose analysis referenced it.
+- item_id: ri-12
+  title: Add worktree-list and recorded-remote session association to transcript adapters
+  status: candidate
+  priority: 4
+  effort: M
+  depends_on:
+  - ri-01
+  description: 'Extend the adapter base with tiered session-to-repo association: worktree
+    cwd, sibling worktree from the git worktree list, recorded remote URL, and a dead-path
+    tier that matches on repo name for sessions whose container path no longer exists.
+    Label the tier on each association and make the best-effort tier opt-in.'
+  rationale: Adapt item 7 in section 4. Adapters today glob everything under the cwd-encoded
+    store, so sessions from managed worktrees and cloud containers whose paths die
+    with them are either missed or misattributed. The dead-path tier is what claude_code_web
+    sessions require.
+  change_id: add-worktree-and-remote-session-association
+  acceptance_outcomes:
+  - A fixture session recorded under a deleted worktree path is associated with this
+    repo via the dead-path tier and the association record names the tier.
+  - A fixture session from a sibling worktree is associated via the worktree-list
+    tier without the best-effort flag.
+  - With the best-effort tier disabled, sessions matching only by repo name are excluded
+    (asserted by test).
+- item_id: ri-13
+  title: Add persistent gap ledger and edit-keyed rejection ledger to improve-harness
+  status: candidate
+  priority: 3
+  effort: L
+  depends_on:
+  - ri-01
+  - ri-06
+  - ri-10
+  description: Add a gap ledger that records sightings per gap and session across
+    runs, graduates gaps at a corroboration floor counted in distinct changes or distinct
+    interactive sessions, retires gaps when covered by an instruction or skill description,
+    and expires them after 90 days; and a rejection ledger keyed on edit content that
+    suppresses a rejected edit until strictly more evidence backs it. Report the interactive
+    versus non-interactive split.
+  rationale: Adopt items 5 and 6 and adapt item 2 in section 4. The corroboration
+    floor is currently advisory; a robot-heavy corpus clears a raw two-session floor
+    trivially, so the unit must be changes or interactive sessions. If the spike chose
+    backpass as engine this reads .backpass/gap-ledger.json and state; if port, it
+    is the Python implementation.
+  change_id: add-gap-and-rejection-ledgers-to-improve-harness
+  acceptance_outcomes:
+  - A gap seen in one interactive session and three autopilot sessions of the same
+    change does not graduate; the same gap seen in two distinct changes does (asserted
+    by test).
+  - A gap whose text is covered by a newly added instruction unit is retired on the
+    next run, and a gap unseen for 90 days is expired.
+  - A rejected edit key is not re-proposed on a rerun with identical evidence and
+    is re-proposed when one additional qualifying session backs it.
+  - The report prints relevance per instruction id split by interactive and non-interactive
+    sessions.
+- item_id: ri-14
+  title: Emit gap ledger entries into episodic memory as transcript-mined findings
+  status: candidate
+  priority: 4
+  effort: M
+  depends_on:
+  - ri-01
+  - ri-07
+  - ri-13
+  description: Write graduated gaps from the gap ledger (backpass's or the ported
+    one) into episodic memory as source:transcript-mined entries carrying affected_skill,
+    domain, and verbatim quotes, and route orchestration-domain gaps to the improve-harness
+    report.
+  rationale: Adapt item 5 in section 4 and Phase 4. backpass sets orchestration-domain
+    gaps aside as report-only; for a repo that is the orchestrating harness they are
+    exactly the signal /improve-harness wants. This is the thin emitter the recommendation
+    in section 5 names for the engine path.
+  change_id: emit-gap-ledger-as-transcript-mined-memory
+  acceptance_outcomes:
+  - Each graduated gap produces exactly one memory entry with source:transcript-mined,
+    domain:, affected_skill, and at least one verbatim quote; a gap that is not graduated
+    produces none.
+  - Rerunning the emitter does not duplicate entries for already-emitted gaps (idempotency
+    test).
+  - The improve-harness report generated from the emitted entries lists the orchestration-domain
+    gaps under affected_skill headings.
+- item_id: ri-15
+  title: Deliver memory-file proposals as one commit per edit with proposal.json
+  status: candidate
+  priority: 4
+  effort: L
+  depends_on:
+  - ri-01
+  - ri-03
+  - ri-09
+  - ri-13
+  description: 'Build the proposal writer: edits are made on a staging copy, the diff
+    is measured from the file and never taken from a model reply, each edit becomes
+    one commit on a proposal branch with the action kind, instruction ids, and verbatim
+    quotes in the commit body, and a proposal.json records edit keys for the rejection
+    ledger. Enforce in code the per-action evidence floors, the max-edits-per-run
+    cap, and the post-edit budget check, failing loudly after two re-prompts.'
+  rationale: Sections 3.4 and 4 (adopt items 4, 8, 9; adapt item 4). PR review is
+    the human gate this repo already uses; one commit per edit gives it backpass's
+    per-edit accept/reject without a new UI, and reverting a commit is the rejection
+    the ledger records. Rules enforced in code, briefed in prose.
+  change_id: deliver-memory-edits-as-commits-with-proposal-json
+  acceptance_outcomes:
+  - A run producing three edits yields a branch with exactly three commits, each body
+    containing action kind, instruction ids, and quotes from at least two distinct
+    qualifying sessions, plus a proposal.json listing three edit keys.
+  - An add edit that pushes the always-loaded surface over budget is rejected in code
+    and the run fails after at most two re-prompts with the rejected proposal preserved
+    on disk.
+  - A remove edit backed only by non-compliance evidence is rejected; an extract edit
+    whose removed lines do not all reappear in the target SKILL.md is rejected (asserted
+    by tests).
+  - Reverting one commit and rerunning records that edit key in the rejection ledger
+    and does not re-propose it.
+- item_id: ri-16
+  title: Schedule the learning pipeline run over the always-loaded surface
+  status: candidate
+  priority: 5
+  effort: M
+  depends_on:
+  - ri-01
+  - ri-05
+  - ri-14
+  - ri-15
+  description: Wire the scheduled learning pipeline so a recurring run executes backpass
+    (or its port) over the memory surface, emits the gap ledger into memory, opens
+    the proposal branch, and then runs /improve-harness over the orchestration-domain
+    output; publish a run summary with the budget bar, edits proposed, and gaps graduated.
+  rationale: 'Phase 4 and section 7: this is the concrete form of repo-improvement
+    RI-12 (scheduled learning pipeline). It turns the one-shot rightsizing cut into
+    a continuous maintenance loop where relevance prioritizes and the PR gate accepts.'
+  change_id: schedule-always-loaded-surface-learning-run
+  acceptance_outcomes:
+  - A scheduled workflow or routine definition exists that runs the pipeline end to
+    end and completes on a fixture corpus in CI without manual steps.
+  - Each run publishes a summary containing the always-loaded token estimate, number
+    of edits proposed, number of gaps graduated, and the interactive/non-interactive
+    split.
+  - A run with no graduated gaps and a surface within budget opens no proposal branch
+    and writes no memory entries.
+updated_at: '2026-09-08T10:20:22.650817+00:00'
