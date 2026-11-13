@@ -35,7 +35,7 @@ build-backend = "uv_build"
 # diff, and the person who bumps it re-runs the gate.
 [dependency-groups]
 dev = [
-    "pytest==9.1.1",
+    "pytest==9.2.0",
     "ruff==0.16.10",
     "mypy==2.4.0",
     # Neither jsonschema nor pyyaml ships py.typed, and `mypy --strict` cannot
