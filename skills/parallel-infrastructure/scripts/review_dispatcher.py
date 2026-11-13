@@ -2799,6 +2799,13 @@ class ReviewOrchestrator:
         url = f"{base_url}/agents/dispatch-configs"
         req = Request(url, method="GET")
         req.add_header("User-Agent", "agentic-coding-tools/0.1")
+        # Behind Cloudflare Access the edge refuses requests without the service
+        # token, and an empty orchestrator would then dispatch no reviewers.
+        cf_id = os.environ.get("CF_ACCESS_CLIENT_ID", "").strip()
+        cf_secret = os.environ.get("CF_ACCESS_CLIENT_SECRET", "").strip()
+        if cf_id and cf_secret:
+            req.add_header("CF-Access-Client-Id", cf_id)
+            req.add_header("CF-Access-Client-Secret", cf_secret)
         try:
             with urlopen(req, timeout=3.0) as resp:
                 if resp.status == 200:
