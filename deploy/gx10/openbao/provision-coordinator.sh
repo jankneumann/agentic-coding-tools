@@ -58,6 +58,14 @@ update_merged() { jq "$@" "$work/merged.json" >"$work/next.json"; mv -f "$work/n
 set_field() { VALUE="$2" update_merged --arg f "$1" '.[$f] = env.VALUE'; }
 has_field() { jq -e --arg f "$1" 'has($f) and .[$f] != ""' "$work/merged.json" >/dev/null; }
 random_key() { od -An -tx1 -N32 /dev/urandom | tr -d ' \n'; }
+# Replaces $1 with stdin, atomically and never with nothing. Not `install -m
+# 0600 /dev/stdin`: uutils coreutils (Ubuntu 26.04) fails once the target exists,
+# so every re-run broke. mktemp under umask 077 already gives 0600.
+write_private() {
+  local tmp
+  tmp="$(mktemp "$1.XXXXXX")"
+  if cat >"$tmp" && [[ -s "$tmp" ]]; then mv -f "$tmp" "$1"; else rm -f -- "$tmp"; return 1; fi
+}
 
 # The key set and its identity map travel together: a key without an identity
 # authenticates as nobody, and an identity without a key is dead weight.
@@ -144,13 +152,12 @@ bao -X POST --data-binary "@$work/role.json" "$BAO_ADDR/auth/approle/role/$ROLE"
 
 install -d -m 0700 "$CRED_DIR"
 bao "$BAO_ADDR/auth/approle/role/$ROLE/role-id" | jq -er '.data.role_id' \
-  | install -m 0600 /dev/stdin "$CRED_DIR/coordinator-role-id"
+  | write_private "$CRED_DIR/coordinator-role-id"
 secret_id_file="$CRED_DIR/coordinator-secret-id"
 if [[ ! -s "$secret_id_file" || "$rotate" == 1 ]]; then
   [[ -s "$secret_id_file" ]] && cp -p "$secret_id_file" "$work/old-secret-id"
   bao -X POST "$BAO_ADDR/auth/approle/role/$ROLE/secret-id" | jq -er '.data.secret_id' \
-    | install -m 0600 /dev/stdin "$secret_id_file.new"
-  mv -f "$secret_id_file.new" "$secret_id_file"
+    | write_private "$secret_id_file"
   # Destroy the old one only once the new one is on disk.
   if [[ -s "$work/old-secret-id" ]]; then
     jq -n --rawfile s "$work/old-secret-id" '{secret_id: ($s | rtrimstr("\n"))}' >"$work/destroy.json"
