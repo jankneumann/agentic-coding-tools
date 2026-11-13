@@ -16,6 +16,7 @@ import threading
 from collections.abc import Iterator
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib.parse import unquote, urlsplit
 
 import pytest
 
@@ -362,3 +363,17 @@ def test_the_renderer_leaves_the_openrouter_key_out_when_unset(run, bao, render)
     env = render()
     assert "OPENROUTER_API_KEY" not in env
     assert env["LANGFUSE_SECRET_KEY"] == "sk-lf-secret"  # the required fields still render
+
+
+def test_the_dsn_survives_a_password_with_uri_reserved_characters(run, bao, render) -> None:
+    """Postgres gets the raw password; the DSN is a URI and must carry it encoded,
+    or `/`, `@`, `:` and friends change the host, path or credentials it parses to."""
+    fake, _ = bao
+    run(FULL_ANSWERS)
+    fake.kv["coordinator/gx10/runtime"]["postgres_password"] = "p@ss/w:rd?#%"
+    env = render()
+    assert env["POSTGRES_PASSWORD"] == "p@ss/w:rd?#%"
+    assert env["POSTGRES_DSN"] == (
+        "postgresql://coordinator:p%40ss%2Fw%3Ard%3F%23%25@coordinator-postgres:5432/coordinator"
+    )
+    assert unquote(urlsplit(env["POSTGRES_DSN"]).password or "") == "p@ss/w:rd?#%"
