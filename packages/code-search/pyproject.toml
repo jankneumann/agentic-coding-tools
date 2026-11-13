@@ -16,7 +16,7 @@ dependencies = [
 # The indexing path (indexer_pg, cli) needs cocoindex + the local embedder. Kept optional so the
 # query/service side can install the light footprint (asyncpg only).
 index = [
-    "cocoindex[sentence-transformers]>=1.0.13,<1.1.0",
+    "cocoindex[sentence-transformers]>=1.0.13,<1.2.0",
     "cocoindex-code==0.2.37",
 ]
 dev = [
