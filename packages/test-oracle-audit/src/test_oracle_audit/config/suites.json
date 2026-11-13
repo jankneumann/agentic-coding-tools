@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "suites": {
+    "test_evaluation": {
+      "project_root": "agent-coordinator",
+      "test_paths": ["agent-coordinator/tests/test_evaluation"],
+      "source_roots": ["agent-coordinator/evaluation"],
+      "pytest_args": ["-p", "no:cacheprovider"],
+      "uv_extras": ["dev"]
+    },
+    "parallel_infrastructure": {
+      "project_root": "skills",
+      "test_paths": ["skills/tests/parallel-infrastructure"],
+      "source_roots": ["skills/parallel-infrastructure/scripts"],
+      "pytest_args": ["--import-mode=importlib", "-p", "no:cacheprovider"],
+      "uv_extras": ["test"]
+    }
+  }
+}

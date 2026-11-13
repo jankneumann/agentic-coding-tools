@@ -294,7 +294,7 @@ Inject 40 known defects drawn from the categories established in ri-01, run each
 - **Change ID**: add-mutation-score-guardrail
 - **Depends on**: `ri-05`
 
-Score the test suites produced during a replay by mutation, so a run that raises its pass rate by writing weaker tests is detected rather than rewarded.
+Score the test suites produced during a replay by mutation, so a run that raises its pass rate by writing weaker tests is detected rather than rewarded. Reuse note (2026-10-13): packages/test-oracle-audit (pilot-test-quality-audit) ships a public MutationRunner protocol, run_mutation() and MutantResult (contract: mutation-result.schema.json) with per-test kill attribution; spike 3.1 found mutmut 3.8's relocated mutants/ tree breaks repo-relative tests, so AstMutantRunner is the working backend.
 
 **Acceptance outcomes**:
 - [ ] Every replay emits a mutation score alongside its acceptance-scenario pass rate.
@@ -404,7 +404,7 @@ Retire the content-invariant tests that assert structure — tail-block presence
 - **Change ID**: calibrate-llm-judge-against-human-labels
 - **Depends on**: `ri-05`
 
-Human-label 40 stratified replay outputs, measure agreement between those labels and the LLM judge with Cohen's kappa, and publish the judge's error rate with every subsequent result that uses it.
+Human-label 40 stratified replay outputs, measure agreement between those labels and the LLM judge with Cohen's kappa, and publish the judge's error rate with every subsequent result that uses it. Reuse note (2026-10-13): packages/test-oracle-audit (pilot-test-quality-audit) ships LabelLedger (label-ledger.schema.json, content-hash staleness, entry_type for non-test entries), stratified seeded sampling, blind card rendering and stdlib cohen_kappa/bootstrap_ci/brier with the 0.7 binary-kappa floor.
 
 **Acceptance outcomes**:
 - [ ] Cohen's kappa is reported per judged dimension against the 40-item labelled set.

@@ -1,0 +1,1 @@
+"""Tiny fixture package."""

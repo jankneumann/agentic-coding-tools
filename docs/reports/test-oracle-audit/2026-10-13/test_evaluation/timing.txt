@@ -1,0 +1,3 @@
+inventory+static+history seconds: 9
+mutate seconds: 474
+refactor seconds: 14

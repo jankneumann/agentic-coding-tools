@@ -64,6 +64,9 @@ _EXEMPT: dict[str, str] = {
     "fix-scrub/tests": "run by the test-skills job",
     # Fixture trees consumed by other tests rather than collected themselves.
     "validate-feature/scripts/smoke_tests": "live-service fixtures, not unit tests",
+    # A lens module whose name happens to match test_*.py; it holds no tests.
+    # Its tests live in tests/skill-audit/test_test_policy_lens.py.
+    "skill-audit/scripts": "test_policy_lens.py is the skill-audit test-policy lens, not a test module",
     # Not tests. `insights/test_linker.py` is a production module -- the "test
     # linker" that walks test files and emits TEST_COVERS edges into the
     # architecture graph. It matches test_*.py by name only, and collecting it

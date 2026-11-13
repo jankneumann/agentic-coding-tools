@@ -36,6 +36,8 @@ own the rewrite.
 | `--propose` | Also write `<skill>-candidate-work.json` for `/prioritize-proposals` |
 | `--check-freshness` | Exit `1` when the newest report's roster hash differs from `archetypes.yaml` (or no report exists) |
 | `--output-dir <path>` | Where reports, ledgers, and stubs go (default `docs/reports/skill-audit/`, consumer-project-relative) |
+| `--lens test-policy` | Run the test-policy lens instead of the rightsizing audit: extract test-prescribing instructions and classify oracle source and authorship. Emits `test_oracle_impl_derived`, `test_same_context_authorship`, `test_coverage_target`. Not combinable with `--propose` or `--check-freshness` |
+| `--dry-run` | With `--lens`: never call a judge or model backend; instructions no regex rule decides stay `unclassified` |
 
 Exit codes: `0` ok; `1` stale (`--check-freshness`) or input error.
 
@@ -70,6 +72,7 @@ coordinator is a prompt to re-run later, not a defect in the skill.
 - `<output-dir>/<skill>-<date>.md` — histogram, dispatch profile, tier failure table, ranked findings, lean-SKILL.md and procedure-reference outlines, freshness stamp.
 - `<output-dir>/<skill>-findings.json` — the ledger; a `contract` finding can never carry `delete`.
 - `<output-dir>/<skill>-candidate-work.json` — with `--propose`; same shape `/improve-harness` emits.
+- `<output-dir>/<skill>-test-policy-findings.json` and `<skill>-test-policy-<date>.md` — with `--lens test-policy`; never overwrite the rightsizing ledger or report, and do not count as the skill's freshness report.
 
 Worked example and how to read a report: `references/usage.md`.
 
