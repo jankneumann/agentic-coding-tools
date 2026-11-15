@@ -57,6 +57,7 @@ from verdict_binding import (  # noqa: E402
     independence_violation,
     patch_id_from_diff,
     stale_reason,
+    validate_binding,
     verdict_currency,
 )
 from vendor_review import (  # noqa: E402
@@ -627,7 +628,10 @@ def execute_node(
         superseded: str | None = None
         stored = state.get("vendor_verdict")
         binding = stored.get("binding") if isinstance(stored, dict) else None
-        if isinstance(binding, dict):
+        binding_errors = validate_binding(binding) if isinstance(binding, dict) else []
+        if binding_errors:
+            superseded = "malformed stored verdict binding: " + "; ".join(binding_errors)
+        elif isinstance(binding, dict):
             stored_pid = None if binding.get("head_sha") == live_head else live_patch_id()
             if verdict_currency(binding, live_head, stored_pid) == "stale":
                 superseded = stale_reason(binding, live_head)
@@ -688,6 +692,11 @@ def execute_node(
             "vendor_review": _review_evidence(review, waiver),
         }
 
+    # Persist the verdict and waiver while the claim is still held, before the
+    # merge call: a crash after GitHub accepts the merge (or before it runs)
+    # must not lose the review evidence the merge relied on, and a replay must
+    # find a recorded operator waiver.
+    store.save(plan)
     result = dependencies.merge(pr_number, node["strategy"], live_head, waiver)
     if not result.get("success"):
         live_after_failure = dependencies.get_live_status(pr_number)

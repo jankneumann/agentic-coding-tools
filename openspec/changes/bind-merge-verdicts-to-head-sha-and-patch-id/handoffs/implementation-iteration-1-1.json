@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-11-15T16:11:15.333063+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "skipped, capability_unavailable",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Addressed two P1 PR #703 review threads: malformed verdict bindings now fail closed in the merge predicate and are superseded rather than reused, and the vendor verdict plus review waiver are persisted under the held claim before the merge call. Declared the apis/documentation context-impact surfaces that the context-drift-gate reported as undeclared.",
+    "completed_work": [
+      "[high] correctness: malformed verdict binding accepted (PR thread PRRT_kwDOQ7IIFs6vmx9l)",
+      "[high] resilience: review evidence not persisted before merge (PR thread PRRT_kwDOQ7IIFs6vmx9r)",
+      "[high] workflow: context-drift-gate context.impact undeclared surfaces"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Validate binding shape inside vendor_review_block_reason",
+        "rationale": "The predicate is the single gate every merge passes; a binding with only head_sha passed currency and read as no independence violation.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Save the plan before dependencies.merge",
+        "rationale": "A crash after GitHub accepts the merge would otherwise reconcile from the claimed plan without the waiver or bound verdict.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Declare apis for wp-schema and documentation for wp-docs",
+        "rationale": "validate_context_impact derives these surfaces from merge-plan.schema.json and the SKILL.md / reference / design.md edits.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [],
+    "relevant_files": []
+  }
+}

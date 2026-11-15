@@ -215,3 +215,23 @@ def test_waiver_missing_eligibility_reason_key_is_not_a_waiver() -> None:
     waiver = _waiver("operator", "draft_pr")
     del waiver["eligibility_reason"]
     assert vendor_review_block_reason(_ineligible("draft_pr"), waiver=waiver) is not None
+
+
+@pytest.mark.parametrize(
+    "binding",
+    [
+        {"head_sha": HEAD},
+        {k: v for k, v in _binding().items() if k != "author"},
+        {k: v for k, v in _binding().items() if k != "reviewers"},
+        _binding(author={"vendor": "claude_code"}),
+        _binding(reviewers="codex"),
+        _binding(head_sha="abc1234"),
+    ],
+)
+def test_malformed_binding_blocks_even_when_head_matches(binding: dict) -> None:
+    # A truncated or hand-edited binding must not pass the currency check and
+    # then read "no independence violation" because its author is missing.
+    reason = vendor_review_block_reason(
+        _verified(binding=binding), live_head_sha=HEAD, live_patch_id=PID,
+    )
+    assert reason is not None and reason.startswith("vendor verdict binding is malformed")
