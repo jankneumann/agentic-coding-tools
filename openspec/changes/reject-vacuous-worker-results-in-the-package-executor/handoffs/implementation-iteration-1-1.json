@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-11-15T16:10:30.680835+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "skipped, capability_unavailable",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Addressed PR #704 review threads and CI failures. Acceptance now checks files_modified against the package definition's own scope (the result's scope is a worker echo), a malformed failing step without a name is refused instead of raising KeyError, and result_validator resolves its sibling package_acceptance module when loaded by file path, which fixes the installed-consumer smoke import in test-infra-skills.",
+    "completed_work": [
+      "Thread: compare echoed scope with package definition",
+      "Thread: refuse malformed steps instead of KeyError",
+      "Thread: bind verdict to result (already done by result_digest in 0e6fa4ca)",
+      "CI: test-infra-skills/coverage-ratchet portability import",
+      "CI: context-drift-gate undeclared context_impact surfaces"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Package scope is authoritative at acceptance",
+        "rationale": "The echoed result scope is worker-controlled; only package_def scope can bound files_modified. A missing package scope is refused like a skipped commit check, so acceptance stays fail-closed.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Declare apis and documentation context_impact surfaces",
+        "rationale": "wp-contract changes the work-queue result schema and wp-integration changes SKILL.md/docs; the context-drift gate flagged them as undeclared.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [],
+    "relevant_files": []
+  }
+}

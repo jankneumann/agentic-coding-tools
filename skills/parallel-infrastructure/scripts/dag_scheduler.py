@@ -28,6 +28,10 @@ _VALIDATE_PKG_DIR = Path(__file__).resolve().parent.parent.parent / "validate-pa
 if str(_VALIDATE_PKG_DIR) not in sys.path:
     sys.path.insert(0, str(_VALIDATE_PKG_DIR))
 
+# Sibling module; on the path so a load-by-file-path import also resolves it.
+if str(Path(__file__).resolve().parent) not in sys.path:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+
 # Stdlib-only verdict type: the scheduler needs it for an isinstance check and
 # must not pull in result_validator's schema dependencies.
 from package_acceptance import PackageAcceptance  # noqa: E402

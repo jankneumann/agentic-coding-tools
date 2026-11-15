@@ -84,6 +84,11 @@ def _make_package_def(
     """Build a minimal package definition."""
     return {
         "package_id": "wp-backend",
+        "scope": {
+            "write_allow": ["src/api/**", "tests/api/**"],
+            "read_allow": ["src/**"],
+            "deny": [],
+        },
         "outputs": {"result_keys": result_keys or ["files_modified", "test_count"]},
     }
 
@@ -407,6 +412,59 @@ class TestAcceptPackageResult:
         acceptance = _accept(result, None)
         assert acceptance.accepted is False
         assert len(acceptance.reasons) == 3
+
+    def test_broadened_echoed_scope_is_refused(
+        self, repo: tuple[Path, str]
+    ) -> None:
+        # The worker widens its echoed scope to cover an out-of-scope file;
+        # the package definition's own scope still refuses it.
+        path, sha = repo
+        result = _make_result(files_modified=["src/web/app.py"])
+        result["git"]["head"]["commit"] = sha
+        result["scope"]["write_allow"] = ["**"]
+        acceptance = _accept(result, path)
+        assert acceptance.accepted is False
+        assert any("package_scope" in r for r in acceptance.reasons)
+
+    def test_denied_by_package_scope_is_refused(
+        self, repo: tuple[Path, str]
+    ) -> None:
+        path, sha = repo
+        result = _make_result(files_modified=["src/api/secret.py"])
+        result["git"]["head"]["commit"] = sha
+        package_def = _make_package_def()
+        package_def["scope"]["deny"] = ["src/api/secret.py"]
+        acceptance = accept_package_result(
+            result, package_def, 1, 1, worktree_path=path,
+        )
+        assert acceptance.accepted is False
+        assert any("package_scope" in r for r in acceptance.reasons)
+
+    def test_package_def_without_scope_is_refused(
+        self, repo: tuple[Path, str]
+    ) -> None:
+        path, sha = repo
+        result = _make_result()
+        result["git"]["head"]["commit"] = sha
+        package_def = _make_package_def()
+        del package_def["scope"]
+        acceptance = accept_package_result(
+            result, package_def, 1, 1, worktree_path=path,
+        )
+        assert acceptance.accepted is False
+        assert any("package scope" in r for r in acceptance.reasons)
+
+    def test_failing_step_without_name_is_refused_not_raised(self) -> None:
+        # Schema-invalid (no name) plus a contradiction between
+        # verification.passed and the step: must refuse, never KeyError.
+        result = _make_result()
+        result["verification"]["steps"] = [
+            {"kind": "command", "passed": False, "exit_code": 1,
+             "evidence": {"artifacts": [], "metrics": {"x": 1}}},
+        ]
+        result["verification"]["passed"] = True
+        acceptance = _accept(result, None)
+        assert acceptance.accepted is False
 
     def test_non_dict_result_is_refused(self) -> None:
         acceptance = _accept("not a result", None)  # type: ignore[arg-type]

@@ -4,7 +4,8 @@ Validates work-queue results from completed packages:
 1. JSON Schema validation (delegates to scripts/validate_work_result.py)
 2. Revision matching (contracts_revision and plan_revision match expected)
 3. Output key verification (declared result_keys present in result)
-4. Scope compliance and verification consistency
+4. Scope compliance (against the result's echo and the package definition)
+   and verification consistency
 
 ``accept_package_result`` turns that validation into the ``PackageAcceptance``
 verdict that the scheduler and the integration gate require.
@@ -40,6 +41,15 @@ from validate_work_result import (  # type: ignore[import-not-found]  # noqa: E4
 from validate_work_result import (  # type: ignore[import-not-found]  # noqa: E402
     validate_result as validate_result_base,
 )
+from validate_work_result import (  # type: ignore[import-not-found]  # noqa: E402
+    validate_scope_compliance,
+)
+
+# package_acceptance is a sibling module. Put this directory on the path so
+# the import also works when the file is loaded by path (installed consumers).
+_OWN_DIR = Path(__file__).resolve().parent
+if str(_OWN_DIR) not in sys.path:
+    sys.path.insert(0, str(_OWN_DIR))
 
 from package_acceptance import PackageAcceptance, digest_result  # noqa: E402
 
@@ -48,6 +58,7 @@ __all__ = [
     "accept_package_result",
     "validate_output_keys",
     "validate_package_result",
+    "validate_package_scope",
     "validate_revision_match",
 ]
 
@@ -134,6 +145,37 @@ def validate_output_keys(
     return errors
 
 
+def validate_package_scope(
+    result_data: dict[str, Any],
+    package_def: dict[str, Any],
+) -> dict[str, Any]:
+    """Check ``files_modified`` against the package definition's own scope.
+
+    The result's ``scope`` block is an echo written by the worker, so the
+    base scope check only proves the files fit what the worker claims. This
+    check uses the authoritative ``package_def["scope"]``. When the package
+    definition has no scope the check is recorded as skipped, never passed.
+    """
+    scope = package_def.get("scope")
+    if not isinstance(scope, dict) or not isinstance(scope.get("write_allow"), list):
+        return {
+            "passed": True,
+            "skipped": True,
+            "errors": [],
+            "reason": "package definition has no scope.write_allow",
+        }
+    errors = validate_scope_compliance(
+        {
+            "scope": {
+                "write_allow": scope.get("write_allow", []),
+                "deny": scope.get("deny") or [],
+            },
+            "files_modified": result_data.get("files_modified") or [],
+        }
+    )
+    return {"passed": not errors, "errors": errors}
+
+
 def validate_package_result(
     result_data: dict[str, Any],
     package_def: dict[str, Any],
@@ -147,7 +189,8 @@ def validate_package_result(
     Combines:
     1. Base validation (schema, scope compliance, verification consistency)
     2. Revision matching
-    3. Output key verification
+    3. Package-scope compliance against ``package_def["scope"]``
+    4. Output key verification
 
     ``worktree_path`` is passed to the base validator's ``commit_resolves``
     check; without it that check is recorded as skipped.
@@ -171,6 +214,13 @@ def validate_package_result(
         "errors": revision_errors,
     }
     if revision_errors:
+        base_result["valid"] = False
+
+    # Check modified files against the package definition's scope, not only
+    # the worker-echoed scope the base validator uses.
+    package_scope = validate_package_scope(result_data, package_def)
+    base_result["checks"]["package_scope"] = package_scope
+    if not package_scope["passed"]:
         base_result["valid"] = False
 
     # Add output key verification
@@ -197,8 +247,9 @@ def accept_package_result(
 
     Accepted only when full Phase C1 validation is valid, the
     ``commit_resolves`` check actually ran (a skipped check is refused), and
-    the effective outcome is PASS, and the result names the package being
-    accepted. Each failed condition contributes one reason.
+    the effective outcome is PASS, the modified files fall within the package
+    definition's own scope (a skipped scope check is refused), and the result
+    names the package being accepted. Each failed condition contributes one reason.
     """
     package_id = str(package_def.get("package_id") or "")
     if not isinstance(result_data, dict):
@@ -222,7 +273,7 @@ def accept_package_result(
         )
         outcome: str | None = effective_outcome(result_data)
         result_digest = digest_result(result_data)
-    except (AttributeError, TypeError, ValueError) as exc:
+    except (AttributeError, KeyError, TypeError, ValueError) as exc:
         # A malformed payload must refuse, never crash the decision point.
         return PackageAcceptance(
             package_id=package_id,
@@ -251,6 +302,12 @@ def accept_package_result(
         commit = head.get("commit") if isinstance(head, dict) else None
         reasons.append(
             f"commit {commit!r} not checked: no worktree_path supplied"
+        )
+
+    if checks.get("package_scope", {}).get("skipped"):
+        reasons.append(
+            "files not checked against the package scope: "
+            "package definition has no scope.write_allow"
         )
 
     if outcome != "PASS":

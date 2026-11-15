@@ -159,6 +159,14 @@ class TestVerificationConsistency:
         assert len(errors) == 1
         assert "verification.passed=true" in errors[0]
 
+    def test_failing_step_without_name_does_not_raise(self, valid_result):
+        data = deepcopy(valid_result)
+        del data["verification"]["steps"][0]["name"]
+        data["verification"]["steps"][0]["passed"] = False
+        errors = validate_verification_consistency(data)
+        assert len(errors) == 1
+        assert "'?'" in errors[0]
+
     def test_overall_fail_but_all_steps_pass(self, valid_result):
         data = deepcopy(valid_result)
         data["verification"]["passed"] = False
