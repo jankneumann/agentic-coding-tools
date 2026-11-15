@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-11-15T17:05:15.091330+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "skipped, capability_unavailable",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Vendor-review remediation. Codex (single vendor, adjudicated valid by the orchestrator) found that validate_binding still accepted an empty reviewers list or reviewers without identity; the binding shape check now requires named reviewers with an agent_id key that match a successful lane, and a same-vendor reviewer with an unknown agent id fails independence. antigravity returned no findings; grok timed out and pi returned unparseable output.",
+    "completed_work": [
+      "[high] correctness: empty/anonymous binding reviewers accepted (codex vendor review)"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Adjudicate the lone codex high finding as valid",
+        "rationale": "A tampered stored binding with reviewers=[] passed the predicate because independence had nothing to check.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [],
+    "relevant_files": []
+  }
+}

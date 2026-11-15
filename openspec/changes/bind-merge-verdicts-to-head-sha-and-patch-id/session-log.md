@@ -65,3 +65,21 @@ Planned roadmap item ri-01 of verification-enforcement-discipline: bind every st
 ### Context
 Addressed two P1 PR #703 review threads: malformed verdict bindings now fail closed in the merge predicate and are superseded rather than reused, and the vendor verdict plus review waiver are persisted under the held claim before the merge call. Declared the apis/documentation context-impact surfaces that the context-drift-gate reported as undeclared.
 
+---
+
+## Phase: Implementation Iteration 2 (2026-11-15)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Adjudicate the lone codex high finding as valid** — A tampered stored binding with reviewers=[] passed the predicate because independence had nothing to check.
+
+### Trade-offs
+- Accepted Fail closed on reviewer entries lacking identity over Accepting legacy bindings because Every binding is produced by bind(), which always writes vendor and agent_id keys.
+
+### Completed Work
+- [high] correctness: empty/anonymous binding reviewers accepted (codex vendor review)
+
+### Context
+Vendor-review remediation. Codex (single vendor, adjudicated valid by the orchestrator) found that validate_binding still accepted an empty reviewers list or reviewers without identity; the binding shape check now requires named reviewers with an agent_id key that match a successful lane, and a same-vendor reviewer with an unknown agent id fails independence. antigravity returned no findings; grok timed out and pi returned unparseable output.
+
