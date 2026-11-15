@@ -1,0 +1,33 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "axis": "security",
+      "criticality": "low",
+      "description": "The authoritative package_scope check in result_validator validates files_modified against package_def['scope'], but relies on the files_modified list as self-reported in the worker payload rather than verifying against the actual git commit diff. An untrusted worker modifying out-of-scope files could evade detection by omitting them from files_modified. As documented in design.md (D2), comparing files_modified against the commit diff is an explicit non-goal of this change, so this is acceptable.",
+      "disposition": "accept",
+      "file_path": "skills/parallel-infrastructure/scripts/result_validator.py",
+      "id": 1,
+      "line_range": "148-176",
+      "resolution": "Accept; tracked as an explicit proposal non-goal in design.md.",
+      "severity": "fyi",
+      "type": "security",
+      "evidence_class": "judgment"
+    },
+    {
+      "axis": "resilience",
+      "criticality": "low",
+      "description": "In validate_commit_resolves (validate_work_result.py), git is extracted via data.get('git') or {}. If data['git'] is a truthy non-dict (such as a string or integer), git.get('head') raises an unhandled AttributeError. At the acceptance decision point in accept_package_result, AttributeError is caught and safely converted to a refusal, ensuring fail-closed behavior. In standalone CLI usage, this results in an unhandled exception rather than structured check failure output.",
+      "disposition": "accept",
+      "file_path": "skills/validate-packages/scripts/validate_work_result.py",
+      "id": 2,
+      "line_range": "246-250",
+      "resolution": "Accept; accept_package_result catches AttributeError and fail-closed refusal is preserved. A defensive isinstance check on data.get('git') could be added in a future pass.",
+      "severity": "fyi",
+      "type": "resilience",
+      "evidence_class": "judgment"
+    }
+  ]
+}

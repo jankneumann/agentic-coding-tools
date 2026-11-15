@@ -426,6 +426,19 @@ class TestAcceptPackageResult:
         assert acceptance.accepted is False
         assert any("package_scope" in r for r in acceptance.reasons)
 
+    def test_path_traversal_out_of_package_scope_is_refused(
+        self, repo: tuple[Path, str]
+    ) -> None:
+        # 'src/api/../../SECRET.md' string-matches 'src/api/**' but names a
+        # file outside it; acceptance must refuse it.
+        path, sha = repo
+        result = _make_result(files_modified=["src/api/../../SECRET.md"])
+        result["git"]["head"]["commit"] = sha
+        result["scope"]["write_allow"] = ["**"]
+        acceptance = _accept(result, path)
+        assert acceptance.accepted is False
+        assert any("package_scope" in r for r in acceptance.reasons)
+
     def test_denied_by_package_scope_is_refused(
         self, repo: tuple[Path, str]
     ) -> None:

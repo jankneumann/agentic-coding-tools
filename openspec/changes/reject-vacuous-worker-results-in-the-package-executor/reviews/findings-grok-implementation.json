@@ -1,0 +1,42 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "security",
+      "criticality": "high",
+      "description": "The HEAD authoritative package_scope check still fails closed only on string glob match. validate_package_scope delegates to validate_scope_compliance, which fnmatches each files_modified entry without normalizing '.'/'..'. A schema-valid repo-relative path such as 'src/api/../../SECRET.md' matches package_def write_allow 'src/api/**' (fnmatch treats the literal prefix as a match) even though the logical path is outside that tree. FilePath only forbids a leading slash, so the payload stays schema-valid. End-to-end reproduction: accept_package_result accepted a result with files_modified=['src/api/../../SECRET.md'], worker-echoed scope.write_allow=['**'], and package_def.scope.write_allow=['src/api/**'] once the commit check passed. That bypasses the security intent of checking package_def scope instead of the worker echo.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "critical",
+      "resolution": "Normalize each files_modified path inside validate_scope_compliance before allow/deny matching (collapse '.'/'..', reject empty paths and paths that escape the repo root, reject absolute paths). Match only the normalized relative path. Optionally tighten work-queue FilePath to disallow '..' segments. Add an accept_package_result / validate_package_scope regression for 'src/api/../../outside.py' against write_allow ['src/api/**'].",
+      "package_id": "wp-contract",
+      "file_path": "skills/validate-packages/scripts/validate_work_result.py",
+      "line_range": {
+        "start": 77,
+        "end": 94
+      },
+      "evidence_class": "judgment",
+      "existing_code": "for f in files_modified:\n        allowed = any(fnmatch(f, pattern) for pattern in write_allow)\n        denied = any(fnmatch(f, pattern) for pattern in deny)"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "HEAD covers broadened echoed scope, package deny, missing package scope.write_allow, and a nameless failing step, but does not pin path-traversal files_modified against package_scope or accept_package_result. The authoritative scope refusal can therefore regress without a red test.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "Add tests in test_result_validator.py and test_validate_work_result.py asserting that files_modified entries containing '..' are refused when package_def.scope.write_allow is a directory glob such as 'src/api/**'.",
+      "package_id": "wp-acceptance",
+      "file_path": "skills/parallel-infrastructure/scripts/tests/test_result_validator.py",
+      "line_range": {
+        "start": 416,
+        "end": 455
+      },
+      "evidence_class": "judgment"
+    }
+  ]
+}

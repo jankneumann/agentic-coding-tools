@@ -74,6 +74,17 @@ def validate_schema(data: dict[str, Any], schema: dict[str, Any]) -> list[str]:
     return errors
 
 
+def _unnormalized_path_problem(path: Any) -> str | None:
+    """Why ``path`` is not a normalized repo-relative POSIX path, or None."""
+    if not isinstance(path, str) or not path:
+        return "is not a non-empty string path"
+    if path.startswith("/") or "\\" in path:
+        return "is not a repo-relative POSIX path"
+    if any(part in ("", ".", "..") for part in path.split("/")):
+        return "is not a normalized path (empty, '.' or '..' segment)"
+    return None
+
+
 def validate_scope_compliance(data: dict[str, Any]) -> list[str]:
     """Check that files_modified ⊆ write_allow and not in deny."""
     errors = []
@@ -83,6 +94,12 @@ def validate_scope_compliance(data: dict[str, Any]) -> list[str]:
     files_modified = data.get("files_modified", [])
 
     for f in files_modified:
+        problem = _unnormalized_path_problem(f)
+        if problem:
+            # fnmatch compares strings, so 'src/api/../../x' would match
+            # 'src/api/**' while naming a file outside it. Refuse instead.
+            errors.append(f"  {f!r} {problem}")
+            continue
         allowed = any(fnmatch(f, pattern) for pattern in write_allow)
         denied = any(fnmatch(f, pattern) for pattern in deny)
 
