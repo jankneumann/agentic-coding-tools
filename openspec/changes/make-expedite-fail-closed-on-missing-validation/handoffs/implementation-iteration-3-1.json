@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-11-15T16:51:18.962686+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "skipped, capability_unavailable",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Vendor-review remediation for PR #702. Grok found that a non-existent explicit --validation-report path bypassed the missing-report override; it now counts as missing, and the reason is stripped and the SKILL.md --force wording clarified.",
+    "completed_work": [
+      "V1 explicit missing path counts as missing",
+      "V2 override reason stripped",
+      "V3 SKILL.md --force wording"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "A non-existent explicit path is a missing report",
+        "rationale": "The spec gates the override on no report existing; an explicit path naming nothing is the same fact as an unprobed miss. A path that exists but is unreadable still fails as unreadable.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Defer a PermissionError test",
+        "rationale": "Covered by the same except branch as tested cases; chmod tests are unreliable when CI runs as root.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [],
+    "relevant_files": []
+  }
+}

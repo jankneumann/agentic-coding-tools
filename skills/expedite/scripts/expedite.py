@@ -97,7 +97,16 @@ def _override_reason(accept_missing: str | None) -> str | None:
     """A blank or whitespace-only reason is no override at all."""
     if accept_missing is None or not accept_missing.strip():
         return None
-    return accept_missing
+    return accept_missing.strip()
+
+
+def _report_missing(report_path: Path | None) -> bool:
+    """No report exists: none was found, or an explicit path names nothing.
+
+    An explicit path that exists but is not a readable file (a directory, say)
+    is *present* and fails as unreadable, so the override cannot mask it.
+    """
+    return report_path is None or not report_path.exists()
 
 
 def _probe_paths(change_id: str, repo_root: Path, filename: str) -> Path | None:
@@ -132,9 +141,13 @@ def check_validation_report(
     accept_missing: str | None = None,
 ) -> CheckResult:
     accept_missing = _override_reason(accept_missing)
-    if report_path is None and accept_missing is not None:
+    if _report_missing(report_path) and accept_missing is not None:
         return CheckResult(name="validation_report", status="pass",
                            detail=OVERRIDE_PREFIX + accept_missing)
+    if report_path is not None and not report_path.exists():
+        return CheckResult(name="validation_report", status="fail",
+                           detail=f"no validation report at explicit path {report_path}",
+                           action="run /validate-feature")
     if report_path is None:
         probed = ", ".join(
             p.relative_to(repo_root).as_posix()
@@ -222,7 +235,7 @@ def expedite(
     ]
     accept_missing_validation = _override_reason(accept_missing_validation)
     overrides: list[dict[str, str]] = []
-    if validation_report is None and accept_missing_validation is not None:
+    if _report_missing(validation_report) and accept_missing_validation is not None:
         overrides.append({"check": "validation_report",
                           "reason": accept_missing_validation})
     ready = all(c.status != "fail" for c in checks)
