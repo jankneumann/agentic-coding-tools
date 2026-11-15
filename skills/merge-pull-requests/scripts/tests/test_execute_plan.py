@@ -969,3 +969,25 @@ def test_review_evidence_is_persisted_before_the_merge_call(tmp_path: Path) -> N
     assert state["review_waiver"]["approver"] == "jan"
     persisted = FilePlanStore(path).load()["nodes"][1]["state"]
     assert persisted["review_waiver"] == state["review_waiver"]
+
+
+@pytest.mark.parametrize("reviewers", [[], [{"family": "openai"}]])
+def test_stored_binding_with_empty_or_anonymous_reviewers_is_not_reused(
+    tmp_path: Path, reviewers: list,
+) -> None:
+    stored = _stored(HEAD, None)
+    stored["binding"]["reviewers"] = reviewers
+    path = persisted_plan(tmp_path, _gated_implementation_plan(stored))
+    dispatched: list[int] = []
+
+    result = execute_node(
+        path,
+        11,
+        approve_gate=True,
+        dependencies=dependencies(
+            review_vendor=lambda pr, *_rest: dispatched.append(pr) or clean_review(),
+        ),
+    )
+    assert dispatched == [11]
+    assert result["vendor_review"].get("reused_stored_verdict") is not True
+    assert result["vendor_review"]["binding"]["reviewers"][0]["agent_id"] == "codex-local"

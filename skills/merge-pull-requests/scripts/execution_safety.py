@@ -150,6 +150,18 @@ def vendor_review_block_reason(
         # independence checks: a missing author or reviewer list would read as
         # "no violation" there.
         return "vendor verdict binding is malformed: " + "; ".join(binding_errors)
+    succeeded = {
+        vendor.get("vendor") for vendor in vendors if isinstance(vendor, dict) and vendor.get("success")
+    }
+    unbacked = sorted(
+        str(reviewer.get("vendor")) for reviewer in binding["reviewers"]
+        if reviewer.get("vendor") not in succeeded
+    )
+    if unbacked:
+        return (
+            "vendor verdict binding names reviewers with no successful result: "
+            + ", ".join(unbacked)
+        )
     if verdict_currency(binding, live_head_sha, live_patch_id) == "stale":
         return stale_reason(binding, live_head_sha)
     return independence_violation(binding)

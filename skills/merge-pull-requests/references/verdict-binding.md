@@ -72,6 +72,18 @@ with two limits:
 The waiver is stored in the node's evidence and passed to the merge call, so
 the audit trail names who waived what and why.
 
+## Shape check
+
+Before currency or independence is evaluated, the merge predicate runs
+`validate_binding()` and blocks a malformed binding: a missing or non-sha
+`head_sha`, a missing `patch_id` key, an author without `login`, `vendor` and
+`session_id` keys, or a `reviewers` list that is empty or has an entry without
+a `vendor` and an `agent_id` key. Every reviewer must also match a successful
+lane in the verdict's `vendors`. A truncated or hand-edited stored binding is
+treated as superseded and a fresh review is dispatched; it is never reused.
+The bound verdict and any waiver are saved to the plan, under the held claim,
+before the merge call, so a crash cannot lose the evidence the merge used.
+
 ## Independence
 
 `independence_violation(binding)` blocks a verdict that was not independent of
@@ -81,6 +93,7 @@ the PR author:
   blocks.
 - **Same vendor, unknown session:** a reviewer from the author's vendor blocks
   when the author's session is unknown, because independence cannot be shown.
+- **Same vendor, unknown reviewer agent id:** blocks for the same reason.
 - **Same vendor, different session:** accepted.
 - **Same family, different vendor:** recorded in `same_family`, not blocking.
 

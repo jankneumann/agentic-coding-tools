@@ -195,7 +195,13 @@ def independence_violation(binding: Any) -> str | None:
                 f"review independence cannot be shown: reviewer {author_vendor} shares the "
                 "author's vendor and the author session is unknown"
             )
-        if reviewer.get("agent_id") == session_id:
+        agent_id = reviewer.get("agent_id")
+        if not agent_id:
+            return (
+                f"review independence cannot be shown: reviewer {author_vendor} shares the "
+                "author's vendor and its agent id is unknown"
+            )
+        if agent_id == session_id:
             return f"self-review: {author_vendor} session {session_id} reviewed its own PR"
     return None
 
@@ -247,6 +253,10 @@ def derive_author(pr_view: Mapping[str, Any]) -> dict[str, Any]:
     return result
 
 
+def _nonblank_str(value: Any) -> bool:
+    return isinstance(value, str) and bool(value.strip())
+
+
 def validate_binding(binding: Any) -> list[str]:
     """Return the shape errors of a binding block (empty when valid)."""
     if not isinstance(binding, Mapping):
@@ -262,6 +272,10 @@ def validate_binding(binding: Any) -> list[str]:
     reviewers = binding.get("reviewers")
     if not isinstance(reviewers, list) or not all(isinstance(r, Mapping) for r in reviewers):
         errors.append("binding.reviewers must be a list of objects")
+    elif not reviewers:
+        errors.append("binding.reviewers must name at least one reviewer")
+    elif any(not _nonblank_str(r.get("vendor")) or "agent_id" not in r for r in reviewers):
+        errors.append("binding.reviewers entries need a vendor and an agent_id key")
     author = binding.get("author")
     if not isinstance(author, Mapping) or any(key not in author for key in _AUTHOR_KEYS):
         errors.append("binding.author must be an object with login, vendor and session_id")
