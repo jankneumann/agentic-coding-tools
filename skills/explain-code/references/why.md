@@ -41,8 +41,9 @@ Supported tags carry at least one pointer (or, for a supersession claim, the
 
 **Decision-to-line links.** Saying that a decision explains *this line* is Direct
 only when that decision's `mentions_target` is `true`, which means its title or
-rationale names the target's path, basename or symbol as a whole token (`app.py`
-does not match `myapp.py`, and `load` does not match `loader`). Otherwise the link is
+rationale names the target's path, a `/`-boundary suffix of it (`core/io.py` for
+`pkg/core/io.py`, but not `vendor/core/io.py`), its basename or its symbol as a whole
+token (`app.py` does not match `myapp.py`, and `load` does not match `loader`). Otherwise the link is
 Inferred, even when the decision itself is quoted directly.
 
 A decision with a non-null `superseded_by` is history. Say so, and cite the

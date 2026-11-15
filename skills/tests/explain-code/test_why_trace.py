@@ -202,7 +202,7 @@ NEAR_MISS_LOG = """# Session Log: near-miss-change
 **Agent**: test | **Session**: N/A
 
 ### Decisions
-1. **Load myapp.py through lib/app.py** `architectural: demo-cap` — keeps app.pyc out of the bundle
+1. **Route myapp.py through lib/app.py** `architectural: demo-cap` — keeps app.pyc out of the bundle loader
 """
 
 
@@ -214,9 +214,35 @@ def test_mentions_target_ignores_near_miss_names(repo):
     (d,) = _trace(repo, "src/app.py:6")["decisions"]
     assert d["mentions_target"] is False  # myapp.py, lib/app.py, app.pyc are other files
     (d,) = _trace(repo, "src/app.py:6", "--symbol", "load")["decisions"]
-    assert d["mentions_target"] is False  # case differs: Load
-    (d,) = _trace(repo, "src/app.py:6", "--symbol", "Load")["decisions"]
+    assert d["mentions_target"] is False  # "loader" is not "load"
+    (d,) = _trace(repo, "src/app.py:6", "--symbol", "loader")["decisions"]
     assert d["mentions_target"] is True
+
+
+SUFFIX_LOG = """# Session Log: suffix-change
+
+---
+
+## Phase: Plan (2026-04-01)
+
+**Agent**: test | **Session**: N/A
+
+### Decisions
+1. **Buffer writes in core/io.py** `architectural: demo-cap` — small writes dominated the profile
+2. **Pin ./pkg/core/io.py to one encoding** `architectural: demo-cap` — mixed encodings corrupted logs
+3. **Vendor vendor/core/io.py unchanged** `architectural: demo-cap` — upstream patches stay mergeable
+"""
+
+
+def test_mentions_target_accepts_path_suffix_and_dot_slash(repo):
+    root = repo["root"]
+    _write(root, "pkg/core/io.py", "buf = 1\n")
+    _write(root, "openspec/changes/suffix-change/session-log.md", SUFFIX_LOG)
+    _commit(root, "feat: buffered io", "pkg", "openspec")
+    d1, d2, d3 = _trace(repo, "pkg/core/io.py:1")["decisions"]
+    assert d1["mentions_target"] is True  # core/io.py is a /-boundary suffix of the target
+    assert d2["mentions_target"] is True  # ./pkg/core/io.py is the target itself
+    assert d3["mentions_target"] is False  # vendor/core/io.py is a different file
 
 
 def test_mentions_target_symbol_is_whole_word(repo):
@@ -258,6 +284,32 @@ def test_no_decision_record_message_names_the_missing_session_log(repo):
     assert "bare-change" in msg
     assert "no session-log.md" in msg
     assert "architectural:" not in msg  # nothing was parsed, so no bullet was missing
+
+
+UNTAGGED_LOG = """# Session Log: untagged-change
+
+---
+
+## Phase: Plan (2026-04-01)
+
+**Agent**: test | **Session**: N/A
+
+### Decisions
+1. **Keep the loop simple** — nobody asked for more
+"""
+
+
+def test_no_decision_record_message_names_a_log_without_tagged_bullets(repo):
+    root = repo["root"]
+    _append_line(root, "f = 6")
+    _write(root, "openspec/changes/untagged-change/session-log.md", UNTAGGED_LOG)
+    _commit(root, "feat: untagged", "src/app.py", "openspec")
+    doc = _trace(repo, "src/app.py:6")
+    assert doc["status"] == "no_decision_record"
+    assert doc["null_result"]["message"] == (
+        "no decision record found: openspec/changes/untagged-change/session-log.md "
+        "has no architectural:-tagged Decision bullet"
+    )
 
 
 def test_no_decision_record_message_names_a_missing_change_dir(repo):
@@ -363,6 +415,18 @@ def test_uncommitted_line_on_unborn_head(tmp_path):
     assert doc["status"] == "uncommitted"
     assert doc["commit"] is None
     assert doc["null_result"]["reason"] == "uncommitted"
+
+
+def test_uncommitted_line_in_a_sha256_repository(tmp_path):
+    root = tmp_path / "sha256"
+    root.mkdir()
+    _git(root, "init", "-q", "--object-format=sha256")
+    _write(root, "f.py", "x = 1\n")
+    _commit(root, "chore: init", "f.py")
+    _write(root, "f.py", "x = 1\ny = 2\n")
+    proc = _run(root, "f.py:2")
+    assert proc.returncode == 0, proc.stderr
+    assert json.loads(proc.stdout)["status"] == "uncommitted"
 
 
 def test_unreadable_target_is_an_input_error(repo, monkeypatch, capsys):

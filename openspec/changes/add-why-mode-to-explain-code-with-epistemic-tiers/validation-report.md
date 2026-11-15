@@ -9,10 +9,11 @@
 | Why Trace Script: Full chain traced in a fixture repository | `test_why_trace.py::test_full_chain_traced`, `test_archive_match_is_exact`, `test_pr_and_change_id_from_merge_commit`, `test_index_path_reported_when_present` |
 | Why Trace Script: No change id resolvable | `test_why_trace.py::test_no_change_id` |
 | Why Trace Script: Change found but no decision record covers it | `test_why_trace.py::test_no_decision_record` |
-| Why Trace Script: Uncommitted line | `test_why_trace.py::test_uncommitted_line`, `test_uncommitted_line_on_unborn_head` |
+| Why Trace Script: Uncommitted line | `test_why_trace.py::test_uncommitted_line`, `test_uncommitted_line_on_unborn_head`, `test_uncommitted_line_in_a_sha256_repository` |
 | Why Trace Script: Invalid input rejected | `test_why_trace.py::test_malformed_target_rejected`, `test_untracked_path_rejected`, `test_line_out_of_range_rejected`, `test_unreadable_target_is_an_input_error`; git failure exit 1 in `test_outside_a_repository_is_a_git_failure` |
 | Why Trace Script: Superseded decision reported | `test_why_trace.py::test_superseded_decision_reported` |
 | Why Trace Script: Target mention flag | `test_why_trace.py::test_mentions_target_flag` |
+| Why Trace Script: Path suffix or dot-slash form sets the mention flag | `test_why_trace.py::test_mentions_target_accepts_path_suffix_and_dot_slash` |
 | Why Trace Script: No side effects | `test_why_trace.py::test_no_side_effects`; determinism in `test_output_is_deterministic`; reuse of `decision_index` in `test_reuses_decision_index_instead_of_parsing`; cwd-relative targets in `test_relative_to_cwd` |
 | Why Chain Reply Contract: Why question answered with a tagged chain | `test_skill_md.py::test_why_chain_catalogue_row_links_reference`, `test_why_reference_documents_rules_and_disclosure`, `test_worked_example_tags_follow_the_tier_rules` |
 | Why Chain Reply Contract: Null result reported as the finding | `test_skill_md.py::test_why_reference_documents_rules_and_disclosure`, `test_skill_md_names_tiers_rules_and_script` |

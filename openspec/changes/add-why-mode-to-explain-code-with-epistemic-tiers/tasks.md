@@ -98,3 +98,16 @@
   - Tests: `test_no_decision_record_message_names_the_missing_session_log`, `test_no_decision_record_message_names_a_missing_change_dir`.
 - [x] 5.6 Cite the superseding reference, not D1's own pointer, in the `why.md` supersession example, and list `history_truncated` in the null-result rule (XS)
   - Tests: `test_worked_example_supersession_claim_cites_the_superseding_reference`, `test_null_result_rule_lists_every_trace_status`.
+
+## 6. Local review fixes, round 2 (wp-why-mode)
+
+- [x] 6.1 Match `/`-boundary path suffixes and a `./` prefix in `mentions_target`, still rejecting a longer path such as `vendor/core/io.py` (XS)
+  - Tests: `test_mentions_target_accepts_path_suffix_and_dot_slash`, `test_mentions_target_ignores_near_miss_names`.
+  **Spec scenarios**: skill-workflow.why-trace-mentions-target, .why-trace-near-miss-mention
+- [x] 6.2 Treat any all-zero blame sha as uncommitted, so SHA-256 repositories report `uncommitted` instead of exiting 1 (XS)
+  - Test: `test_uncommitted_line_in_a_sha256_repository`.
+  **Spec scenarios**: skill-workflow.why-trace-uncommitted
+- [x] 6.3 Cover the "no `architectural:`-tagged Decision bullet" branch of the `no_decision_record` message (XS)
+  - Test: `test_no_decision_record_message_names_a_log_without_tagged_bullets`.
+  **Spec scenarios**: skill-workflow.why-trace-no-decision-record
+

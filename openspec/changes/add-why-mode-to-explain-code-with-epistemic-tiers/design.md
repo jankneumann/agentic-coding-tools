@@ -40,9 +40,11 @@ The script emits records and pointers and never assigns a tier.
     - `<session-log relpath>#<phase-slug>/D<n>` for decisions. This is the same ref
       grammar that `supersedes:` uses in `decision_index.py`.
   - **`mentions_target`.** For each decision, true when its title or rationale names
-    the target's repo-relative path, its basename, or the `--symbol` value as a whole
-    token: a path must not continue a longer path or name on either side (`app.py` does
-    not match `myapp.py`, `lib/app.py` or `app.pyc`), and a symbol must not be part of
+    the target's repo-relative path (optionally written `./<path>`), any `/`-boundary
+    suffix of it (for `pkg/core/io.py`: `core/io.py` and `io.py`), or the `--symbol`
+    value as a whole token: a path must not continue a longer path or name on either
+    side (`app.py` does not match `myapp.py`, `lib/app.py` or `app.pyc`, and
+    `core/io.py` does not match `vendor/core/io.py`), and a symbol must not be part of
     a longer identifier. Only then
     may a reply say *as Direct* that the decision explains the line. Otherwise the link
     from decision to line is Inferred.
