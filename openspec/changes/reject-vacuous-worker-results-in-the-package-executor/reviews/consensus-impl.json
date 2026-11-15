@@ -1,0 +1,169 @@
+{
+  "schema_version": 1,
+  "review_type": "implementation",
+  "target": "reject-vacuous-worker-results-in-the-package-executor",
+  "reviewers": [
+    {
+      "vendor": "claude_code",
+      "agent_id": "claude_code",
+      "success": true,
+      "findings_count": 1,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "antigravity",
+      "agent_id": "antigravity",
+      "success": true,
+      "findings_count": 2,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "codex",
+      "agent_id": "codex",
+      "success": true,
+      "findings_count": 4,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "grok",
+      "agent_id": "grok",
+      "success": true,
+      "findings_count": 2,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": true,
+  "quorum_requested": 4,
+  "quorum_received": 4,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "security",
+      "agreed_axis": "security",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "The HEAD authoritative package_scope check still fails closed only on string glob match. validate_package_scope delegates to validate_scope_compliance, which fnmatches each files_modified entry without normalizing '.'/'..'. A schema-valid repo-relative path such as 'src/api/../../SECRET.md' matches package_def write_allow 'src/api/**' (fnmatch treats the literal prefix as a match) even though the logical path is outside that tree. FilePath only forbids a leading slash, so the payload stays schema-valid. End-to-end reproduction: accept_package_result accepted a result with files_modified=['src/api/../../SECRET.md'], worker-echoed scope.write_allow=['**'], and package_def.scope.write_allow=['src/api/**'] once the commit check passed. That bypasses the security intent of checking package_def scope instead of the worker echo.",
+      "eligible_vendors": 4
+    },
+    {
+      "id": 2,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "HEAD covers broadened echoed scope, package deny, missing package scope.write_allow, and a nameless failing step, but does not pin path-traversal files_modified against package_scope or accept_package_result. The authoritative scope refusal can therefore regress without a red test.",
+      "eligible_vendors": 4
+    },
+    {
+      "id": 3,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "security",
+      "agreed_axis": "security",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The package_scope check bounds files_modified as reported by the worker; a worker that under-reports files_modified is not caught, because comparing files_modified with the actual commit diff is an explicit proposal Non-Goal.",
+      "eligible_vendors": 4
+    },
+    {
+      "id": 4,
+      "status": "confirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 1,
+      "matched_findings": [
+        {
+          "vendor": "codex",
+          "finding_id": 2
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "security",
+      "agreed_axis": "security",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The authoritative package_scope check in result_validator validates files_modified against package_def['scope'], but relies on the files_modified list as self-reported in the worker payload rather than verifying against the actual git commit diff. An untrusted worker modifying out-of-scope files could evade detection by omitting them from files_modified. As documented in design.md (D2), comparing files_modified against the commit diff is an explicit non-goal of this change, so this is acceptable.",
+      "eligible_vendors": 4
+    },
+    {
+      "id": 5,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "In validate_commit_resolves (validate_work_result.py), git is extracted via data.get('git') or {}. If data['git'] is a truthy non-dict (such as a string or integer), git.get('head') raises an unhandled AttributeError. At the acceptance decision point in accept_package_result, AttributeError is caught and safely converted to a refusal, ensuring fail-closed behavior. In standalone CLI usage, this results in an unhandled exception rather than structured check failure output.",
+      "eligible_vendors": 4
+    },
+    {
+      "id": 6,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: The integration gate correctly binds each non-override acceptance to the canonical digest of the recorded result and fails closed for missing or mismatched digests. Tests cover both a verdict issued for another result and an unbound verdict.",
+      "eligible_vendors": 4
+    },
+    {
+      "id": 7,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Malformed failing verification steps without a name are reported using a placeholder instead of raising KeyError, allowing accept_package_result to return a refused verdict as required.",
+      "eligible_vendors": 4
+    },
+    {
+      "id": 8,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: result_validator resolves its sibling package_acceptance module when loaded directly by file path. The installed-consumer portability suite passes in both supported runtime layouts.",
+      "eligible_vendors": 4
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 8,
+    "confirmed_count": 1,
+    "unconfirmed_count": 7,
+    "disagreement_count": 0,
+    "blocking_count": 0,
+    "advisory_count": 7
+  }
+}

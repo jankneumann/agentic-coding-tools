@@ -151,3 +151,9 @@
   **Spec scenarios**: parallel-infrastructure.package-scope-authoritative, parallel-infrastructure.malformed-step-refused
   **Design decisions**: D4
   **Dependencies**: 5.4
+- [x] 5.6 Refuse unnormalized `files_modified` paths in the scope checks (XS)
+  - Vendor review (grok, high, orchestrator-adjudicated as valid): `fnmatch` matched `src/api/../../SECRET.md` against `src/api/**`. `validate_scope_compliance` now refuses a path with a leading `/`, a backslash, or an empty, `.` or `..` segment; the package-scope check inherits it.
+  - Tests: `TestScopePathNormalization` in `test_validate_work_result.py`; `test_path_traversal_out_of_package_scope_is_refused` in `test_result_validator.py`.
+  **Spec scenarios**: parallel-infrastructure.path-traversal-refused
+  **Design decisions**: D4
+  **Dependencies**: 5.5

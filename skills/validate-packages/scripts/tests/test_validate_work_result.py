@@ -147,6 +147,20 @@ class TestScopeCompliance:
 # --- Verification consistency ---
 
 
+class TestScopePathNormalization:
+    @pytest.mark.parametrize(
+        "path",
+        ["src/api/../../SECRET.md", "src/api/./x.py", "/etc/passwd",
+         "src/api//x.py", "src\\api\\x.py", ""],
+    )
+    def test_unnormalized_path_is_a_scope_error(self, valid_result, path):
+        data = deepcopy(valid_result)
+        data["scope"]["write_allow"] = ["**"]
+        data["files_modified"] = [path]
+        errors = validate_scope_compliance(data)
+        assert len(errors) == 1
+
+
 class TestVerificationConsistency:
     def test_consistent_pass(self, valid_result):
         errors = validate_verification_consistency(valid_result)

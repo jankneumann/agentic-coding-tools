@@ -154,7 +154,9 @@ frozen `PackageAcceptance` carrying `package_id`, `accepted`, the effective `out
 and a sequence of `reasons`. It SHALL be accepted only when full Phase C1 validation is
 valid, the `commit_resolves` check ran (was not skipped) and passed, every
 `files_modified` entry falls within the package definition's own `scope.write_allow`
-and outside its `scope.deny` (the result's echoed `scope` is not authoritative, and a
+and outside its `scope.deny`, and is a normalized repo-relative POSIX path (no leading
+`/`, no backslash, no empty, `.` or `..` segment), since glob matching is string matching
+(the result's echoed `scope` is not authoritative, and a
 package definition without `scope.write_allow` is refused rather than skipped), the
 effective outcome is `PASS`, and the result's `package_id`, when present, equals the
 package definition's; otherwise `reasons` SHALL name every failed condition. A
@@ -191,6 +193,12 @@ packages depending on it do not become ready.
 #### Scenario: A worker that broadens its echoed scope is refused
 
 - **WHEN** a result echoes `scope.write_allow: ["**"]` and modifies a file outside the package definition's `scope.write_allow`
+- **THEN** `accept_package_result` returns a non-accepted verdict whose reasons name the `package_scope` check
+
+<!-- Scenario ID: parallel-infrastructure.path-traversal-refused -->
+#### Scenario: A traversal path that string-matches the package scope is refused
+
+- **WHEN** a result's `files_modified` contains `src/api/../../SECRET.md` and the package definition's `scope.write_allow` is `src/api/**`
 - **THEN** `accept_package_result` returns a non-accepted verdict whose reasons name the `package_scope` check
 
 <!-- Scenario ID: parallel-infrastructure.malformed-step-refused -->
