@@ -1,0 +1,19 @@
+{
+  "review_type": "implementation",
+  "target": "bind-merge-verdicts-to-head-sha-and-patch-id",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Nit: the cheap path binds with author=None, so its binding carries an all-null author. It validates and is only ever reached under a policy waiver, so it cannot authorize a merge on its own; noted for completeness.",
+      "resolution": "No change required.",
+      "disposition": "accept",
+      "file_path": "skills/merge-pull-requests/scripts/execute_plan.py",
+      "axis": "correctness",
+      "severity": "nit",
+      "evidence_class": "deterministic"
+    }
+  ]
+}

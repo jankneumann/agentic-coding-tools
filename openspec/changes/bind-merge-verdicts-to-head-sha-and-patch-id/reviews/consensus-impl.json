@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "review_type": "implementation",
+  "target": "bind-merge-verdicts-to-head-sha-and-patch-id",
+  "reviewers": [
+    {
+      "vendor": "claude_code",
+      "agent_id": "claude_code",
+      "success": true,
+      "findings_count": 1,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "antigravity",
+      "agent_id": "antigravity",
+      "success": true,
+      "findings_count": 0,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "codex",
+      "agent_id": "codex",
+      "success": true,
+      "findings_count": 1,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": true,
+  "quorum_requested": 3,
+  "quorum_received": 3,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "The new validation still accepts partial reviewer evidence. validate_binding permits an empty reviewers list or reviewer objects missing vendor and agent_id. With a successful vendor result, zero blocking findings, and a matching head SHA, such a stored verdict passes the predicate and can be reused and merged because independence_violation finds no reviewer to check. A fresh review whose successful vendor omits agent_id can likewise produce a binding that passes despite an unverified same-vendor identity. The new tests cover missing reviewers, but not empty or incomplete entries.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 2,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Nit: the cheap path binds with author=None, so its binding carries an all-null author. It validates and is only ever reached under a policy waiver, so it cannot authorize a merge on its own; noted for completeness.",
+      "eligible_vendors": 3
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 2,
+    "confirmed_count": 0,
+    "unconfirmed_count": 2,
+    "disagreement_count": 0,
+    "blocking_count": 0,
+    "advisory_count": 1
+  }
+}

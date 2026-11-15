@@ -226,6 +226,9 @@ def test_waiver_missing_eligibility_reason_key_is_not_a_waiver() -> None:
         _binding(author={"vendor": "claude_code"}),
         _binding(reviewers="codex"),
         _binding(head_sha="abc1234"),
+        _binding(reviewers=[]),
+        _binding(reviewers=[{"family": "openai"}]),
+        _binding(reviewers=[{"vendor": "codex", "family": "openai", "model": "gpt-5"}]),
     ],
 )
 def test_malformed_binding_blocks_even_when_head_matches(binding: dict) -> None:
@@ -235,3 +238,22 @@ def test_malformed_binding_blocks_even_when_head_matches(binding: dict) -> None:
         _verified(binding=binding), live_head_sha=HEAD, live_patch_id=PID,
     )
     assert reason is not None and reason.startswith("vendor verdict binding is malformed")
+
+
+def test_binding_reviewer_without_a_successful_result_blocks() -> None:
+    review = _verified(binding=_binding(reviewers=[
+        {"vendor": "gemini", "family": "google", "model": None, "agent_id": "gemini-local"},
+    ]))
+    reason = vendor_review_block_reason(review, live_head_sha=HEAD, live_patch_id=PID)
+    assert reason == "vendor verdict binding names reviewers with no successful result: gemini"
+
+
+def test_same_vendor_reviewer_with_unknown_agent_id_blocks() -> None:
+    review = _verified(
+        vendors=[{"vendor": "claude_code", "success": True, "agent_id": None}],
+        binding=_binding(reviewers=[
+            {"vendor": "claude_code", "family": "anthropic", "model": None, "agent_id": None},
+        ]),
+    )
+    reason = vendor_review_block_reason(review, live_head_sha=HEAD, live_patch_id=PID)
+    assert reason is not None and "agent id is unknown" in reason

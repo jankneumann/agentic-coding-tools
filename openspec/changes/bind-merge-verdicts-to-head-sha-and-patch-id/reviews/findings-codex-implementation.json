@@ -1,0 +1,23 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "axis": "correctness",
+      "severity": "critical",
+      "disposition": "fix",
+      "file_path": "skills/merge-pull-requests/scripts/execution_safety.py",
+      "line_range": {
+        "start": 147,
+        "end": 155
+      },
+      "description": "The new validation still accepts partial reviewer evidence. validate_binding permits an empty reviewers list or reviewer objects missing vendor and agent_id. With a successful vendor result, zero blocking findings, and a matching head SHA, such a stored verdict passes the predicate and can be reused and merged because independence_violation finds no reviewer to check. A fresh review whose successful vendor omits agent_id can likewise produce a binding that passes despite an unverified same-vendor identity. The new tests cover missing reviewers, but not empty or incomplete entries.",
+      "resolution": "Require binding reviewer entries with the identity fields needed for independence, ensure they correspond to successful vendor results, and test stored reuse and fresh review with empty and incomplete reviewer entries.",
+      "evidence_class": "judgment"
+    }
+  ]
+}
