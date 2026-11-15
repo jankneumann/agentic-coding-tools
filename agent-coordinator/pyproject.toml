@@ -38,7 +38,7 @@ dependencies = [
     # `postgres` extra, so create_db_client() raised ImportError for anyone
     # who installed the package without extras and set nothing, defeating
     # the point of the default. It is a base dependency now, not optional.
-    "asyncpg>=0.31.0",
+    "asyncpg>=0.32.0",
 ]
 
 [project.optional-dependencies]
