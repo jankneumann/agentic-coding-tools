@@ -152,9 +152,14 @@ evidence is not `PASS`, and when `status` is `failed` and `outcome` is present a
 expected_contracts_revision, expected_plan_revision, worktree_path)` SHALL return a
 frozen `PackageAcceptance` carrying `package_id`, `accepted`, the effective `outcome`
 and a sequence of `reasons`. It SHALL be accepted only when full Phase C1 validation is
-valid, the `commit_resolves` check ran (was not skipped) and passed, the effective
-outcome is `PASS`, and the result's `package_id`, when present, equals the package
-definition's; otherwise `reasons` SHALL name every failed condition.
+valid, the `commit_resolves` check ran (was not skipped) and passed, every
+`files_modified` entry falls within the package definition's own `scope.write_allow`
+and outside its `scope.deny` (the result's echoed `scope` is not authoritative, and a
+package definition without `scope.write_allow` is refused rather than skipped), the
+effective outcome is `PASS`, and the result's `package_id`, when present, equals the
+package definition's; otherwise `reasons` SHALL name every failed condition. A
+malformed result (including a step missing a required field) SHALL be refused with a
+reason, never raise.
 `DAGScheduler.mark_completed(package_id, acceptance)` SHALL mark the package
 `completed` only when `acceptance` is a `PackageAcceptance` for the same package with
 `accepted == true`, and SHALL return `true` in that case. Otherwise it SHALL mark the
@@ -181,6 +186,18 @@ packages depending on it do not become ready.
 
 - **WHEN** `accept_package_result` is called with `worktree_path=None`
 - **THEN** the acceptance is not accepted and its reasons name the unchecked commit
+
+<!-- Scenario ID: parallel-infrastructure.package-scope-authoritative -->
+#### Scenario: A worker that broadens its echoed scope is refused
+
+- **WHEN** a result echoes `scope.write_allow: ["**"]` and modifies a file outside the package definition's `scope.write_allow`
+- **THEN** `accept_package_result` returns a non-accepted verdict whose reasons name the `package_scope` check
+
+<!-- Scenario ID: parallel-infrastructure.malformed-step-refused -->
+#### Scenario: A malformed step is refused, not raised
+
+- **WHEN** a result claims `verification.passed: true` and has a failing step with no `name`
+- **THEN** `accept_package_result` returns a non-accepted verdict instead of raising
 
 <!-- Scenario ID: parallel-infrastructure.mismatched-acceptance-refused -->
 #### Scenario: An acceptance for a different package is refused

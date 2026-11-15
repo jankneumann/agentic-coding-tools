@@ -131,7 +131,7 @@ def validate_verification_consistency(data: dict[str, Any]) -> list[str]:
     all_steps_passed = all(s.get("passed", False) for s in steps)
 
     if overall_passed and not all_steps_passed:
-        failing = [s["name"] for s in steps if not s.get("passed", False)]
+        failing = [s.get("name", "?") for s in steps if not s.get("passed", False)]
         errors.append(
             f"  verification.passed=true but steps failed: {failing}"
         )

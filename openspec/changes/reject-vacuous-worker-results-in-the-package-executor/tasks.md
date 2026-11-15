@@ -143,3 +143,11 @@
   **Spec scenarios**: parallel-infrastructure.gate-blocks-acceptance-for-another-result
   **Design decisions**: D4, D5
   **Dependencies**: 5.3
+- [x] 5.5 Check modified files against the package definition's scope, refuse malformed steps without raising, and make `result_validator` importable by file path (S)
+  - PR #704 review: the result's `scope` is a worker echo, so `validate_package_result` adds a `package_scope` check against `package_def["scope"]`; `accept_package_result` refuses a failing or skipped one.
+  - A failing step with no `name` no longer raises `KeyError` in `validate_verification_consistency`; `accept_package_result` also refuses on `KeyError`.
+  - `result_validator`, `integration_orchestrator` and `dag_scheduler` put their own directory on `sys.path` before importing `package_acceptance` (installed-consumer smoke import).
+  - Tests: `test_broadened_echoed_scope_is_refused`, `test_denied_by_package_scope_is_refused`, `test_package_def_without_scope_is_refused`, `test_failing_step_without_name_is_refused_not_raised` in `test_result_validator.py`; `test_failing_step_without_name_does_not_raise` in `test_validate_work_result.py`; `tests/install_sh/test_consumer_portability.py`.
+  **Spec scenarios**: parallel-infrastructure.package-scope-authoritative, parallel-infrastructure.malformed-step-refused
+  **Design decisions**: D4
+  **Dependencies**: 5.4

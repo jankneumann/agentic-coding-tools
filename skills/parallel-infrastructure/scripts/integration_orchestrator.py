@@ -31,7 +31,11 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
-from package_acceptance import PackageAcceptance, digest_result
+# Sibling module; on the path so a load-by-file-path import also resolves it.
+if str(Path(__file__).resolve().parent) not in sys.path:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from package_acceptance import PackageAcceptance, digest_result  # noqa: E402
 
 # The effective-outcome rule lives in the co-installed validate-packages skill.
 _VALIDATE_SCRIPTS_DIR = (

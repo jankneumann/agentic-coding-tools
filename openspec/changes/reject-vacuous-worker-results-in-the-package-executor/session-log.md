@@ -254,3 +254,29 @@ Implementation review converged in round 1 on the single claude_code lane (quoru
 ### Context
 Validation passed for the branch's scope. The affected suites, ruff and openspec validate --strict are all clean. The 7 validate-feature worktree failures pre-exist this change and come from the cloud harness's env_var isolation. The GATEKEEPER is reported as DEGRADED.
 
+---
+
+## Phase: Implementation Iteration 1 (2026-11-15)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Package scope is authoritative at acceptance** — The echoed result scope is worker-controlled; only package_def scope can bound files_modified. A missing package scope is refused like a skipped commit check, so acceptance stays fail-closed.
+2. **Declare apis and documentation context_impact surfaces** — wp-contract changes the work-queue result schema and wp-integration changes SKILL.md/docs; the context-drift gate flagged them as undeclared.
+
+### Alternatives Considered
+- Reject any echoed scope that differs from package_def scope: rejected because Checking the files against the authoritative scope is the actual guard; a cosmetic echo difference is not itself a violation.
+
+### Trade-offs
+- Accepted Refusing acceptance when package_def has no scope over Skipping the package-scope check silently because Matches the fail-closed treatment of a skipped commit check.
+
+### Completed Work
+- Thread: compare echoed scope with package definition
+- Thread: refuse malformed steps instead of KeyError
+- Thread: bind verdict to result (already done by result_digest in 0e6fa4ca)
+- CI: test-infra-skills/coverage-ratchet portability import
+- CI: context-drift-gate undeclared context_impact surfaces
+
+### Context
+Addressed PR #704 review threads and CI failures. Acceptance now checks files_modified against the package definition's own scope (the result's scope is a worker echo), a malformed failing step without a name is refused instead of raising KeyError, and result_validator resolves its sibling package_acceptance module when loaded by file path, which fixes the installed-consumer smoke import in test-infra-skills.
+
