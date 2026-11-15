@@ -201,6 +201,29 @@ Opened PR #702 against openspec/adopt-verification-enforcement-discipline; pr_cr
 
 ---
 
+## Phase: Implementation Iteration 2 (2026-11-15)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Declare documentation surface rather than record a rationale** — wp-expedite really does change SKILL.md and docs/mental-models.md; declaring the surface is the truthful fix.
+2. **No code change for the drift-suite thread** — test_table_rows_equal_failing_conditions already compares (check, condition) pairs; both mutations the reviewer named now fail it.
+
+### Alternatives Considered
+- Add per-row status assertions to the drift suite: rejected because Redundant with the existing set-equality over failing conditions.
+
+### Trade-offs
+- Accepted Reply-and-resolve on the thread over Adding duplicate assertions because Keeps the drift suite minimal while the gap is already closed.
+
+### Completed Work
+- context_impact documentation surface declared for wp-expedite
+- Review thread on test_skill_md_drift.py verified addressed by mutation
+
+### Context
+PR #702 remediation. Declared the documentation context_impact surface for wp-expedite so the context-drift-gate passes; confirmed the open codex review thread was already addressed by dea4e861 via mutation testing.
+
+---
+
 ## Phase: Plan Iteration 1 (2026-11-16)
 
 **Agent**: claude-opus-5.5 | **Session**: N/A

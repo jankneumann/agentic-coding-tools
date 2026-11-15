@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-11-15T16:09:42.651457+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "skipped, capability_unavailable",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "PR #702 remediation. Declared the documentation context_impact surface for wp-expedite so the context-drift-gate passes; confirmed the open codex review thread was already addressed by dea4e861 via mutation testing.",
+    "completed_work": [
+      "context_impact documentation surface declared for wp-expedite",
+      "Review thread on test_skill_md_drift.py verified addressed by mutation"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Declare documentation surface rather than record a rationale",
+        "rationale": "wp-expedite really does change SKILL.md and docs/mental-models.md; declaring the surface is the truthful fix.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "No code change for the drift-suite thread",
+        "rationale": "test_table_rows_equal_failing_conditions already compares (check, condition) pairs; both mutations the reviewer named now fail it.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [],
+    "relevant_files": []
+  }
+}
