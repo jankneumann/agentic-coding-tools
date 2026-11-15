@@ -1,0 +1,19 @@
+{
+  "review_type": "implementation",
+  "target": "make-expedite-fail-closed-on-missing-validation",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "resilience",
+      "criticality": "low",
+      "severity": "optional",
+      "axis": "resilience",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "skills/expedite/scripts/expedite.py",
+      "line_range": "152-158",
+      "description": "check_validation_report catches bare Exception around gate_logic.pre_merge_gate, so a programming error inside gate_logic would also be reported as 'failed to read validation-report.md'. It still fails closed (status=fail) and names the exception class, so the verdict is safe; narrowing to OSError/UnicodeDecodeError/ValueError would only sharpen the message."
+    }
+  ]
+}

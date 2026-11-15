@@ -1,0 +1,133 @@
+{
+  "schema_version": 1,
+  "review_type": "implementation",
+  "target": "make-expedite-fail-closed-on-missing-validation",
+  "reviewers": [
+    {
+      "vendor": "claude_code",
+      "agent_id": "claude_code",
+      "success": true,
+      "findings_count": 1,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "antigravity",
+      "agent_id": "antigravity",
+      "success": true,
+      "findings_count": 1,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "grok",
+      "agent_id": "grok",
+      "success": true,
+      "findings_count": 5,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": true,
+  "quorum_requested": 3,
+  "quorum_received": 3,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: `--validation-report` pointing at a non-existent file is treated as a present report, so `--accept-missing-validation` is ignored and the check fails with a misleading pre_merge_gate \"phases missing\" detail instead of the OVERRIDE path. Spec requires the override when no validation report exists; probing uses `is_file()` (None when absent), but an explicit Path bypasses that. Reproduced: `expedite.py abc --validation-report /tmp/does-not-exist-xyz.md --accept-missing-validation docs --json` \u2192 ready false, overrides [], validation_report fail.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 2,
+      "status": "confirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 1,
+      "matched_findings": [
+        {
+          "vendor": "antigravity",
+          "finding_id": 1
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "check_validation_report catches bare Exception around gate_logic.pre_merge_gate, so a programming error inside gate_logic would also be reported as 'failed to read validation-report.md'. It still fails closed (status=fail) and names the exception class, so the verdict is safe; narrowing to OSError/UnicodeDecodeError/ValueError would only sharpen the message.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 3,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Nit: `_override_reason` rejects blank reasons via `strip()` but returns the original unstripped string, so a reason like `\"  docs-only  \"` is accepted by the CLI and recorded with padding in both the OVERRIDE detail and `overrides[].reason`.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 4,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "style",
+      "agreed_axis": "readability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Nit: SKILL.md status table row `validation_report` (hard gate fail) says \"pass `--force`\" without naming the consumer. `expedite.py` has no `--force` flag; the check action correctly says \"pass --force at merge time\". Agents following the table alone may look for a non-existent expedite flag.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 5,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Optional: Spec cites permission denied as an unreadable-report failure mode, and SKILL.md documents it, but the suite only covers non-UTF-8 bytes and a directory path. The bare `except Exception` path would handle PermissionError, yet nothing pins that branch or its detail shape.",
+      "eligible_vendors": 3
+    },
+    {
+      "id": 6,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Core fail-closed path, recorded override, change_dir-from-id, worktree probe path, and SKILL\u2194code drift guard match the delta specs. 54 tests pass (`test_expedite.py` 48 + `test_skill_md_drift.py` 6); `test_table_rows_equal_failing_conditions` reconciles table (check, condition) rows with observed failing statuses, including override-as-pass and unreadable/hard-gate/rework branches.",
+      "eligible_vendors": 3
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 6,
+    "confirmed_count": 1,
+    "unconfirmed_count": 5,
+    "disagreement_count": 0,
+    "blocking_count": 0,
+    "advisory_count": 6
+  }
+}

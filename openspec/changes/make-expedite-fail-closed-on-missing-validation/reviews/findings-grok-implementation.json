@@ -1,0 +1,94 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Nit: `--validation-report` pointing at a non-existent file is treated as a present report, so `--accept-missing-validation` is ignored and the check fails with a misleading pre_merge_gate \"phases missing\" detail instead of the OVERRIDE path. Spec requires the override when no validation report exists; probing uses `is_file()` (None when absent), but an explicit Path bypasses that. Reproduced: `expedite.py abc --validation-report /tmp/does-not-exist-xyz.md --accept-missing-validation docs --json` \u2192 ready false, overrides [], validation_report fail.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "Before the override/missing branches, if `report_path` is not None and not `report_path.exists()`, treat it as missing (set to None) so override and the probed-path fail message apply. Keep exists-but-unreadable paths (directory, bad UTF-8, permission) on the fail/unreadable path where override must not apply. Add a CLI/library test for explicit missing path with and without the override.",
+      "package_id": "wp-expedite",
+      "file_path": "skills/expedite/scripts/expedite.py",
+      "line_range": {
+        "start": 135,
+        "end": 227
+      },
+      "evidence_class": "judgment",
+      "existing_code": "if report_path is None and accept_missing is not None:\n        return CheckResult(name=\"validation_report\", status=\"pass\",\n                           detail=OVERRIDE_PREFIX + accept_missing)\n    if report_path is None:"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Nit: `_override_reason` rejects blank reasons via `strip()` but returns the original unstripped string, so a reason like `\"  docs-only  \"` is accepted by the CLI and recorded with padding in both the OVERRIDE detail and `overrides[].reason`.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "Return `accept_missing.strip()` after the emptiness check so the recorded reason matches the validated non-blank content. Add a parameterized assertion that padded reasons are stored stripped.",
+      "package_id": "wp-expedite",
+      "file_path": "skills/expedite/scripts/expedite.py",
+      "line_range": {
+        "start": 96,
+        "end": 100
+      },
+      "evidence_class": "judgment",
+      "existing_code": "def _override_reason(accept_missing: str | None) -> str | None:\n    \"\"\"A blank or whitespace-only reason is no override at all.\"\"\"\n    if accept_missing is None or not accept_missing.strip():\n        return None\n    return accept_missing"
+    },
+    {
+      "id": 3,
+      "type": "style",
+      "criticality": "low",
+      "description": "Nit: SKILL.md status table row `validation_report` (hard gate fail) says \"pass `--force`\" without naming the consumer. `expedite.py` has no `--force` flag; the check action correctly says \"pass --force at merge time\". Agents following the table alone may look for a non-existent expedite flag.",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "nit",
+      "resolution": "Align the table cell with the check action / active_agents row: e.g. \"pass `--force` at merge time\" or \"pass `--force` to `/cleanup-feature` / merge\".",
+      "package_id": "wp-expedite",
+      "file_path": "skills/expedite/SKILL.md",
+      "line_range": {
+        "start": 65,
+        "end": 65
+      },
+      "evidence_class": "judgment",
+      "existing_code": "| `validation_report` (hard gate fail) | Investigate the failing phase; re-run `/validate-feature`; if accepted, pass `--force`. |"
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Optional: Spec cites permission denied as an unreadable-report failure mode, and SKILL.md documents it, but the suite only covers non-UTF-8 bytes and a directory path. The bare `except Exception` path would handle PermissionError, yet nothing pins that branch or its detail shape.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "optional",
+      "resolution": "Add a test that makes the report unreadable (e.g. chmod 0 on POSIX, or monkeypatch `pre_merge_gate` / open to raise PermissionError), assert status fail, detail names PermissionError, exit 1 with JSON verdict emitted, and override ignored.",
+      "package_id": "wp-expedite",
+      "file_path": "skills/expedite/scripts/tests/test_expedite.py",
+      "line_range": {
+        "start": 155,
+        "end": 166
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Core fail-closed path, recorded override, change_dir-from-id, worktree probe path, and SKILL\u2194code drift guard match the delta specs. 54 tests pass (`test_expedite.py` 48 + `test_skill_md_drift.py` 6); `test_table_rows_equal_failing_conditions` reconciles table (check, condition) rows with observed failing statuses, including override-as-pass and unreadable/hard-gate/rework branches.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "package_id": "wp-expedite",
+      "file_path": "skills/expedite/scripts/tests/test_skill_md_drift.py",
+      "line_range": {
+        "start": 200,
+        "end": 230
+      },
+      "evidence_class": "judgment"
+    }
+  ]
+}

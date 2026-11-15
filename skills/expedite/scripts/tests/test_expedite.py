@@ -512,6 +512,40 @@ class TestAcceptMissingValidation:
         assert not check.detail.startswith(ex.OVERRIDE_PREFIX)
         assert v.overrides == []
 
+    def test_explicit_missing_path_fails_naming_it(self, repo: Path,
+                                                   tmp_path: Path) -> None:
+        write_active_agent_registry(repo, active=False)
+        missing = tmp_path / "nope" / "validation-report.md"
+        v = ex.expedite("abc", repo, validation_report=missing)
+        check = next(c for c in v.checks if c.name == "validation_report")
+        assert check.status == "fail"
+        assert str(missing) in check.detail
+        assert check.action == "run /validate-feature"
+        assert v.overrides == []
+
+    def test_override_applies_to_explicit_missing_path(
+        self, repo: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        write_active_agent_registry(repo, active=False)
+        rc = ex.main(["abc", "--repo-root", str(repo),
+                      "--validation-report", str(tmp_path / "nope.md"),
+                      "--accept-missing-validation", "docs-only change", "--json"])
+        assert rc == 0
+        payload = json.loads(capsys.readouterr().out)
+        check = next(c for c in payload["checks"] if c["name"] == "validation_report")
+        assert check["status"] == "pass"
+        assert check["detail"] == ex.OVERRIDE_PREFIX + "docs-only change"
+        assert payload["overrides"] == [
+            {"check": "validation_report", "reason": "docs-only change"},
+        ]
+
+    def test_override_reason_is_stripped(self, repo: Path) -> None:
+        write_active_agent_registry(repo, active=False)
+        v = ex.expedite("abc", repo, accept_missing_validation="  docs-only  ")
+        check = next(c for c in v.checks if c.name == "validation_report")
+        assert check.detail == ex.OVERRIDE_PREFIX + "docs-only"
+        assert v.overrides == [{"check": "validation_report", "reason": "docs-only"}]
+
     def test_overrides_key_always_present(self, repo: Path,
                                           capsys: pytest.CaptureFixture[str]) -> None:
         write_active_agent_registry(repo, active=False)

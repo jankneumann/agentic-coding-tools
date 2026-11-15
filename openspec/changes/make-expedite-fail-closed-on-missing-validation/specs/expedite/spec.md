@@ -111,6 +111,15 @@ flag MUST NOT change the check's outcome and MUST NOT add an `overrides` entry.
   and `reason` equal to `docs-only change`
 - **AND** the text (non-JSON) verdict for the same invocation contains `OVERRIDE`
 
+<!-- Scenario ID: expedite.explicit-missing-path-is-missing -->
+#### Scenario: An explicit validation-report path that does not exist counts as missing
+
+- **WHEN** `expedite.py <change-id> --validation-report <path>` runs and nothing exists at `<path>`
+- **THEN** the `validation_report` check status is `fail` and its detail names `<path>`
+- **AND** with `--accept-missing-validation "docs-only change"` added, the check passes
+  with the `OVERRIDE —` detail and `overrides` records the reason, exactly as for a
+  report missing from every probed path
+
 <!-- Scenario ID: expedite.overrides-key-always-present -->
 #### Scenario: JSON verdict carries an empty overrides list without the flag
 

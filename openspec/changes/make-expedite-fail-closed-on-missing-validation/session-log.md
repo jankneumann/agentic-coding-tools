@@ -224,6 +224,30 @@ PR #702 remediation. Declared the documentation context_impact surface for wp-ex
 
 ---
 
+## Phase: Implementation Iteration 3 (2026-11-15)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **A non-existent explicit path is a missing report** — The spec gates the override on no report existing; an explicit path naming nothing is the same fact as an unprobed miss. A path that exists but is unreadable still fails as unreadable.
+2. **Defer a PermissionError test** — Covered by the same except branch as tested cases; chmod tests are unreliable when CI runs as root.
+
+### Alternatives Considered
+- Reject a non-existent explicit path as a usage error (exit 2): rejected because Would make the override unusable with an explicit path and diverge from the probed-miss behaviour.
+
+### Trade-offs
+- Accepted New spec scenario over Silent code-only fix because Keeps the spec delta scenario-backed for the new behaviour.
+
+### Completed Work
+- V1 explicit missing path counts as missing
+- V2 override reason stripped
+- V3 SKILL.md --force wording
+
+### Context
+Vendor-review remediation for PR #702. Grok found that a non-existent explicit --validation-report path bypassed the missing-report override; it now counts as missing, and the reason is stripped and the SKILL.md --force wording clarified.
+
+---
+
 ## Phase: Plan Iteration 1 (2026-11-16)
 
 **Agent**: claude-opus-5.5 | **Session**: N/A

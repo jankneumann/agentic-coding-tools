@@ -47,7 +47,7 @@ python3 "<skill-base-dir>/scripts/expedite.py" <change-id>
 
 The script:
 - Calls `skills/shared/active_agents.py:check_no_active_agents` to verify exclusive access.
-- Probes for `validation-report.md` at `openspec/changes/<change-id>/validation-report.md`, then `.../reports/validation-report.md`, then `.git-worktrees/<change-id>/openspec/changes/<change-id>/validation-report.md` (where `/validate-feature` writes it inside the change's worktree). If found, runs `gate_logic.pre_merge_gate` against it (smoke / security / e2e hard gates), reading declared metadata from `openspec/changes/<change-id>/` wherever the report was found. If none is found, the `validation_report` check **fails** and its detail names every probed path. A report that cannot be read (not UTF-8, a directory, no permission) also **fails** the check; the verdict, including `--json` output, is still emitted.
+- Probes for `validation-report.md` at `openspec/changes/<change-id>/validation-report.md`, then `.../reports/validation-report.md`, then `.git-worktrees/<change-id>/openspec/changes/<change-id>/validation-report.md` (where `/validate-feature` writes it inside the change's worktree). If found, runs `gate_logic.pre_merge_gate` against it (smoke / security / e2e hard gates), reading declared metadata from `openspec/changes/<change-id>/` wherever the report was found. If none is found, the `validation_report` check **fails** and its detail names every probed path; an explicit `--validation-report` path that does not exist counts as no report, and its detail names that path. A report that cannot be read (not UTF-8, a directory, no permission) also **fails** the check; the verdict, including `--json` output, is still emitted.
 - Probes for `rework-report.json` at the same three locations. If found, loads it via `rework_report.load_rework_report` and inspects `summary_action`.
 - Returns exit `0` (READY), `1` (BLOCKED), or `2` (usage error).
 
@@ -62,7 +62,7 @@ The script:
 | `active_agents` | Wait for the listed agents to finish, or pass `--force` to override after operator confirmation. |
 | `validation_report` (no file) | Run `/validate-feature` first. If the change genuinely has nothing to validate, re-run with `--accept-missing-validation "<reason>"`; the check then passes with detail `OVERRIDE — no validation report accepted: <reason>` and the reason is recorded in `overrides`. |
 | `validation_report` (unreadable) | The report exists but could not be read; the detail names the error. Fix or regenerate it with `/validate-feature`. The override does not apply. |
-| `validation_report` (hard gate fail) | Investigate the failing phase; re-run `/validate-feature`; if accepted, pass `--force`. |
+| `validation_report` (hard gate fail) | Investigate the failing phase; re-run `/validate-feature`; if the failure was investigated and accepted, pass `--force` at merge time (`expedite.py` itself has no `--force`). |
 | `rework_report` (`block-cleanup`) | Holdout failure — iterate on the failures and re-validate; do not merge. |
 | `rework_report` (`iterate`) | Run `/iterate-on-implementation`, then re-validate. |
 | `rework_report` (`revise-spec`) | Run `/update-specs` or revise the proposal, then re-validate. |
