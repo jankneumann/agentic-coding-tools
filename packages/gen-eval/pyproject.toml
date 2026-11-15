@@ -52,7 +52,7 @@ build-backend = "uv_build"
 [dependency-groups]
 dev = [
     "pytest>=8.3",
-    "pytest-asyncio>=0.24",
+    "pytest-asyncio>=1.4.1.post1",
     "ruff>=0.16.8",
     "mypy>=1.13",
     # Validates emitted reports/descriptors against the published JSON Schema
