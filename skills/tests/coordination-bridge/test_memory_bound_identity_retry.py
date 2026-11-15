@@ -130,3 +130,31 @@ def test_try_remember_does_not_retry_an_unrelated_403(
 
     assert len(captured) == 1
     assert result["status"] != "ok"
+
+
+def test_try_recall_keeps_caller_identity_for_an_unbound_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An unbound key never refuses, so recall stays scoped to the caller."""
+    captured = _capture_bridge(monkeypatch, [_ok()])
+
+    coordination_bridge.try_recall(agent_id="claude-code-1", api_key="k")
+
+    assert len(captured) == 1
+    assert captured[0]["payload"]["agent_id"] == "claude-code-1"
+
+
+def test_try_recall_does_not_retry_an_unrelated_403(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    denied = {
+        "status_code": 403,
+        "data": {"detail": "agent is not permitted to query memory"},
+        "error": "forbidden",
+    }
+    captured = _capture_bridge(monkeypatch, [denied])
+
+    result = coordination_bridge.try_recall(agent_id="a", api_key="k")
+
+    assert len(captured) == 1
+    assert result["status"] != "ok"

@@ -1222,7 +1222,14 @@ def try_recall(
     http_url: str | None = None,
     api_key: str | None = None,
 ) -> dict[str, Any]:
-    """Query coordinator memory when memory capability is available."""
+    """Query coordinator memory when memory capability is available.
+
+    On a key bound to an identity other than ``agent_id``, the retry recalls
+    the *bound* identity's memories, not ``agent_id``'s: the server resolves
+    the blanked identity to the key's principal, so the result is never
+    unscoped and never another agent's, but callers must not assume it is
+    scoped to the ``agent_id`` they passed.
+    """
     return _identity_request(
         operation="try_recall",
         capability_flag="CAN_MEMORY",
