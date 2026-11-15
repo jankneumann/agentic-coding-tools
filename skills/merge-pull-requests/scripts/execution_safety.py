@@ -11,6 +11,7 @@ from verdict_binding import (
     POLICY_WAIVABLE_REASONS,
     independence_violation,
     stale_reason,
+    validate_binding,
     verdict_currency,
 )
 
@@ -143,6 +144,12 @@ def vendor_review_block_reason(
     binding = review.get("binding")
     if not isinstance(binding, dict):
         return "vendor verdict is not bound to a reviewed head"
+    binding_errors = validate_binding(binding)
+    if binding_errors:
+        # A truncated or hand-edited binding must not reach the currency and
+        # independence checks: a missing author or reviewer list would read as
+        # "no violation" there.
+        return "vendor verdict binding is malformed: " + "; ".join(binding_errors)
     if verdict_currency(binding, live_head_sha, live_patch_id) == "stale":
         return stale_reason(binding, live_head_sha)
     return independence_violation(binding)

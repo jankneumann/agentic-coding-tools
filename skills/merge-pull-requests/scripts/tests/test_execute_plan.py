@@ -510,7 +510,8 @@ def test_final_save_failure_leaves_reconcilable_in_progress_claim(
 
         def _save_locked(self, pending: dict) -> None:
             self.saves += 1
-            if self.saves == 2:
+            # 1: claim, 2: review evidence before the merge, 3: final outcome.
+            if self.saves == 3:
                 raise OSError("final plan save failed")
             super()._save_locked(pending)
 
@@ -917,3 +918,54 @@ def test_proposal_accepted_allows_openspec_merge_after_dedicated_workflow(
         dependencies=dependencies(),
     )
     assert result["outcome"] == "merged"
+
+
+def test_malformed_stored_binding_is_superseded_not_reused(tmp_path: Path) -> None:
+    stored = _stored(HEAD, None)
+    stored["binding"] = {"head_sha": HEAD}
+    path = persisted_plan(tmp_path, _gated_implementation_plan(stored))
+    dispatched: list[int] = []
+
+    result = execute_node(
+        path,
+        11,
+        approve_gate=True,
+        dependencies=dependencies(
+            review_vendor=lambda pr, *_rest: dispatched.append(pr) or clean_review(),
+        ),
+    )
+    assert dispatched == [11]
+    assert result["outcome"] == "merged"
+    evidence = result["vendor_review"]
+    assert evidence.get("reused_stored_verdict") is not True
+    assert evidence["superseded_verdict"].startswith("malformed stored verdict binding")
+    assert evidence["binding"]["author"] == HUMAN
+
+
+def test_review_evidence_is_persisted_before_the_merge_call(tmp_path: Path) -> None:
+    path = persisted_plan(tmp_path, _gated_implementation_plan())
+    seen: dict = {}
+
+    def crash_after_remote_merge(*_args):
+        seen["state"] = copy.deepcopy(FilePlanStore(path).load()["nodes"][1]["state"])
+        raise SystemExit("process died after GitHub accepted the merge")
+
+    with pytest.raises(SystemExit):
+        execute_node(
+            path,
+            11,
+            approve_gate=True,
+            claim_id="claim-1",
+            waive_review="hotfix approved in incident channel",
+            waiver_approver="jan",
+            dependencies=dependencies(merge=crash_after_remote_merge),
+        )
+
+    state = seen["state"]
+    assert state["outcome"] == "in_progress"
+    assert state["claimed_by"] == "claim-1"
+    assert state["vendor_verdict"]["binding"]["head_sha"] == HEAD
+    assert state["review_waiver"]["source"] == "operator"
+    assert state["review_waiver"]["approver"] == "jan"
+    persisted = FilePlanStore(path).load()["nodes"][1]["state"]
+    assert persisted["review_waiver"] == state["review_waiver"]

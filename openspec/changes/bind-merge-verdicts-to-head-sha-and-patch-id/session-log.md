@@ -67,3 +67,28 @@ Planned roadmap item ri-01 of verification-enforcement-discipline: bind every st
 ### Context
 Fixed undeclared apis/documentation surfaces, routed head_sha through validate_pr (the only live-state path execution uses), widened wp-docs to the parallel-infrastructure mirrors, pinned head-mismatch detection to a structured key, and added missing scenario IDs, a skip-path blocking scenario and an evidence-test task.
 
+---
+
+## Phase: Implementation Iteration 1 (2026-11-15)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Validate binding shape inside vendor_review_block_reason** — The predicate is the single gate every merge passes; a binding with only head_sha passed currency and read as no independence violation.
+2. **Save the plan before dependencies.merge** — A crash after GitHub accepts the merge would otherwise reconcile from the claimed plan without the waiver or bound verdict.
+3. **Declare apis for wp-schema and documentation for wp-docs** — validate_context_impact derives these surfaces from merge-plan.schema.json and the SKILL.md / reference / design.md edits.
+
+### Alternatives Considered
+- Tighten the merge-plan JSON schema for vendor_verdict.binding: rejected because Schema 1.2 permits arbitrary verdict properties by design; runtime validation covers stored and fresh verdicts uniformly without a schema bump.
+
+### Trade-offs
+- Accepted One extra plan write per merge over Losing audit evidence on a crash because The write is cheap and happens under the already-held claim.
+
+### Completed Work
+- [high] correctness: malformed verdict binding accepted (PR thread PRRT_kwDOQ7IIFs6vmx9l)
+- [high] resilience: review evidence not persisted before merge (PR thread PRRT_kwDOQ7IIFs6vmx9r)
+- [high] workflow: context-drift-gate context.impact undeclared surfaces
+
+### Context
+Addressed two P1 PR #703 review threads: malformed verdict bindings now fail closed in the merge predicate and are superseded rather than reused, and the vendor verdict plus review waiver are persisted under the held claim before the merge call. Declared the apis/documentation context-impact surfaces that the context-drift-gate reported as undeclared.
+
