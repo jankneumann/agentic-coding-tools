@@ -33,7 +33,7 @@ The `explain-code` skill SHALL ship a read-only script `skills/explain-code/scri
 
 #### Scenario: Uncommitted line
 
-- **WHEN** the target line exists in the working tree but has not been committed
+- **WHEN** the target line exists in the working tree but has not been committed, in a SHA-1 or a SHA-256 repository
 - **THEN** it SHALL exit `0` with `status` equal to `uncommitted`, `commit` equal to `null`, `decisions` equal to `[]`, and `null_result.reason` equal to `uncommitted`
 
 #### Scenario: Shallow-clone boundary reported as history_truncated
@@ -60,6 +60,12 @@ The `explain-code` skill SHALL ship a read-only script `skills/explain-code/scri
 - **WHEN** a decision's title or rationale names the target's repo-relative path, its basename, or the `--symbol` value as a whole token
 - **THEN** that decision's `mentions_target` SHALL be `true`
 - **AND** otherwise it SHALL be `false`
+
+#### Scenario: Path suffix or dot-slash form sets the mention flag
+
+- **WHEN** the target is `pkg/core/io.py` and a decision names `core/io.py` or `./pkg/core/io.py`
+- **THEN** that decision's `mentions_target` SHALL be `true`
+- **AND** a decision that names only `vendor/core/io.py` SHALL have `mentions_target` equal to `false`
 
 #### Scenario: Near-miss name does not set the mention flag
 

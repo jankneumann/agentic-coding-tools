@@ -59,7 +59,16 @@ from decision_index import (  # noqa: E402
 logging.getLogger("decision_index").setLevel(logging.ERROR)
 
 SCHEMA_VERSION = 1
-_ZERO_SHA = "0" * 40
+_ZERO_SHA = "0" * 40  # the synthetic sha this module reports for an unborn HEAD
+
+
+def _is_uncommitted(sha: str) -> bool:
+    """Git blames uncommitted lines to an all-zero sha of the repository's hash width.
+
+    That is 40 zeros under SHA-1 and 64 under SHA-256, so compare the content,
+    not a fixed-width constant.
+    """
+    return not sha.strip("0")
 
 _TARGET_RE = re.compile(r"^(.+):([1-9]\d*)$")
 _SUBJECT_PR_RE = re.compile(r"\(#(\d+)\)\s*$")
@@ -347,17 +356,22 @@ def _decision_ref(d: TaggedDecision) -> str:
 
 
 def _mention_patterns(rel: str, symbol: str | None) -> list[re.Pattern]:
-    """Whole-token patterns for the target's path, basename and symbol.
+    """Whole-token patterns for the target's path, its ``/``-boundary suffixes and symbol.
 
-    A path must not continue a longer path or name on either side
-    (``app.py`` never matches ``myapp.py``, ``lib/app.py`` or ``app.pyc``); a
-    symbol must not continue a longer identifier (``run`` never matches
-    ``running``, but ``self.run`` matches).
+    For ``pkg/core/io.py`` the path forms are ``pkg/core/io.py`` (also written
+    ``./pkg/core/io.py``), ``core/io.py`` and ``io.py``. A path form must not
+    continue a longer path or name on either side, so ``app.py`` never matches
+    ``myapp.py``, ``lib/app.py`` or ``app.pyc``, and ``core/io.py`` never
+    matches ``vendor/core/io.py``. A symbol must not continue a longer
+    identifier: ``run`` never matches ``running``, but ``self.run`` matches.
     """
-    pats = [
-        re.compile(r"(?<![\w./-])" + re.escape(n) + r"(?![\w-]|[./]\w)")
-        for n in dict.fromkeys((rel, Path(rel).name))
-    ]
+    parts = Path(rel).parts
+    pats = []
+    for i in range(len(parts)):
+        form = re.escape("/".join(parts[i:]))
+        if i == 0:
+            form = r"(?:\./)?" + form
+        pats.append(re.compile(r"(?<![\w./-])" + form + r"(?![\w-]|[./]\w)"))
     if symbol:
         pats.append(re.compile(r"(?<!\w)" + re.escape(symbol) + r"(?!\w)"))
     return pats
@@ -427,7 +441,7 @@ def trace(target: str, symbol: str | None, cwd: Path) -> dict:
     }
     doc["blame"], boundary = _blame(rel, line, root)
     where = f"{rel}:{line}"
-    if doc["blame"]["sha"] == _ZERO_SHA:
+    if _is_uncommitted(doc["blame"]["sha"]):
         doc["pr_reason"] = "the line is not committed"
         return _null(doc, "uncommitted", f"{where} has not been committed; there is no commit to trace")
 
