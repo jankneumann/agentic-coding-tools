@@ -1,7 +1,11 @@
 version: 2
 updates:
+  # Python entries use the `uv` ecosystem, not `pip`. Every tree below has a
+  # uv.lock and CI installs with `uv sync --locked`; the pip ecosystem bumps
+  # pyproject.toml without relocking, so each of its PRs failed CI until a
+  # human relocked by hand (13 were open at once on 2026-11-13).
   # agent-coordinator Python dependencies
-  - package-ecosystem: "pip"
+  - package-ecosystem: "uv"
     directory: "/agent-coordinator"
     schedule:
       interval: "weekly"
@@ -29,7 +33,7 @@ updates:
       - "dependencies"
 
   # skills Python dependencies
-  - package-ecosystem: "pip"
+  - package-ecosystem: "uv"
     directory: "/skills"
     schedule:
       interval: "weekly"
@@ -128,7 +132,7 @@ updates:
   # and packages/agent-scenarios had no test job either until PR #498, and
   # code-search had been red for six weeks as a result. Same tree, same cause,
   # two different kinds of blind spot.
-  - package-ecosystem: "pip"
+  - package-ecosystem: "uv"
     directory: "/packages/gen-eval"
     schedule:
       interval: "weekly"
@@ -137,7 +141,7 @@ updates:
     labels:
       - "dependencies"
 
-  - package-ecosystem: "pip"
+  - package-ecosystem: "uv"
     directory: "/packages/context-eval"
     schedule:
       interval: "weekly"
@@ -146,7 +150,7 @@ updates:
     labels:
       - "dependencies"
 
-  - package-ecosystem: "pip"
+  - package-ecosystem: "uv"
     directory: "/packages/code-search"
     schedule:
       interval: "weekly"
@@ -155,7 +159,7 @@ updates:
     labels:
       - "dependencies"
 
-  - package-ecosystem: "pip"
+  - package-ecosystem: "uv"
     directory: "/packages/agent-scenarios"
     schedule:
       interval: "weekly"
@@ -164,7 +168,7 @@ updates:
     labels:
       - "dependencies"
 
-  - package-ecosystem: "pip"
+  - package-ecosystem: "uv"
     directory: "/packages/system-one-decisions"
     schedule:
       interval: "weekly"
@@ -173,7 +177,7 @@ updates:
     labels:
       - "dependencies"
 
-  - package-ecosystem: "pip"
+  - package-ecosystem: "uv"
     directory: "/packages/openbao-credentials"
     schedule:
       interval: "weekly"

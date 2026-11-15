@@ -113,7 +113,7 @@ requires-dist = [
     { name = "openbao-credentials", directory = "../packages/openbao-credentials" },
     { name = "opentelemetry-api", marker = "extra == 'observability'", specifier = ">=1.45.1" },
     { name = "opentelemetry-exporter-otlp", marker = "extra == 'observability'", specifier = ">=1.45.1" },
-    { name = "opentelemetry-exporter-prometheus", marker = "extra == 'observability'", specifier = ">=0.65b0" },
+    { name = "opentelemetry-exporter-prometheus", marker = "extra == 'observability'", specifier = ">=0.66b2" },
     { name = "opentelemetry-sdk", marker = "extra == 'observability'", specifier = ">=1.45.1" },
     { name = "prometheus-client", marker = "extra == 'observability'", specifier = ">=0.26.0" },
     { name = "psycopg2-binary", marker = "extra == 'analysis'", specifier = ">=2.9.13" },
@@ -807,7 +807,7 @@ requires-dist = [
     { name = "jinja2", specifier = ">=3.1.6" },
     { name = "jsonpath-ng", specifier = ">=1.8.0" },
     { name = "openai", marker = "extra == 'sdk'", specifier = ">=3.19.0" },
-    { name = "pydantic", specifier = ">=2.13" },
+    { name = "pydantic", specifier = ">=2.14.3" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "system-one-decisions", extras = ["live"], marker = "extra == 'decisions'", directory = "../packages/system-one-decisions" },
 ]
