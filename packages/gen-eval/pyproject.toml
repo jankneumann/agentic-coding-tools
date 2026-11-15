@@ -10,7 +10,7 @@ dependencies = [
     # Pinned floors match what the framework code already uses inside
     # agent-coordinator/evaluation/gen_eval/ and what the design (D2) calls
     # for; ceilings are deliberately open per D2 rationale.
-    "pydantic>=2.13",
+    "pydantic>=2.14.3",
     "pyyaml>=6.0",
     "jinja2>=3.1.6",
     "jsonpath-ng>=1.8.0",

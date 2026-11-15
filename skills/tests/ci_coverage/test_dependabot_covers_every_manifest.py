@@ -47,6 +47,18 @@ ECOSYSTEM_FOR = {
 }
 
 
+def _ecosystem(manifest: Path) -> str:
+    """A pyproject.toml beside a uv.lock belongs to the `uv` ecosystem.
+
+    CI installs those trees with `uv sync --locked`. Under `pip`, Dependabot
+    bumps pyproject.toml without relocking, so every one of its PRs failed CI
+    until relocked by hand -- 13 sat open on 2026-11-13.
+    """
+    if manifest.name == "pyproject.toml" and (manifest.parent / "uv.lock").is_file():
+        return "uv"
+    return ECOSYSTEM_FOR[manifest.name]
+
+
 def _config() -> dict:
     return yaml.safe_load(DEPENDABOT.read_text(encoding="utf-8"))
 
@@ -70,7 +82,7 @@ def _manifests() -> list[tuple[str, str, Path]]:
         if SKIP_PARTS & set(rel.parts):
             continue
         directory = "/" + str(rel.parent) if str(rel.parent) != "." else "/"
-        found.append((ECOSYSTEM_FOR[path.name], directory.rstrip("/") or "/", rel))
+        found.append((_ecosystem(path), directory.rstrip("/") or "/", rel))
     return sorted(set(found))
 
 
@@ -101,7 +113,7 @@ def test_the_manifest_scan_finds_something() -> None:
     found = _manifests()
     assert len(found) >= 3, f"only {len(found)} manifests found; SKIP_PARTS is too broad"
     ecosystems = {e for e, _, _ in found}
-    assert {"npm", "pip"} <= ecosystems, f"expected npm and pip, got {ecosystems}"
+    assert {"npm", "uv"} <= ecosystems, f"expected npm and uv, got {ecosystems}"
 
 
 def test_worktree_copies_are_not_counted() -> None:
