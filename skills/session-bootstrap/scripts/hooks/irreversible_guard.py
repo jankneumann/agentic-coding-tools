@@ -14,10 +14,14 @@ parses ``tool_input.command`` and answers in one of three ways:
 
 The command is split on unquoted ``&&``, ``||``, ``;``, ``|``, ``&`` and
 newlines, and each part is normalized before matching: leading ``VAR=…``
-assignments, ``env``, ``sudo``, ``timeout``, ``xargs`` and similar wrappers are
-dropped, ``sh -c '…'`` / ``eval`` / ``$(…)`` bodies are checked recursively,
-and git's global options (``-C <path>``, ``-c k=v``) are skipped. Rules match
-on the command word, so ``grep "git push --force" log`` is not a push.
+assignments, ``env`` (including ``env -S '…'`` split strings), ``sudo``,
+``timeout``, ``xargs`` and similar wrappers are dropped, ``sh -c '…'`` /
+``eval`` bodies and command or process substitutions (``$(…)``, backticks,
+``<(…)``, ``>(…)``) are checked recursively, and git's global options
+(``-C <path>``, ``-c k=v``) are skipped. Substitution scanning follows shell
+quoting: text inside single quotes, ``$'…'`` and quoted-delimiter heredocs is
+data, while double quotes and unquoted heredoc bodies still expand. Rules
+match on the command word, so ``grep "git push --force" log`` is not a push.
 
 This is a second layer, not a boundary: a script that shells out
 (``python x.py`` calling ``git push -f``) is invisible here. The sandbox and
@@ -70,6 +74,8 @@ _TRANSPARENT = {
     "nohup": set(),
     "time": set(),
     "builtin": set(),
+    "setsid": set(),
+    "stdbuf": {"-i", "-o", "-e"},
 }
 _SHELLS = {"sh", "bash", "zsh", "dash", "ksh"}
 # Shell grammar that can precede a command word inside one segment.
@@ -77,23 +83,156 @@ _KEYWORDS = {"(", "{", "!", "if", "then", "else", "elif", "do", "while", "until"
 _GIT_GLOBAL_WITH_VALUE = {"-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path"}
 _XARGS_WITH_VALUE = {"-n", "-I", "-L", "-P", "-d", "-E", "-s", "-a", "--max-args", "--replace"}
 _ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
-_SUBSTITUTION = re.compile(r"\$\(([^()]*)\)|`([^`]*)`")
-_HEREDOC = re.compile(r"(?<!<)<<-?\s*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\1")
+# ``<<EOF`` expands substitutions in the body; ``<<'EOF'``, ``<<"EOF"`` and
+# ``<<\EOF`` do not.
+_HEREDOC = re.compile(r"(?<!<)<<-?\s*(\\?)(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\2")
 _MAX_DEPTH = 5
+
+
+def split_heredocs(command: str) -> tuple[str, list[str]]:
+    """Remove heredoc bodies; return the command and the bodies the shell expands.
+
+    A body is data written somewhere, not commands, so its lines are never
+    matched as commands. But with an unquoted delimiter the shell still runs
+    ``$(…)`` and backticks inside it, so those bodies come back separately to
+    be scanned for substitutions.
+    """
+    out: list[str] = []
+    expanding: list[str] = []
+    pending: list[tuple[str, bool, list[str]]] = []
+    for line in command.split("\n"):
+        if pending:
+            delimiter, expands, body = pending[0]
+            if line.strip() == delimiter:
+                if expands:
+                    expanding.append("\n".join(body))
+                pending.pop(0)
+            else:
+                body.append(line)
+            continue
+        out.append(line)
+        pending = [(m.group(3), not (m.group(1) or m.group(2)), []) for m in _HEREDOC.finditer(line)]
+    expanding.extend("\n".join(body) for _, expands, body in pending if expands and body)
+    return "\n".join(out), expanding
 
 
 def strip_heredocs(command: str) -> str:
     """Drop heredoc bodies: they are data written somewhere, not commands."""
-    out: list[str] = []
-    pending: list[str] = []
-    for line in command.split("\n"):
-        if pending:
-            if line.strip() == pending[0]:
-                pending.pop(0)
+    return split_heredocs(command)[0]
+
+
+def _ansi_c_end(text: str, i: int) -> int:
+    """Index just past the ``'`` closing a ``$'…'`` string whose body starts at i."""
+    while i < len(text):
+        if text[i] == "\\":
+            i += 2
             continue
-        out.append(line)
-        pending = [m.group(2) for m in _HEREDOC.finditer(line)]
-    return "\n".join(out)
+        if text[i] == "'":
+            return i + 1
+        i += 1
+    return len(text)
+
+
+def _backtick_end(text: str, i: int) -> int:
+    """Index of the backtick closing a body that starts at i (or len(text))."""
+    while i < len(text):
+        if text[i] == "\\":
+            i += 2
+            continue
+        if text[i] == "`":
+            return i
+        i += 1
+    return len(text)
+
+
+def _paren_end(text: str, i: int) -> int:
+    """Index of the ``)`` closing a ``$(`` / ``<(`` whose body starts at i.
+
+    The body is a fresh quoting context, so a ``)`` inside quotes or a nested
+    substitution does not close it. Unbalanced input runs to the end, which
+    errs toward inspecting more text, not less.
+    """
+    depth = 1
+    quote: str | None = None
+    while i < len(text):
+        ch = text[i]
+        if quote == "'":
+            if ch == "'":
+                quote = None
+        elif ch == "\\":
+            i += 2
+            continue
+        elif ch == "`":
+            i = _backtick_end(text, i + 1) + 1
+            continue
+        elif text.startswith("$(", i):
+            i = _paren_end(text, i + 2) + 1
+            continue
+        elif quote == '"':
+            if ch == '"':
+                quote = None
+        elif text.startswith("$'", i):
+            i = _ansi_c_end(text, i + 2)
+            continue
+        elif ch in ("'", '"'):
+            quote = ch
+        elif ch == "(":
+            depth += 1
+        elif ch == ")":
+            depth -= 1
+            if depth == 0:
+                return i
+        i += 1
+    return len(text)
+
+
+def substitutions(text: str, *, quotes_protect: bool = True) -> list[str]:
+    """Bodies of the outermost substitutions the shell would execute.
+
+    Covers ``$(…)`` (and so ``$((…))``, whose body is harmless as a command),
+    backticks, and unquoted ``<(…)`` / ``>(…)``. Single quotes and ``$'…'``
+    suppress substitution; double quotes do not. With ``quotes_protect=False``
+    (an unquoted heredoc body) quote characters are literal and only a
+    backslash escapes. Nested substitutions are found when the returned body
+    is checked in turn.
+    """
+    bodies: list[str] = []
+    quote: str | None = None
+    i = 0
+    while i < len(text):
+        ch = text[i]
+        if quote == "'":
+            if ch == "'":
+                quote = None
+            i += 1
+            continue
+        if ch == "\\":
+            i += 2
+            continue
+        if quotes_protect and quote is None and text.startswith("$'", i):
+            i = _ansi_c_end(text, i + 2)
+            continue
+        if quotes_protect and ch == "'" and quote is None:
+            quote = "'"
+            i += 1
+            continue
+        if quotes_protect and ch == '"':
+            quote = None if quote == '"' else '"'
+            i += 1
+            continue
+        process = quotes_protect and quote is None and text[i : i + 2] in ("<(", ">(")
+        if text.startswith("$(", i) or process:
+            end = _paren_end(text, i + 2)
+            bodies.append(text[i + 2 : end])
+            i = end + 1
+            continue
+        if ch == "`":
+            end = _backtick_end(text, i + 1)
+            bodies.append(text[i + 1 : end])
+            i = end + 1
+            continue
+        i += 1
+    return bodies
 
 
 def split_compound(command: str) -> list[str]:
@@ -161,11 +300,7 @@ def _strip_wrappers(words: list[str]) -> list[str]:
                 if words.pop(0) in takes_value and words:
                     words.pop(0)
         elif head == "env":
-            words = words[1:]
-            while words and (words[0].startswith("-") or _ASSIGNMENT.match(words[0])):
-                flag = words.pop(0)
-                if flag in ("-u", "--unset", "-C", "--chdir", "-S") and words:
-                    words.pop(0)
+            words = _strip_env(words[1:])
         elif head == "timeout":
             words = words[1:]
             while words and words[0].startswith("-"):
@@ -181,6 +316,76 @@ def _strip_wrappers(words: list[str]) -> list[str]:
         else:
             break
     return words
+
+
+_ENV_LONG = (
+    "--ignore-environment",
+    "--null",
+    "--unset",
+    "--chdir",
+    "--split-string",
+    "--block-signal",
+    "--default-signal",
+    "--ignore-signal",
+    "--list-signal-handling",
+    "--debug",
+)
+_ENV_LONG_WITH_VALUE = {"--unset", "--chdir", "--split-string"}
+_ENV_SHORT_WITH_VALUE = {"u", "C", "S"}
+
+
+def _strip_env(words: list[str]) -> list[str]:
+    """Drop env's options and assignments; splice ``-S``/``--split-string`` words in.
+
+    ``env -S 'git push -f'`` runs the split words as the command, so the
+    string is re-split and parsed like the rest of the command line. Short
+    clusters (``-iS…``, ``-uNAME``) and unique long-option prefixes
+    (``--split=…``) are resolved the way GNU getopt does.
+    """
+    while words:
+        word = words[0]
+        if word == "--":
+            return words[1:]
+        if word == "-" or _ASSIGNMENT.match(word):
+            words = words[1:]
+            continue
+        if word.startswith("--"):
+            words = words[1:]
+            name, eq, value = word.partition("=")
+            matches = [o for o in _ENV_LONG if o.startswith(name)]
+            name = matches[0] if len(matches) == 1 else name
+            if name in _ENV_LONG_WITH_VALUE and not eq and words:
+                value, eq = words.pop(0), "="
+            if name == "--split-string" and eq:
+                words = [*_words(value), *words]
+            continue
+        if word.startswith("-") and len(word) > 1:
+            words = words[1:]
+            for j, letter in enumerate(word[1:], start=2):
+                if letter in _ENV_SHORT_WITH_VALUE:
+                    value = word[j:]
+                    if not value and words:
+                        value = words.pop(0)
+                    if letter == "S":
+                        words = [*_words(value), *words]
+                    break
+            continue
+        break
+    return words
+
+
+def _has_long(args: list[str], option: str, shortest: int) -> bool:
+    """True if an argument is ``option`` or an abbreviation of it the tool accepts.
+
+    git's parse-options and GNU getopt both take unique prefixes of long
+    options (``git push --forc``, ``rm --recur``); ``shortest`` is the
+    shortest prefix that still names this option, and ``=value`` is ignored.
+    """
+    for a in args:
+        name = a.partition("=")[0]
+        if len(name) >= shortest and option.startswith(name):
+            return True
+    return False
 
 
 def _short_flags(words: list[str]) -> set[str]:
@@ -207,17 +412,25 @@ def _git(args: list[str]) -> Verdict | None:
     sub, rest = args[0], args[1:]
     flags = _short_flags(rest)
     if sub == "push":
-        if any(a == "--force" or a.startswith("--force-with-lease") or a == "--mirror" for a in rest) or "f" in flags:
+        # Prefix lengths err short: an abbreviation git rejects as ambiguous
+        # (``--for``, ``--pr``) is denied too, which costs nothing.
+        if "f" in flags or _has_long(rest, "--force", 5) or _has_long(rest, "--force-with-lease", 8):
             return Verdict(DENY, "force push rewrites remote history")
+        if _has_long(rest, "--mirror", 3):
+            return Verdict(DENY, "push --mirror overwrites and deletes remote refs")
+        # No repository name starts with '+' or ':', so every positional is
+        # checked; with ``--repo=<r>`` or no remote, the first one is a refspec.
         positional = [a for a in rest if not a.startswith("-")]
-        if any(a.startswith("+") for a in positional[1:]):
+        if any(a.startswith("+") for a in positional):
             return Verdict(DENY, "'+refspec' push is a force push")
-        if "--delete" in rest or "d" in flags or any(a.startswith(":") for a in positional[1:]):
+        if "d" in flags or _has_long(rest, "--delete", 4) or any(a.startswith(":") for a in positional):
             return Verdict(DENY, "deleting a remote branch or tag")
+        if _has_long(rest, "--prune", 4):
+            return Verdict(DENY, "push --prune deletes remote branches with no local counterpart")
         return None
-    if sub == "reset" and "--hard" in rest:
+    if sub == "reset" and _has_long(rest, "--hard", 4):
         return Verdict(DENY, "git reset --hard discards uncommitted work")
-    if sub == "clean" and ("f" in flags or "--force" in rest):
+    if sub == "clean" and ("f" in flags or _has_long(rest, "--force", 3)):
         return Verdict(DENY, "git clean -f deletes untracked files")
     if sub == "stash" and rest[:1] in (["drop"], ["clear"]):
         return Verdict(DENY, "dropping stashes loses work")
@@ -228,8 +441,8 @@ def _git(args: list[str]) -> Verdict | None:
 
 def _rm(args: list[str]) -> Verdict | None:
     flags = _short_flags(args)
-    recursive = bool(flags & {"r", "R"}) or "--recursive" in args
-    force = "f" in flags or "--force" in args
+    recursive = bool(flags & {"r", "R"}) or _has_long(args, "--recursive", 3)
+    force = "f" in flags or _has_long(args, "--force", 3)
     if recursive and force:
         return Verdict(DENY, "recursive force delete (rm -rf) cannot be undone")
     if _touches_secret(args):
@@ -386,13 +599,16 @@ def check(command: str, depth: int = 0) -> Verdict | None:
     """Return the strictest verdict for a command string, or None."""
     if depth > _MAX_DEPTH:
         return Verdict(ASK, "command nests shells too deeply to inspect")
-    command = strip_heredocs(command)
+    command, expanding_bodies = split_heredocs(command)
     verdicts: list[Verdict] = []
     parts = split_compound(command)
     if _pipes_download_to_shell(parts):
         verdicts.append(Verdict(DENY, "piping a download into a shell runs unreviewed code"))
-    for m in _SUBSTITUTION.finditer(command):
-        inner = check(m.group(1) if m.group(1) is not None else m.group(2), depth + 1)
+    bodies = substitutions(command)
+    for heredoc in expanding_bodies:
+        bodies.extend(substitutions(heredoc, quotes_protect=False))
+    for body in bodies:
+        inner = check(body, depth + 1)
         if inner:
             verdicts.append(inner)
     for segment in parts:

@@ -309,3 +309,89 @@ def test_contract_internal_error_asks_instead_of_denying(monkeypatch: pytest.Mon
     out = json.loads(capsys.readouterr().out)["hookSpecificOutput"]
     assert out["permissionDecision"] == "ask"
     assert "RuntimeError" in out["permissionDecisionReason"]
+
+
+# --------------------------------------------------------------------------
+# Review findings on PR #706 (codex): bypasses and false denials
+# --------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        # env -S / --split-string runs the split words as the command.
+        "env -S 'git push --force origin main'",
+        'env -S "rm -rf build"',
+        "env --split-string='git push --force origin main'",
+        "env --split-string 'git reset --hard'",
+        "env -S'git push -f origin main'",
+        "env -iS 'git push -f origin main'",
+        "env -i -S 'FOO=1 git push -f'",
+        "/usr/bin/env -S 'sh -c \"git push -f\"'",
+        # Other env options must not hide the command either.
+        "env -u HOME -C /tmp git push -f",
+        "env --unset=HOME --chdir=/tmp git push -f",
+        "env -uHOME git push -f",
+        "env --ignore-signal=PIPE git push -f",
+        "env -- git push -f",
+        # Further wrappers that exec their arguments.
+        "setsid git push -f",
+        "stdbuf -oL git push -f",
+        "stdbuf -o L git reset --hard",
+        # git push --prune deletes remote refs with no local counterpart.
+        "git push --prune origin",
+        "git push --prune origin 'refs/heads/*:refs/heads/*'",
+        "git push origin --prune",
+        # Unique long-option prefixes are accepted by git and GNU getopt.
+        "git push --forc origin main",
+        "git push --force-w origin main",
+        "git push --mirr backup",
+        "git push --del origin feature",
+        "git push --pru origin",
+        "git reset --har HEAD~1",
+        "git clean --fo -d",
+        "rm --recur --forc build",
+        # Refspecs when the remote comes from --repo / is omitted.
+        "git push --repo=origin +main",
+        "git push --repo=origin :feature",
+        "git push origin +HEAD:main",
+        "git push origin main +other",
+        # Command substitution forms the old regex missed.
+        "x=$(git push --force origin $(git branch --show-current))",
+        'echo "$(git push -f origin main)"',
+        "echo \"'$(git push -f origin main)'\"",
+        "cat <(git push -f origin main)",
+        "tee >(rm -rf build) < /dev/null",
+        "echo $( (git push -f) )",
+        # Substitution in an unquoted heredoc body is executed by the shell.
+        "cat <<EOF\n$(git push -f origin main)\nEOF",
+        "cat <<EOF\n`rm -rf build`\nEOF",
+    ],
+)
+def test_review_bypasses_are_denied(command: str) -> None:
+    assert _decision(command) == guard.DENY, command
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        # Single quotes stop the shell from performing substitution.
+        "echo '$(git push --force origin main)'",
+        "python3 -c 'print(\"$(rm -rf build)\")'",
+        "echo '`rm -rf build`'",
+        "printf '%s\\n' 'see $(git reset --hard) in the docs'",
+        "echo $'$(git push -f)'",
+        "echo \\$(git push -f)",
+        "echo \"\\$(git push -f)\"",
+        # Arithmetic expansion is not a command.
+        "echo $((1 + 2))",
+        # A quoted heredoc delimiter disables expansion in the body.
+        "cat <<'EOF'\n$(git push -f origin main)\nEOF",
+        'git commit -m "$(cat <<\'EOF\'\nfix(guard): no `git push -f` (1) here\nEOF\n)"',
+        # --prune on fetch only touches local remote-tracking refs.
+        "git fetch --prune origin",
+        "git push --dry-run origin main",
+    ],
+)
+def test_review_false_denials_are_allowed(command: str) -> None:
+    assert _decision(command) is None, command
