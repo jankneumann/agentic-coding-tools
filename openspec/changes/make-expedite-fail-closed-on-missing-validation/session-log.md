@@ -273,3 +273,20 @@ Vendor-review remediation for PR #702. Grok found that a non-existent explicit -
 ### Context
 Fixed the undeclared documentation surface, listed the two additional CLI tests and four direct callers the change breaks, specified explicit-missing-path and unreadable-report behaviour (aligned with the #702 implementation), and strengthened the drift test with an AST check.
 
+---
+
+## Phase: Rebase onto main (2026-11-16)
+
+**Agent**: claude-opus-5.5 | **Session**: N/A
+
+### Decisions
+1. **Keep both plan-iteration handoffs** — main's plan-iteration-1-1.json (from #701's /iterate-on-plan) keeps its name; this branch's earlier 2026-10-23 handoff moves to plan-iteration-1-2.json so handoff ids stay unique, and loop-state.json's handoff_ids now points at it
+2. **Implement the plan-iteration additions the branch lacked** — `_probe_paths` now uses `exists()` (V6), and the probed-directory, unreadable-not-overridable, non-deployable spec-only and AST skip-literal tests were added
+
+### Completed Work
+- Rebased onto main after #701 merged; session-log entries from both histories kept in chronological order
+- Spec scenarios from both sides kept (union), task checkboxes ticked by the implementation preserved
+- expedite suite: 61 passed
+
+### Context
+#701 merged a plan iteration of this change while this branch carried its own implementation; the rebase reconciles the two.
