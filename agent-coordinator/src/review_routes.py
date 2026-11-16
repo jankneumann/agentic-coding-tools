@@ -125,6 +125,10 @@ def install_review_routes(
         principal: dict[str, Any] = Depends(verify_api_key),
     ) -> dict[str, Any]:
         """The latest (or a given) round for a PR head, with every lane result."""
+        allowed = get_config().review_queue.allowed_repos
+        if allowed and repo not in allowed:
+            # Same scope as submission: findings of other repos stay unreadable.
+            raise HTTPException(status_code=403, detail="Repository not allowed")
         return await get_review_queue_service().get_round(repo, pr, head_sha, round)
 
 
