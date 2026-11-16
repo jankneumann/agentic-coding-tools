@@ -64,6 +64,7 @@ packages:
     context_impact:
       surfaces:
         - "semantic_code"
+        - "documentation"
     worktree:
       name: wp-expedite
       mode: isolated

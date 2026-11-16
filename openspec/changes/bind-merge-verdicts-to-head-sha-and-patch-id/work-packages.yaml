@@ -111,6 +111,7 @@ packages:
     context_impact:
       surfaces:
         - "semantic_code"
+        - "apis"
     worktree:
       name: wp-schema
       mode: isolated
@@ -333,6 +334,7 @@ packages:
     context_impact:
       surfaces:
         - "semantic_code"
+        - "documentation"
     worktree:
       name: wp-docs
       mode: isolated
