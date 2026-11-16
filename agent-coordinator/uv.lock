@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.12"
 resolution-markers = [
     "python_full_version >= '3.15'",
@@ -91,8 +91,8 @@ test = [
 
 [package.metadata]
 requires-dist = [
-    { name = "aioimaplib", specifier = ">=2.0.1" },
-    { name = "aiosmtplib", specifier = ">=5.1.1" },
+    { name = "aioimaplib", specifier = ">=2.0.3" },
+    { name = "aiosmtplib", specifier = ">=5.1.3" },
     { name = "anthropic", marker = "extra == 'sdk'", specifier = ">=1.8.0" },
     { name = "asyncpg", specifier = ">=0.31.0" },
     { name = "cedarpy", marker = "extra == 'cedar'", specifier = ">=4.8.7" },
@@ -154,20 +154,20 @@ wheels = [
 
 [[package]]
 name = "aioimaplib"
-version = "2.0.1"
+version = "2.0.3"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/ee/da/a454c47fb8522e607425e15bf1f49ccfdb3d75f4071f40b63ebd49573495/aioimaplib-2.0.1.tar.gz", hash = "sha256:5a494c3b75f220977048f5eb2c7ba9c0570a3148aaf38bee844e37e4d7af8648", size = 35555, upload-time = "2025-01-16T10:38:23.14Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/d1/8e/8bb051d41c1b285cfb389c5728ba22e572db47952d6b19c2eee42d5780b2/aioimaplib-2.0.3.tar.gz", hash = "sha256:0a7c3e558af754a7ca8b5927be07c4ab6a0b7cd963174ca4290f6b0d51d4616b", size = 35840, upload-time = "2026-10-13T05:18:11.019Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/13/52/48aaa287fb3c4c995edcb602370b10d182dc5c48371df7cb3a404356733f/aioimaplib-2.0.1-py3-none-any.whl", hash = "sha256:727e00c35cf25106bd34611dddd6e2ddf91a5f1a7e72d9269f3ce62486b31e14", size = 34729, upload-time = "2025-01-16T10:38:20.427Z" },
+    { url = "https://files.pythonhosted.org/packages/34/34/cfe20c82f447cf6224decb165ad9887e6c079cd1e21fffa2f9da41191b18/aioimaplib-2.0.3-py3-none-any.whl", hash = "sha256:799273d22cd1b57d8d2fba18376dc4a861ca5b90c548ffb53a003f2506ff64bc", size = 35246, upload-time = "2026-10-13T05:18:12.256Z" },
 ]
 
 [[package]]
 name = "aiosmtplib"
-version = "5.1.2"
+version = "5.1.3"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/b9/25/d36d056e62a1dc3dd51ce76e7647c62966702193dc91eafa7fd4e1006a91/aiosmtplib-5.1.2.tar.gz", hash = "sha256:04a0ea3c678f5b719f998f290dce010ca512e1385836d3944206299df03b060f", size = 71031, upload-time = "2026-06-20T15:00:48.269Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/9b/5c/9cabc5db6d607616e81ba6d8f1f231cd5a75955807a308c1090a59072d6d/aiosmtplib-5.1.3.tar.gz", hash = "sha256:ac2b418d3260ba62d9cfd0fe7359726e9dc009a4e8e8d9909fdfae332f522a7c", size = 77010, upload-time = "2026-09-08T02:11:20.532Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d5/ec/c5a415cd1309eaac28ad3c599458194d25ba07189bb07a1bac2c6713c17e/aiosmtplib-5.1.2-py3-none-any.whl", hash = "sha256:070d467cc329dafd0af59108ba5d217d973cba10309910fed359a2a7bfb52d7a", size = 28394, upload-time = "2026-06-20T15:00:47.299Z" },
+    { url = "https://files.pythonhosted.org/packages/9c/0a/b56ab8163d54960337fdca475d3dfd56c8badf6172e79cf2ad00d5335dc1/aiosmtplib-5.1.3-py3-none-any.whl", hash = "sha256:f7d76ce3d4995a65a178c1f11e1bd1607706b921d00cb768e7a2c7f7ef5517a8", size = 30116, upload-time = "2026-09-08T02:11:19.352Z" },
 ]
 
 [[package]]
