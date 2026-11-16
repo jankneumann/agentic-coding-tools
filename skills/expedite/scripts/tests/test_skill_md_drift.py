@@ -10,6 +10,7 @@ A new failing branch in the code needs a new scenario here and a new row.
 """
 from __future__ import annotations
 
+import ast
 import json
 import re
 import sys
@@ -239,6 +240,23 @@ def test_validation_report_no_file_row_present() -> None:
 def test_only_rework_report_can_skip(observed: dict[str, set[str]]) -> None:
     skippers = {name for name, statuses in observed.items() if "skip" in statuses}
     assert skippers == {"rework_report"}
+
+
+def test_skip_literal_only_in_check_rework_report() -> None:
+    """Source check: fixtures only observe branches they reach, so a ``skip``
+    added in an unexercised branch must still fail this suite."""
+    tree = ast.parse((SCRIPTS_DIR / "expedite.py").read_text(encoding="utf-8"))
+    owners: list[str] = []
+    for func in ast.walk(tree):
+        if not isinstance(func, ast.FunctionDef):
+            continue
+        for node in ast.walk(func):
+            if (isinstance(node, ast.keyword) and node.arg == "status"
+                    and isinstance(node.value, ast.Constant)
+                    and node.value.value == "skip"):
+                owners.append(func.name)
+    assert owners, "expected check_rework_report to return status='skip'"
+    assert set(owners) == {"check_rework_report"}, owners
 
 
 def test_skip_documented_only_for_rework_report() -> None:

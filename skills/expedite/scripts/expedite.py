@@ -110,8 +110,11 @@ def _report_missing(report_path: Path | None) -> bool:
 
 
 def _probe_paths(change_id: str, repo_root: Path, filename: str) -> Path | None:
+    # exists(), not is_file(): a candidate that is present but not a readable
+    # file (a directory, say) must reach the unreadable branch and fail, not be
+    # treated as missing, which the override could then mask.
     candidates = _candidate_paths(change_id, repo_root, filename)
-    return next((p for p in candidates if p.is_file()), None)
+    return next((p for p in candidates if p.exists()), None)
 
 
 def find_validation_report(change_id: str, repo_root: Path) -> Path | None:
