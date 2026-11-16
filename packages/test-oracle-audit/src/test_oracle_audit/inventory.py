@@ -97,7 +97,8 @@ def _collect_command(suite: SuiteSpec, repo_root: Path, project_dir: Path, pytho
     if python is not None:
         return [python, "-m", *pytest_cmd]
     extras = [arg for extra in suite.uv_extras for arg in ("--extra", extra)]
-    return ["uv", "run", "--project", str(project_dir), *extras, "--with", "pytest-cov", *pytest_cmd]
+    # --frozen: collection runs in the audited tree, so uv must never rewrite its uv.lock (D3).
+    return ["uv", "run", "--frozen", "--project", str(project_dir), *extras, "--with", "pytest-cov", *pytest_cmd]
 
 
 def _parse_collection(stdout: str, project_rel: str) -> tuple[list[str], list[str]]:

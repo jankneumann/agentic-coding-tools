@@ -15,7 +15,7 @@ import json
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from importlib import resources
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
 
 import jsonschema
@@ -164,6 +164,16 @@ class SuiteSpec:
     # Optional-dependency extras the suite's own project needs to run its tests
     # (`uv run --project <root> --extra <x>`); spike 3.1, design D4.
     uv_extras: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        # Mutation and rename write under ``copy.root / <source root>`` (design D3); an absolute
+        # or ``..`` path would resolve outside the isolated copy, into the audited tree or beyond.
+        for path in (self.project_root, *self.test_paths, *self.source_roots):
+            pure = PurePosixPath(path.replace("\\", "/"))
+            if pure.is_absolute() or PureWindowsPath(path).is_absolute() or ".." in pure.parts:
+                raise ValueError(
+                    f"suite {self.name!r}: path {path!r} must be relative and stay inside the repository"
+                )
 
 
 def load_suites(path: Path | None = None) -> dict[str, SuiteSpec]:

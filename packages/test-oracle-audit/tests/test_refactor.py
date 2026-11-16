@@ -348,3 +348,46 @@ def test_copy_is_removed_when_the_rename_stage_raises_midway(
     assert _worktree_count(repo) == 1
     assert _snapshot(repo) == before
     assert _git(repo, "status", "--porcelain") == ""
+
+
+def _rename_text(source: str, names: set[str], module_name: str = "pkg.mod") -> str:
+    """Apply the rename transformer to one module's source (unit level, no suite run)."""
+    import libcst as cst
+
+    from test_oracle_audit.refactor import _Module, _Renamer
+
+    module = _Module(path=Path("mod.py"), name=module_name, is_package=False, tree=ast.parse(source))
+    return cst.parse_module(source).visit(_Renamer(names, module, {"pkg.mod", "pkg.other"})).code
+
+
+def test_private_attribute_of_an_external_module_is_not_renamed() -> None:
+    """A source module defines ``_helper``; ``vendor._helper()`` belongs to someone else.
+
+    Renaming the external attribute would break a public-only test for a reason that has
+    nothing to do with its coupling to the source module's private symbol.
+    """
+    source = (
+        "import vendor\n"
+        "import vendor.sub as vs\n"
+        "from thirdparty import tools\n"
+        "def _helper():\n"
+        "    return 1\n"
+        "def public():\n"
+        "    return _helper() + vendor._helper() + vs._helper() + tools._helper()\n"
+    )
+    renamed = _rename_text(source, {"_helper"})
+    assert "def _helper__r():" in renamed
+    assert "_helper__r() + vendor._helper() + vs._helper() + tools._helper()" in renamed
+
+
+def test_private_attribute_of_a_source_module_or_self_is_renamed() -> None:
+    source = (
+        "import pkg.other as other\n"
+        "class C:\n"
+        "    def _helper(self):\n"
+        "        return 1\n"
+        "    def public(self):\n"
+        "        return self._helper() + other._helper()\n"
+    )
+    renamed = _rename_text(source, {"_helper"})
+    assert "return self._helper__r() + other._helper__r()" in renamed

@@ -197,8 +197,10 @@ def _analyse(files: Sequence[Path], root: Path) -> _Analysis:
 class _Renamer(cst.CSTTransformer):
     """Appends ``__r`` to every identifier token in ``names``.
 
-    Names imported with ``from <non-source module> import ...`` are left alone, so a
-    source module's use of someone else's identically named private attribute is safe.
+    Names imported with ``from <non-source module> import ...`` are left alone, and so is
+    an attribute read off a name bound by importing a non-source module (``vendor._helper``
+    after ``import vendor``), so a source module's use of someone else's identically named
+    private attribute is safe.
     """
 
     def __init__(self, names: set[str], module: _Module, known: set[str]) -> None:
@@ -207,11 +209,37 @@ class _Renamer(cst.CSTTransformer):
         self._module = module
         self._known = known
         self._import_in_tree = True
+        self._external: set[str] = set()  # local names bound to non-source modules/objects
+
+    def _is_known(self, dotted: str) -> bool:
+        return any(dotted == k or dotted.startswith(k + ".") or k.startswith(dotted + ".") for k in self._known)
+
+    def visit_Import(self, node: cst.Import) -> bool:
+        for alias in node.names:
+            dotted = _dotted(alias.name)
+            if self._is_known(dotted):
+                continue
+            if alias.asname is not None and isinstance(alias.asname.name, cst.Name):
+                self._external.add(alias.asname.name.value)
+            else:
+                self._external.add(dotted.split(".", 1)[0])
+        return False
 
     def visit_ImportFrom(self, node: cst.ImportFrom) -> bool:
         target = _resolve_import(self._module, node)
         self._import_in_tree = target is not None and target in self._known
+        if not self._import_in_tree and not isinstance(node.names, cst.ImportStar):
+            for alias in node.names:
+                bound = alias.asname.name if alias.asname is not None else alias.name
+                if isinstance(bound, cst.Name):
+                    self._external.add(bound.value)
         return True
+
+    def leave_Attribute(self, original_node: cst.Attribute, updated_node: cst.Attribute) -> cst.Attribute:
+        value = original_node.value
+        if isinstance(value, cst.Name) and value.value in self._external:
+            return updated_node.with_changes(attr=original_node.attr)
+        return updated_node
 
     def visit_ImportFrom_module(self, node: cst.ImportFrom) -> bool:
         return False  # module paths are not symbols

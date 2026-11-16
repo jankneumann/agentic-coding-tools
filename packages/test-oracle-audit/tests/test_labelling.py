@@ -367,6 +367,27 @@ def test_label_next_and_record_label_walk_the_sample_one_card_per_invocation(rep
     assert len(LabelLedger.load(ledger_path).entries) == len(order)
 
 
+def test_label_next_re_serves_a_test_whose_label_went_stale(repo, tmp_path):
+    """Scenario test-oracle-audit.2 through ``label next``: a stale label does not count as labelled.
+
+    After every sampled test is labelled, a logic edit to one of them must bring its card back,
+    otherwise the ledger keeps only a stale label for it and analysis silently drops the test.
+    """
+    entries = entries_for(repo)
+    order = sampled(entries)
+    for test in order:
+        record_label(test.test_id.node_id, "spec", repo_root=repo, ledger_path=tmp_path / "labels.json", labeller="op")
+    assert run_next(repo, tmp_path, entries) is None
+
+    edited = order[0]
+    k = int(edited.function_name.rsplit("_", 1)[1])
+    path = repo / "tests" / "test_gen.py"
+    path.write_text(path.read_text().replace(f"assert clamp({15 + k}, 0, 10) == 10", f"assert clamp({15 + k}, 0, 10) != 3"))
+
+    card = run_next(repo, tmp_path, entries)
+    assert card is not None and render_card(edited, repo_root=repo) in card
+
+
 def test_label_next_persists_the_sample_in_the_ledger(repo, tmp_path, schema_validator):
     """Design D9 (draws or reloads the sample); contract label-ledger.schema.json ``sample``."""
     entries = entries_for(repo)

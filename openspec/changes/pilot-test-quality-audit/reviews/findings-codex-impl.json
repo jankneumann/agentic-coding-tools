@@ -1,0 +1,97 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "security",
+      "criticality": "high",
+      "description": "Suite source roots are not confined to the isolated copy. An absolute source_root in --suites-file is returned by source_files, and the rename stage writes that file in place. Running refactor with a source root pointing at the audited repository can therefore modify its original source, violating the read-only requirement.",
+      "disposition": "fix",
+      "file_path": "packages/test-oracle-audit/src/test_oracle_audit/isolation.py",
+      "line_range": {
+        "start": 158,
+        "end": 167
+      },
+      "axis": "security",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Inventory runs pytest directly in the audited project. Pytest collection can create cache files or execute collection hooks that write there; uv run can also create or update its environment and lockfile. Thus the full pipeline does not ensure the audited tree remains untouched.",
+      "disposition": "fix",
+      "file_path": "packages/test-oracle-audit/src/test_oracle_audit/inventory.py",
+      "line_range": {
+        "start": 49,
+        "end": 61
+      },
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "The rename transformer changes every matching identifier token across source files, including attributes on unrelated imported objects and keyword names. If a module defines _helper and a public function calls vendor._helper(), the transformer changes that external call too. The public-only test then fails even though it has no coupling to the module's private symbol, so the refactor is not behavior preserving.",
+      "disposition": "fix",
+      "file_path": "packages/test-oracle-audit/src/test_oracle_audit/refactor.py",
+      "line_range": {
+        "start": 222,
+        "end": 225
+      },
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "MutmutRunner.run always raises BackendUnavailable. Even when the mutmut probe succeeds, run_mutation falls back to the AST runner, so the required mutmut backend never produces a mutation result.",
+      "disposition": "fix",
+      "file_path": "packages/test-oracle-audit/src/test_oracle_audit/mutation.py",
+      "line_range": {
+        "start": 496,
+        "end": 506
+      },
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "label_next treats every node id with any historical label as labelled, regardless of content hash. After a test changes, analysis correctly excludes its stale label, but label next will not present its card for relabelling. The sample can therefore remain permanently short of current human labels.",
+      "disposition": "fix",
+      "file_path": "packages/test-oracle-audit/src/test_oracle_audit/labelling.py",
+      "line_range": {
+        "start": 323,
+        "end": 330
+      },
+      "axis": "correctness",
+      "severity": "optional",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 6,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "The human labelling card includes up to 40 lines of each covered function's implementation body. The spec limits the card to the test, covered function signatures and docstrings, and cited scenarios. This exposes implementation behavior while the operator chooses the oracle-source ground-truth label; the card test also asserts the 40-line body behavior instead of the spec limit.",
+      "disposition": "fix",
+      "file_path": "packages/test-oracle-audit/src/test_oracle_audit/labelling.py",
+      "line_range": {
+        "start": 199,
+        "end": 225
+      },
+      "axis": "correctness",
+      "severity": "optional",
+      "evidence_class": "judgment"
+    }
+  ]
+}
