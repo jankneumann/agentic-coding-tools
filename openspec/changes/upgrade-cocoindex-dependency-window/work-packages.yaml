@@ -55,7 +55,7 @@ packages:
         - ".github/dependabot.yml"
         - "openspec/changes/upgrade-cocoindex-dependency-window/**"
       read_allow: ["**"]
-    context_impact: {surfaces: [capabilities, documentation, semantic_code]}
+    context_impact: {surfaces: [apis, capabilities, documentation, semantic_code]}
     worktree: {name: upgrade-cocoindex-dependency-window, mode: isolated}
     timeout_minutes: 180
     retry_budget: 1

@@ -71,8 +71,14 @@ Run code-search commands with `uv run --project packages/code-search ...` from t
 
 - [ ] 4.1 Run resource-gated tests with the `index` extra (M)
   With ParadeDB (`POSTGRES_DSN`) and the local embedder: `uv sync --project packages/code-search
-  --all-extras` then `pytest -m "requires_db or requires_embedder"` including
-  `test_indexer_e2e.py` (two-revision incrementality). Record results in the validation report. If
+  --all-extras` then `pytest -m "requires_db or requires_embedder or requires_index_e2e"`, which
+  selects the six live scenarios in `test_indexer_e2e.py` (including two-revision incrementality).
+  Those scenarios also need the opt-in environment checked by `tests/conftest.py`:
+  `CODE_SEARCH_E2E_RUN=1`, `CODE_SEARCH_E2E_ALLOW_SCRATCH_MUTATIONS=1` (scratch database only),
+  `CODE_SEARCH_E2E_POSTGRES_DSN`, `CODE_SEARCH_E2E_PROVIDER` (`local` or `openai_compatible`),
+  `CODE_SEARCH_E2E_MODEL`, `CODE_SEARCH_E2E_DIMENSION`, and for `openai_compatible` also
+  `CODE_SEARCH_E2E_BASE_URL` / `CODE_SEARCH_E2E_API_KEY`. Confirm in the output that the
+  `requires_index_e2e` tests ran rather than skipped. Record results in the validation report. If
   the environment is unavailable, record the skip explicitly — do not mark done.
   **Spec scenarios**: code-search / Coupled Upstream Dependency Window — "Live install exposes the
   frozen surface"
