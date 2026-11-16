@@ -5,6 +5,50 @@
 
 ---
 
+## 2026-11-16 — upgrade-cocoindex-dependency-window
+
+### Phase: Plan
+
+**Keep D8 hard pin; move window to cocoindex>=1.0.17,<1.1.0 + cocoindex-code==0.2.42** — Every pinned version is one upstream declares compatible; D8 rationale unchanged
+
+- Status: `active`
+- Source: [openspec/changes/upgrade-cocoindex-dependency-window/session-log.md](/openspec/changes/upgrade-cocoindex-dependency-window/session-log.md) (D1)
+
+---
+
+## 2026-11-16 — upgrade-cocoindex-dependency-window
+
+### Phase: Plan
+
+**Amend D8 with a coupling rule enforced from uv.lock** — cocoindex window must not exceed the pinned cocoindex-code's declared cocoindex range; would have rejected #730 mechanically
+
+- Status: `active`
+- Source: [openspec/changes/upgrade-cocoindex-dependency-window/session-log.md](/openspec/changes/upgrade-cocoindex-dependency-window/session-log.md) (D2)
+
+---
+
+## 2026-11-16 — upgrade-cocoindex-dependency-window
+
+### Phase: Plan
+
+**Policy matching must be pathspec-major-independent** — pathspec 0.12 '**' does not match '\n'; deny rules fail open while includes still match
+
+- Status: `active`
+- Source: [openspec/changes/upgrade-cocoindex-dependency-window/session-log.md](/openspec/changes/upgrade-cocoindex-dependency-window/session-log.md) (D3)
+
+---
+
+## 2026-11-16 — upgrade-cocoindex-dependency-window
+
+### Phase: Plan
+
+**Defer cocoindex 1.1 until a cocoindex-code release admits >=1.1.1** — Unsatisfiable today; 1.1.0 excluded for memo target-state loss fixed in 1.1.1 (#2660)
+
+- Status: `active`
+- Source: [openspec/changes/upgrade-cocoindex-dependency-window/session-log.md](/openspec/changes/upgrade-cocoindex-dependency-window/session-log.md) (D4)
+
+---
+
 ## 2026-07-24 — 2026-07-26-expose-fail-closed-semantic-code-search
 
 ### Phase: Plan

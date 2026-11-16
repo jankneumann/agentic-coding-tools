@@ -1,0 +1,88 @@
+schema_version: 1
+feature:
+  id: upgrade-cocoindex-dependency-window
+  title: "Upgrade code-search cocoindex dependency window (cocoindex-code 0.2.42, cocoindex 1.0.26)"
+  plan_revision: 1
+  created_by: claude
+  deployable: false
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/upgrade-cocoindex-dependency-window/contracts/README.md"
+    files:
+      - "openspec/changes/upgrade-cocoindex-dependency-window/contracts/README.md"
+defaults:
+  priority: 1
+  lock_ttl_minutes: 120
+  timeout_minutes: 180
+  retry_budget: 1
+  verification_tier_required: B
+  min_trust_level: 2
+packages:
+  - package_id: wp-main
+    title: "cocoindex dependency window — full scope"
+    task_type: integration
+    description: >-
+      Fix pathspec-version-dependent policy matching, move the cocoindex/cocoindex-code pins and the
+      pipeline fingerprint payload, relock code-search and agent-coordinator, add the dependabot
+      ignore, and supersede #693/#730.
+    role: backend-implementer
+    archetype: implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "packages/code-search/pyproject.toml"
+        - "packages/code-search/uv.lock"
+        - "agent-coordinator/uv.lock"
+        - "packages/code-search/src/code_search_pkg/indexing_policy.py"
+        - "packages/code-search/src/code_search_pkg/cli_models.py"
+        - ".github/dependabot.yml"
+      keys:
+        - "feature:code-search-dependency-window:pins"
+      ttl_minutes: 180
+      reason: "Single dependency-window move; lockfiles must not be edited concurrently"
+    scope:
+      write_allow:
+        - "packages/code-search/pyproject.toml"
+        - "packages/code-search/uv.lock"
+        - "packages/code-search/src/code_search_pkg/indexing_policy.py"
+        - "packages/code-search/src/code_search_pkg/cli_models.py"
+        - "packages/code-search/tests/test_cocoindex_revision_compat.py"
+        - "packages/code-search/tests/test_indexing_policy.py"
+        - "packages/code-search/tests/test_cli.py"
+        - "agent-coordinator/uv.lock"
+        - ".github/dependabot.yml"
+        - "openspec/changes/upgrade-cocoindex-dependency-window/**"
+      read_allow: ["**"]
+    context_impact: {surfaces: [capabilities, documentation, semantic_code]}
+    worktree: {name: upgrade-cocoindex-dependency-window, mode: isolated}
+    timeout_minutes: 180
+    retry_budget: 1
+    min_trust_level: 2
+    metadata:
+      loc_estimate: 200
+      alternatives_count: 3
+      complexity: medium
+    verification:
+      tier_required: B
+      steps:
+        - name: "Lockfiles consistent"
+          kind: command
+          command: "uv lock --check --project packages/code-search && uv lock --check --project agent-coordinator"
+          cwd: "."
+          expect_exit_code: 0
+          evidence: {artifacts: [], result_keys: [lock_check]}
+        - name: "code-search suite"
+          kind: command
+          command: "uv sync --project packages/code-search --extra dev && uv run --project packages/code-search pytest packages/code-search/tests -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence: {artifacts: [], result_keys: [code_search_tests]}
+        - name: "Policy matcher agreement on pathspec 1.x"
+          kind: command
+          command: "uv run --project packages/code-search --with pathspec==1.0.4 pytest packages/code-search/tests/test_indexing_policy.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence: {artifacts: [], result_keys: [pathspec_1x_policy_tests]}
+    outputs: {result_keys: [lock_check, code_search_tests, pathspec_1x_policy_tests]}
