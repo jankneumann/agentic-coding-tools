@@ -877,3 +877,124 @@ async def test_watchdog_stale_agent_sweep_runs_against_the_migrated_schema(
         assert held == 0
     finally:
         await conn.close()
+
+
+# --------------------------------------------------------------------------
+# 046: cross-host review queue
+# --------------------------------------------------------------------------
+
+_HEAD_A = "a" * 40
+_HEAD_B = "b" * 40
+_BASE = "c" * 40
+
+
+async def _rpc(conn: asyncpg.Connection, sql: str, *args: object) -> dict:
+    return json.loads(await conn.fetchval(sql, *args))
+
+
+async def _submit(conn: asyncpg.Connection, head: str, round_: int | None = None) -> dict:
+    return await _rpc(
+        conn,
+        "SELECT submit_review_job('o/r', 7, $1, $2, 'ci', $3::int)",
+        head,
+        _BASE,
+        round_,
+    )
+
+
+async def test_046_submit_is_idempotent_per_head_and_supersedes_older_heads(
+    migrated_database,
+) -> None:
+    dsn, _applied = migrated_database
+    conn = await _connect(dsn)
+    try:
+        first = await _submit(conn, _HEAD_A)
+        assert first["success"] is True and first["created"] is True
+        assert first["job"]["round"] == 1
+        first_task = uuid.UUID(first["job"]["task_id"])
+
+        again = await _submit(conn, _HEAD_A)
+        assert again["deduplicated"] is True
+        assert again["job"]["job_id"] == first["job"]["job_id"]
+
+        newer = await _submit(conn, _HEAD_B)
+        assert newer["created"] is True
+        assert newer["job"]["round"] == 2
+        assert newer["superseded_task_ids"] == [str(first_task)]
+        assert await conn.fetchrow(
+            "SELECT status, close_reason FROM work_queue WHERE id=$1", first_task
+        ) == ("cancelled", "superseded_by_new_head")
+        assert (
+            await conn.fetchval(
+                "SELECT status FROM review_jobs WHERE id=$1",
+                uuid.UUID(first["job"]["job_id"]),
+            )
+            == "superseded"
+        )
+
+        assert (await _submit(conn, _HEAD_A, 0))["reason"] == "invalid_round"
+    finally:
+        await conn.close()
+
+
+async def test_046_lanes_reach_quorum_across_passes_and_publish_once(
+    migrated_database,
+) -> None:
+    dsn, _applied = migrated_database
+    conn = await _connect(dsn)
+    try:
+        job = (await _submit(conn, _HEAD_A))["job"]
+        task = uuid.UUID(job["task_id"])
+        await conn.execute("UPDATE work_queue SET claimed_by='host-1' WHERE id=$1", task)
+
+        stranger = await _rpc(
+            conn, "SELECT record_review_lanes($1, 'host-2', '[]'::jsonb)", task
+        )
+        assert stranger["reason"] == "not_claimant"
+
+        partial = await _rpc(
+            conn,
+            "SELECT record_review_lanes($1, 'host-1', $2::jsonb)",
+            task,
+            json.dumps([{"vendor": "codex", "verified": True, "findings": []}]),
+        )
+        assert partial["success"] is True
+        assert partial["publish_ready"] is False
+        residual = uuid.UUID(partial["residual_task_id"])
+        residual_input = json.loads(
+            await conn.fetchval("SELECT input_data FROM work_queue WHERE id=$1", residual)
+        )
+        assert residual_input["exclude_vendors"] == ["codex"]
+
+        stale = await _rpc(
+            conn, "SELECT record_review_lanes($1, 'host-1', '[]'::jsonb)", task
+        )
+        assert stale["reason"] == "stale_pass"
+
+        await conn.execute("UPDATE work_queue SET claimed_by='host-2' WHERE id=$1", residual)
+        done = await _rpc(
+            conn,
+            "SELECT record_review_lanes($1, 'host-2', $2::jsonb)",
+            residual,
+            json.dumps([{"vendor": "gemini", "verified": True}]),
+        )
+        assert done["verified_vendors"] == ["codex", "gemini"]
+        assert done["publish_ready"] is True
+        assert done["job"]["status"] == "quorum_met"
+
+        job_id = uuid.UUID(job["job_id"])
+        claims = [
+            await _rpc(conn, "SELECT claim_review_publication($1)", job_id)
+            for _ in range(2)
+        ]
+        assert [c["claimed"] for c in claims] == [True, False]
+
+        failed = await _rpc(
+            conn, "SELECT finish_review_publication($1, NULL, 'boom')", job_id
+        )
+        assert failed["success"] is True
+        retry = await _rpc(conn, "SELECT claim_review_publication($1)", job_id)
+        assert retry["claimed"] is True
+        assert retry["job"]["publish_error"] is None
+    finally:
+        await conn.close()
