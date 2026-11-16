@@ -35,17 +35,25 @@ STAGE_FILE = {
 }
 STAGE_ORDER = ("inventory", "static", "judge", "mutate", "refactor", "history", "explain")
 MEASURED_STAGES = ("static", "judged", "mutation", "rename", "history")
+DEFAULT_EXPLAIN_TIMEOUT_SECONDS = 300.0
 
 
 class CommandBackend:
-    """ExplainBackend that pipes the prompt to a shell command and reads its stdout."""
+    """ExplainBackend that pipes the prompt to a shell command and reads its stdout.
 
-    def __init__(self, command: str) -> None:
+    Each call is bounded by ``timeout`` seconds; a hung command raises
+    ``subprocess.TimeoutExpired``, which ``run_explain`` records against that one test.
+    """
+
+    def __init__(self, command: str, *, timeout: float = DEFAULT_EXPLAIN_TIMEOUT_SECONDS) -> None:
         self.argv = shlex.split(command)
+        self.timeout = timeout
 
     def run(self, prompt: str, system: str | None = None) -> str:
         text = prompt if system is None else f"{system}\n\n{prompt}"
-        done = subprocess.run(self.argv, input=text, capture_output=True, text=True, check=True)
+        done = subprocess.run(
+            self.argv, input=text, capture_output=True, text=True, check=True, timeout=self.timeout
+        )
         return done.stdout
 
 
