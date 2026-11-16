@@ -23,6 +23,7 @@
   - Add `test_unreadable_report_fails_and_is_not_overridable`: a report path that exists but cannot be read (e.g. a directory) → `fail`, and `--accept-missing-validation` leaves it `fail` with `overrides == []`.
   - Add `test_probed_directory_candidate_is_unreadable_not_missing`: no `--validation-report`, and `openspec/changes/<id>/validation-report.md` is a directory → `fail` (unreadable, not missing), and `--accept-missing-validation` leaves it `fail` with `overrides == []`.
   - Add `test_ready_non_deployable_spec_only_report`: `work-packages.yaml` declares no deployable surface and the report carries only `## Spec Compliance: pass` → READY (also exercises D3's change-dir derivation).
+  - Done (after rebase onto #701's plan iteration): the explicit-nonexistent-path case is covered by `test_explicit_missing_path_fails_naming_it` and `test_override_applies_to_explicit_missing_path`; the other three named tests exist under those names.
   **Spec scenarios**: expedite.missing-report-blocks, expedite.explicit-path-missing, expedite.unreadable-report-fails, expedite.passing-report-ready
   **Design decisions**: D1
   **Dependencies**: None

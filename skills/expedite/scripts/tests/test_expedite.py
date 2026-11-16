@@ -552,3 +552,51 @@ class TestAcceptMissingValidation:
         ex.main(["abc", "--repo-root", str(repo), "--json"])
         payload = json.loads(capsys.readouterr().out)
         assert payload["overrides"] == []
+
+    def test_unreadable_report_fails_and_is_not_overridable(
+        self, repo: Path, tmp_path: Path,
+    ) -> None:
+        write_active_agent_registry(repo, active=False)
+        directory = tmp_path / "report-is-a-dir"
+        directory.mkdir()
+        v = ex.expedite("abc", repo, validation_report=directory,
+                        accept_missing_validation="docs-only change")
+        check = next(c for c in v.checks if c.name == "validation_report")
+        assert check.status == "fail"
+        assert not check.detail.startswith(ex.OVERRIDE_PREFIX)
+        assert v.overrides == []
+        assert v.ready is False
+
+    def test_probed_directory_candidate_is_unreadable_not_missing(
+        self, repo: Path,
+    ) -> None:
+        # Discovery uses exists(), not is_file(): a directory at a probed path
+        # is a present-but-invalid report, never "missing", so it is not
+        # overridable.
+        write_active_agent_registry(repo, active=False)
+        candidate = repo / "openspec" / "changes" / "abc" / "validation-report.md"
+        candidate.mkdir(parents=True)
+        assert ex.find_validation_report("abc", repo) == candidate
+        for reason in (None, "docs-only change"):
+            v = ex.expedite("abc", repo, accept_missing_validation=reason)
+            check = next(c for c in v.checks if c.name == "validation_report")
+            assert check.status == "fail"
+            assert "IsADirectoryError" in check.detail
+            assert v.overrides == []
+            assert v.ready is False
+
+    def test_ready_non_deployable_spec_only_report(self, repo: Path) -> None:
+        write_active_agent_registry(repo, active=False)
+        change_dir = repo / "openspec" / "changes" / "abc"
+        change_dir.mkdir(parents=True)
+        (change_dir / "work-packages.yaml").write_text(
+            "feature:\n  id: abc\n  deployable: false\n")
+        # Under reports/, so the declared flag is only seen through D3's
+        # change-dir derivation from the change id.
+        report = change_dir / "reports" / "validation-report.md"
+        report.parent.mkdir()
+        report.write_text("# Validation Report\n\n## Spec Compliance\n**Status**: pass\n")
+        v = ex.expedite("abc", repo)
+        check = next(c for c in v.checks if c.name == "validation_report")
+        assert check.status == "pass", check.detail
+        assert v.ready is True
