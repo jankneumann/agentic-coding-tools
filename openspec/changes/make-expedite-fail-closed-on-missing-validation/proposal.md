@@ -109,6 +109,12 @@ with a passing report is READY regardless of its deployable surface.*
   - Existing tests that flip:
     - `TestValidationReportCheck.test_skip_when_path_none` (:142)
     - `TestExpedite.test_ready_when_skips_only` (:247)
+    - `TestCli.test_exit_zero_when_ready` (writes no report, asserts exit 0 / `READY`)
+    - `TestCli.test_json_output_shape` (asserts `ready is True` with no report)
+  - Existing call sites that break on the new keyword-only signature
+    `check_validation_report(report_path, *, change_id, repo_root, ...)`:
+    `test_pass_when_all_hard_gates_pass`, `test_fail_when_smoke_fails`,
+    `test_fail_when_security_fails`, `test_fail_when_e2e_fails`.
 - **Docs:** `docs/mental-models.md:252-267` describes expedite. Its "28 tests"
   count is updated if it becomes wrong.
 

@@ -261,6 +261,22 @@ once the registry exists).
 Cross-model trail review, the explain-code why mode with the shared tier vocabulary,
 and arena discipline for prototype-feature.
 
+### Approval status
+
+The operator's `roadmap_approval` decision (`5c5a735e`, 2026-10-23) approved only
+the first wave: **ri-01, ri-02, ri-04, ri-09**, one PR per change. ri-09 is a
+Phase 3 item admitted early because it has no dependency on Phase 1 gates.
+
+ri-03, ri-05, ri-06, ri-07, ri-08 and ri-10 stay `candidate` in `roadmap.yaml`
+and are not dispatchable (`Roadmap.ready_items()` admits only `approved`).
+Promoting any of them to `approved` requires a new, recorded `roadmap_approval`
+decision naming the item. The existing decision does not cover them: its scope
+lives only in the free-text note, and `roadmap_fingerprint()` normalizes
+`candidate` and `approved` to the same class, so the fingerprint alone cannot
+tell a promoted item from an approved one. Each candidate also gets a full
+`/plan-feature` pass (concrete scenarios, its real target capability instead of
+the placeholder `verification-enforcement-discipline` spec) before promotion.
+
 ## Out of Scope
 
 - pstack's anti-planning stance — OpenSpec planning and its gates stay.

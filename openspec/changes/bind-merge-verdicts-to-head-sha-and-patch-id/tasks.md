@@ -57,10 +57,11 @@
   - **Design decisions:** D6
   **Dependencies**: none
   - Monkeypatch `run_gh_unchecked`; assert `--match-head-commit <sha>` is in the args for `_try_merge` and for `_try_merge_queue`, and absent when `expected_head_sha` is `None` (other callers are unchanged).
-- [ ] 3.2 Write tests for the live head SHA in `get_pr_status` (S)
+- [ ] 3.2 Write tests for the live head SHA in `scripts/tests/test_merge_pr_head_pin.py` (S)
   - **Design decisions:** D6
   **Dependencies**: none
-  - `headRefOid` is in the requested `--json` fields and surfaces as `head_sha`.
+  - `headRefOid` is in the requested `--json` fields and surfaces as `head_sha` from `get_pr_status`.
+  - `validate_pr(...)["head_sha"]` carries it too: execution reads live state through `validate_pr` (`execute_plan.py` `get_live_status=validate_pr`), which builds its own dict, so a field added only to `get_pr_status` never reaches the predicate or the merge pin.
 - [ ] 3.3 Write tests for waiver fields on the merge event in `scripts/tests/test_merge_pr_records_events.py` (S)
   <!-- Scenario ID: merge-pull-requests.operator-waiver-recorded -->
   - **Spec scenarios:** operator-waiver-recorded (event-log half)
@@ -68,7 +69,8 @@
   **Dependencies**: none
   - With no waiver the serialised record is byte-identical to today's.
 - [ ] 3.4 Implement head pinning in `scripts/merge_pr.py` (M)
-  - `get_pr_status` adds `headRefOid`; `merge_pr(…, expected_head_sha=None, review_waiver=None)` threads both through `_try_merge` / `_try_merge_queue` / `_record_merge_event`.
+  - `get_pr_status` adds `headRefOid`; `validate_pr` returns it as `head_sha`; `merge_pr(…, expected_head_sha=None, review_waiver=None)` threads both through `_try_merge` / `_try_merge_queue` / `_record_merge_event`.
+  - When pinned and the merge fails, the response carries a structured `head_mismatch: True` key (see D6 for the matched markers) instead of leaving callers to parse stderr.
   **Dependencies**: 3.1, 3.2, 3.3
 - [ ] 3.5 Add optional waiver fields to `scripts/merge_events.py` (S)
   - `waiver_source`, `waiver_reason` on `MergeEvent`.
@@ -96,32 +98,43 @@
 
 - [ ] 5.1 Write predicate tests for the total review gate in `skills/tests/merge-pull-requests/test_review_predicate_total.py` (M)
   <!-- Scenario ID: merge-pull-requests.ineligible-without-waiver-blocks -->
-  - **Spec scenarios:** ineligible-without-waiver-blocks; "Eligible vendor review fails closed"
+  <!-- Scenario ID: merge-pull-requests.vendor-review-fails-closed -->
+  <!-- Scenario ID: merge-pull-requests.skip-path-without-binding-or-waiver-blocks -->
+  - **Spec scenarios:** ineligible-without-waiver-blocks, vendor-review-fails-closed, skip-path-without-binding-or-waiver-blocks
   - **Design decisions:** D4
   **Dependencies**: 1.3
   - Table-driven: `None`, missing eligibility, `{"skipped": True}`, each ineligible reason with and without each waiver source, `changes_requested` with an operator waiver (still blocks), a stale binding, a self-review, and the verified path.
 - [ ] 5.2 Rewrite the execution tests for currency, waivers and pinning in `scripts/tests/test_execute_plan.py` (M)
   <!-- Scenario ID: merge-pull-requests.skip-pr-diff-review-after-iterate -->
   <!-- Scenario ID: merge-pull-requests.cheap-path-merges -->
+  <!-- Scenario ID: merge-pull-requests.cheap-path-dropped-on-comments -->
   <!-- Scenario ID: merge-pull-requests.policy-waiver-recorded -->
   <!-- Scenario ID: merge-pull-requests.merge-push-race-fails -->
   - **Spec scenarios:** skip-pr-diff-review-after-iterate, cheap-path-merges, cheap-path-dropped-on-comments, policy-waiver-recorded, merge-push-race-fails
   - **Design decisions:** D3, D4, D6
   **Dependencies**: 1.3, 2.2
+  - A head-mismatch merge is asserted via the `head_mismatch: True` key on the merge response, not on stderr text.
   - Replace `test_iterate_consensus_matching_head_skips_vendor_review` (:564-592) with `current` and `rebased` variants; flip `test_cheap_path_skips_vendor_review` (:544) to assert the recorded waiver; keep `test_vendor_review_eligible_without_verdict_blocks` (:445). Update the `dependencies` fixture (:38-61) for the new `merge` signature and a `pr_diff` seam.
-- [ ] 5.3 Write CLI tests for `--waive-review` (S)
+- [ ] 5.3 Write CLI tests for `--waive-review` in `scripts/tests/test_execute_plan.py` (S)
   <!-- Scenario ID: merge-pull-requests.operator-waiver-recorded -->
   <!-- Scenario ID: merge-pull-requests.operator-waiver-empty-rejected -->
   - **Spec scenarios:** operator-waiver-recorded, operator-waiver-empty-rejected
   - **Design decisions:** D7
   **Dependencies**: none
   - `""` and `"   "` exit 2 before any dependency is called; a real reason lands in `state.review_waiver`, the result's `vendor_review` evidence and the `merge` call.
+- [ ] 5.3a Write evidence tests in `skills/tests/merge-pull-requests/test_execute_plan_review_evidence.py` (S)
+  <!-- Scenario ID: merge-pull-requests.policy-waiver-recorded -->
+  <!-- Scenario ID: merge-pull-requests.operator-waiver-recorded -->
+  - **Spec scenarios:** policy-waiver-recorded, operator-waiver-recorded (evidence half)
+  - **Design decisions:** D4, D7
+  **Dependencies**: none
+  - The merged result's `vendor_review` evidence carries `binding` (classification, head SHA, patch-id) and, when a waiver applied, `review_waiver` with its source (`policy` or `operator`) and reason; with no waiver the key is absent.
 - [ ] Checkpoint: run tests, review diff, verify scope
 - [ ] 5.4 Make `vendor_review_block_reason` total in `scripts/execution_safety.py` (M)
   **Dependencies**: 5.1
 - [ ] 5.5 Wire binding, waivers and pinning into `scripts/execute_plan.py` (L)
   - Add `head_sha` to live state; add `pr_diff` and `pr_author` seams to `ExecutionDependencies`; bind every stored review; route the skip path through the predicate; record policy waivers; delete `_iterate_consensus_current` and the line-519 overwrite; pass `head_sha` and the waiver to `merge`; map a head-mismatch merge failure to `pending`; add `--waive-review` to `main()`; extend `_review_evidence` with `binding` and `review_waiver`.
-  **Dependencies**: 3.4, 4.4, 5.2, 5.3, 5.4
+  **Dependencies**: 3.4, 4.4, 5.2, 5.3, 5.3a, 5.4
 - [ ] Checkpoint: run tests, review diff, verify scope
 
 ## 6. Documentation and mirrors (wp-docs)
@@ -141,6 +154,7 @@
   **Dependencies**: 5.5
 - [ ] 6.5 Re-sync runtime mirrors (S)
   - `bash skills/install.sh --mode rsync --deps none --python-tools none`, then `bash skills/install.sh --check`.
+  - Mirrors touched: `merge-pull-requests` and `parallel-infrastructure` (wp-vendor-review changes `review_dispatcher.py`) under both `.claude/skills/` and `.agents/skills/`.
   **Dependencies**: 6.3
 - [ ] Checkpoint: run tests, review diff, verify scope
 

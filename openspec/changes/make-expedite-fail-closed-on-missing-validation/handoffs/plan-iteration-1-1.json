@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-11-16T02:10:27.741655+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "skipped, capability_unavailable",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude-opus-5.5",
+    "session_id": null,
+    "summary": "Fixed the undeclared documentation surface, listed the two additional CLI tests and four direct callers the change breaks, specified explicit-missing-path and unreadable-report behaviour (aligned with the #702 implementation), and strengthened the drift test with an AST check.",
+    "completed_work": [
+      "context_impact: wp-expedite documentation",
+      "TestCli tests and four callers listed",
+      "four new edge-case scenarios",
+      "non-deployable READY test",
+      "AST skip check in D4/3.1",
+      "roadmap ri-02 description no longer says deployable"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Declare context_impact surfaces from the sibling PRs' real changed files",
+        "rationale": "validate_context_impact against #702/#703's file lists reproduced the context-drift-gate failure exactly; declaring the implied surfaces makes both VALID",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Edit the plan, not the stacked implementation branch",
+        "rationale": "#702-#705 are rebased after #701 merges; the plan is the contract they will be checked against",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [],
+    "relevant_files": []
+  }
+}

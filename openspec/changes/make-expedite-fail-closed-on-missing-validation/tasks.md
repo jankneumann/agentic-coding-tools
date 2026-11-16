@@ -18,7 +18,11 @@
   - Replace `TestExpedite.test_ready_when_skips_only` with `test_blocked_when_no_validation_report`: no reports → `ready is False`.
   - Add `test_ready_with_rework_skip_only`: passing validation report + no rework report → READY (the remaining legitimate `skip`).
   - Add `test_cli_exits_1_without_report`.
-  **Spec scenarios**: expedite.missing-report-blocks, expedite.passing-report-ready
+  - Rewrite `TestCli.test_exit_zero_when_ready` and `TestCli.test_json_output_shape` to write a passing report first (both currently rely on a report-less READY).
+  - Add `test_explicit_nonexistent_path_is_missing`: `--validation-report <path that does not exist>` → `fail` with `/validate-feature` action; with `--accept-missing-validation` the override applies.
+  - Add `test_unreadable_report_fails_and_is_not_overridable`: a report path that exists but cannot be read (e.g. a directory) → `fail`, and `--accept-missing-validation` leaves it `fail` with `overrides == []`.
+  - Add `test_ready_non_deployable_spec_only_report`: `work-packages.yaml` declares no deployable surface and the report carries only `## Spec Compliance: pass` → READY (also exercises D3's change-dir derivation).
+  **Spec scenarios**: expedite.missing-report-blocks, expedite.explicit-path-missing, expedite.unreadable-report-fails, expedite.passing-report-ready
   **Design decisions**: D1
   **Dependencies**: None
 - [ ] 1.2 Write failing tests for change-dir derivation (XS)
@@ -28,6 +32,7 @@
   **Dependencies**: None
 - [ ] 1.3 Make `check_validation_report` return `fail` on a missing report (S)
   - New signature `check_validation_report(report_path, *, change_id, repo_root, accept_missing=None)`; the detail lists the probed paths (reuse `_probe_paths`'s candidate list, extracted to `_candidate_paths`).
+  - Update the four direct callers in `test_expedite.py` (`test_pass_when_all_hard_gates_pass`, `test_fail_when_smoke_fails`, `test_fail_when_security_fails`, `test_fail_when_e2e_fails`) to pass `change_id=` and `repo_root=`; they raise `TypeError` otherwise.
   **Dependencies**: 1.1
 - [ ] 1.4 Derive `change_dir` from the change id (XS)
   **Dependencies**: 1.2, 1.3
@@ -41,7 +46,7 @@
   - `""` and `"   "` → exit 2, nothing on stdout.
   - With a failing report plus the flag: check stays `fail`, `overrides == []`.
   - Without the flag: JSON still carries `"overrides": []`.
-  **Spec scenarios**: expedite.override-records-reason, expedite.override-empty-reason-rejected, expedite.override-ignored-when-report-exists
+  **Spec scenarios**: expedite.override-records-reason, expedite.override-empty-reason-rejected, expedite.override-ignored-when-report-exists, expedite.override-explicit-missing-path, expedite.override-not-applied-to-unreadable-report
   **Design decisions**: D2
   **Dependencies**: 1.3
 - [ ] 2.2 Add the `overrides` field to `Verdict` (XS)
@@ -55,6 +60,7 @@
 
 - [ ] 3.1 Write the failing drift test `skills/expedite/scripts/tests/test_skill_md_drift.py` (S)
   - Observe each check's reachable statuses by running it against fixtures; parse the SKILL.md `| Check fail | Resolution |` table; assert the four properties in design D4. It must fail against today's SKILL.md line 67.
+  - Also walk the `expedite.py` AST and assert every `status="skip"` literal sits inside `check_rework_report`, so a `skip` added in a branch no fixture reaches still fails the test.
   **Spec scenarios**: expedite.skill-table-drift
   **Design decisions**: D4
   **Dependencies**: 1.3

@@ -28,3 +28,30 @@
 ### Context
 Planned roadmap item ri-02: expedite returns fail when no validation-report.md exists, with a recorded --accept-missing-validation "<reason>" override and a SKILL.md drift test.
 
+---
+
+## Phase: Plan Iteration 1 (2026-11-16)
+
+**Agent**: claude-opus-5.5 | **Session**: N/A
+
+### Decisions
+1. **Declare context_impact surfaces from the sibling PRs' real changed files** — validate_context_impact against #702/#703's file lists reproduced the context-drift-gate failure exactly; declaring the implied surfaces makes both VALID
+2. **Edit the plan, not the stacked implementation branch** — #702-#705 are rebased after #701 merges; the plan is the contract they will be checked against
+
+### Alternatives Considered
+- Regenerate work-packages.yaml: rejected because Only the context_impact and write_allow fields were wrong; regeneration would churn reviewed content
+
+### Trade-offs
+- Accepted Spec edge-case behaviour aligned to the already-written sibling implementation over Choosing behaviour fresh because Avoids a plan/implementation contradiction when the stack is rebased
+
+### Completed Work
+- context_impact: wp-expedite documentation
+- TestCli tests and four callers listed
+- four new edge-case scenarios
+- non-deployable READY test
+- AST skip check in D4/3.1
+- roadmap ri-02 description no longer says deployable
+
+### Context
+Fixed the undeclared documentation surface, listed the two additional CLI tests and four direct callers the change breaks, specified explicit-missing-path and unreadable-report behaviour (aligned with the #702 implementation), and strengthened the drift test with an AST check.
+

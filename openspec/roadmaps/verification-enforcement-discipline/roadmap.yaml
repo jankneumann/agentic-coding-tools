@@ -42,7 +42,7 @@ items:
   priority: 1
   effort: S
   depends_on: []
-  description: Change expedite so a deployable change with no validation-report.md
+  description: Change expedite so a change with no validation-report.md
     reports BLOCKED instead of a `skip` that rolls up to READY. A missing report is
     accepted only through a recorded operator override (`gate_logic` has no
     validation-exempt rule to reuse).
