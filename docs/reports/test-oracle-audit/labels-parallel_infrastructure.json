@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "entry_type": "pytest_test",
+  "vocabulary": [
+    "spec",
+    "property",
+    "reference_impl",
+    "external_contract",
+    "characterization",
+    "current_impl_output",
+    "none"
+  ],
+  "entries": [],
+  "sample": {
+    "seed": 13,
+    "n": 20,
+    "strata": {
+      "flagged:bottom": [
+        "skills/tests/parallel-infrastructure/test_fact_check_ground_screen.py::TestRunWithGroundScreen::test_dry_run_reaches_the_screen"
+      ],
+      "flagged:middle": [
+        "skills/tests/parallel-infrastructure/test_review_dispatcher_migration.py::test_cli_main_per_vendor_file_is_wrapper_object"
+      ],
+      "flagged:top": [
+        "skills/tests/parallel-infrastructure/test_review_dispatcher_migration.py::test_cli_round_trip_via_helper"
+      ],
+      "unflagged:bottom": [
+        "skills/tests/parallel-infrastructure/test_review_findings_schema_enforcement.py::test_dispatch_missing_required_field_fails"
+      ],
+      "unflagged:middle": [
+        "skills/tests/parallel-infrastructure/test_review_packet.py::test_sha256_sidecar_written_next_to_body",
+        "skills/tests/parallel-infrastructure/test_review_packet.py::test_under_budget_prompt_says_complete_do_not_explore"
+      ],
+      "unflagged:top": [
+        "skills/tests/parallel-infrastructure/test_checkpoint_findings.py::test_round_trip_multi_vendor"
+      ],
+      "insufficient": [
+        "skills/tests/parallel-infrastructure/test_checkpoint_findings.py::test_validate_finding_disposition_enum",
+        "skills/tests/parallel-infrastructure/test_review_findings_schema_fail_closed.py::TestSchemaInjectionFailsClosed::test_resolvable_schema_substitutes_the_sentinel",
+        "skills/tests/parallel-infrastructure/test_check_vendors_dispatchable.py::test_the_json_report_carries_the_resolved_policy",
+        "skills/tests/parallel-infrastructure/test_review_packet_schema.py::TestReviewPacketSchema::test_budget_chars_const_is_320000",
+        "skills/tests/parallel-infrastructure/test_review_findings_schema_fail_closed.py::TestSynthesizerFailsClosed::test_unloadable_canonical_schema_raises",
+        "skills/tests/parallel-infrastructure/test_review_findings_schema_fail_closed.py::TestSynthesizerFailsClosed::test_canonical_schema_still_resolves_normally",
+        "skills/tests/parallel-infrastructure/test_review_findings_schema_enforcement.py::test_agents_yaml_uses_sentinel_not_inlined_schema",
+        "skills/tests/parallel-infrastructure/test_checkpoint_findings.py::test_validate_finding_criticality_enum",
+        "skills/tests/parallel-infrastructure/test_variant_descriptor.py::TestVariantDescriptorValidation::test_invalid_variant_id_raises",
+        "skills/tests/parallel-infrastructure/test_fact_check_ground_screen.py::TestScreenFindings::test_decide_returns_none",
+        "skills/tests/parallel-infrastructure/test_review_findings_schema_enforcement.py::test_adapter_injects_canonical_schema_for_grok_sentinel",
+        "skills/tests/parallel-infrastructure/test_check_vendors.py::test_exclude_vendor_counts_against_quorum",
+        "skills/tests/parallel-infrastructure/test_review_preprocessing_contracts.py::TestReviewPacketSchemaV2::test_schema_is_draft_2020_12"
+      ]
+    }
+  }
+}

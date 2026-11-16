@@ -1,0 +1,4 @@
+# Label cards are regenerated from the ledgers (labels-<suite>.json) by
+# `test-oracle-audit label next`; only the ledgers are durable state.
+*/*/cards/
+*/*/label-cards.md
