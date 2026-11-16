@@ -60,7 +60,7 @@ items:
     in the expedite output.
 - item_id: ri-03
   title: Land verified stack prefixes via Gate.MERGE
-  status: approved
+  status: candidate
   priority: 2
   effort: M
   depends_on:
@@ -104,7 +104,7 @@ items:
     fields are optional or all emitters are migrated in the same change.'
 - item_id: ri-05
   title: Add rule-to-enforcer registry with expiring waivers
-  status: approved
+  status: candidate
   priority: 2
   effort: L
   depends_on:
@@ -137,7 +137,7 @@ items:
     correction store or mining logic.
 - item_id: ri-06
   title: Inject citable principle files into archetype prompts
-  status: approved
+  status: candidate
   priority: 3
   effort: M
   depends_on:
@@ -162,7 +162,7 @@ items:
   - AGENTS.md indexes the principle files.
 - item_id: ri-07
   title: Add deterministic plan-artifact linter
-  status: approved
+  status: candidate
   priority: 2
   effort: M
   depends_on:
@@ -189,7 +189,7 @@ items:
     literals.
 - item_id: ri-08
   title: Audit decision trails cross-model against the transcript
-  status: approved
+  status: candidate
   priority: 3
   effort: L
   depends_on:
@@ -242,7 +242,7 @@ items:
     emitter still validates; the schema diff is limited to that one field.
 - item_id: ri-10
   title: Apply arena discipline to prototype-feature
-  status: approved
+  status: candidate
   priority: 4
   effort: L
   depends_on:
