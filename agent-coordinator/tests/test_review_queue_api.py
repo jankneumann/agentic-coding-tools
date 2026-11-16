@@ -410,6 +410,20 @@ def test_round_lookup_validates_the_sha(
     fake_service.get_round.assert_not_awaited()
 
 
+def test_round_lookup_refuses_repos_outside_the_allowlist(
+    client: TestClient, fake_service: FakeReviewQueue
+) -> None:
+    # Findings for other repositories must not be readable with any valid key.
+    response = client.get(
+        "/reviews/rounds",
+        headers=_api_key(),
+        params={"repo": "someone/private", "pr": 7, "head_sha": _HEAD},
+    )
+
+    assert response.status_code == 403
+    fake_service.get_round.assert_not_awaited()
+
+
 def test_round_lookup_requires_a_key(client: TestClient) -> None:
     response = client.get(
         "/reviews/rounds", params={"repo": _REPO, "pr": 7, "head_sha": _HEAD}
