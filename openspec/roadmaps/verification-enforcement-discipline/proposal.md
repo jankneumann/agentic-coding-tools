@@ -59,9 +59,11 @@ Make "no verdict" a block, not a pass: a non-eligible PR records an explicit wai
 reason that the merge plan and the operator see, instead of returning `None`. Record
 the author identity (vendor + session/agent id) of the PR and reject a verdict produced
 by the same agent. For stacked PRs, land only the contiguous prefix of verified nodes.
-Fix `expedite` so a missing validation report is not READY (except where the change is
-declared non-deployable / validation-exempt via the same `gate_logic` rules
-`pre_merge_gate` already uses). Either wire or delete the dead
+Fix `expedite` so a missing validation report is never READY: a change with no
+report is BLOCKED unless the operator records an explicit
+`--accept-missing-validation "<reason>"` override (ri-02). A non-deployable change
+still needs a report, but `pre_merge_gate`'s existing `gate_logic` rules let a
+spec-compliance-only report pass. Either wire or delete the dead
 `iterate_consensus_path` staleness check. Thread the bound verdict into autopilot's
 `Gate.MERGE` evidence so `/cleanup-feature` can confirm it merges the head that was
 verified.
@@ -73,8 +75,9 @@ verified.
 - `execution_safety` never returns "no block" for a missing or non-eligible verdict
   without a recorded waiver reason present in `merge-plan.json`.
 - A verdict whose reviewer identity equals the PR author identity is rejected.
-- `expedite` returns BLOCKED (not READY) for a deployable change with no
-  validation report; the SKILL table and the code agree, enforced by a test.
+- `expedite` returns BLOCKED (not READY) for any change with no validation
+  report unless a recorded operator override is present; the SKILL table and the
+  code agree, enforced by a test.
 - No code path reads `iterate_consensus_path` while nothing writes it.
 
 ### Capability: Honest worker results in the package executor
