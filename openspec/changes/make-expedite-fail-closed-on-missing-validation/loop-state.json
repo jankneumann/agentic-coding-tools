@@ -14,7 +14,7 @@
   "memory_ids": [],
   "handoff_ids": [
     "local:openspec/changes/make-expedite-fail-closed-on-missing-validation/handoffs/gatekeeper-1.json",
-    "local:openspec/changes/make-expedite-fail-closed-on-missing-validation/handoffs/plan-iteration-1-1.json",
+    "local:openspec/changes/make-expedite-fail-closed-on-missing-validation/handoffs/plan-iteration-1-2.json",
     "local:openspec/changes/make-expedite-fail-closed-on-missing-validation/handoffs/plan-review-1.json",
     "local:openspec/changes/make-expedite-fail-closed-on-missing-validation/handoffs/implementation-1.json",
     "local:openspec/changes/make-expedite-fail-closed-on-missing-validation/handoffs/implementation-iteration-1-1.json",
