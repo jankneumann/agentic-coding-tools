@@ -40,3 +40,30 @@
 ### Context
 Planned roadmap item ri-01 of verification-enforcement-discipline: bind every stored merge verdict to head SHA and git patch-id, make the vendor-review predicate total, record waivers explicitly, check reviewer independence, and pin gh pr merge to the reviewed head.
 
+---
+
+## Phase: Plan Iteration 1 (2026-11-16)
+
+**Agent**: claude-opus-5.5 | **Session**: N/A
+
+### Decisions
+1. **Declare context_impact surfaces from the sibling PRs' real changed files** — validate_context_impact against #702/#703's file lists reproduced the context-drift-gate failure exactly; declaring the implied surfaces makes both VALID
+2. **Edit the plan, not the stacked implementation branch** — #702-#705 are rebased after #701 merges; the plan is the contract they will be checked against
+
+### Alternatives Considered
+- Regenerate work-packages.yaml: rejected because Only the context_impact and write_allow fields were wrong; regeneration would churn reviewed content
+
+### Trade-offs
+- Accepted Spec edge-case behaviour aligned to the already-written sibling implementation over Choosing behaviour fresh because Avoids a plan/implementation contradiction when the stack is rebased
+
+### Completed Work
+- validate_pr returns head_sha (D6, 3.2, 3.4)
+- wp-docs write_allow covers parallel-infrastructure mirrors
+- context_impact: wp-schema apis, wp-docs documentation
+- head_mismatch structured key
+- task 5.3a evidence tests
+- scenario IDs vendor-review-fails-closed, skip-path-without-binding-or-waiver-blocks
+
+### Context
+Fixed undeclared apis/documentation surfaces, routed head_sha through validate_pr (the only live-state path execution uses), widened wp-docs to the parallel-infrastructure mirrors, pinned head-mismatch detection to a structured key, and added missing scenario IDs, a skip-path blocking scenario and an evidence-test task.
+

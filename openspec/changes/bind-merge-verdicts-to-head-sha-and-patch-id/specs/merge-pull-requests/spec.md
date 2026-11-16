@@ -114,6 +114,7 @@ push to the PR branch.
 - **THEN** the stale gate write SHALL be rejected using the current plan revision or expected outcome
 - **AND** the winning `in_progress` claim SHALL remain durable
 
+<!-- Scenario ID: merge-pull-requests.vendor-review-fails-closed -->
 #### Scenario: Eligible vendor review fails closed
 
 - **WHEN** a node is eligible for vendor review, its stored verdict is absent or `stale`, and dispatch errors or returns no consensus verdict
@@ -127,6 +128,15 @@ push to the PR branch.
 - **THEN** `--execute` SHALL skip `vendor_review.py` for that node
 - **AND** the skip SHALL pass through the same total review predicate as a fresh review
 - **AND** SHALL still enforce `proposal_acceptance`, security-check, and `can_merge` gates
+
+<!-- Scenario ID: merge-pull-requests.skip-path-without-binding-or-waiver-blocks -->
+#### Scenario: A skipped review with no current binding and no waiver blocks
+
+- **WHEN** a node's stored review is the skip-path placeholder `{"skipped": true}`
+- **AND** no stored verdict classifies `current` or `rebased` against the live head
+- **AND** no policy or operator waiver applies
+- **THEN** execution SHALL keep the node pending with a blocking reason naming the missing review
+- **AND** SHALL NOT invoke the merge operation
 
 <!-- Scenario ID: merge-pull-requests.ineligible-without-waiver-blocks -->
 #### Scenario: An ineligible review without a waiver blocks
@@ -295,5 +305,6 @@ status SHALL include the head SHA (`headRefOid`).
 #### Scenario: A push after the check fails the merge
 
 - **WHEN** GitHub rejects the merge because the head no longer matches the pinned SHA
+  (the merge response carries `head_mismatch: true`)
 - **THEN** execution SHALL keep the node pending with a blocking reason naming the head mismatch
 - **AND** SHALL NOT record `outcome: merged`

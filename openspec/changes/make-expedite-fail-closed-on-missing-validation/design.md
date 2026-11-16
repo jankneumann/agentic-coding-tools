@@ -62,7 +62,10 @@ registration and the `ci_coverage` guard, for no gain.
 
 The test derives the code side by **running** each check against fixtures (no
 report, failing report, passing report, each rework action) and collecting the
-statuses each check can return, rather than parsing `expedite.py` source. It
+statuses each check can return, rather than parsing `expedite.py` source. Because
+a fixture run only observes branches the fixtures reach, it is paired with one
+source check: an AST walk asserting every `status="skip"` literal in `expedite.py`
+lives inside `check_rework_report`. It
 then parses the SKILL.md `| Check fail | Resolution |` table and asserts:
 
 1. every check name in the table is one `expedite()` emits;

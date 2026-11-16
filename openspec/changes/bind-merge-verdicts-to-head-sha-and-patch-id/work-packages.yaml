@@ -326,6 +326,8 @@ packages:
         - "skills/tests/merge-pull-requests/test_skill_md.py"
         - ".claude/skills/merge-pull-requests/**"
         - ".agents/skills/merge-pull-requests/**"
+        - ".claude/skills/parallel-infrastructure/**"
+        - ".agents/skills/parallel-infrastructure/**"
         - "openspec/changes/add-orchestrator-adjudication-review-gate/design.md"
       read_allow:
         - "openspec/changes/bind-merge-verdicts-to-head-sha-and-patch-id/**"

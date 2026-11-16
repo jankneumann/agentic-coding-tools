@@ -23,6 +23,23 @@ with the change's declared metadata.
 - **AND** its action contains `/validate-feature`
 - **AND** the verdict is BLOCKED and the process exits 1
 
+<!-- Scenario ID: expedite.explicit-path-missing -->
+#### Scenario: An explicit report path that does not exist counts as missing
+
+- **WHEN** `expedite.py <change-id> --validation-report <path>` runs and nothing
+  exists at `<path>`
+- **THEN** the `validation_report` check status is `fail`
+- **AND** its action contains `/validate-feature`
+- **AND** the verdict is BLOCKED and the process exits 1
+
+<!-- Scenario ID: expedite.unreadable-report-fails -->
+#### Scenario: A report that exists but cannot be read fails closed
+
+- **WHEN** the validation report path exists but cannot be read as a report
+  (for example it is a directory, or reading it raises)
+- **THEN** the `validation_report` check status is `fail`
+- **AND** the verdict is BLOCKED and the process exits 1
+
 <!-- Scenario ID: expedite.passing-report-ready -->
 #### Scenario: A passing report is READY regardless of deployable surface
 
@@ -65,6 +82,22 @@ flag MUST NOT change the check's outcome and MUST NOT add an `overrides` entry.
 - **WHEN** `expedite.py <change-id> --accept-missing-validation "  "` runs
 - **THEN** the process exits 2
 - **AND** no verdict is printed
+
+<!-- Scenario ID: expedite.override-explicit-missing-path -->
+#### Scenario: Override applies to an explicit path that does not exist
+
+- **WHEN** `--validation-report <path>` names nothing that exists
+- **AND** `--accept-missing-validation "<reason>"` is given
+- **THEN** the `validation_report` check status is `pass` with the `OVERRIDE —` detail
+- **AND** `overrides` contains one `validation_report` entry
+
+<!-- Scenario ID: expedite.override-not-applied-to-unreadable-report -->
+#### Scenario: Override does not mask an unreadable report
+
+- **WHEN** the validation report path exists but cannot be read as a report
+- **AND** `--accept-missing-validation "<reason>"` is given
+- **THEN** the `validation_report` check status is `fail`
+- **AND** `overrides` is empty
 
 <!-- Scenario ID: expedite.override-ignored-when-report-exists -->
 #### Scenario: Override does not mask a failing report

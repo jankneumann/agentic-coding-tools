@@ -144,13 +144,21 @@ stored verdict from another path (ri-03, adjudication) can still be checked.
 
 ### D6 — The merge is pinned to the head the predicate saw
 
-- `get_pr_status` requests `headRefOid` and returns it as `head_sha`.
+- `get_pr_status` requests `headRefOid` and returns it as `head_sha`, and
+  `validate_pr` copies it into the dict it returns. Execution reads live state
+  only through `validate_pr` (`get_live_status=validate_pr`), which builds its own
+  dict, so without that copy every verdict would classify `stale`.
 - `merge_pr(…, expected_head_sha=None, review_waiver=None)` appends
   `--match-head-commit <sha>` to both `_try_merge` and `_try_merge_queue` when
   set. The `ExecutionDependencies.merge` signature becomes
   `(pr_number, strategy, head_sha, review_waiver)`.
-- A non-zero exit whose stderr names a head mismatch keeps the node `pending`
-  with `blocking_reason: "head moved after review check"`.
+- When a pinned merge exits non-zero and its stderr contains one of the
+  case-insensitive markers `head branch was modified`, `match-head-commit` or
+  `expected head sha`, `merge_pr` returns a structured `head_mismatch: True`.
+  Execution keys on that field, never on stderr text, and keeps the node
+  `pending` with `blocking_reason: "head moved after review check"`. The check
+  runs only when `expected_head_sha` was set, so the existing merge-queue
+  stderr routing in `_try_merge` is unaffected.
 - `_record_merge_event` gains two optional `MergeEvent` fields,
   `waiver_source` and `waiver_reason`. `to_dict` drops `None`, so existing
   readers see byte-identical records when no waiver is set.
@@ -198,7 +206,7 @@ gains an assertion that the reference file exists and is linked.
 
 | Risk | Mitigation |
 |---|---|
-| Blocking every ineligible PR that used to pass silently | The policy set preserves today's merge behaviour for the five classes, but now visibly; only `draft_pr`, unknown reasons and missing eligibility newly block. |
+| Blocking every ineligible PR that used to pass silently | The policy set preserves today's merge behaviour for the five classes, but now visibly; only `draft_pr`, unknown reasons, missing eligibility, and a skip-path review (`{"skipped": True}`) with neither a current binding nor a waiver newly block; `changes_requested` already blocks and still does, waiver or not. |
 | `gh pr diff` unavailable or truncated for huge PRs | `patch_id` → `None` → `stale` → re-review. Never a pass. |
 | Context-line patch-id drift (D2) | Conservative; one extra dispatch. |
 | Edits to `execution_safety.py` collide with adjudication's `wp-merge-gate` | File lock on `execution_safety.py`; this change lands first; adjudication calls `verdict_currency`. |
