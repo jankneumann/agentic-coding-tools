@@ -150,8 +150,11 @@ fallback if upstream has not relaxed the cap by the review date in Open Question
 
 ## Open Questions
 
+**Resolved 2026-11-16:** the operator accepted this proposal with every default below as stated.
+The implementer treats each default as a decision, not an open question.
+
 Defaults below were chosen by the planner because the operator was not available for the
-discovery and approval gates. Each is safe to flip during review.
+discovery and approval gates.
 
 1. **cocoindex-code 0.2.42 or 0.2.43?** Default **0.2.42** (the #693 target, CI evidence exists).
    0.2.43 (2026-11-05) also caps `cocoindex<1.1.0`, and its indexer fixes (#287, #299, #301) touch
