@@ -230,8 +230,9 @@ author's `(vendor, session_id)`, and SHALL reject it when a successful
 reviewer's vendor equals the author's vendor while the author session is
 unknown. A reviewer in the same model family as the author but with a different
 identity SHALL be accepted and recorded as `same_family: true`. The
-author SHALL be derived from the PR author login and the head commits'
-`Co-Authored-By:` and `*-Session:` trailers.
+author identities SHALL be derived from the PR author login and the
+`Co-Authored-By:` and `*-Session:` trailers of every commit in the PR, and the
+checks above SHALL apply against each of those identities.
 
 <!-- Scenario ID: merge-pull-requests.self-review-rejected -->
 #### Scenario: A self-review is rejected
@@ -245,6 +246,13 @@ author SHALL be derived from the PR author login and the head commits'
 - **WHEN** a successful reviewer's vendor equals the author's vendor and the author `session_id` is `null`
 - **THEN** the predicate SHALL block the merge because independence cannot be shown
 
+<!-- Scenario ID: merge-pull-requests.earlier-commit-author-rejected -->
+#### Scenario: A reviewer that authored an earlier commit is rejected
+
+- **WHEN** the PR has two commits from different author sessions
+- **AND** a successful reviewer's `(vendor, agent_id)` equals the session of the earlier commit
+- **THEN** the predicate SHALL block the merge on independence
+
 <!-- Scenario ID: merge-pull-requests.same-family-recorded -->
 #### Scenario: A same-family reviewer is accepted and recorded
 
@@ -256,7 +264,10 @@ author SHALL be derived from the PR author login and the head commits'
 
 A merge without a bound consensus verdict SHALL be permitted only when node
 state carries a `review_waiver` with `reason`, `source` (`policy` or
-`operator`), `approver`, `recorded_at`, and `eligibility_reason`. Execution
+`operator`), `approver`, `recorded_at`, `eligibility_reason`, and
+`waived_head_sha`. A stored policy waiver SHALL be honoured only while its
+`eligibility_reason` equals the live ineligibility reason, and an operator
+waiver only while `waived_head_sha` equals the live head SHA. Execution
 SHALL record a `policy` waiver only when the live ineligibility reason is in
 the closed set `skip_origin`, `small_pr`, `has_approval`, `low_risk_judged`,
 or `automation_cheap_path`. An operator SHALL be able to record an `operator`
@@ -279,6 +290,14 @@ any side effect. Every waiver SHALL appear in the merged result's
 - **THEN** execution SHALL record `state.review_waiver` with `source: operator` and the given reason
 - **AND** the merge event log SHALL contain the waiver reason
 
+<!-- Scenario ID: merge-pull-requests.stale-policy-waiver-cleared -->
+#### Scenario: A stored policy waiver whose reason no longer applies is cleared
+
+- **WHEN** node state holds a `source: policy` waiver with `eligibility_reason: small_pr`
+- **AND** live eligibility is now eligible, or ineligible for a different reason
+- **THEN** execution SHALL clear the stored waiver before evaluating the predicate
+- **AND** SHALL NOT merge on the strength of that waiver
+
 <!-- Scenario ID: merge-pull-requests.operator-waiver-empty-rejected -->
 #### Scenario: An empty operator waiver reason is rejected
 
@@ -292,7 +311,10 @@ The merge operation SHALL pass the live head SHA that the review predicate
 evaluated to GitHub as `--match-head-commit <sha>`, on both the direct
 `gh pr merge` path and the merge-queue path, so a push between the check and
 the merge makes the merge fail instead of landing unreviewed code. Live PR
-status SHALL include the head SHA (`headRefOid`).
+status SHALL include the head SHA (`headRefOid`). Execution SHALL NOT invoke the
+merge without a valid live head SHA, on waived and verified paths alike. A
+vendor review SHALL be bound only to the head SHA captured before dispatch, and
+only when the head is unchanged after dispatch.
 
 <!-- Scenario ID: merge-pull-requests.merge-pinned -->
 #### Scenario: The merge command is pinned to the checked head
@@ -308,3 +330,17 @@ status SHALL include the head SHA (`headRefOid`).
   (the merge response carries `head_mismatch: true`)
 - **THEN** execution SHALL keep the node pending with a blocking reason naming the head mismatch
 - **AND** SHALL NOT record `outcome: merged`
+
+<!-- Scenario ID: merge-pull-requests.missing-live-head-blocks -->
+#### Scenario: A missing live head SHA blocks the merge
+
+- **WHEN** live PR status has no head SHA, or an empty one, for a node with a recorded waiver
+- **THEN** execution SHALL keep the node pending with a blocking reason naming the missing head SHA
+- **AND** SHALL NOT invoke the merge
+
+<!-- Scenario ID: merge-pull-requests.head-moved-during-review-blocks -->
+#### Scenario: A push during vendor review discards the review
+
+- **WHEN** the head SHA read after vendor dispatch differs from the one read before it
+- **THEN** the review SHALL NOT be bound
+- **AND** the node SHALL stay pending with a blocking reason naming the head movement

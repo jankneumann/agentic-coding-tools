@@ -12,3 +12,14 @@
 | 6 | testability | medium | "Eligible vendor review fails closed" had no scenario ID; `cheap-path-dropped-on-comments` had no ID comment in tasks. | IDs added in spec and tasks 5.1/5.2. |
 | 7 | completeness | medium | No scenario for a `{"skipped": true}` review lacking both a current binding and a waiver; design risk row omitted it and `changes_requested`. | Added scenario `skip-path-without-binding-or-waiver-blocks`; design risk row aligned. |
 | 8 | testability | medium | Tasks 3.2 and 5.3 named no test file. | Files named. |
+
+## Vendor review remediation (2026-11-15)
+
+Dispatched to antigravity, codex, grok and pi; only codex (gpt-6-sol) returned findings: antigravity needed re-authentication, grok timed out at 500s, and pi emitted non-JSON output. With a single vendor no consensus was possible, so this phase is DEGRADED. Every finding was checked against the artifacts by the orchestrator before it was fixed.
+
+| # | Type | Criticality | Description | Resolution |
+|---|------|-------------|-------------|------------|
+| V1 | security | high | Reviewers read a live `gh pr diff` during dispatch, so a push mid-dispatch could bind a verdict to code the reviewers never saw. | D6: `vendor_review.py` reads the head SHA before and after dispatch and binds only the pre-dispatch SHA. If the head moved, the review is discarded and the node blocks (`head moved during review`). Covered by tasks 4.2/4.4/5.5 and a new scenario. |
+| V2 | security | high | A stored policy waiver was trusted on retry even when its eligibility reason no longer held. | D4: every run re-checks the waiver against live eligibility and clears it when the reasons differ. Operator waivers record `waived_head_sha` and clear when the head moves. Spec field list and D8 schema updated; new scenario `stale-policy-waiver-cleared`. |
+| V3 | security | high | On the waived path, the merge could run without `--match-head-commit` when the live head SHA was missing. | D6: a 40-hex live head SHA is mandatory for every execute-plan merge; otherwise the node blocks. New scenario `missing-live-head-blocks`. |
+| V4 | security | high | Author derivation kept only the latest commit's session, so a reviewer who authored an earlier commit would pass. | D5: `authors` lists every commit's identity. Dispatch exclusion and the predicate backstop check all of them. New scenario `earlier-commit-author-rejected`. |

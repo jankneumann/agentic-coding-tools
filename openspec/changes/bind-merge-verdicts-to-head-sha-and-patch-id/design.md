@@ -106,6 +106,17 @@ POLICY_WAIVABLE_REASONS = frozenset({
 })
 ```
 
+**A stored policy waiver is re-checked, never trusted.** Execution recomputes
+live eligibility on every run. A stored `source: policy` waiver is honoured only
+when its `eligibility_reason` equals the live ineligibility reason; otherwise
+execution clears `state.review_waiver` before evaluating the predicate (and
+records a fresh policy waiver only if the new live reason is itself waivable).
+A retry after the PR grew past `small_pr`, or lost the approval behind
+`has_approval`, therefore falls back to requiring a verdict. Operator waivers
+are not re-derived — they record a human decision — but they are bound to the
+live head SHA at recording time (`waived_head_sha`) and are cleared when the
+head moves.
+
 **Why `state` and not `definition` (correction found during planning).** The
 proposal sketch had `build_plan` writing policy waivers into
 `definition.review_waiver`. That cannot work: eligibility is computed **live** in
@@ -123,10 +134,12 @@ there. `remediation_skill == "none"` is produced only for the automation class
   `login` from `author.login`. `vendor`/`session_id` from the **head** commits'
   trailers: `Co-Authored-By: Claude …` → `claude_code`; `Claude-Session: <url>`
   → session id is the URL's last path segment; generic `<Vendor>-Session:` maps
-  by a lowercase vendor table. Multiple distinct sessions → the latest commit's.
-  Underivable fields are `null`.
+  by a lowercase vendor table. Every commit in the PR contributes, not just the
+  latest: the binding keeps `author` (the latest commit's identity, for display)
+  plus `authors`, the de-duplicated list of every `(vendor, session_id)` found
+  across the PR's commits. Underivable fields are `null`.
 - **Dispatch exclusion:** `vendor_review.py` passes
-  `exclude_vendor={"claude_code", author.vendor} - {None}`.
+  `exclude_vendor={"claude_code"} | {a.vendor for a in authors} - {None}`.
   `ReviewOrchestrator.dispatch_and_wait` re-runs `discover_reviewers`
   internally (`review_dispatcher.py` 2817, 2917), so both widen
   `exclude_vendor` from `str | None` to `str | Collection[str] | None`; the
@@ -135,9 +148,10 @@ there. `remediation_skill == "none"` is produced only for the automation class
   returns its existing "No vendor CLIs available" result, which blocks; the
   operator waiver is the way through.
 - **Predicate backstop** (`independence_violation(binding)`): a reason when any
-  successful reviewer has `(vendor, agent_id) == (author.vendor, author.session_id)`;
-  or `reviewer.vendor == author.vendor` while `author.session_id is None`.
-  Otherwise `None`.
+  successful reviewer matches **any** entry of `authors` — `(vendor, agent_id) ==
+  (a.vendor, a.session_id)`, or `reviewer.vendor == a.vendor` while
+  `a.session_id is None`. Otherwise `None`. A reviewer that authored an earlier
+  commit therefore cannot pass because a later commit came from a different session.
 
 The backstop exists because dispatch exclusion only covers vendor review; a
 stored verdict from another path (ri-03, adjudication) can still be checked.
@@ -148,6 +162,19 @@ stored verdict from another path (ri-03, adjudication) can still be checked.
   `validate_pr` copies it into the dict it returns. Execution reads live state
   only through `validate_pr` (`get_live_status=validate_pr`), which builds its own
   dict, so without that copy every verdict would classify `stale`.
+- **A live head SHA is mandatory for every execute-plan merge**, verified or
+  waived. Before calling `merge`, execution checks that `live["head_sha"]` is a
+  40-hex string; if it is missing, empty or malformed the node stays `pending`
+  with `blocking_reason: "live head sha unavailable"` and no merge is attempted.
+  Execution therefore never calls `merge` without `expected_head_sha`; the
+  `None` default exists only for other callers of `merge_pr`.
+- **The reviewed snapshot must be the bound snapshot.** Vendor reviewers read
+  a live `gh pr diff` during dispatch, so a push mid-dispatch could otherwise bind
+  their verdict to code they never saw. `vendor_review.py` captures `head_sha`
+  before dispatch and re-reads it after; if it changed, the review is discarded
+  (not bound) and the node stays `pending` with `blocking_reason: "head moved
+  during review"` so the next run re-reviews. The binding's `head_sha` is the
+  pre-dispatch SHA, never one read after dispatch.
 - `merge_pr(…, expected_head_sha=None, review_waiver=None)` appends
   `--match-head-commit <sha>` to both `_try_merge` and `_try_merge_queue` when
   set. The `ExecutionDependencies.merge` signature becomes
@@ -169,6 +196,8 @@ stored verdict from another path (ri-03, adjudication) can still be checked.
 `main()` rejects a blank or whitespace-only reason with `parser.error` (exit 2)
 before `execute_node` runs, matching ri-02's `--accept-missing-validation`.
 `approver` is `$USER` / `git config user.email` / `"operator"`, first non-empty.
+`waived_head_sha` is the live head SHA at recording time; a later push clears the
+waiver (D4), so an operator waives one reviewed state, not the PR forever.
 The waiver is written to `state.review_waiver` inside the same claim as the
 merge, so a crash after recording but before merging replays with the waiver
 already present.
@@ -176,7 +205,8 @@ already present.
 ### D8 — Schema 1.2 removes the dead field and rejects 1.1
 
 - `schema_version` const `"1.2"`; `state.review_waiver` (object|null,
-  `additionalProperties: false`) added; `state.iterate_consensus_path` removed.
+  `additionalProperties: false`; fields `reason`, `source`, `approver`,
+  `recorded_at`, `eligibility_reason`, `waived_head_sha`) added; `state.iterate_consensus_path` removed.
   `vendor_verdict` stays `additionalProperties: true`; the binding is
   validated by `verdict_binding.validate_binding`, not by the plan schema,
   because the adjudication change will extend it.

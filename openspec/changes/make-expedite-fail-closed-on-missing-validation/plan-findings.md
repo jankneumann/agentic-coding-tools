@@ -11,3 +11,12 @@
 | 5 | testability | medium | "READY regardless of deployable surface" was never exercised with a non-deployable change. | Test `test_ready_non_deployable_spec_only_report` added to 1.1. |
 | 6 | testability | medium | Fixture-only drift test misses `skip` added in an unexercised branch. | D4 and task 3.1 add an AST check that `status="skip"` appears only in `check_rework_report`. |
 | 7 | consistency | medium | Roadmap ri-02 description still said "a deployable change", contradicting the proposal (all changes block). | Roadmap description corrected. |
+
+## Vendor review remediation (2026-11-15)
+
+Only codex returned findings; the other vendors failed (see the bind-merge-verdicts plan-findings), so this phase is DEGRADED.
+
+| # | Type | Criticality | Description | Resolution |
+|---|------|-------------|-------------|------------|
+| V5 | contract_mismatch | medium | The roadmap proposal still exempted non-deployable changes from the missing-report block, which contradicts ri-02's fail-closed-with-override contract. | The roadmap proposal's capability text and acceptance outcome now match ri-02. |
+| V6 | spec_gap | medium | `_probe_paths` uses `is_file()`, so an automatically probed directory reads as "missing" and becomes overridable. | Task 1.3 makes discovery use `exists()` so an invalid candidate is reported as unreadable. Task 1.1 adds `test_probed_directory_candidate_is_unreadable_not_missing`, and the spec scenario covers probed paths. |

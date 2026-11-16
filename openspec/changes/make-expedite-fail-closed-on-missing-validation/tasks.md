@@ -21,6 +21,7 @@
   - Rewrite `TestCli.test_exit_zero_when_ready` and `TestCli.test_json_output_shape` to write a passing report first (both currently rely on a report-less READY).
   - Add `test_explicit_nonexistent_path_is_missing`: `--validation-report <path that does not exist>` → `fail` with `/validate-feature` action; with `--accept-missing-validation` the override applies.
   - Add `test_unreadable_report_fails_and_is_not_overridable`: a report path that exists but cannot be read (e.g. a directory) → `fail`, and `--accept-missing-validation` leaves it `fail` with `overrides == []`.
+  - Add `test_probed_directory_candidate_is_unreadable_not_missing`: no `--validation-report`, and `openspec/changes/<id>/validation-report.md` is a directory → `fail` (unreadable, not missing), and `--accept-missing-validation` leaves it `fail` with `overrides == []`.
   - Add `test_ready_non_deployable_spec_only_report`: `work-packages.yaml` declares no deployable surface and the report carries only `## Spec Compliance: pass` → READY (also exercises D3's change-dir derivation).
   **Spec scenarios**: expedite.missing-report-blocks, expedite.explicit-path-missing, expedite.unreadable-report-fails, expedite.passing-report-ready
   **Design decisions**: D1
@@ -32,6 +33,7 @@
   **Dependencies**: None
 - [ ] 1.3 Make `check_validation_report` return `fail` on a missing report (S)
   - New signature `check_validation_report(report_path, *, change_id, repo_root, accept_missing=None)`; the detail lists the probed paths (reuse `_probe_paths`'s candidate list, extracted to `_candidate_paths`).
+  - Discovery distinguishes absent from invalid: `_probe_paths` returns the first candidate that **exists** (`exists()`, not `is_file()`), so a probed directory or unreadable file reaches the unreadable-report branch and fails without being overridable; only "no candidate exists" counts as missing.
   - Update the four direct callers in `test_expedite.py` (`test_pass_when_all_hard_gates_pass`, `test_fail_when_smoke_fails`, `test_fail_when_security_fails`, `test_fail_when_e2e_fails`) to pass `change_id=` and `repo_root=`; they raise `TypeError` otherwise.
   **Dependencies**: 1.1
 - [ ] 1.4 Derive `change_dir` from the change id (XS)

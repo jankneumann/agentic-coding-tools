@@ -36,7 +36,8 @@ with the change's declared metadata.
 #### Scenario: A report that exists but cannot be read fails closed
 
 - **WHEN** the validation report path exists but cannot be read as a report
-  (for example it is a directory, or reading it raises)
+  (for example it is a directory, or reading it raises), whether the path was
+  given explicitly or found by the automatic probe
 - **THEN** the `validation_report` check status is `fail`
 - **AND** the verdict is BLOCKED and the process exits 1
 

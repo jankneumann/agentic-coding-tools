@@ -86,11 +86,14 @@
 - [ ] 4.2 Write tests for reviewer identity in the vendor summary in `skills/tests/merge-pull-requests/test_vendor_review_identity.py` (S)
   - **Design decisions:** D1, D5
   **Dependencies**: none
-  - Each per-vendor summary keeps `agent_id` and `model_used`. The author's vendor is passed to dispatch exclusion alongside `claude_code`.
+  - Each per-vendor summary keeps `agent_id` and `model_used`. Every author vendor found across the PR's commits is passed to dispatch exclusion alongside `claude_code`.
+  - Snapshot check: with a fake `gh` whose head SHA changes between the pre- and post-dispatch reads, the result is marked `head_moved: true`, carries no binding-eligible verdict, and its reason names the head movement; with an unchanged head the pre-dispatch SHA is returned as `reviewed_head_sha`.
+  <!-- Scenario ID: merge-pull-requests.head-moved-during-review-blocks -->
 - [ ] 4.3 Widen `exclude_vendor` in `skills/parallel-infrastructure/scripts/review_dispatcher.py` (S)
   **Dependencies**: 4.1
 - [ ] 4.4 Thread the author vendor through `scripts/vendor_review.py` (S)
-  - `dispatch_vendor_reviews(…, author_vendor=None)`; keep `agent_id` in each summary.
+  - `dispatch_vendor_reviews(…, author_vendors=())`; keep `agent_id` in each summary.
+  - Read the head SHA before and after dispatch; return `reviewed_head_sha` (pre-dispatch) and `head_moved` (D6).
   **Dependencies**: 4.2, 4.3
 - [ ] Checkpoint: run tests, review diff, verify scope
 
@@ -134,6 +137,14 @@
   **Dependencies**: 5.1
 - [ ] 5.5 Wire binding, waivers and pinning into `scripts/execute_plan.py` (L)
   - Add `head_sha` to live state; add `pr_diff` and `pr_author` seams to `ExecutionDependencies`; bind every stored review; route the skip path through the predicate; record policy waivers; delete `_iterate_consensus_current` and the line-519 overwrite; pass `head_sha` and the waiver to `merge`; map a head-mismatch merge failure to `pending`; add `--waive-review` to `main()`; extend `_review_evidence` with `binding` and `review_waiver`.
+  - Refuse to merge (node stays `pending`, reason `live head sha unavailable`) when the live head SHA is missing or not 40-hex, on the waived path as well as the verified path (D6).
+  - Re-check a stored policy waiver against live eligibility on every run and clear it when the reasons differ; clear an operator waiver whose `waived_head_sha` differs from the live head (D4).
+  - Bind a fresh vendor review to its `reviewed_head_sha`; when `head_moved` is true, do not bind it and keep the node `pending` with `head moved during review` (D6).
+  - Derive `authors` from every PR commit and check independence against all of them (D5).
+  <!-- Scenario ID: merge-pull-requests.missing-live-head-blocks -->
+  <!-- Scenario ID: merge-pull-requests.stale-policy-waiver-cleared -->
+  <!-- Scenario ID: merge-pull-requests.earlier-commit-author-rejected -->
+  - Tests go in `scripts/tests/test_execute_plan.py` (missing head SHA, stale waiver, `head_moved` not bound) and `scripts/tests/test_verdict_binding.py` (multi-commit `authors`), written before the code.
   **Dependencies**: 3.4, 4.4, 5.2, 5.3, 5.3a, 5.4
 - [ ] Checkpoint: run tests, review diff, verify scope
 
