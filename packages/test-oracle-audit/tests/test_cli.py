@@ -226,3 +226,16 @@ def test_stage_run_does_not_write_outside_out_and_ledger(env: Env, tmp_path: Pat
     assert env.run("run-all") == 0
     assert {p.name for p in tmp_path.iterdir()} <= {"e2e_repo", "out", "suites.json", "ledger"}
     assert not env.ledger.exists()
+
+
+def test_command_backend_times_out_instead_of_hanging() -> None:
+    """A hung ``--explain-command`` must not block the stage forever.
+
+    ``run_explain`` records any backend exception as an ``error`` record, so the backend
+    only has to raise once its timeout elapses.
+    """
+    from test_oracle_audit.cli import CommandBackend
+
+    backend = CommandBackend(f"{sys.executable} -c 'import time; time.sleep(30)'", timeout=0.5)
+    with pytest.raises(subprocess.TimeoutExpired):
+        backend.run("prompt")

@@ -185,6 +185,19 @@ def test_uncollectable_file_yields_error_record_and_does_not_abort(broken, schem
     assert ok_ids == ["tests/test_good.py::test_add_works"]
 
 
+def test_collection_leaves_no_pytest_cache_in_the_audited_tree(broken):
+    """Design D3: the package writes only to ``--out``.
+
+    Collection runs in the real tree, and pytest's cache provider records collection errors
+    under ``.pytest_cache`` there unless it is disabled. The suite here passes no
+    ``-p no:cacheprovider`` of its own: the stage must not rely on suite configuration for it.
+    """
+    suite = SuiteSpec(name="fx", project_root=".", test_paths=("tests",), source_roots=("src",))
+    build_inventory(suite, repo_root=broken, python=sys.executable)
+
+    assert not (broken / ".pytest_cache").exists()
+
+
 def test_default_python_runs_collection_through_uv_project(basic, monkeypatch):
     """test-oracle-audit.8 (suite environment, D1): ``python=None`` collects via ``uv run --project``.
 

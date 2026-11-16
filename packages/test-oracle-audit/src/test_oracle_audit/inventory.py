@@ -87,6 +87,10 @@ def _collect_command(suite: SuiteSpec, repo_root: Path, project_dir: Path, pytho
         "--collect-only",
         "-q",
         "--continue-on-collection-errors",
+        # Collection runs in the audited tree itself (design D3: write only to --out), and the
+        # cache provider would record collection errors under its .pytest_cache.
+        "-p",
+        "no:cacheprovider",
         *suite.pytest_args,
         *(os.path.relpath((repo_root / p).resolve(), project_dir) for p in suite.test_paths),
     ]
