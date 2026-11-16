@@ -21,7 +21,7 @@ permissions: {}
 # A newer push makes the older submission moot; the coordinator supersedes the
 # older head's job anyway, so there is nothing to finish.
 concurrency:
-  group: review-queue-${{ github.event.pull_request.number }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: true
 
 jobs:
