@@ -76,6 +76,8 @@ _TRANSPARENT = {
     "builtin": set(),
     "setsid": set(),
     "stdbuf": {"-i", "-o", "-e"},
+    "busybox": set(),
+    "watch": {"-n", "--interval"},
 }
 _SHELLS = {"sh", "bash", "zsh", "dash", "ksh"}
 # Shell grammar that can precede a command word inside one segment.
@@ -87,6 +89,49 @@ _ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 # ``<<\EOF`` do not.
 _HEREDOC = re.compile(r"(?<!<)<<-?\s*(\\?)(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\2")
 _MAX_DEPTH = 5
+# ``f(){`` / ``f()`` opening a function body, and a case arm's ``pat)`` or ``(pat)``.
+_FUNCTION_DEF = re.compile(r"^[^\s()'\"$`=]+\(\)\{?$")
+_CASE_ARM = re.compile(r"^\(?[^()$`]*\)$")
+
+
+def _heredoc_marks(line: str, quote: str | None) -> tuple[list[re.Match[str]], str | None]:
+    """Heredoc operators in one line that the shell parses as such.
+
+    ``<<`` inside quotes, after a backslash or in a comment is literal text; a
+    regex over the raw line would take it for a heredoc and hide the lines
+    after it. Returns the matches and the quote still open at the line's end.
+    """
+    marks: list[re.Match[str]] = []
+    i = 0
+    while i < len(line):
+        ch = line[i]
+        if quote:
+            if ch == "\\" and quote == '"':
+                i += 2
+                continue
+            if ch == quote:
+                quote = None
+            i += 1
+            continue
+        if ch == "\\":
+            i += 2
+            continue
+        if ch in ("'", '"'):
+            quote = ch
+            i += 1
+            continue
+        if ch == "#" and (i == 0 or line[i - 1] in " \t;&|("):
+            break
+        if line.startswith("<<<", i):
+            i += 3
+            continue
+        m = _HEREDOC.match(line, i) if line.startswith("<<", i) else None
+        if m:
+            marks.append(m)
+            i = m.end()
+            continue
+        i += 1
+    return marks, quote
 
 
 def split_heredocs(command: str) -> tuple[str, list[str]]:
@@ -100,6 +145,7 @@ def split_heredocs(command: str) -> tuple[str, list[str]]:
     out: list[str] = []
     expanding: list[str] = []
     pending: list[tuple[str, bool, list[str]]] = []
+    quote: str | None = None  # a quoted string can span lines
     for line in command.split("\n"):
         if pending:
             delimiter, expands, body = pending[0]
@@ -111,7 +157,8 @@ def split_heredocs(command: str) -> tuple[str, list[str]]:
                 body.append(line)
             continue
         out.append(line)
-        pending = [(m.group(3), not (m.group(1) or m.group(2)), []) for m in _HEREDOC.finditer(line)]
+        marks, quote = _heredoc_marks(line, quote)
+        pending = [(m.group(3), not (m.group(1) or m.group(2)), []) for m in marks]
     expanding.extend("\n".join(body) for _, expands, body in pending if expands and body)
     return "\n".join(out), expanding
 
@@ -220,6 +267,10 @@ def substitutions(text: str, *, quotes_protect: bool = True) -> list[str]:
             quote = None if quote == '"' else '"'
             i += 1
             continue
+        if quotes_protect and quote is None and ch == "#" and (i == 0 or text[i - 1] in " \t\n;&|("):
+            end = text.find("\n", i)  # a comment runs to the end of the line
+            i = len(text) if end < 0 else end
+            continue
         process = quotes_protect and quote is None and text[i : i + 2] in ("<(", ">(")
         if text.startswith("$(", i) or process:
             end = _paren_end(text, i + 2)
@@ -285,8 +336,20 @@ def _words(segment: str) -> list[str]:
 def _strip_wrappers(words: list[str]) -> list[str]:
     """Drop assignments and wrapper commands until the real command word."""
     while words:
-        if words[0] in _KEYWORDS:
+        if words[0] in _KEYWORDS or words[0] in ("()", "(){"):
             words = words[1:]
+            continue
+        if words[0] == "case":  # case WORD in PATTERN) command
+            words = words[words.index("in") + 1 :] if "in" in words else []
+            continue
+        if words[0] == "function":  # function NAME [()] { command
+            words = words[2:]
+            continue
+        if _FUNCTION_DEF.match(words[0]) or _CASE_ARM.match(words[0]):
+            words = words[1:]
+            continue
+        if len(words) > 1 and words[1] in ("()", "(){"):  # NAME () { command
+            words = words[2:]
             continue
         if words[0].startswith("(") and len(words[0]) > 1:  # (git push -f)
             words = [words[0].lstrip("("), *words[1:]]
@@ -412,6 +475,8 @@ def _git(args: list[str]) -> Verdict | None:
     sub, rest = args[0], args[1:]
     flags = _short_flags(rest)
     if sub == "push":
+        if "n" in flags or _has_long(rest, "--dry-run", 5):
+            return None  # a dry run contacts the remote but changes nothing
         # Prefix lengths err short: an abbreviation git rejects as ambiguous
         # (``--for``, ``--pr``) is denied too, which costs nothing.
         if "f" in flags or _has_long(rest, "--force", 5) or _has_long(rest, "--force-with-lease", 8):
@@ -551,13 +616,20 @@ def _command_word(segment: str) -> str:
 
 
 def _pipes_download_to_shell(parts: list[str]) -> bool:
-    """``curl … | sh`` across real pipeline segments, not inside a quoted argument."""
-    return any(
-        parts[i + 1] == "|"
-        and _command_word(parts[i]) in _DOWNLOADERS
-        and _command_word(parts[i + 2]) in _SHELLS
-        for i in range(0, len(parts) - 2, 2)
-    )
+    """``curl … | sh`` across real pipeline segments, not inside a quoted argument.
+
+    Intermediate stages (``| tee log | sh``) still hand the download to the
+    shell, so a shell anywhere later in the same pipeline counts.
+    """
+    downloading = False
+    for i in range(0, len(parts), 2):
+        word = _command_word(parts[i])
+        if downloading and word in _SHELLS:
+            return True
+        downloading = downloading or word in _DOWNLOADERS
+        if i + 1 < len(parts) and parts[i + 1] != "|":
+            downloading = False  # the pipeline ends here
+    return False
 
 
 # --------------------------------------------------------------------------
