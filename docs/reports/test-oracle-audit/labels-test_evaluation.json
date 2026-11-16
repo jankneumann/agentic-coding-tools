@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "entry_type": "pytest_test",
+  "vocabulary": [
+    "spec",
+    "property",
+    "reference_impl",
+    "external_contract",
+    "characterization",
+    "current_impl_output",
+    "none"
+  ],
+  "entries": [],
+  "sample": {
+    "seed": 13,
+    "n": 20,
+    "strata": {
+      "flagged:bottom": [
+        "agent-coordinator/tests/test_evaluation/test_backends.py::TestBackendIdentity::test_default_commands"
+      ],
+      "unflagged:bottom": [
+        "agent-coordinator/tests/test_evaluation/test_reports.py::TestReportGenerator::test_generate_creates_files",
+        "agent-coordinator/tests/test_evaluation/test_metrics.py::TestMetricsCollector::test_get_trial_metrics",
+        "agent-coordinator/tests/test_evaluation/test_reports.py::TestReportGenerator::test_markdown_content"
+      ],
+      "unflagged:middle": [
+        "agent-coordinator/tests/test_evaluation/test_registry.py::TestTaskRegistry::test_list_with_max_tasks",
+        "agent-coordinator/tests/test_evaluation/test_reports.py::TestReportGenerator::test_json_content",
+        "agent-coordinator/tests/test_evaluation/test_registry.py::TestTaskRegistry::test_list_by_source"
+      ],
+      "unflagged:top": [
+        "agent-coordinator/tests/test_evaluation/test_backends.py::TestBuildBackendFactory::test_builds_each_supported_backend[codex-CodexBackend]",
+        "agent-coordinator/tests/test_evaluation/test_consensus.py::TestConsensusResult::test_compute_consensus_disagreement",
+        "agent-coordinator/tests/test_evaluation/test_backends.py::TestBuildBackendFactory::test_builds_each_supported_backend[claude_code-ClaudeCodeBackend]"
+      ],
+      "insufficient": [
+        "agent-coordinator/tests/test_evaluation/test_config.py::TestEvalConfig::test_defaults",
+        "agent-coordinator/tests/test_evaluation/test_metrics.py::TestMetricsCollector::test_clear",
+        "agent-coordinator/tests/test_evaluation/test_backends.py::TestBuildBackendFactory::test_retired_gemini_jules_backend_is_absent[jules]",
+        "agent-coordinator/tests/test_evaluation/test_registry.py::TestEvalTask::test_to_dict_roundtrip",
+        "agent-coordinator/tests/test_evaluation/test_registry.py::TestEvalTask::test_from_dict",
+        "agent-coordinator/tests/test_evaluation/test_metrics.py::TestMetricsCollector::test_coordination_overhead",
+        "agent-coordinator/tests/test_evaluation/test_registry.py::TestEvalTask::test_from_yaml",
+        "agent-coordinator/tests/test_evaluation/test_metrics.py::TestEffectSize::test_identical_groups",
+        "agent-coordinator/tests/test_evaluation/test_registry.py::TestTaskRegistry::test_register_and_get",
+        "agent-coordinator/tests/test_evaluation/test_harness_migration.py::TestNoHarnessInvokesADeadCli::test_agent_types_cover_new_harnesses_and_drop_gemini"
+      ]
+    }
+  }
+}
