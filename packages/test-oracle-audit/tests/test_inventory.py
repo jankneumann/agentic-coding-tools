@@ -220,6 +220,8 @@ def test_default_python_runs_collection_through_uv_project(basic, monkeypatch):
     assert Path(argv[argv.index("--project") + 1]).resolve() == basic.resolve()
     assert "pytest" in argv
     assert "--collect-only" in argv
+    # Collection runs in the audited tree itself: uv must not re-lock it (design D3).
+    assert "--frozen" in argv[: argv.index("pytest")]
 
 
 def test_inventory_json_lines_are_stable_text(basic):

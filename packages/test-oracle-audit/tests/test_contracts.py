@@ -464,3 +464,26 @@ def test_runtime_schema_copies_are_byte_identical_to_contracts():
     assert runtime_files == contract_files
     for name in sorted(runtime_files):
         assert (RUNTIME_SCHEMAS / name).read_bytes() == (contracts / name).read_bytes(), name
+
+
+@pytest.mark.parametrize(
+    "field, value",
+    [
+        ("source_roots", ("/etc",)),
+        ("source_roots", ("../outside",)),
+        ("test_paths", ("tests/../../outside",)),
+        ("project_root", "/abs/project"),
+    ],
+)
+def test_suite_paths_must_stay_inside_the_repository(field, value):
+    """Design D3: mutation and rename write source roots inside the isolated copy.
+
+    ``copy.root / "/etc"`` is ``/etc``, so an absolute or escaping suite path would point the
+    writing stages at a tree outside the copy. Such a suite is rejected when it is built.
+    """
+    from test_oracle_audit.records import SuiteSpec
+
+    spec = {"name": "s", "project_root": ".", "test_paths": ("tests",), "source_roots": ("src",)}
+    spec[field] = value
+    with pytest.raises(ValueError, match="inside the repository"):
+        SuiteSpec(**spec)

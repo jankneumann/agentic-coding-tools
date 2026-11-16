@@ -287,6 +287,18 @@ def _slug(node_id: str) -> str:
     return re.sub(r"[^A-Za-z0-9]+", "-", node_id).strip("-")[:80] or "test"
 
 
+def _current_hashes(entries: Iterable[TestEntry], repo_root: Path) -> dict[str, str]:
+    out: dict[str, str] = {}
+    for entry in entries:
+        try:
+            out[entry.test_id.node_id] = content_hash_of_file(
+                repo_root / entry.path, entry.function_name, entry.class_name
+            )
+        except (OSError, LookupError, SyntaxError, ValueError):
+            continue  # unreadable now: no current hash, so any label for it is stale
+    return out
+
+
 def label_next(
     entries: Sequence[TestEntry],
     static_records: Iterable[StageRecord],
@@ -321,7 +333,9 @@ def label_next(
 
     cards_dir = Path(out_dir) / "cards"
     cards_dir.mkdir(parents=True, exist_ok=True)
-    labelled = ledger.labelled_node_ids()
+    # Only a label whose stored hash matches the test's current logic counts (ledger scenario .2):
+    # a test edited since it was labelled is served again instead of keeping a stale label.
+    labelled = set(ledger.current_labels(_current_hashes(ordered, Path(repo_root))))
     first: str | None = None
     for index, entry in enumerate(ordered):
         card = render_card(entry, repo_root=repo_root)
