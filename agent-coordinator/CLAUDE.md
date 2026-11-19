@@ -177,6 +177,10 @@ All write endpoints require `X-API-Key` header.
 | `/reviews/jobs` | POST | Producer token or key | Enqueue a PR review job for a head SHA (supersedes older heads) |
 | `/reviews/results` | POST | Yes (claimant) | Record a review pass's lane results; publishes the COMMENT review at quorum |
 | `/reviews/rounds` | GET | Yes | Latest (or a given) review round for a PR head, with every lane |
+| `/gates/projection` | POST | Yes | Replace one project's pending-gate snapshot |
+| `/gates/projection` | DELETE | Yes | Drop one project's snapshot |
+| `/gates/pending` | GET | Yes | List pending gates across enrolled projects |
+| `/gates/decide` | POST | Yes | Decide a listed gate through its approval request |
 | `/archetypes/resolve_for_phase` | POST | Yes | Resolve archetype + model + system_prompt for an autopilot phase (per-phase archetype resolution) |
 | `/health` | GET | No | Health check |
 | `/status/report` | POST | No | Report agent status (heartbeat side effect) |
@@ -297,6 +301,11 @@ REVIEW_GITHUB_APP_ID=...                 # GitHub App that posts the consolidate
 REVIEW_GITHUB_APP_INSTALLATION_ID=...    # review; publishing is off unless all three are set
 REVIEW_GITHUB_APP_PRIVATE_KEY=...
 REVIEW_GITHUB_API_URL=https://api.github.com  # default
+
+# Project-keyed gate projection (see src/gate_projection_routes.py)
+GATE_PROJECTION_PROJECTS=owner/name      # Comma-separated allowlist of projects that may push
+                                         # and be listed (empty = none; every push is refused)
+GATE_PROJECTION_STALE_SECONDS=86400      # default; a snapshot older than this is marked stale
 
 # Adaptive model routing
 ROUTING_ADAPTIVE=off                     # CLIENT side: on/true/1/yes delegates phase model resolution

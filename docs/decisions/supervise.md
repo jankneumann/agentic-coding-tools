@@ -5,6 +5,17 @@
 
 ---
 
+## 2026-11-19 — add-project-keyed-gate-projection
+
+### Phase: Implementation
+
+**Answer hints name the skills directory the collector runs from** — The installer rejects a hard-coded canonical skills path in a command string, and the path differs between the source tree and an installed copy. The collector derives it at run time and prints a placeholder when it reads a repository it is not installed in.
+
+- Status: `active`
+- Source: [openspec/changes/add-project-keyed-gate-projection/session-log.md](/openspec/changes/add-project-keyed-gate-projection/session-log.md) (D2)
+
+---
+
 ## 2026-10-09 — 2026-10-10-dispatch-contract
 
 ### Phase: Plan Review

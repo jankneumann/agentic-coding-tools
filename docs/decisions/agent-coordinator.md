@@ -18,6 +18,17 @@
 
 ## 2026-11-19 — add-project-keyed-gate-projection
 
+### Phase: Implementation
+
+**Routes reuse the approval policy operations** — Push, delete and decide are checked as request_approval on the project, listing as check_approval. The projection is a view over approval-shaped state, so no policy vocabulary was added. Chosen during implementation; not confirmed by the operator.
+
+- Status: `active`
+- Source: [openspec/changes/add-project-keyed-gate-projection/session-log.md](/openspec/changes/add-project-keyed-gate-projection/session-log.md) (D1)
+
+---
+
+## 2026-11-19 — add-project-keyed-gate-projection
+
 ### Phase: Plan
 
 **Degraded state is computed at read time** — A project with no snapshot, a stale one or source errors must be visible, and its last known gates still listed, without a background job.
@@ -32,6 +43,17 @@
 ### Phase: Plan
 
 **Decisions go through the approval service only** — The projection must never become a second decision record; a gate with no pending approval request is refused with the command that answers it in its repository.
+
+- Status: `active`
+- Source: [openspec/changes/add-project-keyed-gate-projection/session-log.md](/openspec/changes/add-project-keyed-gate-projection/session-log.md) (D3)
+
+---
+
+## 2026-11-19 — add-project-keyed-gate-projection
+
+### Phase: Implementation
+
+**A referenced approval id is resolved in one extra read** — ApprovalService.get_requests tells a decided request from an id that names nothing, so a decided gate is dropped from the listing and an unknown id falls back to the repository route.
 
 - Status: `active`
 - Source: [openspec/changes/add-project-keyed-gate-projection/session-log.md](/openspec/changes/add-project-keyed-gate-projection/session-log.md) (D3)

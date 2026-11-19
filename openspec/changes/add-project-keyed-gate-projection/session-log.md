@@ -33,3 +33,36 @@
 ### Context
 Refined the scaffolded change into a full plan: a per-project snapshot of pending gates pushed by a collector in each repository, one listing across enrolled projects, and decisions delegated to the approval service.
 
+---
+
+## Phase: Implementation (2026-11-19)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Routes reuse the approval policy operations** `architectural: agent-coordinator` — Push, delete and decide are checked as request_approval on the project, listing as check_approval. The projection is a view over approval-shaped state, so no policy vocabulary was added. Chosen during implementation; not confirmed by the operator.
+2. **Answer hints name the skills directory the collector runs from** `architectural: supervise` — The installer rejects a hard-coded canonical skills path in a command string, and the path differs between the source tree and an installed copy. The collector derives it at run time and prints a placeholder when it reads a repository it is not installed in.
+3. **A referenced approval id is resolved in one extra read** `architectural: agent-coordinator` — ApprovalService.get_requests tells a decided request from an id that names nothing, so a decided gate is dropped from the listing and an unknown id falls back to the repository route.
+
+### Open Questions
+- [ ] The IN filter in get_requests over a uuid column has not run against PostgreSQL.
+- [ ] Nothing yet writes an approval link onto a gate record, so no listed gate can be decided from the listing.
+
+### Completed Work
+- Tasks 1.1-4.3, test-first: 70 coordinator tests and 24 collector tests pass
+- Coordinator ruff, mypy --strict and the non-integration suite pass
+- Runtime skill copies synced; openspec validate --strict passes
+- Implemented inline in the sequential tier with one work package
+
+### Next Steps
+- Validate
+- Operator: task 5.1, apply migration 047, set GATE_PROJECTION_PROJECTS, push from two repositories
+
+### Relevant Files
+- `agent-coordinator/src/gate_projection.py` — service
+- `agent-coordinator/src/gate_projection_routes.py` — routes
+- `skills/supervise/scripts/gate_projection.py` — collector
+
+### Context
+Built the gate projection: a snapshot table and service in the coordinator, four /gates routes, and a read-only collector in the supervise skill. All of it is verified by unit tests only; nothing was deployed.
+

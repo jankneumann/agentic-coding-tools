@@ -672,6 +672,39 @@ session on another machine inherits what has already been surfaced.
 | `scripts/digest.py` | Deterministic candidate store, evidence preparation, score validation/ranking, crash recovery, request rendering, and decision merge. No LLM or network calls and no roadmap writes. |
 | `templates/rubric-prompt.md` | Stable-schema analyst instructions for one bounded, untrusted-data-aware score batch. |
 | `scripts/execution.py` | Deterministic execute adapter: prepare, child claim, acknowledgement/go, entry, reconciliation, parked resume, and exact-result apply. No model or provider calls. |
+| `scripts/gate_projection.py` | Deterministic and read-only on the repository: collects parked checkpoint attempts and loop-state pending gates into a snapshot; `push` sends it to the coordinator. No LLM calls. |
+
+## Gate projection
+
+A gate waiting for a person is recorded in this repository: a `parked` dispatch
+attempt in a roadmap `checkpoint.json`, or a `pending_gate` in a change's
+`loop-state.json`. Someone working across several repositories would have to open
+each one to see what is waiting. The collector copies those records to the
+coordinator, which lists them for every enrolled project at `GET /gates/pending`.
+
+```bash
+# Print the snapshot without sending it
+python3 "<skill-base-dir>/scripts/gate_projection.py" --repo-root . collect --project owner/name
+
+# Send it; the coordinator replaces this project's previous snapshot
+python3 "<skill-base-dir>/scripts/gate_projection.py" --repo-root . push --project owner/name
+```
+
+- The files stay the record. The collector never writes to the repository, and a
+  push replaces the project's whole snapshot, so a resolved gate disappears from
+  the listing on the next push. Nothing pushes automatically: run `push` after a
+  gate parks or is answered.
+- `push` reads `COORDINATION_API_URL`, `COORDINATION_API_KEY` and, for a host that
+  is not local, `COORDINATION_ALLOWED_HOSTS`. The coordinator accepts a project
+  only when it is named in its `GATE_PROJECTION_PROJECTS`; any other push is
+  refused with 403.
+- Each gate carries its disposition from `TRUST_POSTURE.md` (`block` when the file
+  is missing or invalid) and an `answer_hint`: the command that answers it in this
+  repository. A file that cannot be read is listed under `source_errors` and the
+  rest is still collected.
+- The coordinator can decide a listed gate (`POST /gates/decide`) only when its
+  record names an approval request. Every other gate is answered here, with the
+  command in its `answer_hint`.
 
 ## Design principle: host-assisted only
 

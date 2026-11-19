@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-11-19T03:57:58.307424+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "trust_resolution_failed: 500: Trust level unresolvable for registry-declared agent 'claude-remote' (type 'claude_code'): profile lookup failed: [Errno -2] Name or service not known. The agent_profiles projection of agents.yaml is broken; restart the coordinator to re-run profile sync. (HTTP 200)",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Built the gate projection: a snapshot table and service in the coordinator, four /gates routes, and a read-only collector in the supervise skill. All of it is verified by unit tests only; nothing was deployed.",
+    "completed_work": [
+      "Tasks 1.1-4.3, test-first: 70 coordinator tests and 24 collector tests pass",
+      "Coordinator ruff, mypy --strict and the non-integration suite pass",
+      "Runtime skill copies synced; openspec validate --strict passes",
+      "Implemented inline in the sequential tier with one work package"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Routes reuse the approval policy operations",
+        "rationale": "Push, delete and decide are checked as request_approval on the project, listing as check_approval. The projection is a view over approval-shaped state, so no policy vocabulary was added. Chosen during implementation; not confirmed by the operator.",
+        "capability": "agent-coordinator",
+        "supersedes": null
+      },
+      {
+        "title": "Answer hints name the skills directory the collector runs from",
+        "rationale": "The installer rejects a hard-coded canonical skills path in a command string, and the path differs between the source tree and an installed copy. The collector derives it at run time and prints a placeholder when it reads a repository it is not installed in.",
+        "capability": "supervise",
+        "supersedes": null
+      },
+      {
+        "title": "A referenced approval id is resolved in one extra read",
+        "rationale": "ApprovalService.get_requests tells a decided request from an id that names nothing, so a decided gate is dropped from the listing and an unknown id falls back to the repository route.",
+        "capability": "agent-coordinator",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Validate",
+      "Operator: task 5.1, apply migration 047, set GATE_PROJECTION_PROJECTS, push from two repositories"
+    ],
+    "relevant_files": [
+      {
+        "path": "agent-coordinator/src/gate_projection.py",
+        "description": "service"
+      },
+      {
+        "path": "agent-coordinator/src/gate_projection_routes.py",
+        "description": "routes"
+      },
+      {
+        "path": "skills/supervise/scripts/gate_projection.py",
+        "description": "collector"
+      }
+    ]
+  }
+}
