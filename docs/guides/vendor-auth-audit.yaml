@@ -1,0 +1,383 @@
+# Vendor auth audit: which credential each vendor CLI may use in each lane.
+#
+# This file is the source. docs/guides/vendor-auth-audit.md explains it.
+# Shape is enforced by skills/tests/vendor-status/test_vendor_auth_audit_table.py.
+#
+# Lane verdict (`subscription`):
+#   permitted | prohibited   needs `quote`, `source`, `quote_evidence`
+#   unaddressed              needs `searched`
+# `quote_evidence`:
+#   raw         the sentence was read in the page's or file's own text
+#   summarised  the text came through a tool that summarises; `quote` is then
+#               a paraphrase and is not verified
+# `source_kind` says what kind of text the quote is. Product documentation and
+# source code show what the vendor supports; only `terms` is licence text.
+# Mechanics `evidence`:
+#   observed      seen on a host (needs `observed_on`, `observed_host_os`)
+#   documented    stated by the vendor's documentation or source (needs `source`)
+#   not_observed  neither
+#
+# No mechanics field is `observed`: only the Claude CLI was installed where the
+# audit was written, and credential files were not read there.
+
+schema_version: 1
+retrieved: "2026-11-19"
+
+vendors:
+  claude:
+    product: Claude Code CLI (`claude`), documentation for version 2.1.328
+    lanes:
+      interactive:
+        subscription: permitted
+        quote: >-
+          **OAuth authentication** is intended exclusively for purchasers of
+          Claude Free, Pro, Max, Ultra, Team, and Enterprise subscription plans
+          and is designed to support ordinary use of Claude Code and other
+          native Anthropic applications.
+        source: https://code.claude.com/docs/en/legal-and-compliance.md
+        source_kind: terms
+        quote_evidence: raw
+      attended_headless:
+        subscription: permitted
+        quote: >-
+          Nothing changes for your plan: when you're signed in with your Claude
+          plan, the Claude Agent SDK and claude -p still draw from your
+          subscription limits.
+        source: https://support.claude.com/en/articles/15036540-use-the-claude-agent-sdk-with-your-claude-plan
+        source_kind: product_docs
+        quote_evidence: raw
+        conditions: >-
+          The plan limits "assume ordinary, individual usage of Claude Code and
+          the Agent SDK"; the ceiling is not defined. Fan-out from an
+          orchestrator is not addressed. Consumer Terms section 3 forbids
+          automated access "Except when you are accessing our Services via an
+          Anthropic API Key or where we otherwise explicitly permit it"; the
+          sentence quoted above is that explicit permission for `claude -p`.
+      unattended_daemon:
+        subscription: unaddressed
+        searched:
+          - https://code.claude.com/docs/en/authentication.md
+          - https://code.claude.com/docs/en/legal-and-compliance.md
+          - https://www.anthropic.com/legal/consumer-terms
+          - https://www.anthropic.com/legal/aup
+          - https://support.claude.com/en/articles/15036540-use-the-claude-agent-sdk-with-your-claude-plan
+        required_lane: api-key
+        note: >-
+          The nearest sentence is "For CI pipelines, scripts, or other
+          environments where interactive browser login isn't available,
+          generate a one-year OAuth token with `claude setup-token`:". It does
+          not mention an always-on worker, and "ordinary, individual usage" is
+          undefined.
+      ci:
+        subscription: permitted
+        quote: >-
+          `CLAUDE_CODE_OAUTH_TOKEN`: an OAuth token that authenticates with
+          your Claude subscription, available on Pro, Max, Ultra, Team, and
+          Enterprise plans.
+        source: https://code.claude.com/docs/en/github-actions.md
+        source_kind: product_docs
+        quote_evidence: raw
+        mechanism: >-
+          A one-year token from `claude setup-token`, passed as
+          `CLAUDE_CODE_OAUTH_TOKEN`. Not the interactive login store.
+        conditions: >-
+          `--bare` does not read `CLAUDE_CODE_OAUTH_TOKEN`, and the
+          documentation says `--bare` "will become the default for `-p` in a
+          future release". `ANTHROPIC_API_KEY`, when set, is used instead of
+          the token in `-p` mode.
+    mechanics:
+      credential_material:
+        value: >-
+          macOS: the Keychain. Linux, and macOS when the Keychain rejects the
+          write: `~/.claude/.credentials.json`, mode 0600. `CLAUDE_CONFIG_DIR`
+          moves the file. `CLAUDE_CODE_OAUTH_TOKEN` is an environment variable
+          and takes precedence over the stored login.
+        evidence: documented
+        source: https://code.claude.com/docs/en/authentication.md
+      refresh_writes:
+        value: >-
+          Yes for a saved login. The refreshed token is saved in the config
+          directory, one process at a time under a shared lock, and a full
+          disk fails the refresh. A refresh token works once.
+          `CLAUDE_CODE_OAUTH_TOKEN` is not refreshed. No sentence says in so
+          many words that the credentials file is rewritten.
+        evidence: documented
+        source: https://code.claude.com/docs/en/errors.md
+      hosts:
+        value: >-
+          Inference: `api.anthropic.com`. OAuth token exchange, refresh and
+          revocation: `platform.claude.com`. Sign-in: `claude.ai`, `claude.com`.
+        evidence: documented
+        source: https://code.claude.com/docs/en/network-config.md
+      proxy_override:
+        value: >-
+          `HTTPS_PROXY`, `HTTP_PROXY` and `NO_PROXY` are supported; SOCKS is
+          not. `ANTHROPIC_BASE_URL` redirects inference. A gateway may pass a
+          claude.ai login through if it forwards `Authorization` and the OAuth
+          capability in `anthropic-beta`; a proxy that injects the credential
+          is not described.
+        evidence: documented
+        source: https://code.claude.com/docs/en/network-config.md
+
+  codex:
+    product: OpenAI Codex CLI (`codex`), repository `openai/codex`
+    lanes:
+      interactive:
+        subscription: permitted
+        quote: >-
+          We recommend signing into your ChatGPT account to use Codex as part
+          of your Plus, Pro, Business, Edu, or Enterprise plan.
+        source: https://raw.githubusercontent.com/openai/codex/main/README.md
+        source_kind: product_docs
+        quote_evidence: raw
+      attended_headless:
+        subscription: permitted
+        quote: >-
+          By default, `codex exec` will use the same authentication method as
+          Codex CLI and VSCode extension.
+        source: https://raw.githubusercontent.com/openai/codex/rust-v0.75.0/docs/exec.md
+        source_kind: product_docs
+        quote_evidence: raw
+        conditions: >-
+          The sentence is from the repository documentation at tag
+          `rust-v0.75.0`, which has since moved to
+          https://developers.openai.com/codex/noninteractive. That page and the
+          OpenAI Terms of Use were not read in their own text.
+      unattended_daemon:
+        subscription: unaddressed
+        searched:
+          - https://raw.githubusercontent.com/openai/codex/main/README.md
+          - https://raw.githubusercontent.com/openai/codex/rust-v0.75.0/docs/authentication.md
+          - https://raw.githubusercontent.com/openai/codex/rust-v0.75.0/docs/exec.md
+          - https://developers.openai.com/codex/auth
+          - https://openai.com/policies/row-terms-of-use/
+        required_lane: api-key
+        note: >-
+          The last two pages were reached only through a summarising tool, so
+          the search of them is incomplete.
+      ci:
+        subscription: permitted
+        quote: >-
+          Paraphrase, not the page's words: ChatGPT-managed Codex auth in CI is
+          an advanced path, for trusted private runners where `codex login`
+          cannot run, with the refreshed `auth.json` kept between runs and one
+          `auth.json` per machine or serialized job stream; not for public
+          repositories.
+        source: https://developers.openai.com/codex/auth/ci-cd-auth
+        source_kind: product_docs
+        quote_evidence: summarised
+        required_lane: api-key
+        mechanism: >-
+          `OPENAI_API_KEY`, or `CODEX_API_KEY` for `codex exec`, until the page
+          has been read in its own text.
+        conditions: >-
+          The only sentence on CI read in its own text is from the Codex
+          GitHub Action: "Users must provide an API key for their chosen
+          provider" (https://raw.githubusercontent.com/openai/codex-action/main/README.md).
+          Refresh tokens rotate, so two jobs sharing one `auth.json`
+          invalidate each other.
+    mechanics:
+      credential_material:
+        value: >-
+          `$CODEX_HOME/auth.json` (default `~/.codex/auth.json`).
+          `cli_auth_credentials_store` selects `file` (default), `keyring`,
+          `auto` or `ephemeral`. The file is not tied to a host.
+        evidence: documented
+        source: https://raw.githubusercontent.com/openai/codex/main/codex-rs/core/config.schema.json
+      refresh_writes:
+        value: >-
+          Yes. Refreshed tokens are persisted to the auth store; the file
+          backend writes a replacement file and swaps it in, so the directory
+          must be writable. Read from source code, not documentation.
+        evidence: documented
+        source: https://raw.githubusercontent.com/openai/codex/main/codex-rs/login/src/auth/manager.rs
+      hosts:
+        value: >-
+          ChatGPT login: inference `chatgpt.com` (path `/backend-api/codex`),
+          token refresh `auth.openai.com`, login callback `localhost:1455`.
+          API key: `api.openai.com`. Constants in source code.
+        evidence: documented
+        source: https://raw.githubusercontent.com/openai/codex/main/codex-rs/model-provider-info/src/lib.rs
+      proxy_override:
+        value: >-
+          `openai_base_url` in user-level `config.toml` overrides the built-in
+          provider's base URL. That it also applies under ChatGPT login, and
+          that `HTTPS_PROXY` is honoured, are inferences from source code and
+          are not stated by documentation. `CODEX_CA_CERTIFICATE` sets a
+          custom CA.
+        evidence: documented
+        source: https://raw.githubusercontent.com/openai/codex/main/codex-rs/core/config.schema.json
+
+  antigravity:
+    product: Google Antigravity CLI (`agy`), repository `google-antigravity/antigravity-cli`, version 1.5.12
+    lanes:
+      interactive:
+        subscription: permitted
+        quote: >-
+          The CLI authenticates via the system keyring, falling back to Google
+          Sign-In if no active session exists.
+        source: https://github.com/google-antigravity/antigravity-cli/blob/main/README.md
+        source_kind: product_docs
+        quote_evidence: raw
+      attended_headless:
+        subscription: permitted
+        quote: >-
+          Paraphrase, not the page's words: headless mode (`agy -p`) is
+          intended for direct scripting and CI workflows; wrapping `agy` inside
+          third-party coding agents or applications, or automating account
+          rotation, is not supported under consumer plans.
+        source: https://antigravity.google/docs/faq/
+        source_kind: product_docs
+        quote_evidence: summarised
+        conditions: >-
+          Not cleared for orchestrator dispatch. Whether `agy -p` launched by
+          this repository's orchestrator, itself running inside another
+          vendor's coding agent, counts as "wrapping" is undecided, and on the
+          relayed wording it plausibly does. The stated consequence is account
+          suspension, and the changelog shows enforcement: "Improved the
+          sign-in error shown to accounts blocked for a Terms of Service
+          violation". Read the FAQ in its own text before using this lane.
+      unattended_daemon:
+        subscription: unaddressed
+        searched:
+          - https://github.com/google-antigravity/antigravity-cli/blob/main/README.md
+          - https://github.com/google-antigravity/antigravity-cli/blob/main/CHANGELOG.md
+          - https://antigravity.google/docs/faq/
+          - https://antigravity.google/terms/
+        required_lane: api-key
+        note: >-
+          The last two pages were reached only through a summarising tool. The
+          relayed terms say that third-party software using Antigravity OAuth
+          is a breach; that is about other software holding the credential,
+          not about running `agy`.
+      ci:
+        subscription: unaddressed
+        searched:
+          - https://github.com/google-antigravity/antigravity-cli/blob/main/README.md
+          - https://github.com/google-antigravity/antigravity-cli/blob/main/CHANGELOG.md
+          - https://antigravity.google/docs/install/
+          - https://antigravity.google/docs/cli/headless/
+        required_lane: api-key
+        note: >-
+          No environment-variable subscription credential exists. Headless mode
+          uses cached credentials from an earlier interactive sign-in (relayed).
+          Key mode: `modelProvider: "gemini"` with `GEMINI_API_KEY`.
+    mechanics:
+      credential_material:
+        value: >-
+          The OS keyring first. File storage when no D-Bus session bus is
+          present, which is the case in containers. The path of the token file
+          is not documented; the CLI's directory is `~/.gemini/antigravity-cli/`.
+        evidence: documented
+        source: https://github.com/google-antigravity/antigravity-cli/blob/main/CHANGELOG.md
+      refresh_writes:
+        value: >-
+          Yes. Tokens are refreshed five minutes before expiry and saved to the
+          keyring, or to file storage when a keyring write fails.
+        evidence: documented
+        source: https://github.com/google-antigravity/antigravity-cli/blob/main/CHANGELOG.md
+      hosts:
+        value: >-
+          Not found for a consumer subscription login: no host list for
+          sign-in, refresh or inference. An Enterprise allowlist was relayed
+          (`cloudcode-pa.googleapis.com`, `businessaicode.googleapis.com`,
+          `aiplatform.googleapis.com`, `discoveryengine.googleapis.com`) and is
+          unverified.
+        evidence: not_observed
+      proxy_override:
+        value: >-
+          A base-URL override is documented for key mode only
+          (`GOOGLE_GEMINI_BASE_URL` with `GEMINI_API_KEY`). None was found for
+          subscription login, and nothing says `agy` honours `HTTPS_PROXY`.
+        evidence: documented
+        source: https://github.com/google-antigravity/antigravity-cli/blob/main/CHANGELOG.md
+
+  grok:
+    product: Grok Build CLI (`grok`), npm `@xai-official/grok` 1.0.89
+    lanes:
+      interactive:
+        subscription: permitted
+        quote: >-
+          On first launch, Grok opens your browser to authenticate with
+          grok.com:
+        source: https://registry.npmjs.org/@xai-official/grok-linux-x64/-/grok-linux-x64-1.0.89.tgz
+        source_kind: product_docs
+        quote_evidence: raw
+        conditions: >-
+          Read from the documentation embedded in the published binary
+          (`02-authentication.md`). No xAI legal page was read: `x.ai` and
+          `docs.x.ai` were unreachable. Which plan the login needs is
+          unverified.
+      attended_headless:
+        subscription: permitted
+        quote: >-
+          If you've previously logged in, cached credentials are used
+          automatically.
+        source: https://registry.npmjs.org/@xai-official/grok-linux-x64/-/grok-linux-x64-1.0.89.tgz
+        source_kind: product_docs
+        quote_evidence: raw
+        conditions: >-
+          Embedded documentation (`14-headless-mode.md`), not licence terms.
+          A relayed, unverified line of the xAI Acceptable Use Policy forbids
+          "Accessing the Services through unauthorized automated or non-human
+          means"; whether headless use of the official CLI is authorised under
+          it has not been read.
+      unattended_daemon:
+        subscription: unaddressed
+        searched:
+          - https://registry.npmjs.org/@xai-official/grok-linux-x64/-/grok-linux-x64-1.0.89.tgz
+          - https://x.ai/legal/acceptable-use-policy
+        required_lane: api-key
+        note: >-
+          The embedded documentation says "For CI/CD, automation, or
+          environments without browser access, use an API key from
+          [console.x.ai](https://console.x.ai):". The Acceptable Use Policy was
+          reached only through a summarising tool; the terms of service at
+          https://x.ai/legal/terms-of-service were not read at all.
+      ci:
+        subscription: unaddressed
+        searched:
+          - https://registry.npmjs.org/@xai-official/grok-linux-x64/-/grok-linux-x64-1.0.89.tgz
+          - https://x.ai/legal/acceptable-use-policy
+        required_lane: api-key
+        note: >-
+          "- **`XAI_API_KEY`**: simplest for CI." The documentation also says
+          "Pre-populate `auth.json` or use `XAI_API_KEY`" without saying which
+          credential may be pre-populated, and "Do not copy `auth.json` or
+          `mcp_credentials.json` into shared directories, tickets, or chat."
+          A stored session token takes precedence over `XAI_API_KEY`, so
+          setting the key alone does not switch lanes where `auth.json` exists.
+    mechanics:
+      credential_material:
+        value: >-
+          `~/.grok/auth.json`, mode 0600, keyed by issuer URL; MCP tokens in
+          `~/.grok/mcp_credentials.json`. No keychain. `GROK_HOME` moves the
+          directory.
+        evidence: documented
+        source: https://registry.npmjs.org/@xai-official/grok-linux-x64/-/grok-linux-x64-1.0.89.tgz
+      refresh_writes:
+        value: >-
+          Yes. "Grok refreshes access tokens automatically in the background."
+          Lock files (`auth.json.lock`, `auth.json.commit.lock`) sit beside the
+          file, so the directory must be writable. A read-only `~/.grok` is a
+          documented configuration; what happens when the token then expires
+          is not stated.
+        evidence: documented
+        source: https://registry.npmjs.org/@xai-official/grok-linux-x64/-/grok-linux-x64-1.0.89.tgz
+      hosts:
+        value: >-
+          Subscription inference: `cli-chat-proxy.grok.com`. Login:
+          `auth.x.ai`; the stored issuer is `accounts.x.ai`, and which of the
+          two receives refresh requests is not established. Public API base:
+          `api.x.ai`; whether `XAI_API_KEY` inference goes there or to the
+          chat proxy is not established.
+        evidence: documented
+        source: https://registry.npmjs.org/@xai-official/grok-linux-x64/-/grok-linux-x64-1.0.89.tgz
+      proxy_override:
+        value: >-
+          `GROK_CLI_CHAT_PROXY_BASE_URL` overrides the session-service URL but
+          is documented only for enterprise OIDC. `GROK_XAI_API_BASE_URL`
+          overrides the public API base. `HTTPS_PROXY` appears as a string in
+          the binary and is not documented.
+        evidence: documented
+        source: https://registry.npmjs.org/@xai-official/grok-linux-x64/-/grok-linux-x64-1.0.89.tgz

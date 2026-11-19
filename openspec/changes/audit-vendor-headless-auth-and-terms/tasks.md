@@ -2,14 +2,14 @@
 
 ## 1. Audit table
 
-- [ ] 1.1 Write failing tests for the table's invariants
+- [x] 1.1 Write failing tests for the table's invariants
   - File: `skills/tests/vendor-status/test_vendor_auth_audit_table.py`
   - Spec scenarios: Every vendor has every lane; A verdict carries its governing sentence; An unaddressed lane lists what was searched; The table is dated; Prohibited or unaddressed unattended use is marked; Every mechanics field has an evidence level; Observed is claimed only with a host and date; Documented is claimed only with a source
   - Design: D1, D2, D3, D4, D5
   - Size: S
-- [ ] 1.2 Research terms and mechanics for the four vendors against live pages
+- [x] 1.2 Research terms and mechanics for the four vendors against live pages
   - Four research sub-agents, one per vendor. Size: M
-- [ ] 1.3 Write `docs/guides/vendor-auth-audit.yaml`
+- [x] 1.3 Write `docs/guides/vendor-auth-audit.yaml`
   - Depends on: 1.1, 1.2
   - Size: M
 

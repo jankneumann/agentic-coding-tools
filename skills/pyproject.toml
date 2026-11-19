@@ -180,6 +180,9 @@ testpaths = [
     # module, evidence_ledger, is flat-name-unique across every skill, so the
     # shared session resolves it unambiguously.
     "tests/evidence-ledger",
+    # vendor-status audit (ri-02 of sandboxed-flow). Its one script module,
+    # observe_vendor_auth, is flat-name-unique across every skill.
+    "tests/vendor-status",
     # NOTE: validate-feature/scripts/tests, autopilot/scripts/tests,
     # security-review/tests, parallel-infrastructure/tests and most dirs under
     # skills/tests/ are deliberately absent. Skills import siblings by flat
