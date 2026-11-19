@@ -151,3 +151,19 @@ def test_get_pr_status_requests_and_surfaces_head_sha(monkeypatch: pytest.Monkey
     fields = requested[0][requested[0].index("--json") + 1].split(",")
     assert "headRefOid" in fields
     assert status["head_sha"] == SHA
+
+
+def test_validate_pr_reports_the_live_head_sha(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(merge_pr_module, "get_pr_status", lambda _n: {
+        "isDraft": False, "isCrossRepository": False, "mergeable": "MERGEABLE",
+        "statusCheckRollup": [], "reviewDecision": "APPROVED", "head_sha": "c" * 40,
+    })
+    assert merge_pr_module.validate_pr(7)["head_sha"] == "c" * 40
+
+
+def test_validate_pr_reports_a_missing_head_as_none(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(merge_pr_module, "get_pr_status", lambda _n: {
+        "isDraft": False, "isCrossRepository": False, "mergeable": "MERGEABLE",
+        "statusCheckRollup": [], "reviewDecision": "APPROVED",
+    })
+    assert merge_pr_module.validate_pr(7)["head_sha"] is None

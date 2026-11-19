@@ -261,18 +261,24 @@ def test_derive_author_from_claude_trailers() -> None:
         "Claude-Session: https://claude.ai/code/session_abc123\n"
     )
     author = derive_author({"author": {"login": "jan"}, "commits": [_commit(body)]})
-    assert author == {"login": "jan", "vendor": "claude_code", "session_id": "session_abc123"}
+    assert author == {
+        "login": "jan", "vendor": "claude_code", "session_id": "session_abc123",
+        "authors": [{"vendor": "claude_code", "session_id": "session_abc123"}],
+    }
 
 
 def test_derive_author_from_generic_session_trailer() -> None:
     body = "Codex-Session: https://example.test/sessions/xyz/\n"
     author = derive_author({"author": {"login": "bot"}, "commits": [_commit(body)]})
-    assert author == {"login": "bot", "vendor": "codex", "session_id": "xyz"}
+    assert author == {
+        "login": "bot", "vendor": "codex", "session_id": "xyz",
+        "authors": [{"vendor": "codex", "session_id": "xyz"}],
+    }
 
 
 def test_derive_author_for_human_pr_is_all_null_vendor() -> None:
     author = derive_author({"author": {"login": "alice"}, "commits": [_commit("Plain message.")]})
-    assert author == {"login": "alice", "vendor": None, "session_id": None}
+    assert author == {"login": "alice", "vendor": None, "session_id": None, "authors": []}
 
 
 def test_derive_author_latest_session_wins() -> None:
@@ -284,10 +290,81 @@ def test_derive_author_latest_session_wins() -> None:
 
 
 def test_derive_author_tolerates_missing_fields() -> None:
-    assert derive_author({}) == {"login": None, "vendor": None, "session_id": None}
+    assert derive_author({}) == {
+        "login": None, "vendor": None, "session_id": None, "authors": [],
+    }
 
 
 def test_policy_waivable_reasons_are_closed() -> None:
     assert POLICY_WAIVABLE_REASONS == frozenset({
         "skip_origin", "small_pr", "has_approval", "low_risk_judged", "automation_cheap_path",
     })
+
+
+# --- every commit's author counts (merge-pull-requests.earlier-commit-author-rejected)
+
+
+def test_derive_author_lists_every_commit_identity_once() -> None:
+    older = _commit("Codex-Session: https://example.test/sessions/codex-1\n", oid="1" * 40)
+    newer = _commit("Claude-Session: https://claude.ai/code/session_new\n", oid="2" * 40)
+    again = _commit("Codex-Session: https://example.test/sessions/codex-1\n", oid="3" * 40)
+    author = derive_author({"author": {"login": "jan"}, "commits": [older, newer, again]})
+    assert author["vendor"] == "codex" and author["session_id"] == "codex-1"
+    assert author["authors"] == [
+        {"vendor": "codex", "session_id": "codex-1"},
+        {"vendor": "claude_code", "session_id": "session_new"},
+    ]
+
+
+def test_bind_records_every_author_identity() -> None:
+    review = {"vendors": [{"vendor": "codex", "success": True, "agent_id": "codex-1"}]}
+    author = {
+        "login": "jan", "vendor": "claude_code", "session_id": "s-2",
+        "authors": [
+            {"vendor": "codex", "session_id": "codex-1"},
+            {"vendor": "claude_code", "session_id": "s-2"},
+        ],
+    }
+    binding = bind(review, head_sha=SHA_A, patch_id=None, author=author)["binding"]
+    assert binding["author"] == {"login": "jan", "vendor": "claude_code", "session_id": "s-2"}
+    assert binding["authors"] == author["authors"]
+    assert validate_binding(binding) == []
+
+
+def test_bind_without_authors_falls_back_to_the_single_author() -> None:
+    review = {"vendors": [{"vendor": "codex", "success": True, "agent_id": "x"}]}
+    author = {"login": "jan", "vendor": "claude_code", "session_id": "s-2"}
+    binding = bind(review, head_sha=SHA_A, patch_id=None, author=author)["binding"]
+    assert binding["authors"] == [{"vendor": "claude_code", "session_id": "s-2"}]
+
+
+def test_reviewer_that_authored_an_earlier_commit_is_rejected() -> None:
+    binding = _binding(
+        reviewers=[{"vendor": "codex", "family": "openai", "model": "gpt-5", "agent_id": "codex-1"}],
+        author={"login": "bot", "vendor": "claude_code", "session_id": "s-2"},
+        authors=[
+            {"vendor": "codex", "session_id": "codex-1"},
+            {"vendor": "claude_code", "session_id": "s-2"},
+        ],
+    )
+    reason = independence_violation(binding)
+    assert reason is not None and "self-review" in reason
+
+
+def test_earlier_commit_author_with_unknown_session_blocks_its_vendor() -> None:
+    binding = _binding(
+        reviewers=[{"vendor": "codex", "family": "openai", "model": "gpt-5", "agent_id": "codex-1"}],
+        author={"login": "bot", "vendor": "claude_code", "session_id": "s-2"},
+        authors=[
+            {"vendor": "codex", "session_id": None},
+            {"vendor": "claude_code", "session_id": "s-2"},
+        ],
+    )
+    reason = independence_violation(binding)
+    assert reason is not None and "cannot be shown" in reason
+
+
+def test_validate_binding_rejects_malformed_authors() -> None:
+    errors = validate_binding(_binding(authors=[{"session_id": "x"}]))
+    assert any("authors" in error for error in errors)
+    assert validate_binding(_binding(authors="codex"))

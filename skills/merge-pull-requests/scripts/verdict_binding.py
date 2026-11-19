@@ -88,6 +88,36 @@ def _normalize_author(author: Mapping[str, Any] | None) -> dict[str, Any]:
     return {key: source.get(key) or None for key in _AUTHOR_KEYS}
 
 
+def _identity(vendor: Any, session_id: Any) -> dict[str, Any]:
+    return {"vendor": vendor or None, "session_id": session_id or None}
+
+
+def _dedupe_identities(identities: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    seen: list[dict[str, Any]] = []
+    for identity in identities:
+        if identity["vendor"] and identity not in seen:
+            seen.append(identity)
+    return seen
+
+
+def author_identities(author: Mapping[str, Any] | None) -> list[dict[str, Any]]:
+    """Every agent ``{vendor, session_id}`` that authored part of the PR.
+
+    ``author["authors"]`` (from ``derive_author``) lists each commit's identity;
+    the single ``author`` identity is always included so a caller that only
+    knows the latest commit still gets its check.
+    """
+    if not isinstance(author, Mapping):
+        return []
+    identities = [
+        _identity(entry.get("vendor"), entry.get("session_id"))
+        for entry in author.get("authors") or []
+        if isinstance(entry, Mapping)
+    ]
+    identities.append(_identity(author.get("vendor"), author.get("session_id")))
+    return _dedupe_identities(identities)
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -136,6 +166,7 @@ def bind(
         "patch_id": patch_id,
         "reviewers": reviewers,
         "author": normalized_author,
+        "authors": author_identities(author),
         "same_family": _same_family(reviewers, normalized_author),
         "bound_at": now or _now(),
     }
@@ -177,16 +208,27 @@ def stale_reason(binding: Any, live_head_sha: str | None) -> str:
 def independence_violation(binding: Any) -> str | None:
     """Return why the review was not independent of the author, or None.
 
-    A reviewer from the author's own vendor is accepted only when the author's
+    Every author identity counts, not just the latest commit's: ``authors``
+    lists each commit's ``{vendor, session_id}`` and ``author`` is always
+    checked too (bindings written before ``authors`` existed carry only it).
+    A reviewer from an author's vendor is accepted only when that author's
     session is known and differs from the reviewer's agent id.
     """
     if not isinstance(binding, Mapping):
         return None
     author = binding.get("author") if isinstance(binding.get("author"), Mapping) else {}
-    author_vendor = author.get("vendor")
-    if not author_vendor:
-        return None
-    session_id = author.get("session_id")
+    authors = binding.get("authors") if isinstance(binding.get("authors"), list) else []
+    identities = author_identities({**author, "authors": authors})
+    for identity in identities:
+        reason = _identity_violation(binding, identity["vendor"], identity["session_id"])
+        if reason:
+            return reason
+    return None
+
+
+def _identity_violation(
+    binding: Mapping[str, Any], author_vendor: str, session_id: str | None,
+) -> str | None:
     for reviewer in binding.get("reviewers") or []:
         if not isinstance(reviewer, Mapping) or reviewer.get("vendor") != author_vendor:
             continue
@@ -234,22 +276,27 @@ def _identity_from_commit(commit: Mapping[str, Any]) -> tuple[str, str | None] |
 
 
 def derive_author(pr_view: Mapping[str, Any]) -> dict[str, Any]:
-    """Derive ``{login, vendor, session_id}`` from ``gh pr view --json author,commits``.
+    """Derive the PR author from ``gh pr view --json author,commits``.
 
-    The latest commit carrying an agent trailer decides; a PR with none is
-    treated as human-authored (vendor and session null).
+    Returns ``{login, vendor, session_id, authors}``. ``vendor`` and
+    ``session_id`` come from the latest commit carrying an agent trailer (for
+    display); ``authors`` lists every commit's agent identity, de-duplicated in
+    commit order, so independence is checked against all of them. A PR with no
+    trailer is treated as human-authored (vendor and session null, no authors).
     """
     author = pr_view.get("author") if isinstance(pr_view, Mapping) else None
     login = author.get("login") if isinstance(author, Mapping) else None
     result: dict[str, Any] = {"login": login or None, "vendor": None, "session_id": None}
     commits = pr_view.get("commits") if isinstance(pr_view, Mapping) else None
-    for commit in reversed(list(commits or [])):
+    identities: list[dict[str, Any]] = []
+    for commit in commits or []:
         if not isinstance(commit, Mapping):
             continue
         identity = _identity_from_commit(commit)
         if identity:
             result["vendor"], result["session_id"] = identity
-            break
+            identities.append(_identity(*identity))
+    result["authors"] = _dedupe_identities(identities)
     return result
 
 
@@ -279,6 +326,17 @@ def validate_binding(binding: Any) -> list[str]:
     author = binding.get("author")
     if not isinstance(author, Mapping) or any(key not in author for key in _AUTHOR_KEYS):
         errors.append("binding.author must be an object with login, vendor and session_id")
+    authors = binding.get("authors")
+    if authors is not None and (
+        not isinstance(authors, list)
+        or any(
+            not isinstance(entry, Mapping)
+            or not _nonblank_str(entry.get("vendor"))
+            or "session_id" not in entry
+            for entry in authors
+        )
+    ):
+        errors.append("binding.authors must be a list of {vendor, session_id} objects")
     if "same_family" not in binding or binding["same_family"] not in (True, False, None):
         errors.append("binding.same_family must be a boolean or null")
     if not isinstance(binding.get("bound_at"), str):

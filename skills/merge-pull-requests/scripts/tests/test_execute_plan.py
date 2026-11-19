@@ -803,7 +803,7 @@ def test_missing_live_head_blocks(tmp_path: Path) -> None:
         ),
     )
     assert result["outcome"] == "pending"
-    assert "head SHA" in result["reason"]
+    assert result["reason"] == "live head sha unavailable"
 
 
 # --- --waive-review (operator waiver) ----------------------------------------
@@ -991,3 +991,325 @@ def test_stored_binding_with_empty_or_anonymous_reviewers_is_not_reused(
     assert dispatched == [11]
     assert result["vendor_review"].get("reused_stored_verdict") is not True
     assert result["vendor_review"]["binding"]["reviewers"][0]["agent_id"] == "codex-local"
+
+
+# --- plan-iteration scenarios (PR #701 remediation) ---------------------------
+
+
+# Scenario ID: merge-pull-requests.missing-live-head-blocks
+@pytest.mark.parametrize("head_sha", [None, "", "not-a-sha", "C" * 40, "c" * 39])
+def test_missing_or_malformed_live_head_blocks_a_waived_merge(
+    tmp_path: Path, head_sha: str | None,
+) -> None:
+    path = persisted_plan(tmp_path, _gated_implementation_plan())
+
+    result = execute_node(
+        path,
+        11,
+        approve_gate=True,
+        waive_review="hotfix approved in incident channel",
+        waiver_approver="jan",
+        dependencies=dependencies(
+            get_live_status=lambda _pr: passing_status(head_sha=head_sha),
+            merge=lambda *_args: pytest.fail("a merge without a live head must not run"),
+        ),
+    )
+    assert result["outcome"] == "pending"
+    assert result["reason"] == "live head sha unavailable"
+    state = FilePlanStore(path).load()["nodes"][1]["state"]
+    assert state["blocking_reason"] == "live head sha unavailable"
+
+
+def test_missing_live_head_blocks_the_cheap_path(tmp_path: Path) -> None:
+    plan = valid_plan()
+    plan["nodes"][0]["state"]["outcome"] = "merged"
+    path = persisted_plan(tmp_path, plan)
+
+    result = execute_node(
+        path,
+        11,
+        dependencies=dependencies(
+            get_live_status=lambda _pr: passing_status(head_sha=None),
+            merge=lambda *_args: pytest.fail("a merge without a live head must not run"),
+        ),
+    )
+    assert result["outcome"] == "pending"
+    assert result["reason"] == "live head sha unavailable"
+
+
+# Scenario ID: merge-pull-requests.stale-policy-waiver-cleared
+def _stale_small_pr_waiver() -> dict:
+    return {
+        "reason": "vendor review not required by policy (small_pr)",
+        "source": "policy",
+        "approver": "policy",
+        "recorded_at": "2026-11-01T00:00:00Z",
+        "eligibility_reason": "small_pr",
+        "waived_head_sha": HEAD,
+    }
+
+
+def test_stored_policy_waiver_is_cleared_when_the_pr_becomes_eligible(tmp_path: Path) -> None:
+    plan = _gated_implementation_plan()
+    plan["nodes"][1]["state"]["review_waiver"] = _stale_small_pr_waiver()
+    path = persisted_plan(tmp_path, plan)
+
+    result = execute_node(
+        path,
+        11,
+        approve_gate=True,
+        claim_id="run-1",
+        dependencies=dependencies(
+            review_vendor=lambda *_args: {
+                "eligibility": {"eligible": True, "reason": "needs_review"},
+                "dispatched": False,
+                "vendors": [],
+                "consensus": None,
+                "error": "review vendor unavailable",
+            },
+            merge=lambda *_args: pytest.fail("a stale policy waiver must not merge"),
+        ),
+    )
+    assert result["action"] == "vendor_review_gate"
+    assert result["outcome"] == "pending"
+    assert FilePlanStore(path).load()["nodes"][1]["state"]["review_waiver"] is None
+
+
+def test_stored_policy_waiver_is_cleared_when_the_live_reason_differs(tmp_path: Path) -> None:
+    plan = _gated_implementation_plan()
+    state = plan["nodes"][1]["state"]
+    state["review_waiver"] = _stale_small_pr_waiver()
+    # Replaying the same claim must not resurrect a policy waiver either.
+    state["outcome"] = "in_progress"
+    state["claimed_by"] = "run-1"
+    path = persisted_plan(tmp_path, plan)
+
+    result = execute_node(
+        path,
+        11,
+        approve_gate=True,
+        claim_id="run-1",
+        dependencies=dependencies(
+            review_vendor=lambda *_args: {
+                "eligibility": {"eligible": False, "reason": "draft_pr"},
+                "consensus": None,
+            },
+            merge=lambda *_args: pytest.fail("a stale policy waiver must not merge"),
+        ),
+    )
+    assert result["outcome"] == "pending"
+    assert FilePlanStore(path).load()["nodes"][1]["state"]["review_waiver"] is None
+
+
+def test_policy_waiver_records_the_live_head(tmp_path: Path) -> None:
+    path = persisted_plan(tmp_path, _gated_implementation_plan())
+
+    execute_node(
+        path,
+        11,
+        approve_gate=True,
+        dependencies=dependencies(
+            review_vendor=lambda *_args: {
+                "eligibility": {"eligible": False, "reason": "small_pr"},
+                "consensus": None,
+            },
+        ),
+    )
+    waiver = FilePlanStore(path).load()["nodes"][1]["state"]["review_waiver"]
+    assert waiver["waived_head_sha"] == HEAD
+
+
+def test_operator_waiver_records_the_live_head(tmp_path: Path) -> None:
+    path = persisted_plan(tmp_path, _gated_implementation_plan())
+    merges: list[tuple] = []
+
+    execute_node(
+        path,
+        11,
+        approve_gate=True,
+        waive_review="hotfix approved in incident channel",
+        waiver_approver="jan",
+        dependencies=dependencies(
+            review_vendor=lambda *_args: {
+                "eligibility": {"eligible": True, "reason": "needs_review"},
+                "dispatched": False,
+                "vendors": [],
+                "consensus": None,
+                "error": "review vendor unavailable",
+            },
+            merge=lambda *args: merges.append(args) or {"success": True, "status": "merged"},
+        ),
+    )
+    assert merges[0][3]["waived_head_sha"] == HEAD
+
+
+def test_replayed_operator_waiver_is_cleared_when_the_head_moved(tmp_path: Path) -> None:
+    plan = _gated_implementation_plan()
+    state = plan["nodes"][1]["state"]
+    state["outcome"] = "in_progress"
+    state["claimed_by"] = "run-1"
+    state["review_waiver"] = {
+        "reason": "hotfix approved in incident channel",
+        "source": "operator",
+        "approver": "jan",
+        "recorded_at": "2026-11-01T00:00:00Z",
+        "eligibility_reason": None,
+        "waived_head_sha": MOVED,
+    }
+    path = persisted_plan(tmp_path, plan)
+
+    result = execute_node(
+        path,
+        11,
+        approve_gate=True,
+        claim_id="run-1",
+        dependencies=dependencies(
+            review_vendor=lambda *_args: {
+                "eligibility": {"eligible": True, "reason": "needs_review"},
+                "dispatched": False,
+                "vendors": [],
+                "consensus": None,
+                "error": "review vendor unavailable",
+            },
+            merge=lambda *_args: pytest.fail("a waiver for another head must not merge"),
+        ),
+    )
+    assert result["outcome"] == "pending"
+    assert FilePlanStore(path).load()["nodes"][1]["state"]["review_waiver"] is None
+
+
+def test_replayed_operator_waiver_for_the_live_head_still_applies(tmp_path: Path) -> None:
+    plan = _gated_implementation_plan()
+    state = plan["nodes"][1]["state"]
+    state["outcome"] = "in_progress"
+    state["claimed_by"] = "run-1"
+    state["review_waiver"] = {
+        "reason": "hotfix approved in incident channel",
+        "source": "operator",
+        "approver": "jan",
+        "recorded_at": "2026-11-01T00:00:00Z",
+        "eligibility_reason": None,
+        "waived_head_sha": HEAD,
+    }
+    path = persisted_plan(tmp_path, plan)
+
+    result = execute_node(
+        path,
+        11,
+        approve_gate=True,
+        claim_id="run-1",
+        dependencies=dependencies(
+            review_vendor=lambda *_args: {
+                "eligibility": {"eligible": True, "reason": "needs_review"},
+                "dispatched": False,
+                "vendors": [],
+                "consensus": None,
+                "error": "review vendor unavailable",
+            },
+        ),
+    )
+    assert result["outcome"] == "merged"
+
+
+# Scenario ID: merge-pull-requests.head-moved-during-review-blocks
+def test_head_moved_during_review_is_not_bound_and_blocks(tmp_path: Path) -> None:
+    path = persisted_plan(tmp_path, _gated_implementation_plan())
+
+    def moved_review(*_args) -> dict:
+        review = clean_review()
+        review["reviewed_head_sha"] = HEAD
+        review["head_moved"] = True
+        return review
+
+    result = execute_node(
+        path,
+        11,
+        approve_gate=True,
+        dependencies=dependencies(
+            review_vendor=moved_review,
+            merge=lambda *_args: pytest.fail("a review of a moving head must not merge"),
+        ),
+    )
+    assert result["action"] == "vendor_review_gate"
+    assert result["outcome"] == "pending"
+    assert result["reason"] == "head moved during review"
+    verdict = FilePlanStore(path).load()["nodes"][1]["state"]["vendor_verdict"]
+    assert not (verdict or {}).get("binding")
+
+
+def test_fresh_review_binds_the_pre_dispatch_head(tmp_path: Path) -> None:
+    path = persisted_plan(tmp_path, _gated_implementation_plan())
+
+    def review_of_older_head(*_args) -> dict:
+        review = clean_review()
+        review["reviewed_head_sha"] = MOVED
+        review["head_moved"] = False
+        return review
+
+    result = execute_node(
+        path,
+        11,
+        approve_gate=True,
+        dependencies=dependencies(
+            review_vendor=review_of_older_head,
+            merge=lambda *_args: pytest.fail("a review of another head must not merge"),
+        ),
+    )
+    assert result["outcome"] == "pending"
+    binding = FilePlanStore(path).load()["nodes"][1]["state"]["vendor_verdict"]["binding"]
+    assert binding["head_sha"] == MOVED
+
+
+# Scenario ID: merge-pull-requests.earlier-commit-author-rejected
+def test_reviewer_that_authored_an_earlier_commit_blocks(tmp_path: Path) -> None:
+    path = persisted_plan(tmp_path, _gated_implementation_plan())
+    author = {
+        "login": "bot",
+        "vendor": "claude_code",
+        "session_id": "later-session",
+        "authors": [
+            {"vendor": "codex", "session_id": "codex-local"},
+            {"vendor": "claude_code", "session_id": "later-session"},
+        ],
+    }
+
+    result = execute_node(
+        path,
+        11,
+        approve_gate=True,
+        dependencies=dependencies(
+            pr_author=lambda _pr: dict(author),
+            merge=lambda *_args: pytest.fail("a self-review must not merge"),
+        ),
+    )
+    assert result["outcome"] == "pending"
+    assert "self-review" in result["reason"]
+    binding = FilePlanStore(path).load()["nodes"][1]["state"]["vendor_verdict"]["binding"]
+    assert {"vendor": "codex", "session_id": "codex-local"} in binding["authors"]
+
+
+def test_stored_verdict_from_an_earlier_commit_author_is_not_reused(tmp_path: Path) -> None:
+    path = persisted_plan(tmp_path, _gated_implementation_plan(_stored(HEAD, None)))
+    author = {
+        "login": "bot",
+        "vendor": "claude_code",
+        "session_id": "later-session",
+        "authors": [
+            {"vendor": "codex", "session_id": "codex-local"},
+            {"vendor": "claude_code", "session_id": "later-session"},
+        ],
+    }
+    dispatched: list[int] = []
+
+    result = execute_node(
+        path,
+        11,
+        approve_gate=True,
+        dependencies=dependencies(
+            pr_author=lambda _pr: dict(author),
+            review_vendor=lambda pr, *_rest: dispatched.append(pr) or clean_review(),
+            merge=lambda *_args: pytest.fail("a self-review must not merge"),
+        ),
+    )
+    assert dispatched == [11]
+    assert result["outcome"] == "pending"

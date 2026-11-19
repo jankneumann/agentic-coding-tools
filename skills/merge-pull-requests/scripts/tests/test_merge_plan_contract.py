@@ -117,12 +117,17 @@ def test_schema_1_2_node_carries_review_waiver() -> None:
     )
     validate_plan(plan)
 
+    plan["nodes"][1]["state"]["review_waiver"] = _waiver(waived_head_sha="c" * 40)
+    validate_plan(plan)
+
 
 @pytest.mark.parametrize(
     "waiver",
     [
         _waiver(source="vendor"),
         _waiver(extra="field"),
+        _waiver(waived_head_sha="C" * 40),
+        _waiver(waived_head_sha="c" * 39),
         {k: v for k, v in _waiver().items() if k != "approver"},
     ],
 )

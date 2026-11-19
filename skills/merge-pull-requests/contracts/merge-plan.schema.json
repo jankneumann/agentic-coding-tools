@@ -85,7 +85,13 @@
                 "source": {"enum": ["policy", "operator"]},
                 "approver": {"type": "string", "minLength": 1},
                 "recorded_at": {"type": "string", "format": "date-time"},
-                "eligibility_reason": {"type": ["string", "null"]}
+                "eligibility_reason": {"type": ["string", "null"]},
+                "waived_head_sha": {
+                  "anyOf": [
+                    {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+                    {"type": "null"}
+                  ]
+                }
               }
             },
             "blocking_reason": {"type": ["string", "null"]}
