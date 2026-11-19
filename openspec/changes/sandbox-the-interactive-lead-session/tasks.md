@@ -51,14 +51,14 @@ Checkpoint: probe tests pass; running the probe in the cloud container prints `s
 
 ## 4. Guidance
 
-- [ ] 4.1 Write failing tests for the documentation
+- [x] 4.1 Write failing tests for the documentation
   - File: `skills/tests/session-bootstrap/test_lead_session_sandbox_docs.py`
   - Spec scenarios: Claude-specific guidance matches the settings; Guide covers prerequisites and rollback
   - Size: S
-- [ ] 4.2 Rewrite the matchable-Bash section of `CLAUDE.md`
+- [x] 4.2 Rewrite the matchable-Bash section of `CLAUDE.md`
   - Depends on: 4.1
   - Size: S
-- [ ] 4.3 Write `docs/guides/lead-session-sandbox.md`
+- [x] 4.3 Write `docs/guides/lead-session-sandbox.md`
   - Includes the host verification checklist from design.md. Depends on: 4.1
   - Size: S
 
