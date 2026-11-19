@@ -1,0 +1,67 @@
+schema_version: 1
+
+feature:
+  id: audit-vendor-headless-auth-and-terms
+  title: "Audit vendor headless auth and terms"
+  plan_revision: 1
+  created_by: claude-code
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/audit-vendor-headless-auth-and-terms/contracts/README.md"
+    files:
+      - "openspec/changes/audit-vendor-headless-auth-and-terms/contracts/README.md"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-main
+    title: "Audit table, observation script, guide and corrections"
+    task_type: backend
+    description: |
+      Single sequential package: tasks 1.1-3.4. The table, guide and tests
+      describe the same facts, so there is no safe parallel split. Task 4.1
+      is for the operator on a host.
+    role: runner
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "docs/guides/vendor-auth-audit.yaml"
+        - "docs/proposals/factory-local-cloud-split.md"
+      keys: []
+      ttl_minutes: 120
+      reason: "Shared audit table and proposal text"
+    scope:
+      write_allow:
+        - "**"
+      read_allow:
+        - "**"
+    worktree:
+      name: audit-vendor-headless-auth-and-terms
+      mode: shared
+    timeout_minutes: 60
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "vendor-status tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/vendor-status -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["vendor_status_tests_green"]
+    inputs: {}
+    outputs:
+      result_keys: ["vendor_status_tests_green"]
+      artifacts: ["docs/guides/vendor-auth-audit.yaml", "docs/guides/vendor-auth-audit.md", "skills/vendor-status/scripts/observe_vendor_auth.py"]

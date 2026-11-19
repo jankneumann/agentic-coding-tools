@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-11-19T02:40:49.963388+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "trust_resolution_failed: 500: Trust level unresolvable for registry-declared agent 'claude-remote' (type 'claude_code'): profile lookup failed: [Errno -2] Name or service not known. The agent_profiles projection of agents.yaml is broken; restart the coordinator to re-run profile sync. (HTTP 200)",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Refined the roadmap scaffold for sandboxed-flow ri-02 into a full plan: a machine-readable audit table of vendor terms and credential mechanics with an evidence level per field, a guide, a metadata-only observation script, and corrections to two existing documents.",
+    "completed_work": [
+      "proposal.md, design.md, tasks.md, spec delta under vendor-auth-audit, contracts stub, work-packages.yaml",
+      "Discovery questions and both approval gates not asked: item pre-approved in the roadmap and dispatched by autopilot-roadmap"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "The YAML audit table is the source and the guide explains it",
+        "rationale": "ri-03 reads one file; tests can hold verdicts to a quote and source.",
+        "capability": "vendor-auth-audit",
+        "supersedes": null
+      },
+      {
+        "title": "Each mechanics field carries an evidence level",
+        "rationale": "The container cannot run three of the four CLIs, so documented and observed facts must stay distinguishable.",
+        "capability": "vendor-auth-audit",
+        "supersedes": null
+      },
+      {
+        "title": "Unattended lanes without a permitted verdict require an API-key or gateway-key lane",
+        "rationale": "An unaddressed lane is not treated as permission.",
+        "capability": "vendor-auth-audit",
+        "supersedes": null
+      },
+      {
+        "title": "The observation script reports metadata only",
+        "rationale": "It must never read credential content.",
+        "capability": "vendor-auth-audit",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "/implement-feature audit-vendor-headless-auth-and-terms"
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/roadmaps/sandboxed-flow/claude-auth-strategy.md",
+        "description": "quotes to re-verify"
+      },
+      {
+        "path": "docs/proposals/factory-local-cloud-split.md",
+        "description": "statement to correct"
+      }
+    ]
+  }
+}
