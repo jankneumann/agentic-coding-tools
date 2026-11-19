@@ -26,6 +26,7 @@ Read these before contributing infrastructure changes:
 - [Cloud vs Local Execution](../cloud-vs-local-execution.md) — Environment detection and worktree short-circuit behavior
 - [Cloudflare Setup](../cloudflare-setup.md) — Cloudflare integration for hosted endpoints
 - [Lead-Session Sandbox](lead-session-sandbox.md) — Bash sandbox for the interactive session: prerequisites, host verification with the probe, rollback
+- [Vendor Auth Audit](vendor-auth-audit.md) — Which credential each vendor CLI may use per lane, how each stores and refreshes it, and how to observe that on a host
 - [Self-Hosted CI Runners](self-hosted-ci-runners.md) — Operator runbook O1-O12 for routing CI to ephemeral GX10 runners, with rollback and fork-PR isolation
 - [Local Migration](../local-migration.md) — Runbook for moving the coordinator from Railway to a local box behind a Cloudflare Tunnel
 - [OpenBao Secret Management](../openbao-secret-management.md) — Setup options, seeding, API key resolution for SDK dispatch

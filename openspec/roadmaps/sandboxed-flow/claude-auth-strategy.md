@@ -1,13 +1,13 @@
 # Claude: subscription login or API key, per lane
 
-*Research note, 2026-11-19. Input to `sandboxed-flow` ri-02 (vendor audit) and
-ri-03 (credential profile). Covers Claude only; Codex, Antigravity and Grok
-terms are still to be audited under ri-02.*
+*Research note, 2026-11-19. Input to `sandboxed-flow` ri-03 (credential
+profile). Covers Claude only. The audit of all four vendors is in
+`docs/guides/vendor-auth-audit.md`.*
 
 **This is an engineering reading of published terms, not legal advice.** The
-quotes were extracted through a fetch tool that summarises pages, then
-re-fetched to confirm; the raw HTML was not inspected. ri-02 must re-verify
-each quote against the live page before any lane depends on it.
+quotes below were checked against the live pages on 2026-11-19, in each page's
+own text, under ri-02. Where a quote was wrong or incomplete, it was corrected
+here.
 
 ## What the text says
 
@@ -18,18 +18,22 @@ there. It draws it between **your own use of the official client** and
 
 Explicitly permitted on a subscription:
 
-- Headless runs. "When you're signed in with your Claude plan, the Claude
-  Agent SDK and claude -p still draw from your subscription limits."
+- Headless runs. "Nothing changes for your plan: when you're signed in with
+  your Claude plan, the Claude Agent SDK and claude -p still draw from your
+  subscription limits."
   ([support article 15036540](https://support.claude.com/en/articles/15036540-use-the-claude-agent-sdk-with-your-claude-plan), update of 2026-10-07)
 - Scripts and CI through a purpose-made token. "For CI pipelines, scripts, or
   other environments where interactive browser login isn't available,
-  generate a one-year OAuth token with claude setup-token." That token "can
+  generate a one-year OAuth token with `claude setup-token`:" That token "can
   only make model requests".
   ([authentication](https://code.claude.com/docs/en/authentication.md))
-- Cloud sessions and Anthropic-hosted scheduled tasks, which "always use your
-  subscription credentials"; an API key set in the cloud environment does not
-  override them. ([authentication](https://code.claude.com/docs/en/authentication.md),
-  [routines](https://code.claude.com/docs/en/routines.md))
+- Cloud sessions, which "always use your subscription credentials"; an API key
+  set in the cloud environment does not override them.
+  ([authentication](https://code.claude.com/docs/en/authentication.md))
+- Anthropic-hosted scheduled tasks. "`/schedule` requires a claude.ai
+  subscription login." and "Scheduled tasks draw down subscription usage the
+  same way interactive sessions do."
+  ([routines](https://code.claude.com/docs/en/routines.md))
 
 Explicitly prohibited on a subscription:
 
@@ -38,6 +42,9 @@ Explicitly prohibited on a subscription:
   Ultra plan credentials on behalf of their users. Moreover, developers may
   not collect, store, or intermediate Claude.ai credentials or session
   tokens." ([legal and compliance](https://code.claude.com/docs/en/legal-and-compliance.md))
+  This sentence addresses people who build products. The same page says: "Nor
+  does it prevent an end user from signing in to the unmodified Claude Code
+  binary with their own Claude subscription".
 - "Resell, proxy, or otherwise provide access to Claude through unauthorized
   means", including "services that route requests through consumer
   subscriptions". ([usage policy](https://www.anthropic.com/legal/aup), effective 2026-11-12)
@@ -47,8 +54,9 @@ Explicitly prohibited on a subscription:
 The ceiling, and the ambiguity:
 
 - OAuth "is designed to support ordinary use of Claude Code and other native
-  Anthropic applications", and plan limits "assume ordinary, individual usage
-  of Claude Code and the Agent SDK". "Ordinary, individual" is not defined.
+  Anthropic applications". "Advertised usage limits for Pro, Max, and Ultra
+  plans assume ordinary, individual usage of Claude Code and the Agent SDK."
+  "Ordinary, individual" is not defined.
 - The consumer terms forbid access "through automated or non-human means"
   except with an API key "or where we otherwise explicitly permit it". The
   support article and the `setup-token` documentation are the explicit
@@ -62,7 +70,9 @@ The ceiling, and the ambiguity:
 
 Relevant to cost: Max, Ultra and Team plans include monthly API credits that
 cover `claude -p` and the Agent SDK when run with an API key from the linked
-Console organisation; Pro does not.
+Console organisation. "Free, Pro, and Enterprise plans aren't eligible". Runs
+from the GitHub Action, an IDE extension or the desktop app are not covered,
+"even with -p".
 ([support article 17154008](https://support.claude.com/en/articles/17154008-monthly-api-credits-for-max-ultra-and-team-plans))
 
 ## Strategy
@@ -90,8 +100,13 @@ Credential handling rules, which bind the roadmap items:
 2. **Do not put a Claude subscription token behind an injecting proxy.** The
    text forbids intermediating session tokens and proxying consumer
    subscriptions; whether that reaches a personal single-user proxy is
-   unstated, and nothing is gained over rule 1. This narrows ri-07: for
-   Claude, boundary injection is tested with an API key only.
+   unstated, and nothing is gained over rule 1. The documentation does describe
+   a pass-through gateway used with a saved claude.ai login: such a gateway
+   "must forward `Authorization` and the OAuth capability in `anthropic-beta`"
+   ([LLM gateway](https://code.claude.com/docs/en/llm-gateway.md)). That is a
+   proxy that forwards the client's own header. A proxy that holds the token
+   and adds it is not described anywhere. This narrows ri-07: for Claude,
+   boundary injection is tested with an API key only.
 3. **Do not store a subscription token in the coordinator or OpenBao.** Those
    hold API keys and gateway keys. The subscription token lives in the
    operator's own environment or keychain and in the operator's own CI
@@ -109,13 +124,24 @@ Credential handling rules, which bind the roadmap items:
 
 ## What this changes in the repository
 
-- `docs/proposals/factory-local-cloud-split.md` states that the Claude review
-  lane uses an API key "in line with the subscription terms". That remains the
-  right choice for the unattended review worker, but the reason is the
-  undefined ceiling and the daemon's silence in the text, not a prohibition on
-  headless use. ri-02 should correct the wording when it lands the audit.
-- Bare mode (`claude --bare`) never reads OAuth credentials, so any dispatch
-  argv that uses it must be on the API-key lane.
+- `docs/proposals/factory-local-cloud-split.md` stated that the Claude review
+  lane uses an API key because the subscription terms require it. The API key
+  remains the right choice for the unattended review worker, but the reason is
+  the undefined ceiling and the text's silence about a daemon, not a
+  prohibition on headless use. ri-02 corrected the wording there.
+- Bare mode never reads the subscription. "In bare mode, Claude Code never
+  reads OAuth credentials or the system keychain." A dispatch argv that uses
+  `--bare` must be on the API-key lane. This will matter more later: "`--bare`
+  is the recommended mode for scripted and SDK calls, and will become the
+  default for `-p` in a future release."
+  ([headless](https://code.claude.com/docs/en/headless.md)) When that happens,
+  a subscription dispatch has to opt out of bare mode explicitly, and a test
+  should fail if it does not.
+- An API key outranks the `setup-token` token. "In non-interactive mode
+  (`-p`), the key is always used when present."
+  ([authentication](https://code.claude.com/docs/en/authentication.md)) A
+  subscription dispatch must run with `ANTHROPIC_API_KEY` unset, or it bills
+  the key without saying so.
 
 ## Operator decisions (2026-11-19)
 

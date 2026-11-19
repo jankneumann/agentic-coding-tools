@@ -387,10 +387,13 @@ Phase 2, cut down to one job type.
    - Write access only to `<out>/<vendor>/`.
    - Egress only to that vendor's API host and `coord.rotkohl.ai`.
    - The env allowlist from 0.6.
-   - Each vendor CLI uses its own OAuth login. Codex, Gemini and opencode
-     permit programmatic CLI use. The Claude lane uses the **API key**
-     (Phase 4), not the subscription, in line with the subscription terms
-     recorded in `sandboxed-harness-execution.md:9`.
+   - The Claude lane uses the **API key** (Phase 4), not the subscription.
+     The published text permits `claude -p` on a subscription but says
+     nothing about a worker that runs with no operator session, and it does
+     not define the "ordinary, individual usage" that plan limits assume. No
+     other vendor's text addresses an unattended worker either, so those
+     lanes also use a key until one does. The per-vendor, per-lane table is
+     in `docs/guides/vendor-auth-audit.md`.
 4. `POST /reviews/results` with one entry per lane
    (`vendor, verified, verdict, model, findings, error`), stored in
    `review_lane_results` keyed `(job, vendor)`, then `/work/complete`. Only the
@@ -694,15 +697,21 @@ that no approval-notification channel exists. That is what lets
 
 ## Risks and open questions
 
-- **Subscription terms.** The Agent SDK documentation says third-party products
-  may not offer claude.ai login or subscription rate limits. Personal-script
-  use is not documented either way. This design keeps the Claude subscription
-  in interactive and cloud-session roles and uses API-key credit for automated
-  Claude review. Verify the terms of the other three vendors before making them
-  unattended queue consumers.
-- **Where the $200 comes from.** No subscription-tied SDK credit pool is
-  documented. If the credit is tied to the subscription, Phase 4 lanes 1 and 4
-  need a different credential path.
+- **Subscription terms.** Anthropic documents personal `claude -p` use as
+  drawing on subscription limits, and forbids third-party products from
+  offering claude.ai login. Nothing addresses an always-on worker. This design
+  keeps the Claude subscription in interactive, attended and cloud-session
+  roles and uses API-key credit for unattended Claude review. The audit in
+  `docs/guides/vendor-auth-audit.md` found the unattended lane unaddressed for
+  Codex, Antigravity and Grok as well, and could not read their licence text
+  directly. Do not make them unattended queue consumers on a subscription
+  until that text has been read.
+- **Where the $200 comes from.** Max, Ultra and Team plans include monthly API
+  credits that cover `claude -p` and the Agent SDK when run with an API key
+  from the linked Console organisation
+  ([support article 17154008](https://support.claude.com/en/articles/17154008-monthly-api-credits-for-max-ultra-and-team-plans)).
+  Free, Pro and Enterprise plans are not eligible, and runs from the GitHub
+  Action are not covered.
 - **The classifier allows pushes to the default branch.** Branch protection is
   the only control here, so verify it before turning on Auto mode in the cloud.
 - **Network secrets with non-Anthropic CLIs** are untested. Test with `curl`

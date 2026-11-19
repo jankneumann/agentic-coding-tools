@@ -30,17 +30,17 @@ Checkpoint: both test files pass.
 
 ## 3. Guide and corrections
 
-- [ ] 3.1 Write failing tests for the guide and the corrected statements
+- [x] 3.1 Write failing tests for the guide and the corrected statements
   - File: `skills/tests/vendor-status/test_vendor_auth_audit_docs.py`
   - Spec scenarios: The guide covers every vendor and lane; The Claude strategy note records its verification; The factory proposal no longer cites the wrong reason
   - Size: S
-- [ ] 3.2 Write `docs/guides/vendor-auth-audit.md` and index it
+- [x] 3.2 Write `docs/guides/vendor-auth-audit.md` and index it
   - Depends on: 1.3, 3.1
   - Size: M
-- [ ] 3.3 Correct the quotes in `claude-auth-strategy.md` and add the verification note
+- [x] 3.3 Correct the quotes in `claude-auth-strategy.md` and add the verification note
   - Depends on: 1.2
   - Size: S
-- [ ] 3.4 Correct `docs/proposals/factory-local-cloud-split.md`
+- [x] 3.4 Correct `docs/proposals/factory-local-cloud-split.md`
   - Depends on: 1.3
   - Size: S
 
