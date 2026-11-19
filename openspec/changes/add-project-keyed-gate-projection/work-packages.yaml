@@ -1,0 +1,76 @@
+schema_version: 1
+
+feature:
+  id: add-project-keyed-gate-projection
+  title: "Add project-keyed gate projection"
+  plan_revision: 1
+  created_by: claude-code
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/contracts/agent-coordinator/openapi/gates.yaml"
+    files:
+      - "openspec/contracts/agent-coordinator/openapi/gates.yaml"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-main
+    title: "Gate projection store, routes and repository collector"
+    task_type: backend
+    description: |
+      Single sequential package: tasks 1.1-4.3. The collector's snapshot is
+      the service's request model, so the two sides are built against one
+      contract in one pass. Task 5.1 is for the operator on the deployed
+      coordinator.
+    role: runner
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "agent-coordinator/src/config.py"
+        - "agent-coordinator/src/coordination_api.py"
+      keys: []
+      ttl_minutes: 120
+      reason: "Shared coordinator config and route installation"
+    scope:
+      write_allow:
+        - "**"
+      read_allow:
+        - "**"
+    worktree:
+      name: add-project-keyed-gate-projection
+      mode: shared
+    timeout_minutes: 60
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "coordinator unit tests"
+          kind: command
+          command: "uv run --project agent-coordinator pytest agent-coordinator/tests -m 'not e2e and not integration' -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["coordinator_tests_green"]
+        - name: "collector tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/supervise -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["collector_tests_green"]
+    inputs: {}
+    outputs:
+      result_keys: ["coordinator_tests_green", "collector_tests_green"]
+      artifacts: ["agent-coordinator/src/gate_projection.py", "agent-coordinator/src/gate_projection_routes.py", "skills/supervise/scripts/gate_projection.py"]

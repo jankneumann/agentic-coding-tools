@@ -1,0 +1,197 @@
+# agent-coordinator project-keyed gate projection contract.
+#
+# AUTHORED FROM openspec/specs/agent-coordinator/spec.md — NOT generated from
+# the running application (D1). FORWARD-ENFORCED (D6): every operation carries
+# an x-traceability block.
+openapi: 3.1.0
+info:
+  title: "agent-coordinator: Project-keyed gate projection"
+  version: 1.0.0
+  description: >-
+    One snapshot of pending gates per enrolled project, pushed whole by a
+    collector that runs in the repository, and one listing across all enrolled
+    projects. The projection holds no decisions and is never written back to a
+    repository; a decision is delegated to the approval service.
+paths:
+  /gates/projection:
+    post:
+      operationId: replaceGateProjection
+      summary: Replace one project's snapshot of pending gates
+      description: >-
+        Stores the snapshot as the project's whole pending set, replacing any
+        earlier one. The project must be named in GATE_PROJECTION_PROJECTS.
+      security:
+        - coordinatorApiKey: []
+      x-traceability:
+        requirements:
+          - agent-coordinator.gate-projection-snapshot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [project, collected_at, gates]
+              properties:
+                project: {type: string, pattern: "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"}
+                collected_at: {type: string, format: date-time}
+                gates:
+                  type: array
+                  maxItems: 500
+                  items: {$ref: "#/components/schemas/SnapshotGate"}
+                source_errors:
+                  type: array
+                  maxItems: 100
+                  items:
+                    type: object
+                    required: [path, error]
+                    properties:
+                      path: {type: string, maxLength: 500}
+                      error: {type: string, maxLength: 500}
+      responses:
+        "200": {description: "{success, project, gate_count, digest, received_at}"}
+        "401": {description: Missing or invalid API key}
+        "403": {description: Project not enrolled, or the operation is denied by policy}
+        "422": {description: Invalid snapshot, or more than 500 gates}
+    delete:
+      operationId: deleteGateProjection
+      summary: Delete one project's snapshot
+      description: >-
+        Removes the stored snapshot. The project stays enrolled and is reported
+        degraded with reason no_snapshot until it pushes again.
+      security:
+        - coordinatorApiKey: []
+      x-traceability:
+        requirements:
+          - agent-coordinator.gate-projection-snapshot
+      parameters:
+        - name: project
+          in: query
+          required: true
+          schema: {type: string, pattern: "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"}
+      responses:
+        "200": {description: "{success, project, deleted}"}
+        "401": {description: Missing or invalid API key}
+        "403": {description: Project not enrolled, or the operation is denied by policy}
+  /gates/pending:
+    get:
+      operationId: listPendingGates
+      summary: List every pending gate of every enrolled project
+      description: >-
+        Returns the pending gates of all enrolled projects and the status of
+        each enrolled project. A project with no snapshot, a stale snapshot or
+        reported source errors is degraded, and its last known gates are still
+        listed. A gate whose approval request is pending is routed to the
+        approval service; one whose request is already decided is omitted and
+        counted in decided_awaiting_sync. Pending approval requests that no
+        snapshot references are listed with project null.
+      security:
+        - coordinatorApiKey: []
+      x-traceability:
+        requirements:
+          - agent-coordinator.cross-project-pending-gate-listing
+      responses:
+        "200":
+          description: The listing
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [gates, projects, generated_at]
+                properties:
+                  generated_at: {type: string, format: date-time}
+                  gates:
+                    type: array
+                    items: {$ref: "#/components/schemas/ListedGate"}
+                  projects:
+                    type: array
+                    items: {$ref: "#/components/schemas/ProjectStatus"}
+        "401": {description: Missing or invalid API key}
+  /gates/decide:
+    post:
+      operationId: decideGate
+      summary: Decide a listed gate through the approval service
+      description: >-
+        Decides the approval request behind a listed gate. Nothing is stored in
+        the projection. A gate with no pending approval request is refused with
+        409 and the command that answers it in its repository.
+      security:
+        - coordinatorApiKey: []
+      x-traceability:
+        requirements:
+          - agent-coordinator.gate-decision-through-the-approval-service
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [project, gate_id, decision]
+              properties:
+                project: {type: string, pattern: "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"}
+                gate_id: {type: string, pattern: "^[a-f0-9]{16}$"}
+                decision: {type: string, enum: [approved, denied]}
+                reason: {type: [string, "null"], maxLength: 2000}
+                decided_by: {type: [string, "null"], maxLength: 200}
+      responses:
+        "200": {description: "{success, project, gate_id, approval}"}
+        "401": {description: Missing or invalid API key}
+        "403": {description: Project not enrolled, or the operation is denied by policy}
+        "404": {description: Gate not in the project's snapshot}
+        "409": {description: "No pending approval request; detail carries reason and answer_hint"}
+        "422": {description: Invalid decision or request body}
+components:
+  schemas:
+    SnapshotGate:
+      type: object
+      required: [gate_id, gate, source, subject]
+      properties:
+        gate_id: {type: string, pattern: "^[a-f0-9]{16}$"}
+        gate: {type: string, maxLength: 64}
+        source: {type: string, enum: [checkpoint, loop_state]}
+        subject: {type: string, maxLength: 300}
+        prompt: {type: [string, "null"], maxLength: 4000}
+        requested_at: {type: [string, "null"]}
+        deadline: {type: [string, "null"]}
+        disposition: {type: string, maxLength: 64, default: block}
+        timeout_seconds: {type: [integer, "null"], minimum: 0}
+        default_action: {type: [string, "null"], maxLength: 64}
+        approval_id: {type: [string, "null"], maxLength: 64}
+        answer_hint: {type: [string, "null"], maxLength: 1000}
+        phase: {type: [string, "null"], maxLength: 64}
+        roadmap_id: {type: [string, "null"], maxLength: 200}
+        change_id: {type: [string, "null"], maxLength: 200}
+        item_id: {type: [string, "null"], maxLength: 200}
+        dispatch_id: {type: [string, "null"], maxLength: 300}
+    ListedGate:
+      type: object
+      required: [project, gate, subject, options, deadline, decision_route, source]
+      properties:
+        project: {type: [string, "null"]}
+        project_status: {type: [string, "null"], enum: [ok, degraded, null]}
+        gate_id: {type: [string, "null"]}
+        gate: {type: string}
+        source: {type: string, enum: [checkpoint, loop_state, approval_service]}
+        subject: {type: string}
+        options: {type: array, items: {type: string}}
+        deadline: {type: [string, "null"]}
+        decision_route: {type: string, enum: [approval_service, repository]}
+        approval_id: {type: [string, "null"]}
+        answer_hint: {type: [string, "null"]}
+    ProjectStatus:
+      type: object
+      required: [project, status, gate_count, decided_awaiting_sync]
+      properties:
+        project: {type: string}
+        status: {type: string, enum: [ok, degraded]}
+        reason: {type: [string, "null"], enum: [no_snapshot, stale, source_errors, null]}
+        collected_at: {type: [string, "null"]}
+        received_at: {type: [string, "null"]}
+        gate_count: {type: integer}
+        decided_awaiting_sync: {type: integer}
+        source_errors: {type: array, items: {type: object}}
+  securitySchemes:
+    coordinatorApiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key

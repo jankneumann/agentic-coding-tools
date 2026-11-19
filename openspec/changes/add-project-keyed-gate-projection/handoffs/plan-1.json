@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-11-19T03:13:47.387596+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "trust_resolution_failed: 500: Trust level unresolvable for registry-declared agent 'claude-remote' (type 'claude_code'): profile lookup failed: [Errno -2] Name or service not known. The agent_profiles projection of agents.yaml is broken; restart the coordinator to re-run profile sync. (HTTP 200)",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Refined the scaffolded change into a full plan: a per-project snapshot of pending gates pushed by a collector in each repository, one listing across enrolled projects, and decisions delegated to the approval service.",
+    "completed_work": [
+      "proposal.md, design.md (D1-D10), tasks.md, two spec deltas, contracts/README.md, work-packages.yaml",
+      "openspec/contracts/agent-coordinator/openapi/gates.yaml",
+      "openspec validate --strict passes",
+      "Planned inline in the sequential tier; discovery questions and plan review were not run because the item was operator-approved at scaffold time"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "The repository pushes a whole snapshot",
+        "rationale": "The coordinator cannot read a checkout; a full replacement makes the projection rebuildable and leaves the repository as the only record.",
+        "capability": "agent-coordinator",
+        "supersedes": null
+      },
+      {
+        "title": "Degraded state is computed at read time",
+        "rationale": "A project with no snapshot, a stale one or source errors must be visible, and its last known gates still listed, without a background job.",
+        "capability": "agent-coordinator",
+        "supersedes": null
+      },
+      {
+        "title": "Decisions go through the approval service only",
+        "rationale": "The projection must never become a second decision record; a gate with no pending approval request is refused with the command that answers it in its repository.",
+        "capability": "agent-coordinator",
+        "supersedes": null
+      },
+      {
+        "title": "Contract authored in the promoted tree",
+        "rationale": "The coordinator's OpenAPI contract test reads only openspec/contracts, and its drift baseline must not grow.",
+        "capability": "agent-coordinator",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Implement tasks 1.1-4.3 test-first",
+      "Operator: task 5.1 on the deployed coordinator"
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/contracts/agent-coordinator/openapi/gates.yaml",
+        "description": "HTTP contract"
+      },
+      {
+        "path": "openspec/changes/add-project-keyed-gate-projection/design.md",
+        "description": "design decisions"
+      }
+    ]
+  }
+}
