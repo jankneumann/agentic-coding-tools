@@ -48,7 +48,14 @@
       "Bash(git push *openspec/*:*)",
       "Bash(git push *$*)",
       "Bash(git push *`*)",
-      "Bash(git push *openspec/roadmap-*)"
+      "Bash(git push *openspec/roadmap-*)",
+      "Bash(*alembic upgrade*)",
+      "Bash(*alembic downgrade*)",
+      "Bash(gh secret *)",
+      "Bash(gh api *merge*)",
+      "Bash(git branch -D *)",
+      "Bash(*runner.py* gate-answer*)",
+      "Bash(*cycle_state.py* gate-answer*)"
     ],
     "deny": [
       "Bash(rm -rf *)",

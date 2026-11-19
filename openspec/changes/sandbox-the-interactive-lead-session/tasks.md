@@ -22,12 +22,12 @@ Checkpoint: `skills/.venv/bin/python -m pytest skills/tests/session-bootstrap -q
 
 ## 2. Irreversible set
 
-- [ ] 2.1 Write the test that enumerates the irreversible set
+- [x] 2.1 Write the test that enumerates the irreversible set
   - File: `skills/tests/session-bootstrap/test_irreversible_set_gated.py`
   - Spec scenarios: Each class has a gate that survives auto-allow; No gated command is also allowed outright
   - Design: D6
   - Size: M
-- [ ] 2.2 Close any gap the enumeration finds with a deny or content-scoped ask rule
+- [x] 2.2 Close any gap the enumeration finds with a deny or content-scoped ask rule
   - Depends on: 2.1. No change to `irreversible_guard.py`.
   - Size: S
 

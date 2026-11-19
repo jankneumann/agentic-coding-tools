@@ -90,6 +90,26 @@ non-zero on any `not_enforced`. Standard library only.
 **D9. `allowLocalBinding: true`** so test suites that bind a localhost port
 run sandboxed. macOS only per documentation; ignored elsewhere.
 
+**D10. Gate recording gets an explicit ask rule.** Added during
+implementation. The removed allow list covered six `runner.py` subcommands
+and left `gate-answer` out, so recording a gate approval prompted only because
+nothing allowed it. Under auto-allow that omission gates nothing: the command
+writes project files and would run sandboxed without a prompt. Ask rules
+`*runner.py* gate-answer*` and `*cycle_state.py* gate-answer*` restore the
+prompt. `relayed-gate-answer` was allowed before and stays promptless; the
+pattern requires a space before `gate-answer` so it does not match. A wrapper
+such as `bash -c` or a renamed copy of the script evades the pattern, as it
+evaded the old allow-list gate; the durable control is the approval-gate
+service, not this rule.
+
+**D11. Hook gaps are closed with ask rules, not hook changes.** The guard
+returns no verdict for `alembic upgrade` reached through `uv run` or
+`python -m`, `gh secret set`, `gh api … merge` and `git branch -D`. Ask rules
+`*alembic upgrade*`, `*alembic downgrade*`, `gh secret *`, `gh api *merge*`
+and `git branch -D *` cover them. `irreversible_guard.py` is unchanged because
+it is kept in step with `agent-coordinator/src/guardrails.py` by tests and
+that pairing is outside this change.
+
 ## Risks
 
 | Risk | Mitigation |

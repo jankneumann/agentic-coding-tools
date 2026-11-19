@@ -65,6 +65,11 @@ WHEN the test enumerates the same commands
 THEN a command gated only by the hook SHALL NOT be listed for an unconditional skip of that hook
 AND the PreToolUse Bash hook entry for `irreversible_guard.py` SHALL be present with `onFailure` set to `block`
 
+#### Scenario: Recording a gate decision still prompts
+WHEN the test enumerates `gate-answer` invocations of `runner.py` and `cycle_state.py`
+THEN each SHALL match a content-scoped ask rule
+AND a `relayed-gate-answer` or `gate-check` invocation SHALL NOT match one
+
 #### Scenario: Ask rules are content-scoped
 WHEN `.claude/settings.json` is loaded
 THEN `permissions.ask` SHALL NOT contain `Bash` or `Bash(*)`
