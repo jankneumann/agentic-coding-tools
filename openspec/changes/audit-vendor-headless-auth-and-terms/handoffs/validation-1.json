@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-11-19T02:57:45.358960+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "trust_resolution_failed: 500: Trust level unresolvable for registry-declared agent 'claude-remote' (type 'claude_code'): profile lookup failed: [Errno -2] Name or service not known. The agent_profiles projection of agents.yaml is broken; restart the coordinator to re-run profile sync. (HTTP 200)",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Validated at c15c3d6 in a cloud container: 5/5 requirements pass by test and the traceability gate passes, but the task drift gate fails on open task 4.1. Result recorded as incomplete.",
+    "completed_work": [
+      "39 tests pass; openspec validate --strict valid; script run in the container",
+      "validation-report.md and architecture-impact.md written",
+      "CI not checked: no pull request exists"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Task 4.1 left open rather than deferred",
+        "rationale": "The change exists to supply evidence to later roadmap items; moving the observation task to a deferred file would let the change archive without that evidence.",
+        "capability": "vendor-auth-audit",
+        "supersedes": null
+      },
+      {
+        "title": "Roadmap item ri-02 stays in progress",
+        "rationale": "No mechanics field is observed and three vendors' licence text was not read.",
+        "capability": "vendor-auth-audit",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Operator: task 4.1",
+      "Re-validate after the table's evidence levels are raised"
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/audit-vendor-headless-auth-and-terms/validation-report.md",
+        "description": "validation report"
+      }
+    ]
+  }
+}

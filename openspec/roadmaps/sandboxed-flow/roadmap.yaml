@@ -36,7 +36,7 @@ items:
   - learnings/ri-01.md
 - item_id: ri-02
   title: Audit vendor headless auth and terms
-  status: approved
+  status: in_progress
   priority: 1
   effort: S
   depends_on: []
@@ -62,6 +62,8 @@ items:
     marked as requiring an API-key or gateway-key lane.
   - The statement in docs/proposals/factory-local-cloud-split.md about why the Claude
     review lane uses an API key is corrected to match the audit.
+  learning_refs:
+  - learnings/ri-02.md
 - item_id: ri-03
   title: Add per-vendor credential profile
   status: candidate
@@ -387,7 +389,7 @@ items:
     delivered; an undelivered notification leaves the gate blocked.
   - Notification volume respects a per-day limit, with the overflow collected into
     one digest.
-updated_at: '2026-11-19T02:34:51.378962+00:00'
+updated_at: '2026-11-19T02:57:45.660532+00:00'
 refinements:
 - timestamp: '2026-11-19T01:58:09.832888+00:00'
   actor: claude-code (cloud session)

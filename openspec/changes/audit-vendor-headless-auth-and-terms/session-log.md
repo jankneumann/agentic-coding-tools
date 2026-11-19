@@ -37,3 +37,59 @@
 ### Context
 Refined the roadmap scaffold for sandboxed-flow ri-02 into a full plan: a machine-readable audit table of vendor terms and credential mechanics with an evidence level per field, a guide, a metadata-only observation script, and corrections to two existing documents.
 
+---
+
+## Phase: Implementation (2026-11-19)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Three verdicts, with silence recorded as unaddressed** `architectural: vendor-auth-audit` — Forcing silence into permitted or prohibited would invent a licence reading; unattended lanes that are not permitted name a keyed lane.
+2. **Quotes are marked raw or summarised** `architectural: vendor-auth-audit` — Some pages were reachable only through a summarising tool, and a paraphrase shown as a quotation is the error the Claude strategy note had already made.
+3. **The observation script never opens a credential file** `architectural: vendor-auth-audit` — Reading and then redacting can leak; lstat and listdir cannot. A test fails if the script calls open.
+
+### Open Questions
+- [ ] Does launching agy from another vendor's coding agent count as the wrapping the Antigravity FAQ excludes from consumer plans?
+
+### Completed Work
+- docs/guides/vendor-auth-audit.yaml and .md
+- skills/vendor-status/scripts/observe_vendor_auth.py with 39 tests in skills/tests/vendor-status
+- Corrections to claude-auth-strategy.md and factory-local-cloud-split.md
+- Research for the four vendors was dispatched to sub-agents; the rest ran inline in the sequential tier
+
+### Next Steps
+- Operator: task 4.1 on a host with the four CLIs signed in
+- Allow the blocked vendor hosts or paste the pages, then re-check the summarised rows
+
+### Relevant Files
+- `docs/guides/vendor-auth-audit.yaml` — audit table
+- `skills/vendor-status/scripts/observe_vendor_auth.py` — observation script
+
+### Context
+Implemented tasks 1.1 to 3.4: a tested audit table for four vendors and four lanes, a metadata-only observation script, a guide, and two corrected documents. Task 4.1 (host observation) is open.
+
+---
+
+## Phase: Validation (2026-11-19)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Task 4.1 left open rather than deferred** `architectural: vendor-auth-audit` — The change exists to supply evidence to later roadmap items; moving the observation task to a deferred file would let the change archive without that evidence.
+2. **Roadmap item ri-02 stays in progress** `architectural: vendor-auth-audit` — No mechanics field is observed and three vendors' licence text was not read.
+
+### Completed Work
+- 39 tests pass; openspec validate --strict valid; script run in the container
+- validation-report.md and architecture-impact.md written
+- CI not checked: no pull request exists
+
+### Next Steps
+- Operator: task 4.1
+- Re-validate after the table's evidence levels are raised
+
+### Relevant Files
+- `openspec/changes/audit-vendor-headless-auth-and-terms/validation-report.md` — validation report
+
+### Context
+Validated at c15c3d6 in a cloud container: 5/5 requirements pass by test and the traceability gate passes, but the task drift gate fails on open task 4.1. Result recorded as incomplete.
+

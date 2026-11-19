@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-11-19T02:57:41.727466+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "trust_resolution_failed: 500: Trust level unresolvable for registry-declared agent 'claude-remote' (type 'claude_code'): profile lookup failed: [Errno -2] Name or service not known. The agent_profiles projection of agents.yaml is broken; restart the coordinator to re-run profile sync. (HTTP 200)",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Implemented tasks 1.1 to 3.4: a tested audit table for four vendors and four lanes, a metadata-only observation script, a guide, and two corrected documents. Task 4.1 (host observation) is open.",
+    "completed_work": [
+      "docs/guides/vendor-auth-audit.yaml and .md",
+      "skills/vendor-status/scripts/observe_vendor_auth.py with 39 tests in skills/tests/vendor-status",
+      "Corrections to claude-auth-strategy.md and factory-local-cloud-split.md",
+      "Research for the four vendors was dispatched to sub-agents; the rest ran inline in the sequential tier"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Three verdicts, with silence recorded as unaddressed",
+        "rationale": "Forcing silence into permitted or prohibited would invent a licence reading; unattended lanes that are not permitted name a keyed lane.",
+        "capability": "vendor-auth-audit",
+        "supersedes": null
+      },
+      {
+        "title": "Quotes are marked raw or summarised",
+        "rationale": "Some pages were reachable only through a summarising tool, and a paraphrase shown as a quotation is the error the Claude strategy note had already made.",
+        "capability": "vendor-auth-audit",
+        "supersedes": null
+      },
+      {
+        "title": "The observation script never opens a credential file",
+        "rationale": "Reading and then redacting can leak; lstat and listdir cannot. A test fails if the script calls open.",
+        "capability": "vendor-auth-audit",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Operator: task 4.1 on a host with the four CLIs signed in",
+      "Allow the blocked vendor hosts or paste the pages, then re-check the summarised rows"
+    ],
+    "relevant_files": [
+      {
+        "path": "docs/guides/vendor-auth-audit.yaml",
+        "description": "audit table"
+      },
+      {
+        "path": "skills/vendor-status/scripts/observe_vendor_auth.py",
+        "description": "observation script"
+      }
+    ]
+  }
+}
