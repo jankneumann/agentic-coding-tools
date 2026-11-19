@@ -17,12 +17,12 @@ Checkpoint: `skills/.venv/bin/python -m pytest skills/tests/vendor-status -q` pa
 
 ## 2. Observation script
 
-- [ ] 2.1 Write failing tests for the observation script
+- [x] 2.1 Write failing tests for the observation script
   - File: `skills/tests/vendor-status/test_observe_vendor_auth.py`
   - Spec scenarios: Metadata is reported without content; A refresh write is detected; An unknown vendor is refused
   - Design: D6
   - Size: S
-- [ ] 2.2 Implement `skills/vendor-status/scripts/observe_vendor_auth.py` and sync runtime copies
+- [x] 2.2 Implement `skills/vendor-status/scripts/observe_vendor_auth.py` and sync runtime copies
   - Depends on: 2.1
   - Size: S
 
