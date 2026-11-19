@@ -4024,6 +4024,10 @@ def create_coordination_api() -> FastAPI:
 
     install_review_routes(app, verify_api_key, authorize_operation, resolve_identity)
 
+    from .gate_projection_routes import install_gate_projection_routes
+
+    install_gate_projection_routes(app, verify_api_key, authorize_operation, resolve_identity)
+
     return app
 
 
