@@ -1,6 +1,6 @@
 flowchart TB
     __init__["__init__ (1 symbols)"]
-    agents_config["agents_config (76 symbols)"]
+    agents_config["agents_config (78 symbols)"]
     approval["approval (14 symbols)"]
     assurance["assurance (1 symbols)"]
     audit["audit (18 symbols)"]
@@ -10,7 +10,7 @@ flowchart TB
     code_search["code_search (37 symbols)"]
     code_search_authorization["code_search_authorization (40 symbols)"]
     code_search_runtime["code_search_runtime (45 symbols)"]
-    config["config (45 symbols)"]
+    config["config (48 symbols)"]
     coordination_api["coordination_api (168 symbols)"]
     coordination_cli["coordination_cli (35 symbols)"]
     coordination_mcp["coordination_mcp (82 symbols)"]
@@ -73,6 +73,9 @@ flowchart TB
     profile_loader["profile_loader (14 symbols)"]
     profiles["profiles (15 symbols)"]
     refresh_rpc_client["refresh_rpc_client (12 symbols)"]
+    review_publisher["review_publisher (11 symbols)"]
+    review_queue["review_queue (14 symbols)"]
+    review_routes["review_routes (7 symbols)"]
     risk_scorer["risk_scorer (14 symbols)"]
     session_grants["session_grants (13 symbols)"]
     sse_log_redaction["sse_log_redaction (6 symbols)"]
@@ -80,6 +83,7 @@ flowchart TB
     sync_points["sync_points (5 symbols)"]
     teams["teams (14 symbols)"]
     telemetry["telemetry (20 symbols)"]
+    tests__test_architecture["tests.test_architecture (52 symbols)"]
     trust_levels["trust_levels (2 symbols)"]
     trust_resolution["trust_resolution (5 symbols)"]
     vendor_registry["vendor_registry (30 symbols)"]
@@ -141,6 +145,7 @@ flowchart TB
     coordination_api -->|"call, import"| port_allocator
     coordination_api -->|"call, import"| profiles
     coordination_api -->|"call, import"| refresh_rpc_client
+    coordination_api -->|"call, import"| review_routes
     coordination_api -->|"call, import"| session_grants
     coordination_api -->|"call, import"| sse_log_redaction
     coordination_api -->|"import"| sync_points
@@ -290,6 +295,14 @@ flowchart TB
     profiles -->|"call, import"| audit
     profiles -->|"call, import"| config
     profiles -->|"call, import"| db
+    review_publisher -->|"import"| config
+    review_queue -->|"call, import"| audit
+    review_queue -->|"call, import"| config
+    review_queue -->|"call, import"| db
+    review_routes -->|"call, import"| config
+    review_routes -->|"call"| coordination_api
+    review_routes -->|"import"| review_publisher
+    review_routes -->|"call, import"| review_queue
     risk_scorer -->|"call, import"| db
     session_grants -->|"call"| approval
     session_grants -->|"call, import"| db

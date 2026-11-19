@@ -1,11 +1,11 @@
 {
-  "generated_at": "2026-11-02T22:58:10+00:00",
+  "generated_at": "2026-11-19T02:08:43+00:00",
   "threshold": 5,
-  "total_high_impact": 142,
+  "total_high_impact": 146,
   "high_impact_nodes": [
     {
       "id": "py:config.get_config",
-      "dependent_count": 188
+      "dependent_count": 196
     },
     {
       "id": "py:http_proxy._error_response",
@@ -25,39 +25,47 @@
     },
     {
       "id": "py:audit.get_audit_service",
-      "dependent_count": 50
+      "dependent_count": 52
     },
     {
       "id": "py:policy_engine.get_policy_engine",
-      "dependent_count": 48
+      "dependent_count": 51
     },
     {
       "id": "py:teams.CrewManifest.validate",
-      "dependent_count": 44
+      "dependent_count": 45
     },
     {
       "id": "py:config",
-      "dependent_count": 41
-    },
-    {
-      "id": "py:db_postgres",
-      "dependent_count": 36
+      "dependent_count": 44
     },
     {
       "id": "py:coordination_api.resolve_identity",
-      "dependent_count": 35
+      "dependent_count": 38
+    },
+    {
+      "id": "py:db_postgres",
+      "dependent_count": 38
     },
     {
       "id": "py:db",
-      "dependent_count": 35
+      "dependent_count": 37
     },
     {
       "id": "py:profile_loader.interpolate",
       "dependent_count": 35
     },
     {
+      "id": "py:coordination_api.authorize_operation",
+      "dependent_count": 34
+    },
+    {
       "id": "py:profile_loader._load_secrets_file",
       "dependent_count": 34
+    },
+    {
+      "id": "py:db.create_db_client",
+      "dependent_count": 32
     },
     {
       "id": "py:agents_config._check_principal_namespace",
@@ -72,11 +80,7 @@
       "dependent_count": 31
     },
     {
-      "id": "py:coordination_api.authorize_operation",
-      "dependent_count": 31
-    },
-    {
-      "id": "py:db.create_db_client",
+      "id": "py:db.get_db",
       "dependent_count": 31
     },
     {
@@ -88,10 +92,6 @@
       "dependent_count": 30
     },
     {
-      "id": "py:db.get_db",
-      "dependent_count": 30
-    },
-    {
       "id": "py:agents_config.load_agents_config",
       "dependent_count": 29
     },
@@ -100,16 +100,16 @@
       "dependent_count": 29
     },
     {
-      "id": "py:coordination_cli._output",
+      "id": "py:audit",
       "dependent_count": 28
     },
     {
-      "id": "py:audit",
-      "dependent_count": 26
+      "id": "py:audit_triage",
+      "dependent_count": 28
     },
     {
-      "id": "py:audit_triage",
-      "dependent_count": 26
+      "id": "py:coordination_cli._output",
+      "dependent_count": 28
     },
     {
       "id": "py:coordination_cli._run",
@@ -156,6 +156,10 @@
       "dependent_count": 18
     },
     {
+      "id": "py:agents_config._served_local_roster",
+      "dependent_count": 18
+    },
+    {
       "id": "py:http_proxy",
       "dependent_count": 18
     },
@@ -172,7 +176,11 @@
       "dependent_count": 18
     },
     {
-      "id": "py:agents_config._served_local_roster",
+      "id": "py:agents_config._as_positive_number",
+      "dependent_count": 17
+    },
+    {
+      "id": "py:agents_config._with_served_local_roster",
       "dependent_count": 17
     },
     {
@@ -180,11 +188,11 @@
       "dependent_count": 17
     },
     {
-      "id": "py:agents_config._as_positive_number",
+      "id": "py:agents_config._normalize_provider_model_map",
       "dependent_count": 16
     },
     {
-      "id": "py:agents_config._with_served_local_roster",
+      "id": "py:agents_config._validate_local_roster",
       "dependent_count": 16
     },
     {
@@ -196,11 +204,11 @@
       "dependent_count": 15
     },
     {
-      "id": "py:agents_config._normalize_provider_model_map",
+      "id": "py:agents_config._observe_archetypes_source",
       "dependent_count": 15
     },
     {
-      "id": "py:agents_config._validate_local_roster",
+      "id": "py:agents_config._parse_archetypes_file",
       "dependent_count": 15
     },
     {
@@ -293,6 +301,10 @@
     },
     {
       "id": "py:code_search_runtime._grant_resolver_from_env.resolve",
+      "dependent_count": 8
+    },
+    {
+      "id": "py:coordination_api._extract_api_key",
       "dependent_count": 8
     },
     {
@@ -412,7 +424,7 @@
       "dependent_count": 6
     },
     {
-      "id": "py:coordination_api._extract_api_key",
+      "id": "py:coordination_api._principal_for_api_key",
       "dependent_count": 6
     },
     {
@@ -449,6 +461,10 @@
     },
     {
       "id": "py:openspec_sources._walk_local_source",
+      "dependent_count": 6
+    },
+    {
+      "id": "py:review_queue.get_review_queue_service",
       "dependent_count": 6
     },
     {

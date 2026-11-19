@@ -1,8 +1,8 @@
 {
   "snapshots": [
     {
-      "generated_at": "2026-11-02T22:58:10+00:00",
-      "git_sha": "8a897cb30d4dcb54da5d100968a15b39e259ebfe",
+      "generated_at": "2026-11-19T02:08:43+00:00",
+      "git_sha": "de08f03f590c09399668564e2e18ab8792a15557",
       "tool_versions": {
         "graph_builder": "2.0.0"
       },
@@ -975,6 +975,45 @@
       "signatures": {}
     },
     {
+      "id": "py:review_publisher",
+      "kind": "module",
+      "language": "python",
+      "name": "review_publisher",
+      "file": "review_publisher.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:review_queue",
+      "kind": "module",
+      "language": "python",
+      "name": "review_queue",
+      "file": "review_queue.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:review_routes",
+      "kind": "module",
+      "language": "python",
+      "name": "review_routes",
+      "file": "review_routes.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
       "id": "py:risk_scorer",
       "kind": "module",
       "language": "python",
@@ -1150,8 +1189,8 @@
       "name": "PollConfig",
       "file": "agents_config.py",
       "span": {
-        "start": 712,
-        "end": 718
+        "start": 715,
+        "end": 721
       },
       "tags": [],
       "signatures": {}
@@ -1163,8 +1202,8 @@
       "name": "ModeConfig",
       "file": "agents_config.py",
       "span": {
-        "start": 722,
-        "end": 728
+        "start": 725,
+        "end": 731
       },
       "tags": [],
       "signatures": {}
@@ -1176,8 +1215,8 @@
       "name": "CliConfig",
       "file": "agents_config.py",
       "span": {
-        "start": 732,
-        "end": 755
+        "start": 735,
+        "end": 758
       },
       "tags": [],
       "signatures": {}
@@ -1189,8 +1228,8 @@
       "name": "SdkConfig",
       "file": "agents_config.py",
       "span": {
-        "start": 759,
-        "end": 772
+        "start": 762,
+        "end": 775
       },
       "tags": [],
       "signatures": {}
@@ -1202,8 +1241,8 @@
       "name": "AgentEntry",
       "file": "agents_config.py",
       "span": {
-        "start": 776,
-        "end": 796
+        "start": 779,
+        "end": 799
       },
       "tags": [],
       "signatures": {}
@@ -1215,8 +1254,8 @@
       "name": "HumanEntry",
       "file": "agents_config.py",
       "span": {
-        "start": 800,
-        "end": 813
+        "start": 803,
+        "end": 816
       },
       "tags": [],
       "signatures": {}
@@ -1228,8 +1267,8 @@
       "name": "EscalationConfig",
       "file": "agents_config.py",
       "span": {
-        "start": 821,
-        "end": 831
+        "start": 824,
+        "end": 834
       },
       "tags": [],
       "signatures": {}
@@ -1241,8 +1280,8 @@
       "name": "ArchetypeConfig",
       "file": "agents_config.py",
       "span": {
-        "start": 835,
-        "end": 848
+        "start": 838,
+        "end": 851
       },
       "tags": [],
       "signatures": {}
@@ -1254,8 +1293,8 @@
       "name": "PhaseMappingEntry",
       "file": "agents_config.py",
       "span": {
-        "start": 852,
-        "end": 862
+        "start": 855,
+        "end": 865
       },
       "tags": [],
       "signatures": {}
@@ -1267,8 +1306,8 @@
       "name": "ModelSpec",
       "file": "agents_config.py",
       "span": {
-        "start": 866,
-        "end": 876
+        "start": 869,
+        "end": 879
       },
       "tags": [],
       "signatures": {}
@@ -1280,8 +1319,8 @@
       "name": "ResolvedArchetype",
       "file": "agents_config.py",
       "span": {
-        "start": 880,
-        "end": 896
+        "start": 883,
+        "end": 899
       },
       "tags": [],
       "signatures": {}
@@ -1293,8 +1332,8 @@
       "name": "ProviderModelMappingError",
       "file": "agents_config.py",
       "span": {
-        "start": 899,
-        "end": 916
+        "start": 902,
+        "end": 919
       },
       "tags": [],
       "signatures": {}
@@ -1306,8 +1345,8 @@
       "name": "LocalRosterConfigError",
       "file": "agents_config.py",
       "span": {
-        "start": 919,
-        "end": 937
+        "start": 922,
+        "end": 940
       },
       "tags": [],
       "signatures": {}
@@ -1319,8 +1358,8 @@
       "name": "LocalProviderTrustBoundaryError",
       "file": "agents_config.py",
       "span": {
-        "start": 940,
-        "end": 958
+        "start": 943,
+        "end": 961
       },
       "tags": [],
       "signatures": {}
@@ -1332,8 +1371,8 @@
       "name": "DuplicateApiKeyError",
       "file": "agents_config.py",
       "span": {
-        "start": 1197,
-        "end": 1212
+        "start": 1200,
+        "end": 1215
       },
       "tags": [],
       "signatures": {}
@@ -1345,8 +1384,8 @@
       "name": "ProfileSyncError",
       "file": "agents_config.py",
       "span": {
-        "start": 1344,
-        "end": 1350
+        "start": 1347,
+        "end": 1353
       },
       "tags": [],
       "signatures": {}
@@ -1358,8 +1397,8 @@
       "name": "ProfileSyncResult",
       "file": "agents_config.py",
       "span": {
-        "start": 1354,
-        "end": 1380
+        "start": 1357,
+        "end": 1383
       },
       "tags": [],
       "signatures": {}
@@ -1502,7 +1541,7 @@
       "file": "cloudflare_access.py",
       "span": {
         "start": 125,
-        "end": 189
+        "end": 200
       },
       "tags": [],
       "signatures": {}
@@ -1904,8 +1943,8 @@
       "name": "SupabaseConfig",
       "file": "config.py",
       "span": {
-        "start": 50,
-        "end": 71
+        "start": 51,
+        "end": 72
       },
       "tags": [],
       "signatures": {}
@@ -1917,8 +1956,8 @@
       "name": "AgentConfig",
       "file": "config.py",
       "span": {
-        "start": 75,
-        "end": 95
+        "start": 76,
+        "end": 96
       },
       "tags": [],
       "signatures": {}
@@ -1930,8 +1969,8 @@
       "name": "LockConfig",
       "file": "config.py",
       "span": {
-        "start": 99,
-        "end": 109
+        "start": 100,
+        "end": 110
       },
       "tags": [],
       "signatures": {}
@@ -1943,8 +1982,8 @@
       "name": "PostgresConfig",
       "file": "config.py",
       "span": {
-        "start": 113,
-        "end": 126
+        "start": 114,
+        "end": 127
       },
       "tags": [],
       "signatures": {}
@@ -1956,8 +1995,8 @@
       "name": "DatabaseConfig",
       "file": "config.py",
       "span": {
-        "start": 130,
-        "end": 141
+        "start": 131,
+        "end": 142
       },
       "tags": [],
       "signatures": {}
@@ -1969,8 +2008,8 @@
       "name": "GuardrailsConfig",
       "file": "config.py",
       "span": {
-        "start": 145,
-        "end": 161
+        "start": 146,
+        "end": 162
       },
       "tags": [],
       "signatures": {}
@@ -1982,8 +2021,8 @@
       "name": "ProfilesConfig",
       "file": "config.py",
       "span": {
-        "start": 165,
-        "end": 194
+        "start": 166,
+        "end": 195
       },
       "tags": [],
       "signatures": {}
@@ -1995,8 +2034,8 @@
       "name": "AuditConfig",
       "file": "config.py",
       "span": {
-        "start": 198,
-        "end": 209
+        "start": 199,
+        "end": 210
       },
       "tags": [],
       "signatures": {}
@@ -2008,8 +2047,8 @@
       "name": "NetworkPolicyConfig",
       "file": "config.py",
       "span": {
-        "start": 213,
-        "end": 222
+        "start": 214,
+        "end": 223
       },
       "tags": [],
       "signatures": {}
@@ -2021,8 +2060,8 @@
       "name": "PolicyEngineConfig",
       "file": "config.py",
       "span": {
-        "start": 226,
-        "end": 246
+        "start": 227,
+        "end": 247
       },
       "tags": [],
       "signatures": {}
@@ -2034,8 +2073,8 @@
       "name": "OpenBaoConfig",
       "file": "config.py",
       "span": {
-        "start": 250,
-        "end": 328
+        "start": 251,
+        "end": 329
       },
       "tags": [],
       "signatures": {}
@@ -2047,8 +2086,8 @@
       "name": "ObservabilityConfig",
       "file": "config.py",
       "span": {
-        "start": 332,
-        "end": 345
+        "start": 333,
+        "end": 346
       },
       "tags": [],
       "signatures": {}
@@ -2060,8 +2099,8 @@
       "name": "LangfuseConfig",
       "file": "config.py",
       "span": {
-        "start": 349,
-        "end": 379
+        "start": 350,
+        "end": 380
       },
       "tags": [],
       "signatures": {}
@@ -2073,8 +2112,21 @@
       "name": "PortAllocatorConfig",
       "file": "config.py",
       "span": {
-        "start": 383,
-        "end": 398
+        "start": 384,
+        "end": 399
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:config.ReviewQueueConfig",
+      "kind": "class",
+      "language": "python",
+      "name": "ReviewQueueConfig",
+      "file": "config.py",
+      "span": {
+        "start": 403,
+        "end": 456
       },
       "tags": [],
       "signatures": {}
@@ -2086,8 +2138,8 @@
       "name": "ApiConfig",
       "file": "config.py",
       "span": {
-        "start": 402,
-        "end": 465
+        "start": 460,
+        "end": 523
       },
       "tags": [],
       "signatures": {}
@@ -2099,8 +2151,8 @@
       "name": "CloudflareAccessConfig",
       "file": "config.py",
       "span": {
-        "start": 469,
-        "end": 519
+        "start": 527,
+        "end": 590
       },
       "tags": [],
       "signatures": {}
@@ -2112,8 +2164,8 @@
       "name": "ApprovalConfig",
       "file": "config.py",
       "span": {
-        "start": 523,
-        "end": 542
+        "start": 594,
+        "end": 613
       },
       "tags": [],
       "signatures": {}
@@ -2125,8 +2177,8 @@
       "name": "PolicySyncConfig",
       "file": "config.py",
       "span": {
-        "start": 546,
-        "end": 564
+        "start": 617,
+        "end": 635
       },
       "tags": [],
       "signatures": {}
@@ -2138,8 +2190,8 @@
       "name": "RiskScoringConfig",
       "file": "config.py",
       "span": {
-        "start": 568,
-        "end": 591
+        "start": 639,
+        "end": 662
       },
       "tags": [],
       "signatures": {}
@@ -2151,8 +2203,8 @@
       "name": "SessionGrantsConfig",
       "file": "config.py",
       "span": {
-        "start": 595,
-        "end": 609
+        "start": 666,
+        "end": 680
       },
       "tags": [],
       "signatures": {}
@@ -2164,8 +2216,8 @@
       "name": "Config",
       "file": "config.py",
       "span": {
-        "start": 649,
-        "end": 737
+        "start": 720,
+        "end": 812
       },
       "tags": [],
       "signatures": {}
@@ -4940,6 +4992,84 @@
       "signatures": {}
     },
     {
+      "id": "py:review_publisher.PublishError",
+      "kind": "class",
+      "language": "python",
+      "name": "PublishError",
+      "file": "review_publisher.py",
+      "span": {
+        "start": 26,
+        "end": 31
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:review_publisher.GitHubReviewPublisher",
+      "kind": "class",
+      "language": "python",
+      "name": "GitHubReviewPublisher",
+      "file": "review_publisher.py",
+      "span": {
+        "start": 90,
+        "end": 127
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:review_queue.ReviewJobRequest",
+      "kind": "class",
+      "language": "python",
+      "name": "ReviewJobRequest",
+      "file": "review_queue.py",
+      "span": {
+        "start": 32,
+        "end": 42
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:review_queue.LaneResultIn",
+      "kind": "class",
+      "language": "python",
+      "name": "LaneResultIn",
+      "file": "review_queue.py",
+      "span": {
+        "start": 45,
+        "end": 55
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:review_queue.ReviewResultsRequest",
+      "kind": "class",
+      "language": "python",
+      "name": "ReviewResultsRequest",
+      "file": "review_queue.py",
+      "span": {
+        "start": 58,
+        "end": 62
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:review_queue.ReviewQueueService",
+      "kind": "class",
+      "language": "python",
+      "name": "ReviewQueueService",
+      "file": "review_queue.py",
+      "span": {
+        "start": 65,
+        "end": 163
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
       "id": "py:risk_scorer.RiskScore",
       "kind": "class",
       "language": "python",
@@ -5232,8 +5362,8 @@
       "name": "_ci",
       "file": "agents_config.py",
       "span": {
-        "start": 472,
-        "end": 473
+        "start": 475,
+        "end": 476
       },
       "tags": [
         "private"
@@ -5247,8 +5377,8 @@
       "name": "__init__",
       "file": "agents_config.py",
       "span": {
-        "start": 902,
-        "end": 916
+        "start": 905,
+        "end": 919
       },
       "tags": [
         "dunder"
@@ -5262,8 +5392,8 @@
       "name": "__init__",
       "file": "agents_config.py",
       "span": {
-        "start": 928,
-        "end": 937
+        "start": 931,
+        "end": 940
       },
       "tags": [
         "dunder"
@@ -5277,8 +5407,8 @@
       "name": "__init__",
       "file": "agents_config.py",
       "span": {
-        "start": 948,
-        "end": 958
+        "start": 951,
+        "end": 961
       },
       "tags": [
         "dunder"
@@ -5292,8 +5422,8 @@
       "name": "_default_agents_path",
       "file": "agents_config.py",
       "span": {
-        "start": 965,
-        "end": 966
+        "start": 968,
+        "end": 969
       },
       "tags": [
         "private"
@@ -5307,8 +5437,8 @@
       "name": "_default_secrets_path",
       "file": "agents_config.py",
       "span": {
-        "start": 969,
-        "end": 970
+        "start": 972,
+        "end": 973
       },
       "tags": [
         "private"
@@ -5322,8 +5452,8 @@
       "name": "_check_principal_namespace",
       "file": "agents_config.py",
       "span": {
-        "start": 973,
-        "end": 981
+        "start": 976,
+        "end": 984
       },
       "tags": [
         "private",
@@ -5338,8 +5468,8 @@
       "name": "_check_probe_blocks",
       "file": "agents_config.py",
       "span": {
-        "start": 984,
-        "end": 1007
+        "start": 987,
+        "end": 1010
       },
       "tags": [
         "private",
@@ -5354,8 +5484,8 @@
       "name": "load_human_principals",
       "file": "agents_config.py",
       "span": {
-        "start": 1010,
-        "end": 1038
+        "start": 1013,
+        "end": 1041
       },
       "tags": [
         "db_access"
@@ -5369,8 +5499,8 @@
       "name": "load_agents_config",
       "file": "agents_config.py",
       "span": {
-        "start": 1041,
-        "end": 1190
+        "start": 1044,
+        "end": 1193
       },
       "tags": [
         "db_access"
@@ -5384,8 +5514,8 @@
       "name": "_parse_mode",
       "file": "agents_config.py",
       "span": {
-        "start": 1119,
-        "end": 1138
+        "start": 1122,
+        "end": 1141
       },
       "tags": [
         "private",
@@ -5400,8 +5530,8 @@
       "name": "__init__",
       "file": "agents_config.py",
       "span": {
-        "start": 1205,
-        "end": 1212
+        "start": 1208,
+        "end": 1215
       },
       "tags": [
         "dunder"
@@ -5415,8 +5545,8 @@
       "name": "get_api_key_identities",
       "file": "agents_config.py",
       "span": {
-        "start": 1215,
-        "end": 1259
+        "start": 1218,
+        "end": 1262
       },
       "tags": [
         "db_access"
@@ -5430,8 +5560,8 @@
       "name": "mutations",
       "file": "agents_config.py",
       "span": {
-        "start": 1371,
-        "end": 1380
+        "start": 1374,
+        "end": 1383
       },
       "tags": [
         "property"
@@ -5445,8 +5575,8 @@
       "name": "derive_allowed_operations",
       "file": "agents_config.py",
       "span": {
-        "start": 1383,
-        "end": 1412
+        "start": 1386,
+        "end": 1415
       },
       "tags": [
         "db_access"
@@ -5460,8 +5590,8 @@
       "name": "_is_unique_violation",
       "file": "agents_config.py",
       "span": {
-        "start": 1424,
-        "end": 1440
+        "start": 1427,
+        "end": 1443
       },
       "tags": [
         "private"
@@ -5475,8 +5605,8 @@
       "name": "_registry_sync_timestamp",
       "file": "agents_config.py",
       "span": {
-        "start": 1443,
-        "end": 1456
+        "start": 1446,
+        "end": 1459
       },
       "tags": [
         "private"
@@ -5490,8 +5620,8 @@
       "name": "_desired_profile_row",
       "file": "agents_config.py",
       "span": {
-        "start": 1459,
-        "end": 1469
+        "start": 1462,
+        "end": 1472
       },
       "tags": [
         "private"
@@ -5505,8 +5635,8 @@
       "name": "_profile_drift",
       "file": "agents_config.py",
       "span": {
-        "start": 1472,
-        "end": 1487
+        "start": 1475,
+        "end": 1490
       },
       "tags": [
         "private",
@@ -5521,8 +5651,8 @@
       "name": "_emit_sync_audit",
       "file": "agents_config.py",
       "span": {
-        "start": 1490,
-        "end": 1532
+        "start": 1493,
+        "end": 1535
       },
       "tags": [
         "async",
@@ -5537,8 +5667,8 @@
       "name": "_sync_assignments",
       "file": "agents_config.py",
       "span": {
-        "start": 1535,
-        "end": 1718
+        "start": 1538,
+        "end": 1721
       },
       "tags": [
         "async",
@@ -5554,8 +5684,8 @@
       "name": "sync_profiles",
       "file": "agents_config.py",
       "span": {
-        "start": 1721,
-        "end": 1947
+        "start": 1724,
+        "end": 1950
       },
       "tags": [
         "async",
@@ -5570,8 +5700,8 @@
       "name": "get_mcp_env",
       "file": "agents_config.py",
       "span": {
-        "start": 1954,
-        "end": 1982
+        "start": 1957,
+        "end": 1985
       },
       "tags": [
         "db_access"
@@ -5585,8 +5715,8 @@
       "name": "get_agents_config",
       "file": "agents_config.py",
       "span": {
-        "start": 1992,
-        "end": 2005
+        "start": 1995,
+        "end": 2008
       },
       "tags": [],
       "signatures": {}
@@ -5598,8 +5728,8 @@
       "name": "get_agent_config",
       "file": "agents_config.py",
       "span": {
-        "start": 2008,
-        "end": 2013
+        "start": 2011,
+        "end": 2016
       },
       "tags": [],
       "signatures": {}
@@ -5611,8 +5741,8 @@
       "name": "reset_agents_config",
       "file": "agents_config.py",
       "span": {
-        "start": 2016,
-        "end": 2019
+        "start": 2019,
+        "end": 2022
       },
       "tags": [],
       "signatures": {}
@@ -5624,8 +5754,8 @@
       "name": "get_dispatch_configs",
       "file": "agents_config.py",
       "span": {
-        "start": 2026,
-        "end": 2102
+        "start": 2029,
+        "end": 2105
       },
       "tags": [],
       "signatures": {}
@@ -5637,8 +5767,8 @@
       "name": "get_agent_isolation",
       "file": "agents_config.py",
       "span": {
-        "start": 2109,
-        "end": 2129
+        "start": 2112,
+        "end": 2132
       },
       "tags": [
         "db_access"
@@ -5652,8 +5782,8 @@
       "name": "_default_archetypes_path",
       "file": "agents_config.py",
       "span": {
-        "start": 2136,
-        "end": 2137
+        "start": 2139,
+        "end": 2140
       },
       "tags": [
         "private"
@@ -5667,8 +5797,8 @@
       "name": "_as_positive_number",
       "file": "agents_config.py",
       "span": {
-        "start": 2140,
-        "end": 2144
+        "start": 2143,
+        "end": 2147
       },
       "tags": [
         "private"
@@ -5682,8 +5812,39 @@
       "name": "_validate_local_roster",
       "file": "agents_config.py",
       "span": {
-        "start": 2147,
-        "end": 2266
+        "start": 2150,
+        "end": 2269
+      },
+      "tags": [
+        "private",
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:agents_config._observe_archetypes_source",
+      "kind": "function",
+      "language": "python",
+      "name": "_observe_archetypes_source",
+      "file": "agents_config.py",
+      "span": {
+        "start": 2272,
+        "end": 2282
+      },
+      "tags": [
+        "private"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:agents_config._parse_archetypes_file",
+      "kind": "function",
+      "language": "python",
+      "name": "_parse_archetypes_file",
+      "file": "agents_config.py",
+      "span": {
+        "start": 2285,
+        "end": 2357
       },
       "tags": [
         "private",
@@ -5698,12 +5859,10 @@
       "name": "load_archetypes_config",
       "file": "agents_config.py",
       "span": {
-        "start": 2269,
-        "end": 2369
+        "start": 2360,
+        "end": 2423
       },
-      "tags": [
-        "db_access"
-      ],
+      "tags": [],
       "signatures": {}
     },
     {
@@ -5713,8 +5872,8 @@
       "name": "get_archetype",
       "file": "agents_config.py",
       "span": {
-        "start": 2377,
-        "end": 2388
+        "start": 2438,
+        "end": 2449
       },
       "tags": [
         "db_access"
@@ -5728,8 +5887,8 @@
       "name": "get_phase_mapping",
       "file": "agents_config.py",
       "span": {
-        "start": 2391,
-        "end": 2400
+        "start": 2452,
+        "end": 2459
       },
       "tags": [],
       "signatures": {}
@@ -5741,8 +5900,8 @@
       "name": "reset_archetypes_config",
       "file": "agents_config.py",
       "span": {
-        "start": 2403,
-        "end": 2408
+        "start": 2462,
+        "end": 2470
       },
       "tags": [],
       "signatures": {}
@@ -5754,8 +5913,8 @@
       "name": "_served_local_roster",
       "file": "agents_config.py",
       "span": {
-        "start": 2411,
-        "end": 2437
+        "start": 2473,
+        "end": 2499
       },
       "tags": [
         "private",
@@ -5770,8 +5929,8 @@
       "name": "_with_served_local_roster",
       "file": "agents_config.py",
       "span": {
-        "start": 2440,
-        "end": 2451
+        "start": 2502,
+        "end": 2513
       },
       "tags": [
         "private"
@@ -5785,8 +5944,8 @@
       "name": "_normalize_provider_model_map",
       "file": "agents_config.py",
       "span": {
-        "start": 2454,
-        "end": 2481
+        "start": 2516,
+        "end": 2543
       },
       "tags": [
         "private",
@@ -5801,8 +5960,8 @@
       "name": "get_provider_model_map",
       "file": "agents_config.py",
       "span": {
-        "start": 2484,
-        "end": 2512
+        "start": 2546,
+        "end": 2573
       },
       "tags": [],
       "signatures": {}
@@ -5814,8 +5973,8 @@
       "name": "_tier_entry_to_spec",
       "file": "agents_config.py",
       "span": {
-        "start": 2515,
-        "end": 2527
+        "start": 2576,
+        "end": 2588
       },
       "tags": [
         "private",
@@ -5830,8 +5989,8 @@
       "name": "_best_defined_tier",
       "file": "agents_config.py",
       "span": {
-        "start": 2530,
-        "end": 2536
+        "start": 2591,
+        "end": 2597
       },
       "tags": [
         "private",
@@ -5846,8 +6005,8 @@
       "name": "resolve_provider_model_spec",
       "file": "agents_config.py",
       "span": {
-        "start": 2539,
-        "end": 2617
+        "start": 2600,
+        "end": 2678
       },
       "tags": [
         "db_access"
@@ -5861,8 +6020,8 @@
       "name": "resolve_provider_model",
       "file": "agents_config.py",
       "span": {
-        "start": 2620,
-        "end": 2633
+        "start": 2681,
+        "end": 2694
       },
       "tags": [],
       "signatures": {}
@@ -5874,8 +6033,8 @@
       "name": "compose_prompt",
       "file": "agents_config.py",
       "span": {
-        "start": 2640,
-        "end": 2649
+        "start": 2701,
+        "end": 2710
       },
       "tags": [],
       "signatures": {}
@@ -5887,8 +6046,8 @@
       "name": "_unique_dir_prefixes",
       "file": "agents_config.py",
       "span": {
-        "start": 2656,
-        "end": 2672
+        "start": 2717,
+        "end": 2733
       },
       "tags": [
         "private",
@@ -5903,8 +6062,8 @@
       "name": "resolve_model",
       "file": "agents_config.py",
       "span": {
-        "start": 2675,
-        "end": 2711
+        "start": 2736,
+        "end": 2772
       },
       "tags": [],
       "signatures": {}
@@ -5916,8 +6075,8 @@
       "name": "_resolve_model_spec",
       "file": "agents_config.py",
       "span": {
-        "start": 2714,
-        "end": 2776
+        "start": 2775,
+        "end": 2837
       },
       "tags": [
         "private",
@@ -5932,8 +6091,8 @@
       "name": "_finalize",
       "file": "agents_config.py",
       "span": {
-        "start": 2723,
-        "end": 2739
+        "start": 2784,
+        "end": 2800
       },
       "tags": [
         "private"
@@ -5947,8 +6106,8 @@
       "name": "_resolve_archetype_for_phase_static",
       "file": "agents_config.py",
       "span": {
-        "start": 2784,
-        "end": 2904
+        "start": 2845,
+        "end": 2964
       },
       "tags": [
         "private",
@@ -5963,8 +6122,8 @@
       "name": "_adaptive_routing_enabled",
       "file": "agents_config.py",
       "span": {
-        "start": 2907,
-        "end": 2913
+        "start": 2967,
+        "end": 2973
       },
       "tags": [
         "private",
@@ -5979,8 +6138,8 @@
       "name": "_adaptive_task_signals",
       "file": "agents_config.py",
       "span": {
-        "start": 2916,
-        "end": 2936
+        "start": 2976,
+        "end": 2996
       },
       "tags": [
         "private",
@@ -5995,8 +6154,8 @@
       "name": "_catalog_vendor_for_provider",
       "file": "agents_config.py",
       "span": {
-        "start": 2939,
-        "end": 2951
+        "start": 2999,
+        "end": 3011
       },
       "tags": [
         "private"
@@ -6010,8 +6169,8 @@
       "name": "_provider_for_catalog_vendor",
       "file": "agents_config.py",
       "span": {
-        "start": 2954,
-        "end": 2967
+        "start": 3014,
+        "end": 3027
       },
       "tags": [
         "private"
@@ -6025,8 +6184,8 @@
       "name": "_routed_provider",
       "file": "agents_config.py",
       "span": {
-        "start": 2970,
-        "end": 2987
+        "start": 3030,
+        "end": 3047
       },
       "tags": [
         "private",
@@ -6041,8 +6200,8 @@
       "name": "_static_incumbent",
       "file": "agents_config.py",
       "span": {
-        "start": 2990,
-        "end": 2995
+        "start": 3050,
+        "end": 3055
       },
       "tags": [
         "private"
@@ -6056,8 +6215,8 @@
       "name": "_bounded_adaptive_resolution",
       "file": "agents_config.py",
       "span": {
-        "start": 2998,
-        "end": 3041
+        "start": 3058,
+        "end": 3101
       },
       "tags": [
         "private",
@@ -6072,8 +6231,8 @@
       "name": "_call",
       "file": "agents_config.py",
       "span": {
-        "start": 3012,
-        "end": 3029
+        "start": 3072,
+        "end": 3089
       },
       "tags": [
         "private"
@@ -6087,8 +6246,8 @@
       "name": "resolve_archetype_for_phase",
       "file": "agents_config.py",
       "span": {
-        "start": 3044,
-        "end": 3099
+        "start": 3104,
+        "end": 3159
       },
       "tags": [
         "db_access"
@@ -6706,7 +6865,7 @@
       "file": "cloudflare_access.py",
       "span": {
         "start": 134,
-        "end": 144
+        "end": 150
       },
       "tags": [
         "dunder"
@@ -6720,8 +6879,8 @@
       "name": "_is_exempt",
       "file": "cloudflare_access.py",
       "span": {
-        "start": 146,
-        "end": 154
+        "start": 152,
+        "end": 160
       },
       "tags": [
         "private"
@@ -6735,8 +6894,8 @@
       "name": "__call__",
       "file": "cloudflare_access.py",
       "span": {
-        "start": 156,
-        "end": 182
+        "start": 162,
+        "end": 193
       },
       "tags": [
         "async",
@@ -6752,8 +6911,8 @@
       "name": "_deny",
       "file": "cloudflare_access.py",
       "span": {
-        "start": 185,
-        "end": 189
+        "start": 196,
+        "end": 200
       },
       "tags": [
         "async",
@@ -6769,8 +6928,8 @@
       "name": "install_cloudflare_access",
       "file": "cloudflare_access.py",
       "span": {
-        "start": 192,
-        "end": 219
+        "start": 203,
+        "end": 233
       },
       "tags": [],
       "signatures": {}
@@ -8101,8 +8260,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 58,
-        "end": 71
+        "start": 59,
+        "end": 72
       },
       "tags": [
         "classmethod",
@@ -8117,8 +8276,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 83,
-        "end": 95
+        "start": 84,
+        "end": 96
       },
       "tags": [
         "classmethod",
@@ -8133,8 +8292,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 106,
-        "end": 109
+        "start": 107,
+        "end": 110
       },
       "tags": [
         "classmethod",
@@ -8149,8 +8308,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 121,
-        "end": 126
+        "start": 122,
+        "end": 127
       },
       "tags": [
         "classmethod",
@@ -8165,8 +8324,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 137,
-        "end": 141
+        "start": 138,
+        "end": 142
       },
       "tags": [
         "classmethod",
@@ -8181,8 +8340,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 152,
-        "end": 161
+        "start": 153,
+        "end": 162
       },
       "tags": [
         "classmethod",
@@ -8197,8 +8356,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 178,
-        "end": 194
+        "start": 179,
+        "end": 195
       },
       "tags": [
         "classmethod",
@@ -8213,8 +8372,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 205,
-        "end": 209
+        "start": 206,
+        "end": 210
       },
       "tags": [
         "classmethod",
@@ -8229,8 +8388,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 219,
-        "end": 222
+        "start": 220,
+        "end": 223
       },
       "tags": [
         "classmethod",
@@ -8245,8 +8404,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 235,
-        "end": 246
+        "start": 236,
+        "end": 247
       },
       "tags": [
         "classmethod",
@@ -8261,8 +8420,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 272,
-        "end": 281
+        "start": 273,
+        "end": 282
       },
       "tags": [
         "classmethod",
@@ -8277,8 +8436,8 @@
       "name": "is_enabled",
       "file": "config.py",
       "span": {
-        "start": 283,
-        "end": 285
+        "start": 284,
+        "end": 286
       },
       "tags": [],
       "signatures": {}
@@ -8290,8 +8449,8 @@
       "name": "create_client",
       "file": "config.py",
       "span": {
-        "start": 287,
-        "end": 328
+        "start": 288,
+        "end": 329
       },
       "tags": [],
       "signatures": {}
@@ -8303,8 +8462,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 340,
-        "end": 345
+        "start": 341,
+        "end": 346
       },
       "tags": [
         "classmethod",
@@ -8319,8 +8478,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 369,
-        "end": 379
+        "start": 370,
+        "end": 380
       },
       "tags": [
         "classmethod",
@@ -8335,13 +8494,42 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 392,
-        "end": 398
+        "start": 393,
+        "end": 399
       },
       "tags": [
         "classmethod",
         "db_access"
       ],
+      "signatures": {}
+    },
+    {
+      "id": "py:config.ReviewQueueConfig.from_env",
+      "kind": "function",
+      "language": "python",
+      "name": "from_env",
+      "file": "config.py",
+      "span": {
+        "start": 430,
+        "end": 449
+      },
+      "tags": [
+        "classmethod",
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:config.ReviewQueueConfig.publisher_enabled",
+      "kind": "function",
+      "language": "python",
+      "name": "publisher_enabled",
+      "file": "config.py",
+      "span": {
+        "start": 451,
+        "end": 456
+      },
+      "tags": [],
       "signatures": {}
     },
     {
@@ -8351,8 +8539,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 414,
-        "end": 465
+        "start": 472,
+        "end": 523
       },
       "tags": [
         "classmethod",
@@ -8367,8 +8555,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 489,
-        "end": 519
+        "start": 549,
+        "end": 590
       },
       "tags": [
         "classmethod",
@@ -8383,8 +8571,8 @@
       "name": "_default_workdir_root",
       "file": "config.py",
       "span": {
-        "start": 612,
-        "end": 624
+        "start": 683,
+        "end": 695
       },
       "tags": [
         "private",
@@ -8399,8 +8587,8 @@
       "name": "resolve_workdir_path",
       "file": "config.py",
       "span": {
-        "start": 627,
-        "end": 645
+        "start": 698,
+        "end": 716
       },
       "tags": [],
       "signatures": {}
@@ -8412,8 +8600,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 688,
-        "end": 737
+        "start": 762,
+        "end": 812
       },
       "tags": [
         "classmethod",
@@ -8428,8 +8616,8 @@
       "name": "get_config",
       "file": "config.py",
       "span": {
-        "start": 744,
-        "end": 749
+        "start": 819,
+        "end": 824
       },
       "tags": [],
       "signatures": {}
@@ -8441,8 +8629,8 @@
       "name": "reset_config",
       "file": "config.py",
       "span": {
-        "start": 752,
-        "end": 755
+        "start": 827,
+        "end": 830
       },
       "tags": [],
       "signatures": {}
@@ -8660,7 +8848,7 @@
       "file": "coordination_api.py",
       "span": {
         "start": 780,
-        "end": 4023
+        "end": 4027
       },
       "tags": [
         "db_access"
@@ -10258,8 +10446,8 @@
       "name": "main",
       "file": "coordination_api.py",
       "span": {
-        "start": 4031,
-        "end": 4060
+        "start": 4035,
+        "end": 4064
       },
       "tags": [],
       "signatures": {}
@@ -22555,6 +22743,361 @@
       "signatures": {}
     },
     {
+      "id": "py:review_publisher.PublishError.__init__",
+      "kind": "function",
+      "language": "python",
+      "name": "__init__",
+      "file": "review_publisher.py",
+      "span": {
+        "start": 29,
+        "end": 31
+      },
+      "tags": [
+        "dunder"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:review_publisher.app_jwt",
+      "kind": "function",
+      "language": "python",
+      "name": "app_jwt",
+      "file": "review_publisher.py",
+      "span": {
+        "start": 34,
+        "end": 41
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:review_publisher.render_review_body",
+      "kind": "function",
+      "language": "python",
+      "name": "render_review_body",
+      "file": "review_publisher.py",
+      "span": {
+        "start": 44,
+        "end": 77
+      },
+      "tags": [
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:review_publisher._render_finding",
+      "kind": "function",
+      "language": "python",
+      "name": "_render_finding",
+      "file": "review_publisher.py",
+      "span": {
+        "start": 80,
+        "end": 87
+      },
+      "tags": [
+        "private",
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:review_publisher.GitHubReviewPublisher.__init__",
+      "kind": "function",
+      "language": "python",
+      "name": "__init__",
+      "file": "review_publisher.py",
+      "span": {
+        "start": 93,
+        "end": 94
+      },
+      "tags": [
+        "dunder"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:review_publisher.GitHubReviewPublisher.publish",
+      "kind": "function",
+      "language": "python",
+      "name": "publish",
+      "file": "review_publisher.py",
+      "span": {
+        "start": 96,
+        "end": 118
+      },
+      "tags": [
+        "async",
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:review_publisher.GitHubReviewPublisher._installation_token",
+      "kind": "function",
+      "language": "python",
+      "name": "_installation_token",
+      "file": "review_publisher.py",
+      "span": {
+        "start": 120,
+        "end": 127
+      },
+      "tags": [
+        "async",
+        "private"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:review_publisher._raise_for",
+      "kind": "function",
+      "language": "python",
+      "name": "_raise_for",
+      "file": "review_publisher.py",
+      "span": {
+        "start": 130,
+        "end": 132
+      },
+      "tags": [
+        "private"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:review_queue.ReviewQueueService.__init__",
+      "kind": "function",
+      "language": "python",
+      "name": "__init__",
+      "file": "review_queue.py",
+      "span": {
+        "start": 68,
+        "end": 69
+      },
+      "tags": [
+        "dunder"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:review_queue.ReviewQueueService.db",
+      "kind": "function",
+      "language": "python",
+      "name": "db",
+      "file": "review_queue.py",
+      "span": {
+        "start": 72,
+        "end": 75
+      },
+      "tags": [
+        "property"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:review_queue.ReviewQueueService._call",
+      "kind": "function",
+      "language": "python",
+      "name": "_call",
+      "file": "review_queue.py",
+      "span": {
+        "start": 77,
+        "end": 81
+      },
+      "tags": [
+        "async",
+        "private"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:review_queue.ReviewQueueService.submit_job",
+      "kind": "function",
+      "language": "python",
+      "name": "submit_job",
+      "file": "review_queue.py",
+      "span": {
+        "start": 83,
+        "end": 110
+      },
+      "tags": [
+        "async",
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:review_queue.ReviewQueueService.record_lanes",
+      "kind": "function",
+      "language": "python",
+      "name": "record_lanes",
+      "file": "review_queue.py",
+      "span": {
+        "start": 112,
+        "end": 141
+      },
+      "tags": [
+        "async",
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:review_queue.ReviewQueueService.get_round",
+      "kind": "function",
+      "language": "python",
+      "name": "get_round",
+      "file": "review_queue.py",
+      "span": {
+        "start": 143,
+        "end": 150
+      },
+      "tags": [
+        "async"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:review_queue.ReviewQueueService.claim_publication",
+      "kind": "function",
+      "language": "python",
+      "name": "claim_publication",
+      "file": "review_queue.py",
+      "span": {
+        "start": 152,
+        "end": 154
+      },
+      "tags": [
+        "async"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:review_queue.ReviewQueueService.finish_publication",
+      "kind": "function",
+      "language": "python",
+      "name": "finish_publication",
+      "file": "review_queue.py",
+      "span": {
+        "start": 156,
+        "end": 163
+      },
+      "tags": [
+        "async"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:review_queue.get_review_queue_service",
+      "kind": "function",
+      "language": "python",
+      "name": "get_review_queue_service",
+      "file": "review_queue.py",
+      "span": {
+        "start": 169,
+        "end": 174
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:review_routes.install_review_routes",
+      "kind": "function",
+      "language": "python",
+      "name": "install_review_routes",
+      "file": "review_routes.py",
+      "span": {
+        "start": 43,
+        "end": 132
+      },
+      "tags": [
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:review_routes.install_review_routes.verify_review_submitter",
+      "kind": "function",
+      "language": "python",
+      "name": "verify_review_submitter",
+      "file": "review_routes.py",
+      "span": {
+        "start": 51,
+        "end": 64
+      },
+      "tags": [
+        "async",
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:review_routes.install_review_routes.submit_review_job",
+      "kind": "function",
+      "language": "python",
+      "name": "submit_review_job",
+      "file": "review_routes.py",
+      "span": {
+        "start": 67,
+        "end": 93
+      },
+      "tags": [
+        "async",
+        "entry_point",
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:review_routes.install_review_routes.record_review_results",
+      "kind": "function",
+      "language": "python",
+      "name": "record_review_results",
+      "file": "review_routes.py",
+      "span": {
+        "start": 96,
+        "end": 117
+      },
+      "tags": [
+        "async",
+        "entry_point",
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:review_routes.install_review_routes.get_review_round",
+      "kind": "function",
+      "language": "python",
+      "name": "get_review_round",
+      "file": "review_routes.py",
+      "span": {
+        "start": 120,
+        "end": 132
+      },
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:review_routes._publish",
+      "kind": "function",
+      "language": "python",
+      "name": "_publish",
+      "file": "review_routes.py",
+      "span": {
+        "start": 135,
+        "end": 152
+      },
+      "tags": [
+        "async",
+        "private",
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
       "id": "py:risk_scorer.RiskScorer.__init__",
       "kind": "function",
       "language": "python",
@@ -24868,21 +25411,6 @@
       }
     },
     {
-      "id": "pg:public.public.file_locks.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "001_core_schema.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
-      }
-    },
-    {
       "id": "pg:public.public.work_queue",
       "kind": "table",
       "language": "sql",
@@ -25001,10 +25529,10 @@
       }
     },
     {
-      "id": "pg:public.public.work_queue.enable",
+      "id": "pg:public.public.work_queue.depends_on",
       "kind": "column",
       "language": "sql",
-      "name": "enable",
+      "name": "depends_on",
       "file": "001_core_schema.sql",
       "span": {
         "start": 1,
@@ -25012,44 +25540,14 @@
       },
       "tags": [],
       "signatures": {
-        "type": "UNKNOWN"
+        "type": "UUID[]"
       }
     },
     {
-      "id": "pg:public.public.work_queue.labels",
+      "id": "pg:public.public.work_queue.status",
       "kind": "column",
       "language": "sql",
-      "name": "labels",
-      "file": "001_core_schema.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "TEXT"
-      }
-    },
-    {
-      "id": "pg:public.public.work_queue.parent_id",
-      "kind": "column",
-      "language": "sql",
-      "name": "parent_id",
-      "file": "001_core_schema.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UUID"
-      }
-    },
-    {
-      "id": "pg:public.public.work_queue.issue_type",
-      "kind": "column",
-      "language": "sql",
-      "name": "issue_type",
+      "name": "status",
       "file": "001_core_schema.sql",
       "span": {
         "start": 1,
@@ -25061,10 +25559,25 @@
       }
     },
     {
-      "id": "pg:public.public.work_queue.assignee",
+      "id": "pg:public.public.work_queue.result",
       "kind": "column",
       "language": "sql",
-      "name": "assignee",
+      "name": "result",
+      "file": "001_core_schema.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "JSONB"
+      }
+    },
+    {
+      "id": "pg:public.public.work_queue.error_message",
+      "kind": "column",
+      "language": "sql",
+      "name": "error_message",
       "file": "001_core_schema.sql",
       "span": {
         "start": 1,
@@ -25076,10 +25589,10 @@
       }
     },
     {
-      "id": "pg:public.public.work_queue.closed_at",
+      "id": "pg:public.public.work_queue.created_at",
       "kind": "column",
       "language": "sql",
-      "name": "closed_at",
+      "name": "created_at",
       "file": "001_core_schema.sql",
       "span": {
         "start": 1,
@@ -25091,10 +25604,10 @@
       }
     },
     {
-      "id": "pg:public.public.work_queue.close_reason",
+      "id": "pg:public.public.work_queue.started_at",
       "kind": "column",
       "language": "sql",
-      "name": "close_reason",
+      "name": "started_at",
       "file": "001_core_schema.sql",
       "span": {
         "start": 1,
@@ -25102,14 +25615,14 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT"
+        "type": "TIMESTAMPTZ"
       }
     },
     {
-      "id": "pg:public.public.work_queue.metadata",
+      "id": "pg:public.public.work_queue.completed_at",
       "kind": "column",
       "language": "sql",
-      "name": "metadata",
+      "name": "completed_at",
       "file": "001_core_schema.sql",
       "span": {
         "start": 1,
@@ -25117,14 +25630,14 @@
       },
       "tags": [],
       "signatures": {
-        "type": "JSONB"
+        "type": "TIMESTAMPTZ"
       }
     },
     {
-      "id": "pg:public.public.work_queue.agent_requirements",
+      "id": "pg:public.public.work_queue.deadline",
       "kind": "column",
       "language": "sql",
-      "name": "agent_requirements",
+      "name": "deadline",
       "file": "001_core_schema.sql",
       "span": {
         "start": 1,
@@ -25132,7 +25645,52 @@
       },
       "tags": [],
       "signatures": {
-        "type": "JSONB"
+        "type": "TIMESTAMPTZ"
+      }
+    },
+    {
+      "id": "pg:public.public.work_queue.attempt_count",
+      "kind": "column",
+      "language": "sql",
+      "name": "attempt_count",
+      "file": "001_core_schema.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "INTEGER"
+      }
+    },
+    {
+      "id": "pg:public.public.work_queue.max_attempts",
+      "kind": "column",
+      "language": "sql",
+      "name": "max_attempts",
+      "file": "001_core_schema.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "INTEGER"
+      }
+    },
+    {
+      "id": "pg:public.public.work_queue.IF",
+      "kind": "column",
+      "language": "sql",
+      "name": "IF",
+      "file": "001_core_schema.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "NOT EXISTS labels TEXT[]"
       }
     },
     {
@@ -25265,7 +25823,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT"
+        "type": "TEXT[]"
       }
     },
     {
@@ -25284,21 +25842,6 @@
       }
     },
     {
-      "id": "pg:public.public.agent_sessions.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "001_core_schema.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
-      }
-    },
-    {
       "id": "pg:public.public.agent_sessions.capabilities",
       "kind": "column",
       "language": "sql",
@@ -25310,7 +25853,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT"
+        "type": "TEXT[]"
       }
     },
     {
@@ -25359,10 +25902,10 @@
       }
     },
     {
-      "id": "pg:public.public.agent_sessions.delegated_from",
+      "id": "pg:public.public.agent_sessions.IF",
       "kind": "column",
       "language": "sql",
-      "name": "delegated_from",
+      "name": "IF",
       "file": "001_core_schema.sql",
       "span": {
         "start": 1,
@@ -25370,22 +25913,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT"
-      }
-    },
-    {
-      "id": "pg:public.public.agent_sessions.phase_archetype",
-      "kind": "column",
-      "language": "sql",
-      "name": "phase_archetype",
-      "file": "001_core_schema.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "TEXT"
+        "type": "NOT EXISTS delegated_from TEXT"
       }
     },
     {
@@ -25552,10 +26080,10 @@
       }
     },
     {
-      "id": "pg:public.public.handoff_documents.enable",
+      "id": "pg:public.public.handoff_documents.IF",
       "kind": "column",
       "language": "sql",
-      "name": "enable",
+      "name": "IF",
       "file": "002_handoff_documents.sql",
       "span": {
         "start": 1,
@@ -25563,22 +26091,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "UNKNOWN"
-      }
-    },
-    {
-      "id": "pg:public.public.handoff_documents.supervisor_record",
-      "kind": "column",
-      "language": "sql",
-      "name": "supervisor_record",
-      "file": "002_handoff_documents.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "JSONB"
+        "type": "NOT EXISTS supervisor_record JSONB"
       }
     },
     {
@@ -25711,7 +26224,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT"
+        "type": "TEXT[]"
       }
     },
     {
@@ -25726,7 +26239,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT"
+        "type": "TEXT[]"
       }
     },
     {
@@ -25757,21 +26270,6 @@
       "tags": [],
       "signatures": {
         "type": "TIMESTAMPTZ"
-      }
-    },
-    {
-      "id": "pg:public.public.memory_episodic.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "004_memory_tables.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
       }
     },
     {
@@ -25938,21 +26436,6 @@
       }
     },
     {
-      "id": "pg:public.public.changesets.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "005_verification_tables.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
-      }
-    },
-    {
       "id": "pg:public.public.verification_results",
       "kind": "table",
       "language": "sql",
@@ -26007,7 +26490,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "UNKNOWN"
+        "type": "verification_tier"
       }
     },
     {
@@ -26022,7 +26505,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "UNKNOWN"
+        "type": "verification_executor"
       }
     },
     {
@@ -26037,7 +26520,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "UNKNOWN"
+        "type": "verification_status"
       }
     },
     {
@@ -26131,21 +26614,6 @@
       }
     },
     {
-      "id": "pg:public.public.verification_results.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "005_verification_tables.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
-      }
-    },
-    {
       "id": "pg:public.public.verification_policies",
       "kind": "table",
       "language": "sql",
@@ -26230,7 +26698,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "UNKNOWN"
+        "type": "verification_tier"
       }
     },
     {
@@ -26245,7 +26713,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "UNKNOWN"
+        "type": "verification_executor"
       }
     },
     {
@@ -26306,21 +26774,6 @@
       "tags": [],
       "signatures": {
         "type": "TIMESTAMPTZ"
-      }
-    },
-    {
-      "id": "pg:public.public.verification_policies.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "005_verification_tables.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
       }
     },
     {
@@ -26469,21 +26922,6 @@
       "tags": [],
       "signatures": {
         "type": "TIMESTAMPTZ"
-      }
-    },
-    {
-      "id": "pg:public.public.operation_guardrails.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "006_guardrails_tables.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
       }
     },
     {
@@ -26665,21 +27103,6 @@
       }
     },
     {
-      "id": "pg:public.public.guardrail_violations.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "006_guardrails_tables.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
-      }
-    },
-    {
       "id": "pg:public.public.agent_profiles",
       "kind": "table",
       "language": "sql",
@@ -26779,7 +27202,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT"
+        "type": "TEXT[]"
       }
     },
     {
@@ -26794,7 +27217,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT"
+        "type": "TEXT[]"
       }
     },
     {
@@ -26918,10 +27341,10 @@
       }
     },
     {
-      "id": "pg:public.public.agent_profiles.enable",
+      "id": "pg:public.public.agent_profiles.IF",
       "kind": "column",
       "language": "sql",
-      "name": "enable",
+      "name": "IF",
       "file": "007_agent_profiles.sql",
       "span": {
         "start": 1,
@@ -26929,22 +27352,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "UNKNOWN"
-      }
-    },
-    {
-      "id": "pg:public.public.agent_profiles.synced_from_registry_at",
-      "kind": "column",
-      "language": "sql",
-      "name": "synced_from_registry_at",
-      "file": "007_agent_profiles.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "TIMESTAMPTZ"
+        "type": "NOT EXISTS synced_from_registry_at TIMESTAMPTZ"
       }
     },
     {
@@ -27033,21 +27441,6 @@
       "tags": [],
       "signatures": {
         "type": "TIMESTAMPTZ"
-      }
-    },
-    {
-      "id": "pg:public.public.agent_profile_assignments.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "007_agent_profiles.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
       }
     },
     {
@@ -27214,10 +27607,10 @@
       }
     },
     {
-      "id": "pg:public.public.audit_log.enable",
+      "id": "pg:public.public.audit_log.IF",
       "kind": "column",
       "language": "sql",
-      "name": "enable",
+      "name": "IF",
       "file": "008_audit_log.sql",
       "span": {
         "start": 1,
@@ -27225,22 +27618,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "UNKNOWN"
-      }
-    },
-    {
-      "id": "pg:public.public.audit_log.delegated_from",
-      "kind": "column",
-      "language": "sql",
-      "name": "delegated_from",
-      "file": "008_audit_log.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "TEXT"
+        "type": "NOT EXISTS delegated_from TEXT"
       }
     },
     {
@@ -27377,21 +27755,6 @@
       }
     },
     {
-      "id": "pg:public.public.network_policies.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "009_network_policies.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
-      }
-    },
-    {
       "id": "pg:public.public.network_access_log",
       "kind": "table",
       "language": "sql",
@@ -27507,21 +27870,6 @@
       "tags": [],
       "signatures": {
         "type": "TIMESTAMPTZ"
-      }
-    },
-    {
-      "id": "pg:public.public.network_access_log.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "009_network_policies.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
       }
     },
     {
@@ -27658,10 +28006,10 @@
       }
     },
     {
-      "id": "pg:public.public.cedar_policies.enable",
+      "id": "pg:public.public.cedar_policies.IF",
       "kind": "column",
       "language": "sql",
-      "name": "enable",
+      "name": "IF",
       "file": "010_cedar_policy_store.sql",
       "span": {
         "start": 1,
@@ -27669,22 +28017,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "UNKNOWN"
-      }
-    },
-    {
-      "id": "pg:public.public.cedar_policies.policy_version",
-      "kind": "column",
-      "language": "sql",
-      "name": "policy_version",
-      "file": "010_cedar_policy_store.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "INTEGER"
+        "type": "NOT EXISTS policy_version INTEGER"
       }
     },
     {
@@ -27803,21 +28136,6 @@
       "tags": [],
       "signatures": {
         "type": "TIMESTAMPTZ"
-      }
-    },
-    {
-      "id": "pg:public.public.cedar_entities.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "010_cedar_policy_store.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
       }
     },
     {
@@ -27950,7 +28268,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT"
+        "type": "TEXT[]"
       }
     },
     {
@@ -27981,6 +28299,21 @@
       "tags": [],
       "signatures": {
         "type": "INTEGER"
+      }
+    },
+    {
+      "id": "pg:public.public.feature_registry.metadata",
+      "kind": "column",
+      "language": "sql",
+      "name": "metadata",
+      "file": "012_feature_registry.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "JSONB"
       }
     },
     {
@@ -28443,21 +28776,6 @@
       }
     },
     {
-      "id": "pg:public.public.approval_queue.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "014_fix_approval_queue_schema.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
-      }
-    },
-    {
       "id": "pg:public.public.notification_tokens",
       "kind": "table",
       "language": "sql",
@@ -28664,21 +28982,6 @@
       }
     },
     {
-      "id": "pg:public.public.issue_comments.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "017_issue_tracking.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
-      }
-    },
-    {
       "id": "pg:public.public.code_search_registry",
       "kind": "table",
       "language": "sql",
@@ -28812,10 +29115,10 @@
       }
     },
     {
-      "id": "pg:public.public.code_search_registry.canonical_index_id",
+      "id": "pg:public.public.code_search_registry.IF",
       "kind": "column",
       "language": "sql",
-      "name": "canonical_index_id",
+      "name": "IF",
       "file": "028_code_search_registry.sql",
       "span": {
         "start": 1,
@@ -28823,22 +29126,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "UUID"
-      }
-    },
-    {
-      "id": "pg:public.public.code_search_registry.git_common_dir_fingerprint",
-      "kind": "column",
-      "language": "sql",
-      "name": "git_common_dir_fingerprint",
-      "file": "028_code_search_registry.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "TEXT"
+        "type": "NOT EXISTS canonical_index_id UUID"
       }
     },
     {
@@ -28919,6 +29207,21 @@
       "kind": "column",
       "language": "sql",
       "name": "namespace_key",
+      "file": "029_revision_aware_code_search_indexes.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "TEXT"
+      }
+    },
+    {
+      "id": "pg:public.public.code_search_indexes.source_revision",
+      "kind": "column",
+      "language": "sql",
+      "name": "source_revision",
       "file": "029_revision_aware_code_search_indexes.sql",
       "span": {
         "start": 1,
@@ -29155,10 +29458,10 @@
       }
     },
     {
-      "id": "pg:public.public.code_search_indexes.policy_fingerprint",
+      "id": "pg:public.public.code_search_indexes.CONSTRAINT",
       "kind": "column",
       "language": "sql",
-      "name": "policy_fingerprint",
+      "name": "CONSTRAINT",
       "file": "029_revision_aware_code_search_indexes.sql",
       "span": {
         "start": 1,
@@ -29166,14 +29469,14 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT"
+        "type": "code_search_indexes_natural_key"
       }
     },
     {
-      "id": "pg:public.public.code_search_indexes.pipeline_fingerprint",
+      "id": "pg:public.public.code_search_indexes.IF",
       "kind": "column",
       "language": "sql",
-      "name": "pipeline_fingerprint",
+      "name": "IF",
       "file": "029_revision_aware_code_search_indexes.sql",
       "span": {
         "start": 1,
@@ -29181,37 +29484,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT"
-      }
-    },
-    {
-      "id": "pg:public.public.code_search_indexes.embedder_fingerprint",
-      "kind": "column",
-      "language": "sql",
-      "name": "embedder_fingerprint",
-      "file": "029_revision_aware_code_search_indexes.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "TEXT"
-      }
-    },
-    {
-      "id": "pg:public.public.code_search_indexes.parent_index_id",
-      "kind": "column",
-      "language": "sql",
-      "name": "parent_index_id",
-      "file": "029_revision_aware_code_search_indexes.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UUID"
+        "type": "NOT EXISTS policy_fingerprint TEXT"
       }
     },
     {
@@ -30221,10 +30494,10 @@
       }
     },
     {
-      "id": "pg:public.public.routing_decisions.retention",
+      "id": "pg:public.public.routing_decisions.IF",
       "kind": "column",
       "language": "sql",
-      "name": "retention",
+      "name": "IF",
       "file": "040_model_routing.sql",
       "span": {
         "start": 1,
@@ -30232,7 +30505,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "JSONB"
+        "type": "NOT EXISTS retention JSONB"
       }
     },
     {
@@ -30752,6 +31025,452 @@
       "tags": [],
       "signatures": {
         "type": "JSONB"
+      }
+    },
+    {
+      "id": "pg:public.public.review_jobs",
+      "kind": "table",
+      "language": "sql",
+      "name": "public.review_jobs",
+      "file": "046_review_queue.sql",
+      "span": {
+        "start": 23,
+        "end": 23
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "pg:public.public.review_jobs.id",
+      "kind": "column",
+      "language": "sql",
+      "name": "id",
+      "file": "046_review_queue.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "UUID"
+      }
+    },
+    {
+      "id": "pg:public.public.review_jobs.repo",
+      "kind": "column",
+      "language": "sql",
+      "name": "repo",
+      "file": "046_review_queue.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "TEXT"
+      }
+    },
+    {
+      "id": "pg:public.public.review_jobs.pr",
+      "kind": "column",
+      "language": "sql",
+      "name": "pr",
+      "file": "046_review_queue.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "INTEGER"
+      }
+    },
+    {
+      "id": "pg:public.public.review_jobs.head_sha",
+      "kind": "column",
+      "language": "sql",
+      "name": "head_sha",
+      "file": "046_review_queue.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "TEXT"
+      }
+    },
+    {
+      "id": "pg:public.public.review_jobs.base_sha",
+      "kind": "column",
+      "language": "sql",
+      "name": "base_sha",
+      "file": "046_review_queue.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "TEXT"
+      }
+    },
+    {
+      "id": "pg:public.public.review_jobs.round",
+      "kind": "column",
+      "language": "sql",
+      "name": "round",
+      "file": "046_review_queue.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "INTEGER"
+      }
+    },
+    {
+      "id": "pg:public.public.review_jobs.lanes_required",
+      "kind": "column",
+      "language": "sql",
+      "name": "lanes_required",
+      "file": "046_review_queue.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "INTEGER"
+      }
+    },
+    {
+      "id": "pg:public.public.review_jobs.risk",
+      "kind": "column",
+      "language": "sql",
+      "name": "risk",
+      "file": "046_review_queue.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "TEXT"
+      }
+    },
+    {
+      "id": "pg:public.public.review_jobs.deadline",
+      "kind": "column",
+      "language": "sql",
+      "name": "deadline",
+      "file": "046_review_queue.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "TIMESTAMPTZ"
+      }
+    },
+    {
+      "id": "pg:public.public.review_jobs.submitted_by",
+      "kind": "column",
+      "language": "sql",
+      "name": "submitted_by",
+      "file": "046_review_queue.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "TEXT"
+      }
+    },
+    {
+      "id": "pg:public.public.review_jobs.task_id",
+      "kind": "column",
+      "language": "sql",
+      "name": "task_id",
+      "file": "046_review_queue.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "UUID"
+      }
+    },
+    {
+      "id": "pg:public.public.review_jobs.passes",
+      "kind": "column",
+      "language": "sql",
+      "name": "passes",
+      "file": "046_review_queue.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "INTEGER"
+      }
+    },
+    {
+      "id": "pg:public.public.review_jobs.status",
+      "kind": "column",
+      "language": "sql",
+      "name": "status",
+      "file": "046_review_queue.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "TEXT"
+      }
+    },
+    {
+      "id": "pg:public.public.review_jobs.published_at",
+      "kind": "column",
+      "language": "sql",
+      "name": "published_at",
+      "file": "046_review_queue.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "TIMESTAMPTZ"
+      }
+    },
+    {
+      "id": "pg:public.public.review_jobs.review_id",
+      "kind": "column",
+      "language": "sql",
+      "name": "review_id",
+      "file": "046_review_queue.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "BIGINT"
+      }
+    },
+    {
+      "id": "pg:public.public.review_jobs.publish_error",
+      "kind": "column",
+      "language": "sql",
+      "name": "publish_error",
+      "file": "046_review_queue.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "TEXT"
+      }
+    },
+    {
+      "id": "pg:public.public.review_jobs.created_at",
+      "kind": "column",
+      "language": "sql",
+      "name": "created_at",
+      "file": "046_review_queue.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "TIMESTAMPTZ"
+      }
+    },
+    {
+      "id": "pg:public.public.review_jobs.updated_at",
+      "kind": "column",
+      "language": "sql",
+      "name": "updated_at",
+      "file": "046_review_queue.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "TIMESTAMPTZ"
+      }
+    },
+    {
+      "id": "pg:public.public.review_lane_results",
+      "kind": "table",
+      "language": "sql",
+      "name": "public.review_lane_results",
+      "file": "046_review_queue.sql",
+      "span": {
+        "start": 50,
+        "end": 50
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "pg:public.public.review_lane_results.job_id",
+      "kind": "column",
+      "language": "sql",
+      "name": "job_id",
+      "file": "046_review_queue.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "UUID"
+      }
+    },
+    {
+      "id": "pg:public.public.review_lane_results.vendor",
+      "kind": "column",
+      "language": "sql",
+      "name": "vendor",
+      "file": "046_review_queue.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "TEXT"
+      }
+    },
+    {
+      "id": "pg:public.public.review_lane_results.host_agent_id",
+      "kind": "column",
+      "language": "sql",
+      "name": "host_agent_id",
+      "file": "046_review_queue.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "TEXT"
+      }
+    },
+    {
+      "id": "pg:public.public.review_lane_results.task_id",
+      "kind": "column",
+      "language": "sql",
+      "name": "task_id",
+      "file": "046_review_queue.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "UUID"
+      }
+    },
+    {
+      "id": "pg:public.public.review_lane_results.verified",
+      "kind": "column",
+      "language": "sql",
+      "name": "verified",
+      "file": "046_review_queue.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "BOOLEAN"
+      }
+    },
+    {
+      "id": "pg:public.public.review_lane_results.verdict",
+      "kind": "column",
+      "language": "sql",
+      "name": "verdict",
+      "file": "046_review_queue.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "TEXT"
+      }
+    },
+    {
+      "id": "pg:public.public.review_lane_results.model",
+      "kind": "column",
+      "language": "sql",
+      "name": "model",
+      "file": "046_review_queue.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "TEXT"
+      }
+    },
+    {
+      "id": "pg:public.public.review_lane_results.findings",
+      "kind": "column",
+      "language": "sql",
+      "name": "findings",
+      "file": "046_review_queue.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "JSONB"
+      }
+    },
+    {
+      "id": "pg:public.public.review_lane_results.error",
+      "kind": "column",
+      "language": "sql",
+      "name": "error",
+      "file": "046_review_queue.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "TEXT"
+      }
+    },
+    {
+      "id": "pg:public.public.review_lane_results.created_at",
+      "kind": "column",
+      "language": "sql",
+      "name": "created_at",
+      "file": "046_review_queue.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "TIMESTAMPTZ"
       }
     },
     {
@@ -31730,6 +32449,32 @@
       "signatures": {}
     },
     {
+      "id": "pg:idx_review_jobs_pr",
+      "kind": "index",
+      "language": "sql",
+      "name": "idx_review_jobs_pr",
+      "file": "",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "pg:idx_review_jobs_task",
+      "kind": "index",
+      "language": "sql",
+      "name": "idx_review_jobs_task",
+      "file": "",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
       "id": "pg:public.auth.role",
       "kind": "stored_function",
       "language": "sql",
@@ -32341,6 +33086,97 @@
       "signatures": {}
     },
     {
+      "id": "pg:public.public.review_job_json",
+      "kind": "stored_function",
+      "language": "sql",
+      "name": "public.review_job_json",
+      "file": "046_review_queue.sql",
+      "span": {
+        "start": 65,
+        "end": 65
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "pg:public.public.review_enqueue_pass",
+      "kind": "stored_function",
+      "language": "sql",
+      "name": "public.review_enqueue_pass",
+      "file": "046_review_queue.sql",
+      "span": {
+        "start": 107,
+        "end": 107
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "pg:public.public.submit_review_job",
+      "kind": "stored_function",
+      "language": "sql",
+      "name": "public.submit_review_job",
+      "file": "046_review_queue.sql",
+      "span": {
+        "start": 151,
+        "end": 151
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "pg:public.public.record_review_lanes",
+      "kind": "stored_function",
+      "language": "sql",
+      "name": "public.record_review_lanes",
+      "file": "046_review_queue.sql",
+      "span": {
+        "start": 251,
+        "end": 251
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "pg:public.public.get_review_round",
+      "kind": "stored_function",
+      "language": "sql",
+      "name": "public.get_review_round",
+      "file": "046_review_queue.sql",
+      "span": {
+        "start": 362,
+        "end": 362
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "pg:public.public.claim_review_publication",
+      "kind": "stored_function",
+      "language": "sql",
+      "name": "public.claim_review_publication",
+      "file": "046_review_queue.sql",
+      "span": {
+        "start": 393,
+        "end": 393
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "pg:public.public.finish_review_publication",
+      "kind": "stored_function",
+      "language": "sql",
+      "name": "public.finish_review_publication",
+      "file": "046_review_queue.sql",
+      "span": {
+        "start": 418,
+        "end": 418
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
       "id": "pg:prevent_audit_modification",
       "kind": "trigger",
       "language": "sql",
@@ -32481,6 +33317,827 @@
         "end": 1
       },
       "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestSchemaValidation",
+      "kind": "test_class",
+      "language": "python",
+      "name": "TestSchemaValidation",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 129,
+        "end": 213
+      },
+      "tags": [
+        "test"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_well_formed_graph_passes",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_well_formed_graph_passes",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 132,
+        "end": 135
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_missing_confidence_on_edges_fails",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_missing_confidence_on_edges_fails",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 137,
+        "end": 155
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_invalid_node_id_pattern_fails",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_invalid_node_id_pattern_fails",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 157,
+        "end": 181
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_edges_referencing_nonexistent_nodes",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_edges_referencing_nonexistent_nodes",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 183,
+        "end": 201
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_entrypoint_referencing_nonexistent_node",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_entrypoint_referencing_nonexistent_node",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 203,
+        "end": 213
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer",
+      "kind": "test_class",
+      "language": "python",
+      "name": "TestPythonAnalyzer",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 221,
+        "end": 392
+      },
+      "tags": [
+        "test"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_analyze_directory_output_structure",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_analyze_directory_output_structure",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 278,
+        "end": 290
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_entry_point_detection",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_entry_point_detection",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 292,
+        "end": 308
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_call_graph_extraction",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_call_graph_extraction",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 310,
+        "end": 325
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_db_access_pattern_detection",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_db_access_pattern_detection",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 327,
+        "end": 337
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_dead_code_candidate_detection",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_dead_code_candidate_detection",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 339,
+        "end": 346
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_syntax_error_handling",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_syntax_error_handling",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 348,
+        "end": 358
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_include_exclude_filtering",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_include_exclude_filtering",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 360,
+        "end": 375
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_async_function_detection",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_async_function_detection",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 377,
+        "end": 383
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_class_extraction",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_class_extraction",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 385,
+        "end": 392
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer",
+      "kind": "test_class",
+      "language": "python",
+      "name": "TestPostgresAnalyzer",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 400,
+        "end": 540
+      },
+      "tags": [
+        "test"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_table_extraction",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_table_extraction",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 440,
+        "end": 462
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_fk_relationship_extraction",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_fk_relationship_extraction",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 464,
+        "end": 488
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_index_extraction",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_index_extraction",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 490,
+        "end": 508
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_summary_statistics",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_summary_statistics",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 510,
+        "end": 520
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_unparseable_sql_handling",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_unparseable_sql_handling",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 522,
+        "end": 540
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler",
+      "kind": "test_class",
+      "language": "python",
+      "name": "TestGraphCompiler",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 548,
+        "end": 753
+      },
+      "tags": [
+        "test"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_compile_graph_produces_output",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_compile_graph_produces_output",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 633,
+        "end": 644
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_node_id_normalization",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_node_id_normalization",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 646,
+        "end": 651
+      },
+      "tags": [
+        "test"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_python_ingestion_creates_nodes_and_edges",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_python_ingestion_creates_nodes_and_edges",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 653,
+        "end": 674
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_cross_language_backend_db_edges",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_cross_language_backend_db_edges",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 676,
+        "end": 687
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_full_compilation_with_backend_db_linking",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_full_compilation_with_backend_db_linking",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 689,
+        "end": 708
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_summary_generation_adaptive_threshold",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_summary_generation_adaptive_threshold",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 710,
+        "end": 724
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_deduplication_helpers",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_deduplication_helpers",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 726,
+        "end": 743
+      },
+      "tags": [
+        "test"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_validate_edges_drops_invalid",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_validate_edges_drops_invalid",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 745,
+        "end": 753
+      },
+      "tags": [
+        "test"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestFlowValidator",
+      "kind": "test_class",
+      "language": "python",
+      "name": "TestFlowValidator",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 761,
+        "end": 890
+      },
+      "tags": [
+        "test"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_reachability_check",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_reachability_check",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 764,
+        "end": 783
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_disconnected_flow_detection",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_disconnected_flow_detection",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 785,
+        "end": 804
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_orphan_detection",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_orphan_detection",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 806,
+        "end": 833
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_diagnostics_output_format",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_diagnostics_output_format",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 835,
+        "end": 854
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_entrypoint_no_downstream",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_entrypoint_no_downstream",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 856,
+        "end": 890
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator",
+      "kind": "test_class",
+      "language": "python",
+      "name": "TestViewGenerator",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 898,
+        "end": 1043
+      },
+      "tags": [
+        "test"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_view_files_are_generated",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_view_files_are_generated",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 987,
+        "end": 1001
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_container_view_contents",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_container_view_contents",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 1003,
+        "end": 1010
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_db_erd_contains_table_nodes",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_db_erd_contains_table_nodes",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 1012,
+        "end": 1017
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_backend_component_view",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_backend_component_view",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 1019,
+        "end": 1024
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_frontend_component_view",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_frontend_component_view",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 1026,
+        "end": 1030
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_feature_slice_generation",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_feature_slice_generation",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 1032,
+        "end": 1043
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones",
+      "kind": "test_class",
+      "language": "python",
+      "name": "TestParallelZones",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 1051,
+        "end": 1269
+      },
+      "tags": [
+        "test"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_connected_component_detection",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_connected_component_detection",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 1149,
+        "end": 1173
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_leaf_module_identification",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_leaf_module_identification",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 1175,
+        "end": 1190
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_high_impact_module_detection",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_high_impact_module_detection",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 1192,
+        "end": 1209
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_impact_radius",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_impact_radius",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 1211,
+        "end": 1219
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_build_output_structure",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_build_output_structure",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 1221,
+        "end": 1240
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_union_find_components",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_union_find_components",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 1242,
+        "end": 1251
+      },
+      "tags": [
+        "test"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_main_cli",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_main_cli",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 1253,
+        "end": 1269
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
       "signatures": {}
     }
   ],
@@ -32724,6 +34381,27 @@
       "evidence": "ast:call:_as_positive_number"
     },
     {
+      "from": "py:agents_config._parse_archetypes_file",
+      "to": "py:teams.CrewManifest.validate",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:validate"
+    },
+    {
+      "from": "py:agents_config._parse_archetypes_file",
+      "to": "py:agents_config._validate_local_roster",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_validate_local_roster"
+    },
+    {
+      "from": "py:agents_config._parse_archetypes_file",
+      "to": "py:agents_config._normalize_provider_model_map",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_normalize_provider_model_map"
+    },
+    {
       "from": "py:agents_config.load_archetypes_config",
       "to": "py:agents_config._default_archetypes_path",
       "type": "call",
@@ -32732,24 +34410,17 @@
     },
     {
       "from": "py:agents_config.load_archetypes_config",
-      "to": "py:teams.CrewManifest.validate",
+      "to": "py:agents_config._observe_archetypes_source",
       "type": "call",
       "confidence": "high",
-      "evidence": "ast:call:validate"
+      "evidence": "ast:call:_observe_archetypes_source"
     },
     {
       "from": "py:agents_config.load_archetypes_config",
-      "to": "py:agents_config._validate_local_roster",
+      "to": "py:agents_config._parse_archetypes_file",
       "type": "call",
       "confidence": "high",
-      "evidence": "ast:call:_validate_local_roster"
-    },
-    {
-      "from": "py:agents_config.load_archetypes_config",
-      "to": "py:agents_config._normalize_provider_model_map",
-      "type": "call",
-      "confidence": "high",
-      "evidence": "ast:call:_normalize_provider_model_map"
+      "evidence": "ast:call:_parse_archetypes_file"
     },
     {
       "from": "py:agents_config.get_phase_mapping",
@@ -33954,6 +35625,13 @@
       "type": "call",
       "confidence": "high",
       "evidence": "ast:call:install_routing_routes"
+    },
+    {
+      "from": "py:coordination_api.create_coordination_api",
+      "to": "py:review_routes.install_review_routes",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:install_review_routes"
     },
     {
       "from": "py:coordination_api.create_coordination_api.lifespan",
@@ -40270,6 +41948,209 @@
       "evidence": "ast:call:get_audit_service"
     },
     {
+      "from": "py:review_publisher.render_review_body",
+      "to": "py:review_publisher._render_finding",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_render_finding"
+    },
+    {
+      "from": "py:review_publisher.GitHubReviewPublisher.publish",
+      "to": "py:review_publisher._raise_for",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_raise_for"
+    },
+    {
+      "from": "py:review_publisher.GitHubReviewPublisher.publish",
+      "to": "py:review_publisher.render_review_body",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:render_review_body"
+    },
+    {
+      "from": "py:review_publisher.GitHubReviewPublisher._installation_token",
+      "to": "py:review_publisher.app_jwt",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:app_jwt"
+    },
+    {
+      "from": "py:review_publisher.GitHubReviewPublisher._installation_token",
+      "to": "py:review_publisher._raise_for",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_raise_for"
+    },
+    {
+      "from": "py:review_queue.ReviewQueueService.db",
+      "to": "py:db.get_db",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_db"
+    },
+    {
+      "from": "py:review_queue.ReviewQueueService.submit_job",
+      "to": "py:audit.get_audit_service",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_audit_service"
+    },
+    {
+      "from": "py:review_queue.ReviewQueueService.record_lanes",
+      "to": "py:config.get_config",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_config"
+    },
+    {
+      "from": "py:review_queue.ReviewQueueService.record_lanes",
+      "to": "py:audit.get_audit_service",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_audit_service"
+    },
+    {
+      "from": "py:review_routes.install_review_routes",
+      "to": "py:config.get_config",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_config"
+    },
+    {
+      "from": "py:review_routes.install_review_routes",
+      "to": "py:coordination_api.verify_api_key",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:verify_api_key"
+    },
+    {
+      "from": "py:review_routes.install_review_routes",
+      "to": "py:coordination_api.resolve_identity",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:resolve_identity"
+    },
+    {
+      "from": "py:review_routes.install_review_routes",
+      "to": "py:coordination_api.authorize_operation",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:authorize_operation"
+    },
+    {
+      "from": "py:review_routes.install_review_routes",
+      "to": "py:review_queue.get_review_queue_service",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_review_queue_service"
+    },
+    {
+      "from": "py:review_routes.install_review_routes",
+      "to": "py:review_routes._publish",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_publish"
+    },
+    {
+      "from": "py:review_routes.install_review_routes.verify_review_submitter",
+      "to": "py:config.get_config",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_config"
+    },
+    {
+      "from": "py:review_routes.install_review_routes.verify_review_submitter",
+      "to": "py:coordination_api.verify_api_key",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:verify_api_key"
+    },
+    {
+      "from": "py:review_routes.install_review_routes.submit_review_job",
+      "to": "py:config.get_config",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_config"
+    },
+    {
+      "from": "py:review_routes.install_review_routes.submit_review_job",
+      "to": "py:coordination_api.resolve_identity",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:resolve_identity"
+    },
+    {
+      "from": "py:review_routes.install_review_routes.submit_review_job",
+      "to": "py:coordination_api.authorize_operation",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:authorize_operation"
+    },
+    {
+      "from": "py:review_routes.install_review_routes.submit_review_job",
+      "to": "py:review_queue.get_review_queue_service",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_review_queue_service"
+    },
+    {
+      "from": "py:review_routes.install_review_routes.record_review_results",
+      "to": "py:coordination_api.resolve_identity",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:resolve_identity"
+    },
+    {
+      "from": "py:review_routes.install_review_routes.record_review_results",
+      "to": "py:coordination_api.authorize_operation",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:authorize_operation"
+    },
+    {
+      "from": "py:review_routes.install_review_routes.record_review_results",
+      "to": "py:review_queue.get_review_queue_service",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_review_queue_service"
+    },
+    {
+      "from": "py:review_routes.install_review_routes.record_review_results",
+      "to": "py:review_routes._publish",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_publish"
+    },
+    {
+      "from": "py:review_routes.install_review_routes.get_review_round",
+      "to": "py:config.get_config",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_config"
+    },
+    {
+      "from": "py:review_routes.install_review_routes.get_review_round",
+      "to": "py:review_queue.get_review_queue_service",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_review_queue_service"
+    },
+    {
+      "from": "py:review_routes._publish",
+      "to": "py:config.get_config",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_config"
+    },
+    {
+      "from": "py:review_routes._publish",
+      "to": "py:review_queue.get_review_queue_service",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_review_queue_service"
+    },
+    {
       "from": "py:risk_scorer.RiskScorer.db",
       "to": "py:db.get_db",
       "type": "call",
@@ -41215,6 +43096,13 @@
       "evidence": "ast:import"
     },
     {
+      "from": "py:coordination_api",
+      "to": "py:review_routes",
+      "type": "import",
+      "confidence": "high",
+      "evidence": "ast:import"
+    },
+    {
       "from": "py:coordination_cli",
       "to": "py:axi_output",
       "type": "import",
@@ -42015,6 +43903,55 @@
     {
       "from": "py:profiles",
       "to": "py:db",
+      "type": "import",
+      "confidence": "high",
+      "evidence": "ast:import"
+    },
+    {
+      "from": "py:review_publisher",
+      "to": "py:config",
+      "type": "import",
+      "confidence": "high",
+      "evidence": "ast:import"
+    },
+    {
+      "from": "py:review_queue",
+      "to": "py:audit",
+      "type": "import",
+      "confidence": "high",
+      "evidence": "ast:import"
+    },
+    {
+      "from": "py:review_queue",
+      "to": "py:config",
+      "type": "import",
+      "confidence": "high",
+      "evidence": "ast:import"
+    },
+    {
+      "from": "py:review_queue",
+      "to": "py:db",
+      "type": "import",
+      "confidence": "high",
+      "evidence": "ast:import"
+    },
+    {
+      "from": "py:review_routes",
+      "to": "py:config",
+      "type": "import",
+      "confidence": "high",
+      "evidence": "ast:import"
+    },
+    {
+      "from": "py:review_routes",
+      "to": "py:review_publisher",
+      "type": "import",
+      "confidence": "high",
+      "evidence": "ast:import"
+    },
+    {
+      "from": "py:review_routes",
+      "to": "py:review_queue",
       "type": "import",
       "confidence": "high",
       "evidence": "ast:import"
@@ -42844,6 +44781,24 @@
       "kind": "route",
       "method": "POST",
       "path": "/routing/feedback"
+    },
+    {
+      "node_id": "py:review_routes.install_review_routes.submit_review_job",
+      "kind": "route",
+      "method": "POST",
+      "path": "/reviews/jobs"
+    },
+    {
+      "node_id": "py:review_routes.install_review_routes.record_review_results",
+      "kind": "route",
+      "method": "POST",
+      "path": "/reviews/results"
+    },
+    {
+      "node_id": "py:review_routes.install_review_routes.get_review_round",
+      "kind": "route",
+      "method": "GET",
+      "path": "/reviews/rounds"
     }
   ],
   "disconnected_endpoints": [
@@ -43274,6 +45229,18 @@
     {
       "node_id": "py:model_routing.api.install_routing_routes.feedback_endpoint",
       "path": "/routing/feedback"
+    },
+    {
+      "node_id": "py:review_routes.install_review_routes.submit_review_job",
+      "path": "/reviews/jobs"
+    },
+    {
+      "node_id": "py:review_routes.install_review_routes.record_review_results",
+      "path": "/reviews/results"
+    },
+    {
+      "node_id": "py:review_routes.install_review_routes.get_review_round",
+      "path": "/reviews/rounds"
     }
   ],
   "disconnected_frontend_calls": []
