@@ -48,8 +48,8 @@ adds only the pieces no existing item covers. It must not duplicate:
 | Merge verdicts bound to head SHA | `verification-enforcement-discipline:ri-01` | in progress | prerequisite for any automatic merge |
 | Headless merge-pull-requests | `roadmap-always-on-agent-automation:ri-12` | candidate | the merge executor |
 | Approval gate service | `roadmap-always-on-agent-automation:ri-05` | completed | the one store of gate decisions |
-| Trust clamp by isolation posture | change `clamp-trust-by-isolation-posture` | proposed, no roadmap | agent trust level; complementary to gate coupling |
-| Visual plan review | change `add-visual-plan-review` | proposed, no roadmap | the design-review surface the inbox links to |
+| Trust clamp by isolation posture | change `clamp-trust-by-isolation-posture` | proposed; adopted here as ri-14 | agent trust level; prerequisite of reviewer-approved landing |
+| Visual plan review | change `add-visual-plan-review` | proposed; adopted here as ri-15 | the design-review surface the inbox opens |
 | Escalation inbox per principal, attention digests | `multiplayer-collaboration:ri-09`, `ri-10` | approved | team-mode routing; the inbox here must stay compatible |
 | Kanban board | `apps/kanban-viz` | shipped, multi-repo | host of the inbox view |
 
@@ -312,6 +312,6 @@ need to watch the inbox.
 - Building the egress gateway; this roadmap only decides, by spike, whether `dispatch-governance:dg-08` should extend to the local-sandbox posture.
 - The dispatcher daemon and scheduled sync points; that is `roadmap-always-on-agent-automation`.
 - Owner-routed escalation, attention budgets and other team-mode routing; that is `multiplayer-collaboration`.
-- The visual plan review surface itself; that is `add-visual-plan-review`.
+- Re-planning the two adopted changes (`clamp-trust-by-isolation-posture`, `add-visual-plan-review`); their own proposals stay authoritative for scope.
 - A new web application; the inbox is a view in `apps/kanban-viz`.
 - Enabling automatic merge; this roadmap ships the mechanism and leaves the posture decision to the operator.

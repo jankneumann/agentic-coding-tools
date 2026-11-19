@@ -185,6 +185,25 @@ items:
     reach a host without passing the proxy.
   - A decision record chooses between extending dg-08 and keeping read-only binds,
     with the residual exfiltration paths named.
+- item_id: ri-14
+  title: Clamp effective trust by isolation posture
+  change_id: clamp-trust-by-isolation-posture
+  description: Make an agent's effective trust the minimum of its vendor ceiling and
+    a cap derived from its isolation posture, so an agent running raw on the operator's
+    filesystem cannot hold the trust grants a sandboxed one can earn. Adopted from
+    the existing change; its own proposal is authoritative for scope.
+  rationale: Reviewer-approved landing must not rest on agents that are trusted by
+    vendor identity alone. This clamps the agent side; ri-08 couples the gate side.
+  effort: M
+  priority: 2
+  depends_on: []
+  acceptance_outcomes:
+  - An agent's effective trust equals the lower of its vendor ceiling and its posture
+    cap, with the mapping held in policy configuration.
+  - A session self-report can lower the effective cap and can never raise it; a mismatch
+    with the operator assertion emits an audit event.
+  - An agent with no recorded posture is clamped to the most restrictive cap.
+  status: candidate
 - item_id: ri-08
   title: Couple gate dispositions to enforced isolation
   status: candidate
@@ -217,6 +236,7 @@ items:
   depends_on:
   - ri-06
   - ri-08
+  - ri-14
   description: Add a risk-tiered merge policy under which a change merges without
     the operator when its risk tier is low, at least two distinct vendors hold verified
     approving verdicts on the current head SHA, the implementing dispatch ran under
@@ -283,6 +303,25 @@ items:
   - The packet states the enforced isolation and lists every recorded degradation,
     including a single-vendor review.
   - Each claim in the packet links to the record it was read from.
+- item_id: ri-15
+  title: Add visual plan review
+  change_id: add-visual-plan-review
+  description: Render an OpenSpec change as a reviewable HTML artifact with element-anchored
+    annotations that are persisted in the change directory and consumed by plan review.
+    Adopted from the existing change; its own proposal is authoritative for scope.
+  rationale: The inbox's design lane needs a surface where the operator can object
+    to a specific claim in a plan; this is that surface.
+  effort: L
+  priority: 2
+  depends_on: []
+  acceptance_outcomes:
+  - A change's proposal, requirements and task graph render as one self-contained
+    artifact with a stable anchor on each requirement, scenario and task.
+  - An annotation made on an element is persisted in the change directory with its
+    anchor and is readable by plan review.
+  - With no human able to drive a browser, the review loop is skipped and the skip
+    is recorded.
+  status: candidate
 - item_id: ri-12
   title: Add decision inbox view to kanban-viz
   status: candidate
@@ -291,6 +330,7 @@ items:
   depends_on:
   - ri-10
   - ri-11
+  - ri-15
   description: Add a gate-first view to apps/kanban-viz over the projection with three
     lanes, goals (roadmap approvals), designs (plan and proposal reviews) and outcomes
     (merge and validation gates), across all projects and ordered by deadline. The
@@ -331,4 +371,18 @@ items:
     delivered; an undelivered notification leaves the gate blocked.
   - Notification volume respects a per-day limit, with the overflow collected into
     one digest.
-updated_at: '2026-11-19T00:43:02.877747+00:00'
+updated_at: '2026-11-19T01:58:09.832888+00:00'
+refinements:
+- timestamp: '2026-11-19T01:58:09.832888+00:00'
+  actor: claude-code (cloud session)
+  source: operator request 2026-11-19 - incorporate the two unmapped changes into
+    sandboxed-flow
+  rationale: Two active changes that this roadmap's gate coupling and decision inbox
+    rely on belonged to no roadmap; adopting them gives each an owner and an explicit
+    place in the sequence.
+  base_sha256: cc967a7e6e7e69f5665d6fad8433f7339a977f8ec6be6bdb0d326fd69ffcad96
+  operations:
+  - adopt:ri-14
+  - adopt:ri-15
+  - edit:ri-09
+  - edit:ri-12
