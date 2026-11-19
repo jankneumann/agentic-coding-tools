@@ -1,8 +1,8 @@
 {
   "snapshots": [
     {
-      "generated_at": "2026-11-19T02:08:43+00:00",
-      "git_sha": "de08f03f590c09399668564e2e18ab8792a15557",
+      "generated_at": "2026-11-19T03:58:03+00:00",
+      "git_sha": "80e92b1a7d934e76077182da84d827d9207b8e9c",
       "tool_versions": {
         "graph_builder": "2.0.0"
       },
@@ -304,6 +304,32 @@
       "language": "python",
       "name": "feature_registry",
       "file": "feature_registry.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:gate_projection",
+      "kind": "module",
+      "language": "python",
+      "name": "gate_projection",
+      "file": "gate_projection.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:gate_projection_routes",
+      "kind": "module",
+      "language": "python",
+      "name": "gate_projection_routes",
+      "file": "gate_projection_routes.py",
       "span": {
         "start": 1,
         "end": 1
@@ -1410,8 +1436,8 @@
       "name": "ApprovalRequest",
       "file": "approval.py",
       "span": {
-        "start": 15,
-        "end": 29
+        "start": 16,
+        "end": 30
       },
       "tags": [],
       "signatures": {}
@@ -1423,8 +1449,8 @@
       "name": "ApprovalService",
       "file": "approval.py",
       "span": {
-        "start": 32,
-        "end": 183
+        "start": 43,
+        "end": 210
       },
       "tags": [],
       "signatures": {}
@@ -2132,14 +2158,27 @@
       "signatures": {}
     },
     {
+      "id": "py:config.GateProjectionConfig",
+      "kind": "class",
+      "language": "python",
+      "name": "GateProjectionConfig",
+      "file": "config.py",
+      "span": {
+        "start": 460,
+        "end": 482
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
       "id": "py:config.ApiConfig",
       "kind": "class",
       "language": "python",
       "name": "ApiConfig",
       "file": "config.py",
       "span": {
-        "start": 460,
-        "end": 523
+        "start": 486,
+        "end": 549
       },
       "tags": [],
       "signatures": {}
@@ -2151,8 +2190,8 @@
       "name": "CloudflareAccessConfig",
       "file": "config.py",
       "span": {
-        "start": 527,
-        "end": 590
+        "start": 553,
+        "end": 616
       },
       "tags": [],
       "signatures": {}
@@ -2164,8 +2203,8 @@
       "name": "ApprovalConfig",
       "file": "config.py",
       "span": {
-        "start": 594,
-        "end": 613
+        "start": 620,
+        "end": 639
       },
       "tags": [],
       "signatures": {}
@@ -2177,8 +2216,8 @@
       "name": "PolicySyncConfig",
       "file": "config.py",
       "span": {
-        "start": 617,
-        "end": 635
+        "start": 643,
+        "end": 661
       },
       "tags": [],
       "signatures": {}
@@ -2190,8 +2229,8 @@
       "name": "RiskScoringConfig",
       "file": "config.py",
       "span": {
-        "start": 639,
-        "end": 662
+        "start": 665,
+        "end": 688
       },
       "tags": [],
       "signatures": {}
@@ -2203,8 +2242,8 @@
       "name": "SessionGrantsConfig",
       "file": "config.py",
       "span": {
-        "start": 666,
-        "end": 680
+        "start": 692,
+        "end": 706
       },
       "tags": [],
       "signatures": {}
@@ -2216,8 +2255,8 @@
       "name": "Config",
       "file": "config.py",
       "span": {
-        "start": 720,
-        "end": 812
+        "start": 746,
+        "end": 842
       },
       "tags": [],
       "signatures": {}
@@ -3180,6 +3219,110 @@
       "span": {
         "start": 124,
         "end": 313
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:gate_projection.SourceError",
+      "kind": "class",
+      "language": "python",
+      "name": "SourceError",
+      "file": "gate_projection.py",
+      "span": {
+        "start": 54,
+        "end": 58
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:gate_projection.SnapshotGate",
+      "kind": "class",
+      "language": "python",
+      "name": "SnapshotGate",
+      "file": "gate_projection.py",
+      "span": {
+        "start": 61,
+        "end": 85
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:gate_projection.GateSnapshotRequest",
+      "kind": "class",
+      "language": "python",
+      "name": "GateSnapshotRequest",
+      "file": "gate_projection.py",
+      "span": {
+        "start": 88,
+        "end": 96
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:gate_projection.GateDecisionRequest",
+      "kind": "class",
+      "language": "python",
+      "name": "GateDecisionRequest",
+      "file": "gate_projection.py",
+      "span": {
+        "start": 99,
+        "end": 106
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:gate_projection.ProjectNotEnrolledError",
+      "kind": "class",
+      "language": "python",
+      "name": "ProjectNotEnrolledError",
+      "file": "gate_projection.py",
+      "span": {
+        "start": 114,
+        "end": 119
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:gate_projection.GateNotFoundError",
+      "kind": "class",
+      "language": "python",
+      "name": "GateNotFoundError",
+      "file": "gate_projection.py",
+      "span": {
+        "start": 122,
+        "end": 123
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:gate_projection.GateNotDecidableError",
+      "kind": "class",
+      "language": "python",
+      "name": "GateNotDecidableError",
+      "file": "gate_projection.py",
+      "span": {
+        "start": 126,
+        "end": 132
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:gate_projection.GateProjectionService",
+      "kind": "class",
+      "language": "python",
+      "name": "GateProjectionService",
+      "file": "gate_projection.py",
+      "span": {
+        "start": 203,
+        "end": 413
       },
       "tags": [],
       "signatures": {}
@@ -6255,14 +6398,27 @@
       "signatures": {}
     },
     {
+      "id": "py:approval.normalize_request_id",
+      "kind": "function",
+      "language": "python",
+      "name": "normalize_request_id",
+      "file": "approval.py",
+      "span": {
+        "start": 33,
+        "end": 40
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
       "id": "py:approval.ApprovalService.__init__",
       "kind": "function",
       "language": "python",
       "name": "__init__",
       "file": "approval.py",
       "span": {
-        "start": 35,
-        "end": 36
+        "start": 46,
+        "end": 47
       },
       "tags": [
         "dunder"
@@ -6276,8 +6432,8 @@
       "name": "db",
       "file": "approval.py",
       "span": {
-        "start": 39,
-        "end": 42
+        "start": 50,
+        "end": 53
       },
       "tags": [
         "property"
@@ -6291,8 +6447,8 @@
       "name": "submit_request",
       "file": "approval.py",
       "span": {
-        "start": 44,
-        "end": 87
+        "start": 55,
+        "end": 98
       },
       "tags": [
         "async",
@@ -6307,8 +6463,8 @@
       "name": "check_request",
       "file": "approval.py",
       "span": {
-        "start": 89,
-        "end": 97
+        "start": 100,
+        "end": 108
       },
       "tags": [
         "async",
@@ -6323,8 +6479,8 @@
       "name": "decide_request",
       "file": "approval.py",
       "span": {
-        "start": 99,
-        "end": 135
+        "start": 110,
+        "end": 146
       },
       "tags": [
         "async",
@@ -6339,8 +6495,8 @@
       "name": "expire_stale_requests",
       "file": "approval.py",
       "span": {
-        "start": 137,
-        "end": 152
+        "start": 148,
+        "end": 163
       },
       "tags": [
         "async",
@@ -6355,8 +6511,24 @@
       "name": "list_pending",
       "file": "approval.py",
       "span": {
-        "start": 154,
-        "end": 164
+        "start": 165,
+        "end": 175
+      },
+      "tags": [
+        "async",
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:approval.ApprovalService.get_requests",
+      "kind": "function",
+      "language": "python",
+      "name": "get_requests",
+      "file": "approval.py",
+      "span": {
+        "start": 177,
+        "end": 191
       },
       "tags": [
         "async",
@@ -6371,8 +6543,8 @@
       "name": "_row_to_request",
       "file": "approval.py",
       "span": {
-        "start": 166,
-        "end": 183
+        "start": 193,
+        "end": 210
       },
       "tags": [
         "private",
@@ -6387,8 +6559,8 @@
       "name": "_parse_dt",
       "file": "approval.py",
       "span": {
-        "start": 186,
-        "end": 192
+        "start": 213,
+        "end": 219
       },
       "tags": [
         "private"
@@ -6402,8 +6574,8 @@
       "name": "get_approval_service",
       "file": "approval.py",
       "span": {
-        "start": 199,
-        "end": 204
+        "start": 226,
+        "end": 231
       },
       "tags": [],
       "signatures": {}
@@ -6415,8 +6587,8 @@
       "name": "reset_approval_service",
       "file": "approval.py",
       "span": {
-        "start": 207,
-        "end": 210
+        "start": 234,
+        "end": 237
       },
       "tags": [],
       "signatures": {}
@@ -8533,14 +8705,30 @@
       "signatures": {}
     },
     {
+      "id": "py:config.GateProjectionConfig.from_env",
+      "kind": "function",
+      "language": "python",
+      "name": "from_env",
+      "file": "config.py",
+      "span": {
+        "start": 475,
+        "end": 482
+      },
+      "tags": [
+        "classmethod",
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
       "id": "py:config.ApiConfig.from_env",
       "kind": "function",
       "language": "python",
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 472,
-        "end": 523
+        "start": 498,
+        "end": 549
       },
       "tags": [
         "classmethod",
@@ -8555,8 +8743,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 549,
-        "end": 590
+        "start": 575,
+        "end": 616
       },
       "tags": [
         "classmethod",
@@ -8571,8 +8759,8 @@
       "name": "_default_workdir_root",
       "file": "config.py",
       "span": {
-        "start": 683,
-        "end": 695
+        "start": 709,
+        "end": 721
       },
       "tags": [
         "private",
@@ -8587,8 +8775,8 @@
       "name": "resolve_workdir_path",
       "file": "config.py",
       "span": {
-        "start": 698,
-        "end": 716
+        "start": 724,
+        "end": 742
       },
       "tags": [],
       "signatures": {}
@@ -8600,8 +8788,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 762,
-        "end": 812
+        "start": 791,
+        "end": 842
       },
       "tags": [
         "classmethod",
@@ -8616,8 +8804,8 @@
       "name": "get_config",
       "file": "config.py",
       "span": {
-        "start": 819,
-        "end": 824
+        "start": 849,
+        "end": 854
       },
       "tags": [],
       "signatures": {}
@@ -8629,8 +8817,8 @@
       "name": "reset_config",
       "file": "config.py",
       "span": {
-        "start": 827,
-        "end": 830
+        "start": 857,
+        "end": 860
       },
       "tags": [],
       "signatures": {}
@@ -8848,7 +9036,7 @@
       "file": "coordination_api.py",
       "span": {
         "start": 780,
-        "end": 4027
+        "end": 4031
       },
       "tags": [
         "db_access"
@@ -10446,8 +10634,8 @@
       "name": "main",
       "file": "coordination_api.py",
       "span": {
-        "start": 4035,
-        "end": 4064
+        "start": 4039,
+        "end": 4068
       },
       "tags": [],
       "signatures": {}
@@ -13946,6 +14134,389 @@
         "end": 325
       },
       "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:gate_projection.ProjectNotEnrolledError.__init__",
+      "kind": "function",
+      "language": "python",
+      "name": "__init__",
+      "file": "gate_projection.py",
+      "span": {
+        "start": 117,
+        "end": 119
+      },
+      "tags": [
+        "dunder"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:gate_projection.GateNotDecidableError.__init__",
+      "kind": "function",
+      "language": "python",
+      "name": "__init__",
+      "file": "gate_projection.py",
+      "span": {
+        "start": 129,
+        "end": 132
+      },
+      "tags": [
+        "dunder"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:gate_projection._parse_dt",
+      "kind": "function",
+      "language": "python",
+      "name": "_parse_dt",
+      "file": "gate_projection.py",
+      "span": {
+        "start": 140,
+        "end": 150
+      },
+      "tags": [
+        "private"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:gate_projection._iso",
+      "kind": "function",
+      "language": "python",
+      "name": "_iso",
+      "file": "gate_projection.py",
+      "span": {
+        "start": 153,
+        "end": 155
+      },
+      "tags": [
+        "private"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:gate_projection._payload",
+      "kind": "function",
+      "language": "python",
+      "name": "_payload",
+      "file": "gate_projection.py",
+      "span": {
+        "start": 158,
+        "end": 166
+      },
+      "tags": [
+        "private",
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:gate_projection._gates",
+      "kind": "function",
+      "language": "python",
+      "name": "_gates",
+      "file": "gate_projection.py",
+      "span": {
+        "start": 169,
+        "end": 171
+      },
+      "tags": [
+        "private",
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:gate_projection._source_errors",
+      "kind": "function",
+      "language": "python",
+      "name": "_source_errors",
+      "file": "gate_projection.py",
+      "span": {
+        "start": 174,
+        "end": 178
+      },
+      "tags": [
+        "private",
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:gate_projection._orphan_gate",
+      "kind": "function",
+      "language": "python",
+      "name": "_orphan_gate",
+      "file": "gate_projection.py",
+      "span": {
+        "start": 181,
+        "end": 195
+      },
+      "tags": [
+        "private"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:gate_projection.GateProjectionService.__init__",
+      "kind": "function",
+      "language": "python",
+      "name": "__init__",
+      "file": "gate_projection.py",
+      "span": {
+        "start": 206,
+        "end": 216
+      },
+      "tags": [
+        "dunder"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:gate_projection.GateProjectionService.db",
+      "kind": "function",
+      "language": "python",
+      "name": "db",
+      "file": "gate_projection.py",
+      "span": {
+        "start": 219,
+        "end": 222
+      },
+      "tags": [
+        "property"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:gate_projection.GateProjectionService.approvals",
+      "kind": "function",
+      "language": "python",
+      "name": "approvals",
+      "file": "gate_projection.py",
+      "span": {
+        "start": 225,
+        "end": 228
+      },
+      "tags": [
+        "property"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:gate_projection.GateProjectionService.config",
+      "kind": "function",
+      "language": "python",
+      "name": "config",
+      "file": "gate_projection.py",
+      "span": {
+        "start": 231,
+        "end": 232
+      },
+      "tags": [
+        "property"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:gate_projection.GateProjectionService._require_enrolled",
+      "kind": "function",
+      "language": "python",
+      "name": "_require_enrolled",
+      "file": "gate_projection.py",
+      "span": {
+        "start": 234,
+        "end": 236
+      },
+      "tags": [
+        "private"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:gate_projection.GateProjectionService.replace_snapshot",
+      "kind": "function",
+      "language": "python",
+      "name": "replace_snapshot",
+      "file": "gate_projection.py",
+      "span": {
+        "start": 238,
+        "end": 271
+      },
+      "tags": [
+        "async",
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:gate_projection.GateProjectionService.delete_snapshot",
+      "kind": "function",
+      "language": "python",
+      "name": "delete_snapshot",
+      "file": "gate_projection.py",
+      "span": {
+        "start": 273,
+        "end": 279
+      },
+      "tags": [
+        "async",
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:gate_projection.GateProjectionService.list_pending",
+      "kind": "function",
+      "language": "python",
+      "name": "list_pending",
+      "file": "gate_projection.py",
+      "span": {
+        "start": 281,
+        "end": 384
+      },
+      "tags": [
+        "async",
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:gate_projection.GateProjectionService.decide",
+      "kind": "function",
+      "language": "python",
+      "name": "decide",
+      "file": "gate_projection.py",
+      "span": {
+        "start": 386,
+        "end": 413
+      },
+      "tags": [
+        "async",
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:gate_projection.get_gate_projection_service",
+      "kind": "function",
+      "language": "python",
+      "name": "get_gate_projection_service",
+      "file": "gate_projection.py",
+      "span": {
+        "start": 419,
+        "end": 424
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:gate_projection.reset_gate_projection_service",
+      "kind": "function",
+      "language": "python",
+      "name": "reset_gate_projection_service",
+      "file": "gate_projection.py",
+      "span": {
+        "start": 427,
+        "end": 430
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:gate_projection_routes.install_gate_projection_routes",
+      "kind": "function",
+      "language": "python",
+      "name": "install_gate_projection_routes",
+      "file": "gate_projection_routes.py",
+      "span": {
+        "start": 38,
+        "end": 110
+      },
+      "tags": [
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:gate_projection_routes.install_gate_projection_routes._authorize",
+      "kind": "function",
+      "language": "python",
+      "name": "_authorize",
+      "file": "gate_projection_routes.py",
+      "span": {
+        "start": 46,
+        "end": 57
+      },
+      "tags": [
+        "async",
+        "private"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:gate_projection_routes.install_gate_projection_routes.push_gate_projection",
+      "kind": "function",
+      "language": "python",
+      "name": "push_gate_projection",
+      "file": "gate_projection_routes.py",
+      "span": {
+        "start": 60,
+        "end": 69
+      },
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:gate_projection_routes.install_gate_projection_routes.delete_gate_projection",
+      "kind": "function",
+      "language": "python",
+      "name": "delete_gate_projection",
+      "file": "gate_projection_routes.py",
+      "span": {
+        "start": 72,
+        "end": 81
+      },
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:gate_projection_routes.install_gate_projection_routes.list_pending_gates",
+      "kind": "function",
+      "language": "python",
+      "name": "list_pending_gates",
+      "file": "gate_projection_routes.py",
+      "span": {
+        "start": 84,
+        "end": 89
+      },
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:gate_projection_routes.install_gate_projection_routes.decide_gate",
+      "kind": "function",
+      "language": "python",
+      "name": "decide_gate",
+      "file": "gate_projection_routes.py",
+      "span": {
+        "start": 92,
+        "end": 110
+      },
+      "tags": [
+        "async",
+        "entry_point"
+      ],
       "signatures": {}
     },
     {
@@ -31474,6 +32045,94 @@
       }
     },
     {
+      "id": "pg:public.public.gate_projection_snapshots",
+      "kind": "table",
+      "language": "sql",
+      "name": "public.gate_projection_snapshots",
+      "file": "047_gate_projection.sql",
+      "span": {
+        "start": 23,
+        "end": 23
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "pg:public.public.gate_projection_snapshots.project",
+      "kind": "column",
+      "language": "sql",
+      "name": "project",
+      "file": "047_gate_projection.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "TEXT"
+      }
+    },
+    {
+      "id": "pg:public.public.gate_projection_snapshots.collected_at",
+      "kind": "column",
+      "language": "sql",
+      "name": "collected_at",
+      "file": "047_gate_projection.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "TIMESTAMPTZ"
+      }
+    },
+    {
+      "id": "pg:public.public.gate_projection_snapshots.received_at",
+      "kind": "column",
+      "language": "sql",
+      "name": "received_at",
+      "file": "047_gate_projection.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "TIMESTAMPTZ"
+      }
+    },
+    {
+      "id": "pg:public.public.gate_projection_snapshots.payload",
+      "kind": "column",
+      "language": "sql",
+      "name": "payload",
+      "file": "047_gate_projection.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "JSONB"
+      }
+    },
+    {
+      "id": "pg:public.public.gate_projection_snapshots.digest",
+      "kind": "column",
+      "language": "sql",
+      "name": "digest",
+      "file": "047_gate_projection.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "TEXT"
+      }
+    },
+    {
       "id": "pg:idx_file_locks_agent",
       "kind": "index",
       "language": "sql",
@@ -34654,6 +35313,13 @@
       "evidence": "ast:call:get_db"
     },
     {
+      "from": "py:approval.ApprovalService.get_requests",
+      "to": "py:approval.normalize_request_id",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:normalize_request_id"
+    },
+    {
       "from": "py:approval.ApprovalService._row_to_request",
       "to": "py:approval._parse_dt",
       "type": "call",
@@ -35632,6 +36298,13 @@
       "type": "call",
       "confidence": "high",
       "evidence": "ast:call:install_review_routes"
+    },
+    {
+      "from": "py:coordination_api.create_coordination_api",
+      "to": "py:gate_projection_routes.install_gate_projection_routes",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:install_gate_projection_routes"
     },
     {
       "from": "py:coordination_api.create_coordination_api.lifespan",
@@ -39176,6 +39849,209 @@
       "evidence": "ast:call:get_audit_service"
     },
     {
+      "from": "py:gate_projection._iso",
+      "to": "py:approval._parse_dt",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_parse_dt"
+    },
+    {
+      "from": "py:gate_projection._gates",
+      "to": "py:gate_projection._payload",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_payload"
+    },
+    {
+      "from": "py:gate_projection._source_errors",
+      "to": "py:gate_projection._payload",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_payload"
+    },
+    {
+      "from": "py:gate_projection._orphan_gate",
+      "to": "py:gate_projection._iso",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_iso"
+    },
+    {
+      "from": "py:gate_projection.GateProjectionService.db",
+      "to": "py:db.get_db",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_db"
+    },
+    {
+      "from": "py:gate_projection.GateProjectionService.approvals",
+      "to": "py:approval.get_approval_service",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_approval_service"
+    },
+    {
+      "from": "py:gate_projection.GateProjectionService.config",
+      "to": "py:config.get_config",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_config"
+    },
+    {
+      "from": "py:gate_projection.GateProjectionService.list_pending",
+      "to": "py:gate_projection._gates",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_gates"
+    },
+    {
+      "from": "py:gate_projection.GateProjectionService.list_pending",
+      "to": "py:approval.normalize_request_id",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:normalize_request_id"
+    },
+    {
+      "from": "py:gate_projection.GateProjectionService.list_pending",
+      "to": "py:approval._parse_dt",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_parse_dt"
+    },
+    {
+      "from": "py:gate_projection.GateProjectionService.list_pending",
+      "to": "py:gate_projection._source_errors",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_source_errors"
+    },
+    {
+      "from": "py:gate_projection.GateProjectionService.list_pending",
+      "to": "py:gate_projection._iso",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_iso"
+    },
+    {
+      "from": "py:gate_projection.GateProjectionService.list_pending",
+      "to": "py:gate_projection._orphan_gate",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_orphan_gate"
+    },
+    {
+      "from": "py:gate_projection.GateProjectionService.decide",
+      "to": "py:gate_projection._gates",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_gates"
+    },
+    {
+      "from": "py:gate_projection.GateProjectionService.decide",
+      "to": "py:approval.normalize_request_id",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:normalize_request_id"
+    },
+    {
+      "from": "py:gate_projection_routes.install_gate_projection_routes",
+      "to": "py:coordination_api.resolve_identity",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:resolve_identity"
+    },
+    {
+      "from": "py:gate_projection_routes.install_gate_projection_routes",
+      "to": "py:coordination_api.authorize_operation",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:authorize_operation"
+    },
+    {
+      "from": "py:gate_projection_routes.install_gate_projection_routes",
+      "to": "py:gate_projection_routes.install_gate_projection_routes._authorize",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_authorize"
+    },
+    {
+      "from": "py:gate_projection_routes.install_gate_projection_routes",
+      "to": "py:gate_projection.get_gate_projection_service",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_gate_projection_service"
+    },
+    {
+      "from": "py:gate_projection_routes.install_gate_projection_routes._authorize",
+      "to": "py:coordination_api.resolve_identity",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:resolve_identity"
+    },
+    {
+      "from": "py:gate_projection_routes.install_gate_projection_routes._authorize",
+      "to": "py:coordination_api.authorize_operation",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:authorize_operation"
+    },
+    {
+      "from": "py:gate_projection_routes.install_gate_projection_routes.push_gate_projection",
+      "to": "py:gate_projection_routes.install_gate_projection_routes._authorize",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_authorize"
+    },
+    {
+      "from": "py:gate_projection_routes.install_gate_projection_routes.push_gate_projection",
+      "to": "py:gate_projection.get_gate_projection_service",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_gate_projection_service"
+    },
+    {
+      "from": "py:gate_projection_routes.install_gate_projection_routes.delete_gate_projection",
+      "to": "py:gate_projection_routes.install_gate_projection_routes._authorize",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_authorize"
+    },
+    {
+      "from": "py:gate_projection_routes.install_gate_projection_routes.delete_gate_projection",
+      "to": "py:gate_projection.get_gate_projection_service",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_gate_projection_service"
+    },
+    {
+      "from": "py:gate_projection_routes.install_gate_projection_routes.list_pending_gates",
+      "to": "py:gate_projection_routes.install_gate_projection_routes._authorize",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_authorize"
+    },
+    {
+      "from": "py:gate_projection_routes.install_gate_projection_routes.list_pending_gates",
+      "to": "py:gate_projection.get_gate_projection_service",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_gate_projection_service"
+    },
+    {
+      "from": "py:gate_projection_routes.install_gate_projection_routes.decide_gate",
+      "to": "py:gate_projection_routes.install_gate_projection_routes._authorize",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_authorize"
+    },
+    {
+      "from": "py:gate_projection_routes.install_gate_projection_routes.decide_gate",
+      "to": "py:gate_projection.get_gate_projection_service",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_gate_projection_service"
+    },
+    {
       "from": "py:git_adapter.SubprocessGitAdapter._ensure_git_version",
       "to": "py:git_adapter.parse_git_version",
       "type": "call",
@@ -42341,7 +43217,7 @@
     },
     {
       "from": "py:vendor_registry.VendorRegistryService._snapshots",
-      "to": "py:vendor_registry._iso",
+      "to": "py:gate_projection._iso",
       "type": "call",
       "confidence": "high",
       "evidence": "ast:call:_iso"
@@ -42362,7 +43238,7 @@
     },
     {
       "from": "py:vendor_registry.VendorRegistryService._active_limits",
-      "to": "py:vendor_registry._iso",
+      "to": "py:gate_projection._iso",
       "type": "call",
       "confidence": "high",
       "evidence": "ast:call:_iso"
@@ -42376,7 +43252,7 @@
     },
     {
       "from": "py:vendor_registry.VendorRegistryService._availability",
-      "to": "py:vendor_registry._iso",
+      "to": "py:gate_projection._iso",
       "type": "call",
       "confidence": "high",
       "evidence": "ast:call:_iso"
@@ -42397,7 +43273,7 @@
     },
     {
       "from": "py:vendor_registry.VendorRegistryService.persist_probe",
-      "to": "py:vendor_registry._iso",
+      "to": "py:gate_projection._iso",
       "type": "call",
       "confidence": "high",
       "evidence": "ast:call:_iso"
@@ -42418,7 +43294,7 @@
     },
     {
       "from": "py:vendor_registry.VendorRegistryService.record_rate_limit",
-      "to": "py:vendor_registry._iso",
+      "to": "py:gate_projection._iso",
       "type": "call",
       "confidence": "high",
       "evidence": "ast:call:_iso"
@@ -42432,7 +43308,7 @@
     },
     {
       "from": "py:vendor_registry.VendorRegistryService.compact_rate_limits",
-      "to": "py:vendor_registry._iso",
+      "to": "py:gate_projection._iso",
       "type": "call",
       "confidence": "high",
       "evidence": "ast:call:_iso"
@@ -43103,6 +43979,13 @@
       "evidence": "ast:import"
     },
     {
+      "from": "py:coordination_api",
+      "to": "py:gate_projection_routes",
+      "type": "import",
+      "confidence": "high",
+      "evidence": "ast:import"
+    },
+    {
       "from": "py:coordination_cli",
       "to": "py:axi_output",
       "type": "import",
@@ -43455,6 +44338,34 @@
     {
       "from": "py:feature_registry",
       "to": "py:db",
+      "type": "import",
+      "confidence": "high",
+      "evidence": "ast:import"
+    },
+    {
+      "from": "py:gate_projection",
+      "to": "py:approval",
+      "type": "import",
+      "confidence": "high",
+      "evidence": "ast:import"
+    },
+    {
+      "from": "py:gate_projection",
+      "to": "py:config",
+      "type": "import",
+      "confidence": "high",
+      "evidence": "ast:import"
+    },
+    {
+      "from": "py:gate_projection",
+      "to": "py:db",
+      "type": "import",
+      "confidence": "high",
+      "evidence": "ast:import"
+    },
+    {
+      "from": "py:gate_projection_routes",
+      "to": "py:gate_projection",
       "type": "import",
       "confidence": "high",
       "evidence": "ast:import"
@@ -44753,6 +45664,30 @@
       "path": "start_work_session"
     },
     {
+      "node_id": "py:gate_projection_routes.install_gate_projection_routes.push_gate_projection",
+      "kind": "route",
+      "method": "POST",
+      "path": "/gates/projection"
+    },
+    {
+      "node_id": "py:gate_projection_routes.install_gate_projection_routes.delete_gate_projection",
+      "kind": "route",
+      "method": "DELETE",
+      "path": "/gates/projection"
+    },
+    {
+      "node_id": "py:gate_projection_routes.install_gate_projection_routes.list_pending_gates",
+      "kind": "route",
+      "method": "GET",
+      "path": "/gates/pending"
+    },
+    {
+      "node_id": "py:gate_projection_routes.install_gate_projection_routes.decide_gate",
+      "kind": "route",
+      "method": "POST",
+      "path": "/gates/decide"
+    },
+    {
       "node_id": "py:model_routing.api.install_routing_routes.select_model_endpoint",
       "kind": "route",
       "method": "POST",
@@ -45209,6 +46144,22 @@
     {
       "node_id": "py:coordination_mcp.start_work_session",
       "path": "start_work_session"
+    },
+    {
+      "node_id": "py:gate_projection_routes.install_gate_projection_routes.push_gate_projection",
+      "path": "/gates/projection"
+    },
+    {
+      "node_id": "py:gate_projection_routes.install_gate_projection_routes.delete_gate_projection",
+      "path": "/gates/projection"
+    },
+    {
+      "node_id": "py:gate_projection_routes.install_gate_projection_routes.list_pending_gates",
+      "path": "/gates/pending"
+    },
+    {
+      "node_id": "py:gate_projection_routes.install_gate_projection_routes.decide_gate",
+      "path": "/gates/decide"
     },
     {
       "node_id": "py:model_routing.api.install_routing_routes.select_model_endpoint",

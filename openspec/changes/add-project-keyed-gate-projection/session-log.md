@@ -66,3 +66,31 @@ Refined the scaffolded change into a full plan: a per-project snapshot of pendin
 ### Context
 Built the gate projection: a snapshot table and service in the coordinator, four /gates routes, and a read-only collector in the supervise skill. All of it is verified by unit tests only; nothing was deployed.
 
+---
+
+## Phase: Validation (2026-11-19)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Required phases that could not run are recorded as not run** `architectural: agent-coordinator` — The change has a deployable surface, so marking them not applicable or skipped would hide that the routes have never answered a request.
+2. **Roadmap item ri-10 stays in progress** `architectural: agent-coordinator` — Migration 047 is unapplied, the routes are undeployed and no repository has pushed a snapshot.
+
+### Open Questions
+- [ ] Are request_approval and check_approval the right policy operations for the gate routes?
+
+### Completed Work
+- ruff and mypy --strict clean; 3189 coordinator tests and 504 supervise tests pass
+- validation-report.md and architecture-impact.md written; architecture artifacts regenerated
+- CI not checked: no pull request exists
+
+### Next Steps
+- Operator: task 5.1 on the deployed coordinator
+- Run get_requests against PostgreSQL before any gate is made decidable through the API
+
+### Relevant Files
+- `openspec/changes/add-project-keyed-gate-projection/validation-report.md` — validation report
+
+### Context
+Validated at 80e92b1 in a cloud container: 4/4 requirements pass by unit test and the traceability gate passes. Deploy, smoke, security and E2E did not run because the container has no container runtime, and task 5.1 is open. Result recorded as incomplete.
+

@@ -2696,6 +2696,47 @@
       ],
       "file": "046_review_queue.sql",
       "line": 50
+    },
+    {
+      "name": "public.gate_projection_snapshots",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "project",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "collected_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "received_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": "NOW()"
+        },
+        {
+          "name": "payload",
+          "type": "JSONB",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "digest",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        }
+      ],
+      "primary_key": [
+        "project"
+      ],
+      "file": "047_gate_projection.sql",
+      "line": 23
     }
   ],
   "foreign_keys": [
@@ -4060,8 +4101,8 @@
     }
   ],
   "summary": {
-    "total_tables": 37,
-    "total_columns": 381,
+    "total_tables": 38,
+    "total_columns": 386,
     "total_foreign_keys": 16,
     "total_indexes": 77,
     "most_referenced_tables": [

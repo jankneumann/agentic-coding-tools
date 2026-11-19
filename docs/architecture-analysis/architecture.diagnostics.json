@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-19T02:08:43+00:00",
+  "generated_at": "2026-11-19T03:58:03+00:00",
   "scope": "full",
   "changed_files": [],
   "findings": [
@@ -920,6 +920,42 @@
       "file": "coordination_mcp.py",
       "line": 3267,
       "suggestion": "Add downstream calls or tag this entrypoint as 'pure' if it has no side effects"
+    },
+    {
+      "severity": "info",
+      "category": "reachability",
+      "message": "Entrypoint 'push_gate_projection' has downstream dependencies but none touch a DB or produce side effects",
+      "node_id": "py:gate_projection_routes.install_gate_projection_routes.push_gate_projection",
+      "file": "gate_projection_routes.py",
+      "line": 60,
+      "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
+    },
+    {
+      "severity": "info",
+      "category": "reachability",
+      "message": "Entrypoint 'delete_gate_projection' has downstream dependencies but none touch a DB or produce side effects",
+      "node_id": "py:gate_projection_routes.install_gate_projection_routes.delete_gate_projection",
+      "file": "gate_projection_routes.py",
+      "line": 72,
+      "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
+    },
+    {
+      "severity": "info",
+      "category": "reachability",
+      "message": "Entrypoint 'list_pending_gates' has downstream dependencies but none touch a DB or produce side effects",
+      "node_id": "py:gate_projection_routes.install_gate_projection_routes.list_pending_gates",
+      "file": "gate_projection_routes.py",
+      "line": 84,
+      "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
+    },
+    {
+      "severity": "info",
+      "category": "reachability",
+      "message": "Entrypoint 'decide_gate' has downstream dependencies but none touch a DB or produce side effects",
+      "node_id": "py:gate_projection_routes.install_gate_projection_routes.decide_gate",
+      "file": "gate_projection_routes.py",
+      "line": 92,
+      "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
       "severity": "info",
@@ -1914,6 +1950,42 @@
     {
       "severity": "warning",
       "category": "disconnected_flow",
+      "message": "Backend route 'push_gate_projection' has no frontend callers",
+      "node_id": "py:gate_projection_routes.install_gate_projection_routes.push_gate_projection",
+      "file": "gate_projection_routes.py",
+      "line": 60,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'delete_gate_projection' has no frontend callers",
+      "node_id": "py:gate_projection_routes.install_gate_projection_routes.delete_gate_projection",
+      "file": "gate_projection_routes.py",
+      "line": 72,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'list_pending_gates' has no frontend callers",
+      "node_id": "py:gate_projection_routes.install_gate_projection_routes.list_pending_gates",
+      "file": "gate_projection_routes.py",
+      "line": 84,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'decide_gate' has no frontend callers",
+      "node_id": "py:gate_projection_routes.install_gate_projection_routes.decide_gate",
+      "file": "gate_projection_routes.py",
+      "line": 92,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
       "message": "Backend route 'select_model_endpoint' has no frontend callers",
       "node_id": "py:model_routing.api.install_routing_routes.select_model_endpoint",
       "file": "model_routing/api.py",
@@ -2682,8 +2754,17 @@
       "message": "Function 'ApprovalRequest' has no corresponding test references",
       "node_id": "py:approval.ApprovalRequest",
       "file": "approval.py",
-      "line": 15,
+      "line": 16,
       "suggestion": "Add tests that reference 'ApprovalRequest' (e.g., test_ApprovalRequest or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'normalize_request_id' has no corresponding test references",
+      "node_id": "py:approval.normalize_request_id",
+      "file": "approval.py",
+      "line": 33,
+      "suggestion": "Add tests that reference 'normalize_request_id' (e.g., test_normalize_request_id or import it in a test file)"
     },
     {
       "severity": "warning",
@@ -2691,7 +2772,7 @@
       "message": "Function 'ApprovalService' has no corresponding test references",
       "node_id": "py:approval.ApprovalService",
       "file": "approval.py",
-      "line": 32,
+      "line": 43,
       "suggestion": "Add tests that reference 'ApprovalService' (e.g., test_ApprovalService or import it in a test file)"
     },
     {
@@ -2700,7 +2781,7 @@
       "message": "Function '__init__' has no corresponding test references",
       "node_id": "py:approval.ApprovalService.__init__",
       "file": "approval.py",
-      "line": 35,
+      "line": 46,
       "suggestion": "Add tests that reference '__init__' (e.g., test___init__ or import it in a test file)"
     },
     {
@@ -2709,7 +2790,7 @@
       "message": "Function 'db' has no corresponding test references",
       "node_id": "py:approval.ApprovalService.db",
       "file": "approval.py",
-      "line": 39,
+      "line": 50,
       "suggestion": "Add tests that reference 'db' (e.g., test_db or import it in a test file)"
     },
     {
@@ -2718,7 +2799,7 @@
       "message": "Function 'submit_request' has no corresponding test references",
       "node_id": "py:approval.ApprovalService.submit_request",
       "file": "approval.py",
-      "line": 44,
+      "line": 55,
       "suggestion": "Add tests that reference 'submit_request' (e.g., test_submit_request or import it in a test file)"
     },
     {
@@ -2727,7 +2808,7 @@
       "message": "Function 'check_request' has no corresponding test references",
       "node_id": "py:approval.ApprovalService.check_request",
       "file": "approval.py",
-      "line": 89,
+      "line": 100,
       "suggestion": "Add tests that reference 'check_request' (e.g., test_check_request or import it in a test file)"
     },
     {
@@ -2736,7 +2817,7 @@
       "message": "Function 'decide_request' has no corresponding test references",
       "node_id": "py:approval.ApprovalService.decide_request",
       "file": "approval.py",
-      "line": 99,
+      "line": 110,
       "suggestion": "Add tests that reference 'decide_request' (e.g., test_decide_request or import it in a test file)"
     },
     {
@@ -2745,7 +2826,7 @@
       "message": "Function 'expire_stale_requests' has no corresponding test references",
       "node_id": "py:approval.ApprovalService.expire_stale_requests",
       "file": "approval.py",
-      "line": 137,
+      "line": 148,
       "suggestion": "Add tests that reference 'expire_stale_requests' (e.g., test_expire_stale_requests or import it in a test file)"
     },
     {
@@ -2754,8 +2835,17 @@
       "message": "Function 'list_pending' has no corresponding test references",
       "node_id": "py:approval.ApprovalService.list_pending",
       "file": "approval.py",
-      "line": 154,
+      "line": 165,
       "suggestion": "Add tests that reference 'list_pending' (e.g., test_list_pending or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'get_requests' has no corresponding test references",
+      "node_id": "py:approval.ApprovalService.get_requests",
+      "file": "approval.py",
+      "line": 177,
+      "suggestion": "Add tests that reference 'get_requests' (e.g., test_get_requests or import it in a test file)"
     },
     {
       "severity": "warning",
@@ -2763,7 +2853,7 @@
       "message": "Function '_row_to_request' has no corresponding test references",
       "node_id": "py:approval.ApprovalService._row_to_request",
       "file": "approval.py",
-      "line": 166,
+      "line": 193,
       "suggestion": "Add tests that reference '_row_to_request' (e.g., test__row_to_request or import it in a test file)"
     },
     {
@@ -2772,7 +2862,7 @@
       "message": "Function '_parse_dt' has no corresponding test references",
       "node_id": "py:approval._parse_dt",
       "file": "approval.py",
-      "line": 186,
+      "line": 213,
       "suggestion": "Add tests that reference '_parse_dt' (e.g., test__parse_dt or import it in a test file)"
     },
     {
@@ -2781,7 +2871,7 @@
       "message": "Function 'get_approval_service' has no corresponding test references",
       "node_id": "py:approval.get_approval_service",
       "file": "approval.py",
-      "line": 199,
+      "line": 226,
       "suggestion": "Add tests that reference 'get_approval_service' (e.g., test_get_approval_service or import it in a test file)"
     },
     {
@@ -2790,7 +2880,7 @@
       "message": "Function 'reset_approval_service' has no corresponding test references",
       "node_id": "py:approval.reset_approval_service",
       "file": "approval.py",
-      "line": 207,
+      "line": 234,
       "suggestion": "Add tests that reference 'reset_approval_service' (e.g., test_reset_approval_service or import it in a test file)"
     },
     {
@@ -4560,10 +4650,28 @@
     {
       "severity": "warning",
       "category": "test_coverage",
+      "message": "Function 'GateProjectionConfig' has no corresponding test references",
+      "node_id": "py:config.GateProjectionConfig",
+      "file": "config.py",
+      "line": 460,
+      "suggestion": "Add tests that reference 'GateProjectionConfig' (e.g., test_GateProjectionConfig or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'from_env' has no corresponding test references",
+      "node_id": "py:config.GateProjectionConfig.from_env",
+      "file": "config.py",
+      "line": 475,
+      "suggestion": "Add tests that reference 'from_env' (e.g., test_from_env or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
       "message": "Function 'ApiConfig' has no corresponding test references",
       "node_id": "py:config.ApiConfig",
       "file": "config.py",
-      "line": 460,
+      "line": 486,
       "suggestion": "Add tests that reference 'ApiConfig' (e.g., test_ApiConfig or import it in a test file)"
     },
     {
@@ -4572,7 +4680,7 @@
       "message": "Function 'from_env' has no corresponding test references",
       "node_id": "py:config.ApiConfig.from_env",
       "file": "config.py",
-      "line": 472,
+      "line": 498,
       "suggestion": "Add tests that reference 'from_env' (e.g., test_from_env or import it in a test file)"
     },
     {
@@ -4581,7 +4689,7 @@
       "message": "Function 'CloudflareAccessConfig' has no corresponding test references",
       "node_id": "py:config.CloudflareAccessConfig",
       "file": "config.py",
-      "line": 527,
+      "line": 553,
       "suggestion": "Add tests that reference 'CloudflareAccessConfig' (e.g., test_CloudflareAccessConfig or import it in a test file)"
     },
     {
@@ -4590,7 +4698,7 @@
       "message": "Function 'from_env' has no corresponding test references",
       "node_id": "py:config.CloudflareAccessConfig.from_env",
       "file": "config.py",
-      "line": 549,
+      "line": 575,
       "suggestion": "Add tests that reference 'from_env' (e.g., test_from_env or import it in a test file)"
     },
     {
@@ -4599,7 +4707,7 @@
       "message": "Function 'ApprovalConfig' has no corresponding test references",
       "node_id": "py:config.ApprovalConfig",
       "file": "config.py",
-      "line": 594,
+      "line": 620,
       "suggestion": "Add tests that reference 'ApprovalConfig' (e.g., test_ApprovalConfig or import it in a test file)"
     },
     {
@@ -4608,7 +4716,7 @@
       "message": "Function 'PolicySyncConfig' has no corresponding test references",
       "node_id": "py:config.PolicySyncConfig",
       "file": "config.py",
-      "line": 617,
+      "line": 643,
       "suggestion": "Add tests that reference 'PolicySyncConfig' (e.g., test_PolicySyncConfig or import it in a test file)"
     },
     {
@@ -4617,7 +4725,7 @@
       "message": "Function 'RiskScoringConfig' has no corresponding test references",
       "node_id": "py:config.RiskScoringConfig",
       "file": "config.py",
-      "line": 639,
+      "line": 665,
       "suggestion": "Add tests that reference 'RiskScoringConfig' (e.g., test_RiskScoringConfig or import it in a test file)"
     },
     {
@@ -4626,7 +4734,7 @@
       "message": "Function 'SessionGrantsConfig' has no corresponding test references",
       "node_id": "py:config.SessionGrantsConfig",
       "file": "config.py",
-      "line": 666,
+      "line": 692,
       "suggestion": "Add tests that reference 'SessionGrantsConfig' (e.g., test_SessionGrantsConfig or import it in a test file)"
     },
     {
@@ -4635,7 +4743,7 @@
       "message": "Function '_default_workdir_root' has no corresponding test references",
       "node_id": "py:config._default_workdir_root",
       "file": "config.py",
-      "line": 683,
+      "line": 709,
       "suggestion": "Add tests that reference '_default_workdir_root' (e.g., test__default_workdir_root or import it in a test file)"
     },
     {
@@ -4644,7 +4752,7 @@
       "message": "Function 'resolve_workdir_path' has no corresponding test references",
       "node_id": "py:config.resolve_workdir_path",
       "file": "config.py",
-      "line": 698,
+      "line": 724,
       "suggestion": "Add tests that reference 'resolve_workdir_path' (e.g., test_resolve_workdir_path or import it in a test file)"
     },
     {
@@ -4653,7 +4761,7 @@
       "message": "Function 'Config' has no corresponding test references",
       "node_id": "py:config.Config",
       "file": "config.py",
-      "line": 720,
+      "line": 746,
       "suggestion": "Add tests that reference 'Config' (e.g., test_Config or import it in a test file)"
     },
     {
@@ -4662,7 +4770,7 @@
       "message": "Function 'from_env' has no corresponding test references",
       "node_id": "py:config.Config.from_env",
       "file": "config.py",
-      "line": 762,
+      "line": 791,
       "suggestion": "Add tests that reference 'from_env' (e.g., test_from_env or import it in a test file)"
     },
     {
@@ -4671,7 +4779,7 @@
       "message": "Function 'get_config' has no corresponding test references",
       "node_id": "py:config.get_config",
       "file": "config.py",
-      "line": 819,
+      "line": 849,
       "suggestion": "Add tests that reference 'get_config' (e.g., test_get_config or import it in a test file)"
     },
     {
@@ -4680,7 +4788,7 @@
       "message": "Function 'reset_config' has no corresponding test references",
       "node_id": "py:config.reset_config",
       "file": "config.py",
-      "line": 827,
+      "line": 857,
       "suggestion": "Add tests that reference 'reset_config' (e.g., test_reset_config or import it in a test file)"
     },
     {
@@ -6183,7 +6291,7 @@
       "message": "Function 'main' has no corresponding test references",
       "node_id": "py:coordination_api.main",
       "file": "coordination_api.py",
-      "line": 4035,
+      "line": 4039,
       "suggestion": "Add tests that reference 'main' (e.g., test_main or import it in a test file)"
     },
     {
@@ -8507,6 +8615,303 @@
       "file": "feature_registry.py",
       "line": 320,
       "suggestion": "Add tests that reference 'get_feature_registry_service' (e.g., test_get_feature_registry_service or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'SourceError' has no corresponding test references",
+      "node_id": "py:gate_projection.SourceError",
+      "file": "gate_projection.py",
+      "line": 54,
+      "suggestion": "Add tests that reference 'SourceError' (e.g., test_SourceError or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'SnapshotGate' has no corresponding test references",
+      "node_id": "py:gate_projection.SnapshotGate",
+      "file": "gate_projection.py",
+      "line": 61,
+      "suggestion": "Add tests that reference 'SnapshotGate' (e.g., test_SnapshotGate or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'GateSnapshotRequest' has no corresponding test references",
+      "node_id": "py:gate_projection.GateSnapshotRequest",
+      "file": "gate_projection.py",
+      "line": 88,
+      "suggestion": "Add tests that reference 'GateSnapshotRequest' (e.g., test_GateSnapshotRequest or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'GateDecisionRequest' has no corresponding test references",
+      "node_id": "py:gate_projection.GateDecisionRequest",
+      "file": "gate_projection.py",
+      "line": 99,
+      "suggestion": "Add tests that reference 'GateDecisionRequest' (e.g., test_GateDecisionRequest or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'ProjectNotEnrolledError' has no corresponding test references",
+      "node_id": "py:gate_projection.ProjectNotEnrolledError",
+      "file": "gate_projection.py",
+      "line": 114,
+      "suggestion": "Add tests that reference 'ProjectNotEnrolledError' (e.g., test_ProjectNotEnrolledError or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function '__init__' has no corresponding test references",
+      "node_id": "py:gate_projection.ProjectNotEnrolledError.__init__",
+      "file": "gate_projection.py",
+      "line": 117,
+      "suggestion": "Add tests that reference '__init__' (e.g., test___init__ or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'GateNotFoundError' has no corresponding test references",
+      "node_id": "py:gate_projection.GateNotFoundError",
+      "file": "gate_projection.py",
+      "line": 122,
+      "suggestion": "Add tests that reference 'GateNotFoundError' (e.g., test_GateNotFoundError or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'GateNotDecidableError' has no corresponding test references",
+      "node_id": "py:gate_projection.GateNotDecidableError",
+      "file": "gate_projection.py",
+      "line": 126,
+      "suggestion": "Add tests that reference 'GateNotDecidableError' (e.g., test_GateNotDecidableError or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function '__init__' has no corresponding test references",
+      "node_id": "py:gate_projection.GateNotDecidableError.__init__",
+      "file": "gate_projection.py",
+      "line": 129,
+      "suggestion": "Add tests that reference '__init__' (e.g., test___init__ or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function '_parse_dt' has no corresponding test references",
+      "node_id": "py:gate_projection._parse_dt",
+      "file": "gate_projection.py",
+      "line": 140,
+      "suggestion": "Add tests that reference '_parse_dt' (e.g., test__parse_dt or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function '_iso' has no corresponding test references",
+      "node_id": "py:gate_projection._iso",
+      "file": "gate_projection.py",
+      "line": 153,
+      "suggestion": "Add tests that reference '_iso' (e.g., test__iso or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function '_payload' has no corresponding test references",
+      "node_id": "py:gate_projection._payload",
+      "file": "gate_projection.py",
+      "line": 158,
+      "suggestion": "Add tests that reference '_payload' (e.g., test__payload or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function '_gates' has no corresponding test references",
+      "node_id": "py:gate_projection._gates",
+      "file": "gate_projection.py",
+      "line": 169,
+      "suggestion": "Add tests that reference '_gates' (e.g., test__gates or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function '_source_errors' has no corresponding test references",
+      "node_id": "py:gate_projection._source_errors",
+      "file": "gate_projection.py",
+      "line": 174,
+      "suggestion": "Add tests that reference '_source_errors' (e.g., test__source_errors or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function '_orphan_gate' has no corresponding test references",
+      "node_id": "py:gate_projection._orphan_gate",
+      "file": "gate_projection.py",
+      "line": 181,
+      "suggestion": "Add tests that reference '_orphan_gate' (e.g., test__orphan_gate or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'GateProjectionService' has no corresponding test references",
+      "node_id": "py:gate_projection.GateProjectionService",
+      "file": "gate_projection.py",
+      "line": 203,
+      "suggestion": "Add tests that reference 'GateProjectionService' (e.g., test_GateProjectionService or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function '__init__' has no corresponding test references",
+      "node_id": "py:gate_projection.GateProjectionService.__init__",
+      "file": "gate_projection.py",
+      "line": 206,
+      "suggestion": "Add tests that reference '__init__' (e.g., test___init__ or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'db' has no corresponding test references",
+      "node_id": "py:gate_projection.GateProjectionService.db",
+      "file": "gate_projection.py",
+      "line": 219,
+      "suggestion": "Add tests that reference 'db' (e.g., test_db or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'approvals' has no corresponding test references",
+      "node_id": "py:gate_projection.GateProjectionService.approvals",
+      "file": "gate_projection.py",
+      "line": 225,
+      "suggestion": "Add tests that reference 'approvals' (e.g., test_approvals or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'config' has no corresponding test references",
+      "node_id": "py:gate_projection.GateProjectionService.config",
+      "file": "gate_projection.py",
+      "line": 231,
+      "suggestion": "Add tests that reference 'config' (e.g., test_config or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function '_require_enrolled' has no corresponding test references",
+      "node_id": "py:gate_projection.GateProjectionService._require_enrolled",
+      "file": "gate_projection.py",
+      "line": 234,
+      "suggestion": "Add tests that reference '_require_enrolled' (e.g., test__require_enrolled or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'replace_snapshot' has no corresponding test references",
+      "node_id": "py:gate_projection.GateProjectionService.replace_snapshot",
+      "file": "gate_projection.py",
+      "line": 238,
+      "suggestion": "Add tests that reference 'replace_snapshot' (e.g., test_replace_snapshot or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'delete_snapshot' has no corresponding test references",
+      "node_id": "py:gate_projection.GateProjectionService.delete_snapshot",
+      "file": "gate_projection.py",
+      "line": 273,
+      "suggestion": "Add tests that reference 'delete_snapshot' (e.g., test_delete_snapshot or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'list_pending' has no corresponding test references",
+      "node_id": "py:gate_projection.GateProjectionService.list_pending",
+      "file": "gate_projection.py",
+      "line": 281,
+      "suggestion": "Add tests that reference 'list_pending' (e.g., test_list_pending or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'decide' has no corresponding test references",
+      "node_id": "py:gate_projection.GateProjectionService.decide",
+      "file": "gate_projection.py",
+      "line": 386,
+      "suggestion": "Add tests that reference 'decide' (e.g., test_decide or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'get_gate_projection_service' has no corresponding test references",
+      "node_id": "py:gate_projection.get_gate_projection_service",
+      "file": "gate_projection.py",
+      "line": 419,
+      "suggestion": "Add tests that reference 'get_gate_projection_service' (e.g., test_get_gate_projection_service or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'reset_gate_projection_service' has no corresponding test references",
+      "node_id": "py:gate_projection.reset_gate_projection_service",
+      "file": "gate_projection.py",
+      "line": 427,
+      "suggestion": "Add tests that reference 'reset_gate_projection_service' (e.g., test_reset_gate_projection_service or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'install_gate_projection_routes' has no corresponding test references",
+      "node_id": "py:gate_projection_routes.install_gate_projection_routes",
+      "file": "gate_projection_routes.py",
+      "line": 38,
+      "suggestion": "Add tests that reference 'install_gate_projection_routes' (e.g., test_install_gate_projection_routes or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function '_authorize' has no corresponding test references",
+      "node_id": "py:gate_projection_routes.install_gate_projection_routes._authorize",
+      "file": "gate_projection_routes.py",
+      "line": 46,
+      "suggestion": "Add tests that reference '_authorize' (e.g., test__authorize or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'push_gate_projection' has no corresponding test references",
+      "node_id": "py:gate_projection_routes.install_gate_projection_routes.push_gate_projection",
+      "file": "gate_projection_routes.py",
+      "line": 60,
+      "suggestion": "Add tests that reference 'push_gate_projection' (e.g., test_push_gate_projection or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'delete_gate_projection' has no corresponding test references",
+      "node_id": "py:gate_projection_routes.install_gate_projection_routes.delete_gate_projection",
+      "file": "gate_projection_routes.py",
+      "line": 72,
+      "suggestion": "Add tests that reference 'delete_gate_projection' (e.g., test_delete_gate_projection or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'list_pending_gates' has no corresponding test references",
+      "node_id": "py:gate_projection_routes.install_gate_projection_routes.list_pending_gates",
+      "file": "gate_projection_routes.py",
+      "line": 84,
+      "suggestion": "Add tests that reference 'list_pending_gates' (e.g., test_list_pending_gates or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'decide_gate' has no corresponding test references",
+      "node_id": "py:gate_projection_routes.install_gate_projection_routes.decide_gate",
+      "file": "gate_projection_routes.py",
+      "line": 92,
+      "suggestion": "Add tests that reference 'decide_gate' (e.g., test_decide_gate or import it in a test file)"
     },
     {
       "severity": "warning",
@@ -17478,7 +17883,16 @@
       "message": "'ApprovalRequest' is unreachable from any entrypoint or test",
       "node_id": "py:approval.ApprovalRequest",
       "file": "approval.py",
-      "line": 15,
+      "line": 16,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'normalize_request_id' is unreachable from any entrypoint or test",
+      "node_id": "py:approval.normalize_request_id",
+      "file": "approval.py",
+      "line": 33,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -17487,7 +17901,7 @@
       "message": "'ApprovalService' is unreachable from any entrypoint or test",
       "node_id": "py:approval.ApprovalService",
       "file": "approval.py",
-      "line": 32,
+      "line": 43,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -17496,7 +17910,7 @@
       "message": "'__init__' is unreachable from any entrypoint or test",
       "node_id": "py:approval.ApprovalService.__init__",
       "file": "approval.py",
-      "line": 35,
+      "line": 46,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -17505,7 +17919,7 @@
       "message": "'db' is unreachable from any entrypoint or test",
       "node_id": "py:approval.ApprovalService.db",
       "file": "approval.py",
-      "line": 39,
+      "line": 50,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -17514,7 +17928,7 @@
       "message": "'submit_request' is unreachable from any entrypoint or test",
       "node_id": "py:approval.ApprovalService.submit_request",
       "file": "approval.py",
-      "line": 44,
+      "line": 55,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -17523,7 +17937,7 @@
       "message": "'check_request' is unreachable from any entrypoint or test",
       "node_id": "py:approval.ApprovalService.check_request",
       "file": "approval.py",
-      "line": 89,
+      "line": 100,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -17532,7 +17946,7 @@
       "message": "'decide_request' is unreachable from any entrypoint or test",
       "node_id": "py:approval.ApprovalService.decide_request",
       "file": "approval.py",
-      "line": 99,
+      "line": 110,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -17541,7 +17955,7 @@
       "message": "'expire_stale_requests' is unreachable from any entrypoint or test",
       "node_id": "py:approval.ApprovalService.expire_stale_requests",
       "file": "approval.py",
-      "line": 137,
+      "line": 148,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -17550,7 +17964,16 @@
       "message": "'list_pending' is unreachable from any entrypoint or test",
       "node_id": "py:approval.ApprovalService.list_pending",
       "file": "approval.py",
-      "line": 154,
+      "line": 165,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'get_requests' is unreachable from any entrypoint or test",
+      "node_id": "py:approval.ApprovalService.get_requests",
+      "file": "approval.py",
+      "line": 177,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -17559,7 +17982,7 @@
       "message": "'_row_to_request' is unreachable from any entrypoint or test",
       "node_id": "py:approval.ApprovalService._row_to_request",
       "file": "approval.py",
-      "line": 166,
+      "line": 193,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -17568,7 +17991,7 @@
       "message": "'_parse_dt' is unreachable from any entrypoint or test",
       "node_id": "py:approval._parse_dt",
       "file": "approval.py",
-      "line": 186,
+      "line": 213,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -17577,7 +18000,7 @@
       "message": "'reset_approval_service' is unreachable from any entrypoint or test",
       "node_id": "py:approval.reset_approval_service",
       "file": "approval.py",
-      "line": 207,
+      "line": 234,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -19338,8 +19761,8 @@
     {
       "severity": "warning",
       "category": "orphan",
-      "message": "'ApiConfig' is unreachable from any entrypoint or test",
-      "node_id": "py:config.ApiConfig",
+      "message": "'GateProjectionConfig' is unreachable from any entrypoint or test",
+      "node_id": "py:config.GateProjectionConfig",
       "file": "config.py",
       "line": 460,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
@@ -19348,9 +19771,27 @@
       "severity": "warning",
       "category": "orphan",
       "message": "'from_env' is unreachable from any entrypoint or test",
+      "node_id": "py:config.GateProjectionConfig.from_env",
+      "file": "config.py",
+      "line": 475,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'ApiConfig' is unreachable from any entrypoint or test",
+      "node_id": "py:config.ApiConfig",
+      "file": "config.py",
+      "line": 486,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'from_env' is unreachable from any entrypoint or test",
       "node_id": "py:config.ApiConfig.from_env",
       "file": "config.py",
-      "line": 472,
+      "line": 498,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -19359,7 +19800,7 @@
       "message": "'CloudflareAccessConfig' is unreachable from any entrypoint or test",
       "node_id": "py:config.CloudflareAccessConfig",
       "file": "config.py",
-      "line": 527,
+      "line": 553,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -19368,7 +19809,7 @@
       "message": "'from_env' is unreachable from any entrypoint or test",
       "node_id": "py:config.CloudflareAccessConfig.from_env",
       "file": "config.py",
-      "line": 549,
+      "line": 575,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -19377,7 +19818,7 @@
       "message": "'ApprovalConfig' is unreachable from any entrypoint or test",
       "node_id": "py:config.ApprovalConfig",
       "file": "config.py",
-      "line": 594,
+      "line": 620,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -19386,7 +19827,7 @@
       "message": "'PolicySyncConfig' is unreachable from any entrypoint or test",
       "node_id": "py:config.PolicySyncConfig",
       "file": "config.py",
-      "line": 617,
+      "line": 643,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -19395,7 +19836,7 @@
       "message": "'RiskScoringConfig' is unreachable from any entrypoint or test",
       "node_id": "py:config.RiskScoringConfig",
       "file": "config.py",
-      "line": 639,
+      "line": 665,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -19404,7 +19845,7 @@
       "message": "'SessionGrantsConfig' is unreachable from any entrypoint or test",
       "node_id": "py:config.SessionGrantsConfig",
       "file": "config.py",
-      "line": 666,
+      "line": 692,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -19413,7 +19854,7 @@
       "message": "'Config' is unreachable from any entrypoint or test",
       "node_id": "py:config.Config",
       "file": "config.py",
-      "line": 720,
+      "line": 746,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -19422,7 +19863,7 @@
       "message": "'from_env' is unreachable from any entrypoint or test",
       "node_id": "py:config.Config.from_env",
       "file": "config.py",
-      "line": 762,
+      "line": 791,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -19431,7 +19872,7 @@
       "message": "'reset_config' is unreachable from any entrypoint or test",
       "node_id": "py:config.reset_config",
       "file": "config.py",
-      "line": 827,
+      "line": 857,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20070,7 +20511,7 @@
       "message": "'main' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_api.main",
       "file": "coordination_api.py",
-      "line": 4035,
+      "line": 4039,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -22240,6 +22681,267 @@
       "node_id": "py:feature_registry.FeatureRegistryService.analyze_conflicts",
       "file": "feature_registry.py",
       "line": 260,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'gate_projection' is unreachable from any entrypoint or test",
+      "node_id": "py:gate_projection",
+      "file": "gate_projection.py",
+      "line": 1,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'SourceError' is unreachable from any entrypoint or test",
+      "node_id": "py:gate_projection.SourceError",
+      "file": "gate_projection.py",
+      "line": 54,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'SnapshotGate' is unreachable from any entrypoint or test",
+      "node_id": "py:gate_projection.SnapshotGate",
+      "file": "gate_projection.py",
+      "line": 61,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'GateSnapshotRequest' is unreachable from any entrypoint or test",
+      "node_id": "py:gate_projection.GateSnapshotRequest",
+      "file": "gate_projection.py",
+      "line": 88,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'GateDecisionRequest' is unreachable from any entrypoint or test",
+      "node_id": "py:gate_projection.GateDecisionRequest",
+      "file": "gate_projection.py",
+      "line": 99,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'ProjectNotEnrolledError' is unreachable from any entrypoint or test",
+      "node_id": "py:gate_projection.ProjectNotEnrolledError",
+      "file": "gate_projection.py",
+      "line": 114,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'__init__' is unreachable from any entrypoint or test",
+      "node_id": "py:gate_projection.ProjectNotEnrolledError.__init__",
+      "file": "gate_projection.py",
+      "line": 117,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'GateNotFoundError' is unreachable from any entrypoint or test",
+      "node_id": "py:gate_projection.GateNotFoundError",
+      "file": "gate_projection.py",
+      "line": 122,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'GateNotDecidableError' is unreachable from any entrypoint or test",
+      "node_id": "py:gate_projection.GateNotDecidableError",
+      "file": "gate_projection.py",
+      "line": 126,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'__init__' is unreachable from any entrypoint or test",
+      "node_id": "py:gate_projection.GateNotDecidableError.__init__",
+      "file": "gate_projection.py",
+      "line": 129,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'_parse_dt' is unreachable from any entrypoint or test",
+      "node_id": "py:gate_projection._parse_dt",
+      "file": "gate_projection.py",
+      "line": 140,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'_iso' is unreachable from any entrypoint or test",
+      "node_id": "py:gate_projection._iso",
+      "file": "gate_projection.py",
+      "line": 153,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'_payload' is unreachable from any entrypoint or test",
+      "node_id": "py:gate_projection._payload",
+      "file": "gate_projection.py",
+      "line": 158,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'_gates' is unreachable from any entrypoint or test",
+      "node_id": "py:gate_projection._gates",
+      "file": "gate_projection.py",
+      "line": 169,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'_source_errors' is unreachable from any entrypoint or test",
+      "node_id": "py:gate_projection._source_errors",
+      "file": "gate_projection.py",
+      "line": 174,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'_orphan_gate' is unreachable from any entrypoint or test",
+      "node_id": "py:gate_projection._orphan_gate",
+      "file": "gate_projection.py",
+      "line": 181,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'GateProjectionService' is unreachable from any entrypoint or test",
+      "node_id": "py:gate_projection.GateProjectionService",
+      "file": "gate_projection.py",
+      "line": 203,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'__init__' is unreachable from any entrypoint or test",
+      "node_id": "py:gate_projection.GateProjectionService.__init__",
+      "file": "gate_projection.py",
+      "line": 206,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'db' is unreachable from any entrypoint or test",
+      "node_id": "py:gate_projection.GateProjectionService.db",
+      "file": "gate_projection.py",
+      "line": 219,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'approvals' is unreachable from any entrypoint or test",
+      "node_id": "py:gate_projection.GateProjectionService.approvals",
+      "file": "gate_projection.py",
+      "line": 225,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'config' is unreachable from any entrypoint or test",
+      "node_id": "py:gate_projection.GateProjectionService.config",
+      "file": "gate_projection.py",
+      "line": 231,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'_require_enrolled' is unreachable from any entrypoint or test",
+      "node_id": "py:gate_projection.GateProjectionService._require_enrolled",
+      "file": "gate_projection.py",
+      "line": 234,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'replace_snapshot' is unreachable from any entrypoint or test",
+      "node_id": "py:gate_projection.GateProjectionService.replace_snapshot",
+      "file": "gate_projection.py",
+      "line": 238,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'delete_snapshot' is unreachable from any entrypoint or test",
+      "node_id": "py:gate_projection.GateProjectionService.delete_snapshot",
+      "file": "gate_projection.py",
+      "line": 273,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'list_pending' is unreachable from any entrypoint or test",
+      "node_id": "py:gate_projection.GateProjectionService.list_pending",
+      "file": "gate_projection.py",
+      "line": 281,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'decide' is unreachable from any entrypoint or test",
+      "node_id": "py:gate_projection.GateProjectionService.decide",
+      "file": "gate_projection.py",
+      "line": 386,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'reset_gate_projection_service' is unreachable from any entrypoint or test",
+      "node_id": "py:gate_projection.reset_gate_projection_service",
+      "file": "gate_projection.py",
+      "line": 427,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'gate_projection_routes' is unreachable from any entrypoint or test",
+      "node_id": "py:gate_projection_routes",
+      "file": "gate_projection_routes.py",
+      "line": 1,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'install_gate_projection_routes' is unreachable from any entrypoint or test",
+      "node_id": "py:gate_projection_routes.install_gate_projection_routes",
+      "file": "gate_projection_routes.py",
+      "line": 38,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -30605,12 +31307,12 @@
     }
   ],
   "summary": {
-    "total_findings": 3400,
+    "total_findings": 3478,
     "errors": 0,
-    "warnings": 3288,
-    "info": 112,
-    "entrypoints_checked": 110,
+    "warnings": 3362,
+    "info": 116,
+    "entrypoints_checked": 114,
     "flows_with_coverage": 0,
-    "flows_without_coverage": 1650
+    "flows_without_coverage": 1687
   }
 }

@@ -29,9 +29,31 @@
 
 ## 2026-11-19 — add-project-keyed-gate-projection
 
+### Phase: Validation
+
+**Required phases that could not run are recorded as not run** — The change has a deployable surface, so marking them not applicable or skipped would hide that the routes have never answered a request.
+
+- Status: `active`
+- Source: [openspec/changes/add-project-keyed-gate-projection/session-log.md](/openspec/changes/add-project-keyed-gate-projection/session-log.md) (D1)
+
+---
+
+## 2026-11-19 — add-project-keyed-gate-projection
+
 ### Phase: Plan
 
 **Degraded state is computed at read time** — A project with no snapshot, a stale one or source errors must be visible, and its last known gates still listed, without a background job.
+
+- Status: `active`
+- Source: [openspec/changes/add-project-keyed-gate-projection/session-log.md](/openspec/changes/add-project-keyed-gate-projection/session-log.md) (D2)
+
+---
+
+## 2026-11-19 — add-project-keyed-gate-projection
+
+### Phase: Validation
+
+**Roadmap item ri-10 stays in progress** — Migration 047 is unapplied, the routes are undeployed and no repository has pushed a snapshot.
 
 - Status: `active`
 - Source: [openspec/changes/add-project-keyed-gate-projection/session-log.md](/openspec/changes/add-project-keyed-gate-projection/session-log.md) (D2)

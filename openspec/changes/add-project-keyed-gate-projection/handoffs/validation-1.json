@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-11-19T04:03:45.269683+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "trust_resolution_failed: 500: Trust level unresolvable for registry-declared agent 'claude-remote' (type 'claude_code'): profile lookup failed: [Errno -2] Name or service not known. The agent_profiles projection of agents.yaml is broken; restart the coordinator to re-run profile sync. (HTTP 200)",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Validated at 80e92b1 in a cloud container: 4/4 requirements pass by unit test and the traceability gate passes. Deploy, smoke, security and E2E did not run because the container has no container runtime, and task 5.1 is open. Result recorded as incomplete.",
+    "completed_work": [
+      "ruff and mypy --strict clean; 3189 coordinator tests and 504 supervise tests pass",
+      "validation-report.md and architecture-impact.md written; architecture artifacts regenerated",
+      "CI not checked: no pull request exists"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Required phases that could not run are recorded as not run",
+        "rationale": "The change has a deployable surface, so marking them not applicable or skipped would hide that the routes have never answered a request.",
+        "capability": "agent-coordinator",
+        "supersedes": null
+      },
+      {
+        "title": "Roadmap item ri-10 stays in progress",
+        "rationale": "Migration 047 is unapplied, the routes are undeployed and no repository has pushed a snapshot.",
+        "capability": "agent-coordinator",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Operator: task 5.1 on the deployed coordinator",
+      "Run get_requests against PostgreSQL before any gate is made decidable through the API"
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/add-project-keyed-gate-projection/validation-report.md",
+        "description": "validation report"
+      }
+    ]
+  }
+}

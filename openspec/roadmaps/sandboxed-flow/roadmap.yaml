@@ -278,7 +278,7 @@ items:
   - roadmap-always-on-agent-automation:ri-12
 - item_id: ri-10
   title: Add project-keyed gate projection
-  status: approved
+  status: in_progress
   priority: 2
   effort: L
   depends_on: []
@@ -300,6 +300,8 @@ items:
     through the existing approval service, with no new decision store.
   - A repository the coordinator cannot reach is reported as degraded, not silently
     omitted.
+  learning_refs:
+  - learnings/ri-10.md
 - item_id: ri-11
   title: Assemble outcome evidence packet
   status: candidate
@@ -389,7 +391,7 @@ items:
     delivered; an undelivered notification leaves the gate blocked.
   - Notification volume respects a per-day limit, with the overflow collected into
     one digest.
-updated_at: '2026-11-19T02:57:45.660532+00:00'
+updated_at: '2026-11-19T04:03:45.590370+00:00'
 refinements:
 - timestamp: '2026-11-19T01:58:09.832888+00:00'
   actor: claude-code (cloud session)

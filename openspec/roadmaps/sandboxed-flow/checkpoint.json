@@ -2,9 +2,9 @@
   "schema_version": 1,
   "roadmap_id": "sandboxed-flow",
   "current_item_id": "ri-10",
-  "phase": "planning",
+  "phase": "blocked",
   "created_at": "2026-11-19T02:10:55.041545+00:00",
-  "updated_at": "2026-11-19T02:57:54.647816+00:00",
+  "updated_at": "2026-11-19T04:03:56.739652+00:00",
   "completed_items": [
     "ri-01"
   ],

@@ -1,7 +1,7 @@
 flowchart TB
     __init__["__init__ (1 symbols)"]
     agents_config["agents_config (78 symbols)"]
-    approval["approval (14 symbols)"]
+    approval["approval (16 symbols)"]
     assurance["assurance (1 symbols)"]
     audit["audit (18 symbols)"]
     audit_triage["audit_triage (14 symbols)"]
@@ -10,7 +10,7 @@ flowchart TB
     code_search["code_search (37 symbols)"]
     code_search_authorization["code_search_authorization (40 symbols)"]
     code_search_runtime["code_search_runtime (45 symbols)"]
-    config["config (48 symbols)"]
+    config["config (50 symbols)"]
     coordination_api["coordination_api (168 symbols)"]
     coordination_cli["coordination_cli (35 symbols)"]
     coordination_mcp["coordination_mcp (82 symbols)"]
@@ -22,6 +22,8 @@ flowchart TB
     event_stream["event_stream (13 symbols)"]
     feature_flags["feature_flags (26 symbols)"]
     feature_registry["feature_registry (19 symbols)"]
+    gate_projection["gate_projection (28 symbols)"]
+    gate_projection_routes["gate_projection_routes (7 symbols)"]
     git_adapter["git_adapter (25 symbols)"]
     github_classifier["github_classifier (2 symbols)"]
     github_coordination["github_coordination (16 symbols)"]
@@ -122,6 +124,7 @@ flowchart TB
     coordination_api -->|"call, import"| event_bus
     coordination_api -->|"call, import"| event_stream
     coordination_api -->|"call, import"| feature_registry
+    coordination_api -->|"call, import"| gate_projection_routes
     coordination_api -->|"call, import"| github_prs_api
     coordination_api -->|"call, import"| guardrails
     coordination_api -->|"call, import"| handoffs
@@ -209,6 +212,11 @@ flowchart TB
     feature_registry -->|"call, import"| config
     feature_registry -->|"call, import"| db
     feature_registry -->|"call"| discovery
+    gate_projection -->|"call, import"| approval
+    gate_projection -->|"call, import"| config
+    gate_projection -->|"call, import"| db
+    gate_projection_routes -->|"call"| coordination_api
+    gate_projection_routes -->|"call, import"| gate_projection
     github_coordination -->|"call, import"| config
     github_coordination -->|"call, import"| db
     github_prs_api -->|"import"| github_classifier
@@ -314,6 +322,7 @@ flowchart TB
     trust_resolution -->|"call, import"| profiles
     vendor_registry -->|"call, import"| agents_config
     vendor_registry -->|"call, import"| db
+    vendor_registry -->|"call"| gate_projection
     vendor_registry -->|"call, import"| isolation_contract
     watchdog -->|"call, import"| audit
     watchdog -->|"call, import"| db

@@ -191,6 +191,13 @@ erDiagram
         TEXT reason
         TEXT session_id
     }
+    public__gate_projection_snapshots {
+        TIMESTAMPTZ collected_at
+        TEXT digest
+        JSONB payload
+        TEXT project
+        TIMESTAMPTZ received_at
+    }
     public__guardrail_violations {
         TEXT agent_id
         TEXT agent_type
