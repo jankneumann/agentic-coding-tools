@@ -1,0 +1,334 @@
+schema_version: 1
+roadmap_id: sandboxed-flow
+source_proposal: openspec/roadmaps/sandboxed-flow/proposal.md
+status: planning
+policy:
+  default_action: wait_if_budget_exceeded
+  max_switch_attempts_per_item: 2
+items:
+- item_id: ri-01
+  title: Sandbox the interactive lead session
+  status: candidate
+  priority: 1
+  effort: M
+  depends_on: []
+  description: Enable the harness's native Bash sandbox for the operator's interactive
+    Claude Code sessions on the laptop and the GX10 so sandboxed commands run without
+    asking, and reduce the permission rules to the irreversible set (force-push, deletion,
+    merge, deploy, migration, secret writes), which keeps ask or deny. Setting names
+    are confirmed against current harness documentation before they are written.
+  rationale: Most approval prompts occur in the interactive lead session, which is
+    not a dispatched vendor CLI and so is not covered by dispatch-governance dg-07.
+    This item has no dependencies and delivers relief before anything else lands.
+  change_id: sandbox-the-interactive-lead-session
+  acceptance_outcomes:
+  - A local interactive session runs uv run, pytest, git read commands and worktree-scoped
+    writes with no approval prompt.
+  - A sandboxed command cannot read ~/.ssh, ~/.aws or another repository's checkout;
+    a test demonstrates the denial.
+  - Every command class in the irreversible set still prompts or is denied, verified
+    by a test that enumerates the set.
+  - The allow list in .claude/settings.json shrinks, and the guide on writing matchable
+    Bash commands is updated to match.
+  - Under the managed cloud harness, which provides its own sandbox and proxy, local
+    sandbox wrapping is detected as unnecessary and skipped.
+- item_id: ri-02
+  title: Audit vendor headless auth and terms
+  status: candidate
+  priority: 1
+  effort: S
+  depends_on: []
+  description: A spike that records, for each of Claude, Codex, Antigravity and Grok,
+    whether subscription terms permit programmatic or headless use, where the OAuth
+    material lives on disk, whether token refresh needs a writable path, which hosts
+    inference and refresh contact, and whether the CLI accepts a base-URL or proxy
+    override. The result is a checked-in table that later items read, not production
+    code.
+  rationale: Subscription logins must be used unattended only where the vendor audit
+    records that the terms permit it; the credential profile and the token injection
+    spike both read this table.
+  change_id: audit-vendor-headless-auth-and-terms
+  acceptance_outcomes:
+  - A checked-in document states, per vendor, the permitted headless use under its
+    subscription, with the source of each statement.
+  - For each vendor the OAuth material paths, refresh-write requirement, inference
+    hosts and proxy-override support are recorded from an observed run, not from memory.
+  - Any vendor whose terms forbid unattended subscription use is marked as requiring
+    an API-key or gateway-key lane.
+  - The existing record that the Claude review lane uses an API key is either confirmed
+    or updated by the audit.
+- item_id: ri-03
+  title: Add per-vendor credential profile
+  status: candidate
+  priority: 1
+  effort: L
+  depends_on:
+  - ri-02
+  description: Add a credential_profile to each vendor entry in agents.yaml carrying
+    the auth mode (subscription-oauth, api-key or gateway-key), the OAuth material
+    paths to bind into the sandbox and whether they are read-only, the inference and
+    refresh hosts for the egress allowlist, and whether unattended use is permitted.
+    The dg-07 sandbox renderer reads the profile so a sandboxed dispatch of one vendor
+    sees that vendor's login and no other credential.
+  rationale: This is the piece that lets subscription OAuth logins work inside a sandbox,
+    which neither dg-07 nor the credential roadmap covers, and it enforces that a
+    process shaped by model output holds only the credentials its role needs.
+  change_id: add-per-vendor-credential-profile
+  acceptance_outcomes:
+  - A sandboxed dispatch of each subscription-oauth vendor completes an authenticated
+    inference call.
+  - Inside that sandbox, the other vendors' credential paths, ~/.ssh and the operator's
+    GitHub token are unreadable; a test asserts each.
+  - Egress from the sandbox reaches only the hosts in the profile, the coordinator
+    and the hosts the task declares.
+  - A vendor with unattended use not permitted is refused for headless dispatch with
+    an audit event naming the profile field.
+  external_depends_on:
+  - dispatch-governance:dg-07
+- item_id: ri-04
+  title: Add task-scoped file and network grants
+  status: candidate
+  priority: 2
+  effort: L
+  depends_on:
+  - ri-03
+  description: Render each dispatch's writable paths from the work package's declared
+    scope in work-packages.yaml and its network allowlist from the task's declared
+    needs plus the coordinator's network policy. A task that declares no network need
+    gets the vendor's inference hosts and the coordinator and nothing else.
+  rationale: The target flow gives each task its own file and network access rather
+    than a per-vendor profile, while keeping network and path policy authored once
+    and only rendered elsewhere.
+  change_id: add-task-scoped-file-and-network-grants
+  acceptance_outcomes:
+  - A dispatched work package can write inside its declared scope and its own worktree
+    and nowhere else in the repository.
+  - A write outside the declared scope fails at the operating system, and the failure
+    is recorded on the dispatch result.
+  - Two work packages in one change with different declared network needs get different
+    egress allowlists.
+  - No allowlist or path grant is hand-authored outside work-packages.yaml and the
+    coordinator's network policy.
+  external_depends_on:
+  - dispatch-governance:dg-07
+- item_id: ri-05
+  title: Add fail-closed yolo mode for sandboxed implementers
+  status: candidate
+  priority: 1
+  effort: M
+  depends_on:
+  - ri-03
+  description: Pass vendor permission-bypass flags only when the dispatch's resolved
+    isolation is sandbox and the wrapper confirms the sandbox is active. When the
+    sandbox is not enforced, the dispatch runs in the vendor's prompting or restricted
+    mode or is refused according to posture, and the degradation and the isolation
+    actually enforced are recorded on the dispatch result.
+  rationale: Zero prompts inside the box is the core goal, but dg-07 degrades to unsandboxed
+    dispatch when the runtime is missing; a bypass flag must never coincide with that
+    degradation. The recorded enforced isolation is what gate coupling and the evidence
+    packet read.
+  change_id: add-fail-closed-yolo-mode-for-sandboxed-implementers
+  acceptance_outcomes:
+  - With an enforced sandbox, an implementer dispatch of each vendor runs to completion
+    with no permission prompt.
+  - With the sandbox runtime removed, the same dispatch carries no permission-bypass
+    flag; a test asserts the rendered argv.
+  - Every dispatch result records the isolation that was actually enforced, distinct
+    from the isolation requested.
+  - A degraded dispatch emits an audit event and appears as a degradation in the session
+    log.
+- item_id: ri-06
+  title: Sandbox the read-only review lanes
+  status: candidate
+  priority: 2
+  effort: M
+  depends_on:
+  - ri-03
+  description: Run each vendor lane of the review worker in the per-lane sandbox that
+    Phase 1 of the local/cloud split deferred, with the reviewed tree mounted read-only,
+    write access only to the lane's output directory, egress only to that vendor's
+    hosts and the coordinator, and no GitHub write credential. Lanes keep reporting
+    through the coordinator, which alone publishes the consolidated review.
+  rationale: A reviewer whose verdict can decide whether low-risk work lands must
+    be unable to modify the tree or hold any write credential, and an unenforced lane
+    must not count toward quorum.
+  change_id: sandbox-the-read-only-review-lanes
+  acceptance_outcomes:
+  - A review lane cannot modify the tree under review; a test attempts a write and
+    observes the denial.
+  - A review lane holds no credential able to push, post a review or decide an approval.
+  - A lane whose sandbox could not be enforced reports as unverified and does not
+    count toward quorum.
+  - Review results are still recorded per vendor and per head SHA through the existing
+    review-queue endpoints.
+- item_id: ri-07
+  title: Spike OAuth token injection at the sandbox boundary
+  status: candidate
+  priority: 3
+  effort: M
+  depends_on:
+  - ri-02
+  - ri-03
+  description: A spike testing whether the OS sandbox from dg-07 gives real interception
+    on the local hosts and whether each vendor CLI works when its bearer token is
+    injected at a boundary proxy rather than read from disk, including across a token
+    refresh. It ends in a decision record choosing between extending dispatch-governance
+    dg-08 to the local-sandbox posture and keeping read-only binds with a tight allowlist.
+  rationale: A login file readable inside the sandbox can still leave through any
+    allowed host; the spike decides whether the stronger keep-the-token- outside design
+    is viable locally without building the egress gateway here.
+  change_id: spike-oauth-token-injection-at-the-sandbox-boundary
+  acceptance_outcomes:
+  - For each vendor, a recorded result states whether an injected-token dispatch authenticates
+    and survives a token refresh.
+  - A recorded result states whether a sandboxed process on macOS and on Linux can
+    reach a host without passing the proxy.
+  - A decision record chooses between extending dg-08 and keeping read-only binds,
+    with the residual exfiltration paths named.
+- item_id: ri-08
+  title: Couple gate dispositions to enforced isolation
+  status: candidate
+  priority: 2
+  effort: M
+  depends_on:
+  - ri-05
+  description: Let each gate in TRUST_POSTURE.md declare a min_isolation. A disposition
+    of auto or notify_with_timeout holds only when the dispatch that produced the
+    work ran with enforced isolation at or above that level; otherwise the gate degrades
+    to block with an audit event. The add-sandboxed-harness-execution change references
+    this item instead of restating it.
+  rationale: Carved out of add-sandboxed-harness-execution Phase 3 because it depends
+    only on the local sandbox; it makes automatic dispositions conditional on real
+    enforcement and complements the agent trust clamp without touching it.
+  change_id: couple-gate-dispositions-to-enforced-isolation
+  acceptance_outcomes:
+  - A gate with min_isolation sandbox and disposition auto proceeds for work produced
+    under an enforced sandbox.
+  - The same gate blocks, with an audit event, for work produced under worktree or
+    none.
+  - The enforced isolation is read from the dispatch record, never from a session's
+    self-report or an environment variable.
+  - A posture file that omits min_isolation behaves exactly as it does today.
+- item_id: ri-09
+  title: Add reviewer-approved landing for low-risk work
+  status: candidate
+  priority: 2
+  effort: L
+  depends_on:
+  - ri-06
+  - ri-08
+  description: Add a risk-tiered merge policy under which a change merges without
+    the operator when its risk tier is low, at least two distinct vendors hold verified
+    approving verdicts on the current head SHA, the implementing dispatch ran under
+    an enforced sandbox, and required checks pass. Anything else stays block and arrives
+    in the inbox as an outcome. The item ships the mechanism with the merge gate still
+    block; enabling it is an operator decision recorded in TRUST_POSTURE.md.
+  rationale: The target flow has a separate read-only reviewer whose verdict decides
+    whether low-risk work lands, replacing today's always-human approval only where
+    the operator opts in.
+  change_id: add-reviewer-approved-landing-for-low-risk-work
+  acceptance_outcomes:
+  - With the policy enabled, a low-risk change meeting all four conditions merges
+    with no operator action, and the merge record cites the verdicts and head SHA.
+  - A change missing any one condition does not merge and surfaces as a pending outcome
+    with the unmet condition named.
+  - A push after the verdicts invalidates them; a test shows the stale verdict does
+    not authorize a merge.
+  - With the policy absent from the posture file, merge behaviour is unchanged.
+  external_depends_on:
+  - verification-enforcement-discipline:ri-01
+  - roadmap-always-on-agent-automation:ri-12
+- item_id: ri-10
+  title: Add project-keyed gate projection
+  status: candidate
+  priority: 2
+  effort: L
+  depends_on: []
+  description: Project every pending gate from each enrolled repository (checkpoint.json,
+    loop-state.json, TRUST_POSTURE.md and the approval service) into the coordinator,
+    keyed by project, and expose one listing of everything awaiting the operator.
+    The projection is rebuilt from the repositories and never written back; decisions
+    go through the existing approval gate service.
+  rationale: Gate state is scattered across per-repository files with no cross-repository
+    view; one inbox needs one listing while Git remains the authoritative record per
+    repository.
+  change_id: add-project-keyed-gate-projection
+  acceptance_outcomes:
+  - One coordinator request returns every pending gate across at least two enrolled
+    repositories, each with project, gate type, subject, options and deadline.
+  - Deleting the projection and rebuilding it from the repositories yields the same
+    pending set.
+  - A decision made through the listing reaches the owning repository's gate record
+    through the existing approval service, with no new decision store.
+  - A repository the coordinator cannot reach is reported as degraded, not silently
+    omitted.
+- item_id: ri-11
+  title: Assemble outcome evidence packet
+  status: candidate
+  priority: 3
+  effort: M
+  depends_on:
+  - ri-05
+  - ri-10
+  description: For each completed task, assemble a compact packet containing what
+    was asked, a diff summary, the review verdicts by vendor with their head SHA,
+    validation results, the isolation actually enforced, and any degradations. The
+    packet is a view assembled from existing records, not a new authority.
+  rationale: An outcome decision needs its evidence in one place so the operator can
+    review outcomes rather than raw activity.
+  change_id: assemble-outcome-evidence-packet
+  acceptance_outcomes:
+  - Every task that reaches a merge or outcome gate has a packet reachable from its
+    gate record.
+  - The packet states the enforced isolation and lists every recorded degradation,
+    including a single-vendor review.
+  - Each claim in the packet links to the record it was read from.
+- item_id: ri-12
+  title: Add decision inbox view to kanban-viz
+  status: candidate
+  priority: 2
+  effort: L
+  depends_on:
+  - ri-10
+  - ri-11
+  description: Add a gate-first view to apps/kanban-viz over the projection with three
+    lanes, goals (roadmap approvals), designs (plan and proposal reviews) and outcomes
+    (merge and validation gates), across all projects and ordered by deadline. The
+    operator decides from the view; a design opens its visual plan review where one
+    exists and an outcome opens its evidence packet and pull request. The existing
+    board stays as the observation surface.
+  rationale: Every remaining operator decision should arrive in one interface spanning
+    every project, while staying compatible with the per-principal escalation inbox
+    and attention digests planned for team mode and adding no prompt or gate in solo
+    mode.
+  change_id: add-decision-inbox-view-to-kanban-viz
+  acceptance_outcomes:
+  - The view lists pending decisions from at least two repositories in one screen,
+    grouped as goals, designs and outcomes.
+  - Approving or rejecting from the view records the decision through the approval
+    service and the item leaves the view within one refresh.
+  - An outcome entry opens its evidence packet; a design entry opens its plan review
+    artifact when present.
+  - With no pending gates the view is empty and creates no work for the operator.
+- item_id: ri-13
+  title: Add approval notifications with inbox deep links
+  status: candidate
+  priority: 3
+  effort: M
+  depends_on:
+  - ri-12
+  description: Wire the existing notifiers under agent-coordinator/src/notifications/
+    to gate creation and deadline events, each carrying a deep link into the inbox
+    entry, with a per-day volume limit and an overflow digest.
+  rationale: TRUST_POSTURE.md records that notify_with_timeout cannot proceed because
+    no approval-notification channel exists; this makes it a usable disposition so
+    the operator does not need to watch the inbox.
+  change_id: add-approval-notifications-with-inbox-deep-links
+  acceptance_outcomes:
+  - Creating a gate that needs the operator sends one notification carrying a link
+    that opens that inbox entry.
+  - A notify_with_timeout gate proceeds on timeout only after its notification was
+    delivered; an undelivered notification leaves the gate blocked.
+  - Notification volume respects a per-day limit, with the overflow collected into
+    one digest.
+updated_at: '2026-11-19T00:43:02.877747+00:00'
