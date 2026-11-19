@@ -101,8 +101,8 @@ Credential handling rules, which bind the roadmap items:
    binary or supplies their own API key.
 5. **Cap subscription-authenticated workers.** A per-host limit on concurrent
    `claude -p` dispatches under the subscription, with overflow routed to the
-   API-key lane, keeps use arguably "ordinary, individual". The number is an
-   operator decision; the text gives none.
+   API-key lane, keeps use arguably "ordinary, individual". The operator
+   set it at five; the text gives no number.
 6. **Record the auth mode on every dispatch**, so that a change in Anthropic's
    terms can be answered by a routing change and an audit query, not a code
    change.
@@ -117,14 +117,11 @@ Credential handling rules, which bind the roadmap items:
 - Bare mode (`claude --bare`) never reads OAuth credentials, so any dispatch
   argv that uses it must be on the API-key lane.
 
-## Open questions for the operator
+## Operator decisions (2026-11-19)
 
-1. The concurrency cap for subscription-authenticated workers.
-2. Whether attended orchestrator-spawned workers should use the subscription
-   at all, or whether the monthly API credits are enough to put every
-   dispatched worker on the API key and keep the subscription for the
-   interactive session and cloud sessions only. That is the most conservative
-   reading and costs nothing until the credits run out.
-3. Whether to ask Anthropic support in writing about a personal dispatcher
-   daemon; a written answer would be the "explicit permission" the consumer
-   terms refer to.
+1. Attended orchestrator-spawned Claude workers authenticate with the
+   subscription, through a `setup-token` value.
+2. The concurrency cap is five subscription-authenticated `claude -p`
+   dispatches per host; overflow goes to the API-key lane.
+3. No written request to Anthropic support for now. The always-on daemon and
+   the unattended review worker stay on the API key.

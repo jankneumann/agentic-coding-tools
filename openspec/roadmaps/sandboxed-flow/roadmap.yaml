@@ -8,7 +8,7 @@ policy:
 items:
 - item_id: ri-01
   title: Sandbox the interactive lead session
-  status: candidate
+  status: approved
   priority: 1
   effort: M
   depends_on: []
@@ -34,7 +34,7 @@ items:
     sandbox wrapping is detected as unnecessary and skipped.
 - item_id: ri-02
   title: Audit vendor headless auth and terms
-  status: candidate
+  status: approved
   priority: 1
   effort: S
   depends_on: []
@@ -76,9 +76,9 @@ items:
     and no other. For Claude the subscription credential is a setup-token value passed
     as an environment variable; the login directory is never bound, and unattended
     lanes use an API key.
-  rationale: This is the piece that lets subscription OAuth logins work inside a sandbox,
-    which neither dg-07 nor the credential roadmap covers, and it enforces that a
-    process shaped by model output holds only the credentials its role needs.
+  rationale: Subscription credentials must work inside a sandbox without exposing
+    any other credential. The operator set the Claude subscription concurrency cap
+    at five per host, with overflow on the API-key lane.
   change_id: add-per-vendor-credential-profile
   acceptance_outcomes:
   - A sandboxed dispatch of each vendor completes an authenticated inference call
@@ -274,7 +274,7 @@ items:
   - roadmap-always-on-agent-automation:ri-12
 - item_id: ri-10
   title: Add project-keyed gate projection
-  status: candidate
+  status: approved
   priority: 2
   effort: L
   depends_on: []
@@ -385,7 +385,7 @@ items:
     delivered; an undelivered notification leaves the gate blocked.
   - Notification volume respects a per-day limit, with the overflow collected into
     one digest.
-updated_at: '2026-11-19T02:01:29.735272+00:00'
+updated_at: '2026-11-19T02:08:14.250993+00:00'
 refinements:
 - timestamp: '2026-11-19T01:58:09.832888+00:00'
   actor: claude-code (cloud session)
@@ -412,3 +412,11 @@ refinements:
   - edit:ri-02
   - edit:ri-03
   - edit:ri-07
+- timestamp: '2026-11-19T02:08:14.250993+00:00'
+  actor: operator
+  source: operator decision 2026-11-19, recorded in openspec/roadmaps/sandboxed-flow/claude-auth-strategy.md
+  rationale: The operator decided that attended dispatched Claude workers authenticate
+    with the subscription and that at most five run concurrently per host.
+  base_sha256: aea8b398c3b812ebd743d4f8e834398479411f76e7b3d8c327fbab762cc5744c
+  operations:
+  - edit:ri-03
