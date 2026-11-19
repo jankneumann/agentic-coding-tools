@@ -1,14 +1,14 @@
 schema_version: 1
 roadmap_id: sandboxed-flow
 source_proposal: openspec/roadmaps/sandboxed-flow/proposal.md
-status: planning
+status: in_progress
 policy:
   default_action: wait_if_budget_exceeded
   max_switch_attempts_per_item: 2
 items:
 - item_id: ri-01
   title: Sandbox the interactive lead session
-  status: approved
+  status: completed
   priority: 1
   effort: M
   depends_on: []
@@ -32,6 +32,8 @@ items:
     Bash commands is updated to match.
   - Under the managed cloud harness, which provides its own sandbox and proxy, local
     sandbox wrapping is detected as unnecessary and skipped.
+  learning_refs:
+  - learnings/ri-01.md
 - item_id: ri-02
   title: Audit vendor headless auth and terms
   status: approved
@@ -201,23 +203,23 @@ items:
     with the residual exfiltration paths named.
 - item_id: ri-14
   title: Clamp effective trust by isolation posture
-  change_id: clamp-trust-by-isolation-posture
+  status: candidate
+  priority: 2
+  effort: M
+  depends_on: []
   description: Make an agent's effective trust the minimum of its vendor ceiling and
     a cap derived from its isolation posture, so an agent running raw on the operator's
     filesystem cannot hold the trust grants a sandboxed one can earn. Adopted from
     the existing change; its own proposal is authoritative for scope.
   rationale: Reviewer-approved landing must not rest on agents that are trusted by
     vendor identity alone. This clamps the agent side; ri-08 couples the gate side.
-  effort: M
-  priority: 2
-  depends_on: []
+  change_id: clamp-trust-by-isolation-posture
   acceptance_outcomes:
   - An agent's effective trust equals the lower of its vendor ceiling and its posture
     cap, with the mapping held in policy configuration.
   - A session self-report can lower the effective cap and can never raise it; a mismatch
     with the operator assertion emits an audit event.
   - An agent with no recorded posture is clamped to the most restrictive cap.
-  status: candidate
 - item_id: ri-08
   title: Couple gate dispositions to enforced isolation
   status: candidate
@@ -319,15 +321,16 @@ items:
   - Each claim in the packet links to the record it was read from.
 - item_id: ri-15
   title: Add visual plan review
-  change_id: add-visual-plan-review
+  status: candidate
+  priority: 2
+  effort: L
+  depends_on: []
   description: Render an OpenSpec change as a reviewable HTML artifact with element-anchored
     annotations that are persisted in the change directory and consumed by plan review.
     Adopted from the existing change; its own proposal is authoritative for scope.
   rationale: The inbox's design lane needs a surface where the operator can object
     to a specific claim in a plan; this is that surface.
-  effort: L
-  priority: 2
-  depends_on: []
+  change_id: add-visual-plan-review
   acceptance_outcomes:
   - A change's proposal, requirements and task graph render as one self-contained
     artifact with a stable anchor on each requirement, scenario and task.
@@ -335,7 +338,6 @@ items:
     anchor and is readable by plan review.
   - With no human able to drive a browser, the review loop is skipped and the skip
     is recorded.
-  status: candidate
 - item_id: ri-12
   title: Add decision inbox view to kanban-viz
   status: candidate
@@ -385,7 +387,7 @@ items:
     delivered; an undelivered notification leaves the gate blocked.
   - Notification volume respects a per-day limit, with the overflow collected into
     one digest.
-updated_at: '2026-11-19T02:08:14.250993+00:00'
+updated_at: '2026-11-19T02:34:51.378962+00:00'
 refinements:
 - timestamp: '2026-11-19T01:58:09.832888+00:00'
   actor: claude-code (cloud session)
