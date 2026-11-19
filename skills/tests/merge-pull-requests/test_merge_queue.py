@@ -251,7 +251,7 @@ class TestTryMergeRouting:
                 patch.object(mp, "_try_merge_queue", return_value=queued) as q, \
                 patch.object(mp, "run_gh_unchecked") as direct:
             assert mp._try_merge(3, "squash", False, branch="b") is queued
-        q.assert_called_once_with(3, "squash", False, branch="b")
+        q.assert_called_once_with(3, "squash", False, branch="b", expected_head_sha=None)
         direct.assert_not_called()
 
     def test_no_queue_uses_direct_merge(self) -> None:

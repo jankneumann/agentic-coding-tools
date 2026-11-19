@@ -15,6 +15,9 @@ from types import ModuleType, SimpleNamespace
 
 import pytest
 
+HEAD_A = "a" * 40
+HEAD_B = "b" * 40
+
 SCRIPTS_DIR = Path(__file__).resolve().parents[2] / "merge-pull-requests" / "scripts"
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
@@ -59,6 +62,7 @@ def _install_fake(monkeypatch: pytest.MonkeyPatch, results: list) -> dict:
     fake.ReviewResult = object
     monkeypatch.setitem(sys.modules, "review_dispatcher", fake)
     monkeypatch.setattr(vendor_review, "build_review_prompt", lambda *_a: "prompt")
+    monkeypatch.setattr(vendor_review, "_read_head_sha", lambda _pr: HEAD_A, raising=False)
     return seen
 
 
@@ -104,7 +108,73 @@ def test_author_vendor_is_excluded_alongside_claude_code(
     import vendor_review
 
     seen = _install_fake(monkeypatch, [])
-    vendor_review.dispatch_vendor_reviews(5, {"changed_lines": 100}, author_vendor="codex")
+    vendor_review.dispatch_vendor_reviews(5, {"changed_lines": 100}, author_vendors=("codex",))
 
     assert set(seen["discover"]) == {"claude_code", "codex"}
     assert set(seen["dispatch"]) == {"claude_code", "codex"}
+
+
+def test_every_author_vendor_is_excluded_alongside_claude_code(
+    repo: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import vendor_review
+
+    seen = _install_fake(monkeypatch, [])
+    vendor_review.dispatch_vendor_reviews(
+        5, {"changed_lines": 100}, author_vendors=("codex", "gemini", None),
+    )
+
+    assert set(seen["discover"]) == {"claude_code", "codex", "gemini"}
+    assert set(seen["dispatch"]) == {"claude_code", "codex", "gemini"}
+
+
+# Scenario ID: merge-pull-requests.head-moved-during-review-blocks
+def test_head_moved_during_dispatch_discards_the_review(
+    repo: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import vendor_review
+
+    _install_fake(monkeypatch, [_result("codex", "codex-local", "gpt-5")])
+    heads = iter([HEAD_A, HEAD_B])
+    monkeypatch.setattr(vendor_review, "_read_head_sha", lambda _pr: next(heads))
+
+    review = vendor_review.dispatch_vendor_reviews(5, {"changed_lines": 100})
+
+    assert review["head_moved"] is True
+    assert review["reviewed_head_sha"] == HEAD_A
+    assert review["consensus"] is None
+    assert "head moved during review" in review["error"]
+
+
+def test_unchanged_head_returns_the_pre_dispatch_sha(
+    repo: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import vendor_review
+
+    _install_fake(monkeypatch, [_result("codex", "codex-local", "gpt-5")])
+    reads: list[int] = []
+    monkeypatch.setattr(
+        vendor_review, "_read_head_sha", lambda pr: reads.append(pr) or HEAD_A,
+    )
+
+    review = vendor_review.dispatch_vendor_reviews(5, {"changed_lines": 100})
+
+    assert reads == [5, 5]
+    assert review["head_moved"] is False
+    assert review["reviewed_head_sha"] == HEAD_A
+    assert review["consensus"] is not None
+
+
+def test_unreadable_head_around_dispatch_is_treated_as_moved(
+    repo: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import vendor_review
+
+    _install_fake(monkeypatch, [_result("codex", "codex-local", "gpt-5")])
+    heads = iter([HEAD_A, None])
+    monkeypatch.setattr(vendor_review, "_read_head_sha", lambda _pr: next(heads))
+
+    review = vendor_review.dispatch_vendor_reviews(5, {"changed_lines": 100})
+
+    assert review["head_moved"] is True
+    assert review["consensus"] is None

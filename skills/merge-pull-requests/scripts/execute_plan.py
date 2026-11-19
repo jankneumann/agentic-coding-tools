@@ -53,6 +53,7 @@ from plan_storage import FilePlanStore  # noqa: E402
 from verdict_binding import (  # noqa: E402
     POLICY_WAIVABLE_REASONS,
     bind,
+    author_identities,
     derive_author,
     independence_violation,
     patch_id_from_diff,
@@ -102,7 +103,9 @@ def _default_vendor_review(
         result = dispatch_vendor_reviews(
             pr_number=pr_number,
             pr_size=size,
-            author_vendor=(author or {}).get("vendor"),
+            author_vendors=[
+                identity["vendor"] for identity in author_identities(author)
+            ],
         )
     except Exception as exc:  # noqa: BLE001 - boundary must fail closed
         return {
@@ -143,6 +146,7 @@ DEFAULT_DEPENDENCIES = ExecutionDependencies(
 )
 
 CHEAP_PATH_REASON = "automation_cheap_path"
+HEAD_MOVED_REASON = "head moved during review"
 
 
 def _now() -> str:
@@ -156,24 +160,35 @@ def _ineligible_reason(review: Any) -> str | None:
     return None
 
 
-def _policy_waiver(eligibility_reason: str, reason: str) -> dict[str, Any]:
+def _policy_waiver(eligibility_reason: str, reason: str, head_sha: str) -> dict[str, Any]:
     return {
         "reason": reason,
         "source": "policy",
         "approver": POLICY_APPROVER,
         "recorded_at": _now(),
         "eligibility_reason": eligibility_reason,
+        "waived_head_sha": head_sha,
     }
 
 
-def _operator_waiver(reason: str, approver: str | None, review: Any) -> dict[str, Any]:
+def _operator_waiver(
+    reason: str, approver: str | None, review: Any, head_sha: str,
+) -> dict[str, Any]:
     return {
         "reason": reason.strip(),
         "source": "operator",
         "approver": (approver or "").strip() or "operator",
         "recorded_at": _now(),
         "eligibility_reason": _ineligible_reason(review),
+        "waived_head_sha": head_sha,
     }
+
+
+_SHA_CHARS = frozenset("0123456789abcdef")
+
+
+def _is_full_sha(value: Any) -> bool:
+    return isinstance(value, str) and len(value) == 40 and set(value) <= _SHA_CHARS
 
 
 def _find_node(plan: dict[str, Any], pr_number: int) -> dict[str, Any]:
@@ -270,7 +285,8 @@ def _review_evidence(
     opening the plan file (PR #484 merged with 23 unconfirmed findings while the
     result said only ``merged``). Vendor errors are clipped: a billing error can
     carry a whole JSON body. ``binding`` says which head the verdict describes,
-    and ``review_waiver`` says who let a merge through without one.
+    and ``review_waiver`` (present only when a waiver applied) says who let a
+    merge through without one.
     """
     consensus = review.get("consensus")
     summary = consensus.get("summary") if isinstance(consensus, dict) else None
@@ -285,7 +301,7 @@ def _review_evidence(
             "findings_count": vendor.get("findings_count"),
             "error": str(error)[:200] if error else None,
         })
-    return {
+    evidence: dict[str, Any] = {
         "eligible": (review.get("eligibility") or {}).get("eligible"),
         "skipped": bool(review.get("skipped")),
         "error": review.get("error"),
@@ -295,8 +311,10 @@ def _review_evidence(
         "binding": review.get("binding"),
         "reused_stored_verdict": bool(review.get("reused_stored_verdict")),
         "superseded_verdict": review.get("superseded_verdict"),
-        "review_waiver": waiver,
     }
+    if waiver is not None:
+        evidence["review_waiver"] = waiver
+    return evidence
 
 
 def _persist_pending(
@@ -579,9 +597,11 @@ def execute_node(
             "delegation": _delegation_commands(node, str(live.get("branch", ""))),
         }
 
-    live_head = live.get("head_sha") or None
-    if not live_head:
-        reason = "live head SHA could not be determined"
+    live_head = live.get("head_sha")
+    if not _is_full_sha(live_head):
+        # Every waiver and binding is pinned to this SHA; without a well-formed
+        # one nothing can be pinned, so nothing merges.
+        reason = "live head sha unavailable"
         _persist_pending(store, plan, state, reason)
         return {"action": "live_state_gate", "outcome": "pending", "pr": pr_number, "reason": reason}
 
@@ -615,6 +635,7 @@ def execute_node(
         waiver = _policy_waiver(
             CHEAP_PATH_REASON,
             "automation cheap path: green CI, no unresolved comments",
+            live_head,
         )
     else:
         try:
@@ -639,7 +660,11 @@ def execute_node(
                 vendor_review_block_reason(
                     stored, live_head_sha=live_head, live_patch_id=stored_pid,
                 ) is None
-                and independence_violation({**binding, "author": author}) is None
+                and independence_violation({
+                    **binding,
+                    "author": author,
+                    "authors": author_identities(author),
+                }) is None
             ):
                 review = dict(stored)
                 review["reused_stored_verdict"] = True
@@ -660,18 +685,48 @@ def execute_node(
                 fresh = {"eligibility": None, "consensus": None}
             if superseded:
                 fresh["superseded_verdict"] = superseded
-            review = bind(fresh, head_sha=live_head, patch_id=live_patch_id(), author=author)
+            if fresh.get("head_moved"):
+                # The vendors may have reviewed a commit that is no longer the
+                # head: keep the record for evidence but never bind it.
+                reason = HEAD_MOVED_REASON
+                state["vendor_verdict"] = fresh
+                state["review_waiver"] = None
+                _persist_pending(store, plan, state, reason)
+                return {
+                    "action": "vendor_review_gate",
+                    "outcome": "pending",
+                    "pr": pr_number,
+                    "reason": reason,
+                    "vendor_review": _review_evidence(fresh, None),
+                }
+            reviewed_head = fresh.get("reviewed_head_sha")
+            review = bind(
+                fresh,
+                head_sha=reviewed_head if _is_full_sha(reviewed_head) else live_head,
+                patch_id=live_patch_id(),
+                author=author,
+            )
             ineligible = _ineligible_reason(review)
             if ineligible in POLICY_WAIVABLE_REASONS:
                 waiver = _policy_waiver(
-                    ineligible, f"vendor review not required by policy ({ineligible})",
+                    ineligible,
+                    f"vendor review not required by policy ({ineligible})",
+                    live_head,
                 )
 
+    # A stored policy waiver is never carried forward: ``waiver`` above is
+    # recomputed from the live eligibility reason, so one whose reason no longer
+    # applies is cleared. A stored operator waiver is honoured on a replay of the
+    # same claim only while it was recorded against the live head.
     if waive_review is not None:
-        waiver = _operator_waiver(waive_review, waiver_approver, review)
+        waiver = _operator_waiver(waive_review, waiver_approver, review, live_head)
     elif replaying:
         stored_waiver = state.get("review_waiver")
-        if isinstance(stored_waiver, dict) and stored_waiver.get("source") == "operator":
+        if (
+            isinstance(stored_waiver, dict)
+            and stored_waiver.get("source") == "operator"
+            and stored_waiver.get("waived_head_sha") == live_head
+        ):
             waiver = stored_waiver
 
     state["vendor_verdict"] = review

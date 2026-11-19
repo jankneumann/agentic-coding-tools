@@ -57,7 +57,7 @@
   - **Design decisions:** D6
   **Dependencies**: none
   - Monkeypatch `run_gh_unchecked`; assert `--match-head-commit <sha>` is in the args for `_try_merge` and for `_try_merge_queue`, and absent when `expected_head_sha` is `None` (other callers are unchanged).
-- [ ] 3.2 Write tests for the live head SHA in `scripts/tests/test_merge_pr_head_pin.py` (S)
+- [x] 3.2 Write tests for the live head SHA in `scripts/tests/test_merge_pr_head_pin.py` (S)
   - **Design decisions:** D6
   **Dependencies**: none
   - `headRefOid` is in the requested `--json` fields and surfaces as `head_sha` from `get_pr_status`.
@@ -91,7 +91,7 @@
   <!-- Scenario ID: merge-pull-requests.head-moved-during-review-blocks -->
 - [x] 4.3 Widen `exclude_vendor` in `skills/parallel-infrastructure/scripts/review_dispatcher.py` (S)
   **Dependencies**: 4.1
-- [ ] 4.4 Thread the author vendor through `scripts/vendor_review.py` (S)
+- [x] 4.4 Thread the author vendor through `scripts/vendor_review.py` (S)
   - `dispatch_vendor_reviews(…, author_vendors=())`; keep `agent_id` in each summary.
   - Read the head SHA before and after dispatch; return `reviewed_head_sha` (pre-dispatch) and `head_moved` (D6).
   **Dependencies**: 4.2, 4.3
@@ -125,14 +125,14 @@
   - **Design decisions:** D7
   **Dependencies**: none
   - `""` and `"   "` exit 2 before any dependency is called; a real reason lands in `state.review_waiver`, the result's `vendor_review` evidence and the `merge` call.
-- [ ] 5.3a Write evidence tests in `skills/tests/merge-pull-requests/test_execute_plan_review_evidence.py` (S)
+- [x] 5.3a Write evidence tests in `skills/tests/merge-pull-requests/test_execute_plan_review_evidence.py` (S)
   <!-- Scenario ID: merge-pull-requests.policy-waiver-recorded -->
   <!-- Scenario ID: merge-pull-requests.operator-waiver-recorded -->
   - **Spec scenarios:** policy-waiver-recorded, operator-waiver-recorded (evidence half)
   - **Design decisions:** D4, D7
   **Dependencies**: none
   - The merged result's `vendor_review` evidence carries `binding` (classification, head SHA, patch-id) and, when a waiver applied, `review_waiver` with its source (`policy` or `operator`) and reason; with no waiver the key is absent.
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 - [x] 5.4 Make `vendor_review_block_reason` total in `scripts/execution_safety.py` (M)
   **Dependencies**: 5.1
 - [x] 5.5 Wire binding, waivers and pinning into `scripts/execute_plan.py` (L)
@@ -146,7 +146,7 @@
   <!-- Scenario ID: merge-pull-requests.earlier-commit-author-rejected -->
   - Tests go in `scripts/tests/test_execute_plan.py` (missing head SHA, stale waiver, `head_moved` not bound) and `scripts/tests/test_verdict_binding.py` (multi-commit `authors`), written before the code.
   **Dependencies**: 3.4, 4.4, 5.2, 5.3, 5.3a, 5.4
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 
 ## 6. Documentation and mirrors (wp-docs)
 

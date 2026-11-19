@@ -22,7 +22,7 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from types import ModuleType
-from typing import Any
+from typing import Any, Iterable
 
 from _helpers import (
     capture_head,
@@ -560,21 +560,43 @@ def vendor_artifact_dir(pr_number: int) -> Path:
     return Path(base) / f"pr{pr_number}-{stamp}"
 
 
+_HEX = frozenset("0123456789abcdef")
+
+
+def _read_head_sha(pr_number: int) -> str | None:
+    """The PR's current head commit as 40 lowercase hex, or None if unreadable."""
+    try:
+        raw = run_gh(["pr", "view", str(pr_number), "--json", "headRefOid"])
+        sha = json.loads(raw).get("headRefOid")
+    except (RuntimeError, ValueError, AttributeError):
+        return None
+    if isinstance(sha, str) and len(sha) == 40 and set(sha) <= _HEX:
+        return sha
+    return None
+
+
 def dispatch_vendor_reviews(
     pr_number: int,
     pr_size: dict,
     timeout_seconds: int = DEFAULT_TIMEOUT,
     dry_run: bool = False,
-    author_vendor: str | None = None,
+    author_vendors: Iterable[str | None] = (),
 ) -> dict:
     """Dispatch reviews to available vendors and synthesize consensus.
 
-    The orchestrating ``claude_code`` lane and the PR author's vendor
-    (``author_vendor``, when known) are both excluded from dispatch, so a
+    The orchestrating ``claude_code`` lane and every vendor that authored a
+    commit on the PR (``author_vendors``) are excluded from dispatch, so a
     vendor is not asked to review its own PR.
+
+    The PR head is read immediately before and after dispatch.
+    ``reviewed_head_sha`` is the pre-dispatch head — the commit the vendors
+    were asked to review. If the head moved (or either read failed),
+    ``head_moved`` is true and the review is discarded: its findings may
+    describe a commit that is no longer the PR head.
 
     Returns:
         {"dispatched": bool, "vendors": [...], "consensus": {...} | None,
+         "reviewed_head_sha": str | None, "head_moved": bool,
          "error": str | None}
     """
     if dry_run:
@@ -630,7 +652,7 @@ def dispatch_vendor_reviews(
         }
 
     # Exclude claude (we are running as claude) and the PR author's vendor.
-    excluded = frozenset({"claude_code", author_vendor} - {None})
+    excluded = frozenset({"claude_code", *author_vendors} - {None})
     reviewers = orch.discover_reviewers(exclude_vendor=excluded)
     available = [r for r in reviewers if r.available]
 
@@ -645,6 +667,7 @@ def dispatch_vendor_reviews(
     # Build prompt and dispatch
     prompt = build_review_prompt(pr_number, pr_size)
     cwd = Path.cwd()
+    reviewed_head_sha = _read_head_sha(pr_number)
 
     # Vendor CLIs run against the shared working tree with full ambient
     # authority and have been observed checking out FETCH_HEAD, silently
@@ -703,6 +726,9 @@ def dispatch_vendor_reviews(
         if stranded else None
     )
 
+    head_after = _read_head_sha(pr_number)
+    head_moved = reviewed_head_sha is None or head_after != reviewed_head_sha
+
     # Collect successful vendor results for consensus
     vendor_results: list[VendorResult] = []
     vendor_summaries = []
@@ -731,7 +757,7 @@ def dispatch_vendor_reviews(
 
     # Synthesize consensus if we have results
     consensus_dict = None
-    if vendor_results:
+    if vendor_results and not head_moved:
         synth = ConsensusSynthesizer(quorum=1)  # quorum=1 since single vendor is acceptable for PR review
         report = synth.synthesize(
             review_type="pr",
@@ -746,7 +772,16 @@ def dispatch_vendor_reviews(
         "consensus": consensus_dict,
         "head_guard": head_guard,
         "workspace_guard": workspace_guard,
-        "error": guard_error,
+        "reviewed_head_sha": reviewed_head_sha,
+        "head_moved": head_moved,
+        "error": (
+            "; ".join(filter(None, [
+                f"head moved during review ({reviewed_head_sha or 'unknown'} -> "
+                f"{head_after or 'unknown'})",
+                guard_error,
+            ]))
+            if head_moved else guard_error
+        ),
     }
 
 

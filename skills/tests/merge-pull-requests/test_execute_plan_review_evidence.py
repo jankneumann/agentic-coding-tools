@@ -94,3 +94,56 @@ def test_skipped_review_is_reported_as_skipped(tmp_path: Path) -> None:
     assert result["action"] == "merged"
     assert result["vendor_review"]["skipped"] is True
     assert result["vendor_review"]["vendors"] == []
+
+
+# --- binding and waiver evidence (task 5.3a) --------------------------------
+
+
+# Scenario ID: merge-pull-requests.policy-waiver-recorded
+def test_policy_waiver_and_binding_ride_on_the_merged_result(tmp_path: Path) -> None:
+    plan = valid_plan()
+    plan["nodes"][0]["state"]["outcome"] = "merged"
+    result = execute_node(persisted_plan(tmp_path, plan), 11, dependencies=dependencies())
+
+    assert result["action"] == "merged"
+    record = result["vendor_review"]
+    assert record["binding"]["head_sha"] == "c" * 40
+    assert "patch_id" in record["binding"]
+    assert record["review_waiver"]["source"] == "policy"
+    assert record["review_waiver"]["reason"]
+
+
+# Scenario ID: merge-pull-requests.operator-waiver-recorded
+def test_operator_waiver_rides_on_the_merged_result(tmp_path: Path) -> None:
+    result = execute_node(
+        _reviewed_node_plan(tmp_path),
+        11,
+        approve_gate=True,
+        waive_review="hotfix approved in incident channel",
+        waiver_approver="jan",
+        dependencies=dependencies(review_vendor=lambda *_a: {
+            "eligibility": {"eligible": True, "reason": "needs_review"},
+            "dispatched": False, "vendors": [], "consensus": None,
+            "error": "review vendor unavailable",
+        }),
+    )
+
+    assert result["action"] == "merged"
+    waiver = result["vendor_review"]["review_waiver"]
+    assert waiver["source"] == "operator"
+    assert waiver["reason"] == "hotfix approved in incident channel"
+
+
+def test_verified_merge_has_a_binding_and_no_waiver(tmp_path: Path) -> None:
+    result = execute_node(
+        _reviewed_node_plan(tmp_path),
+        11,
+        approve_gate=True,
+        dependencies=dependencies(review_vendor=lambda *_a: _review(0)),
+    )
+
+    assert result["action"] == "merged"
+    record = result["vendor_review"]
+    assert record["binding"]["head_sha"] == "c" * 40
+    assert record["binding"]["patch_id"] is not None
+    assert "review_waiver" not in record

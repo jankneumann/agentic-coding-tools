@@ -16,10 +16,11 @@ named reason.
 
 | Field | Meaning |
 |---|---|
-| `head_sha` | The PR head the reviewers saw (40-char hex). |
+| `head_sha` | The PR head the reviewers saw (40-char hex): `vendor_review.py` reads it immediately before dispatch and reports it as `reviewed_head_sha`. |
 | `patch_id` | `git patch-id --stable` of the reviewed diff, or `null` when it could not be computed. |
 | `reviewers` | One entry per *successful* lane: `vendor`, `family`, `model`, `agent_id`. Failed lanes vouch for nothing and are not recorded. |
-| `author` | `{login, vendor, session_id}` derived from the PR's commits. |
+| `author` | `{login, vendor, session_id}` of the latest commit carrying an agent trailer. |
+| `authors` | Every commit's agent identity as `{vendor, session_id}`, de-duplicated in commit order. Optional in older bindings; when absent, `author` alone is checked. |
 | `same_family` | `true` when a reviewer shares the author's model family, `false` when none does, `null` when unknown. |
 | `bound_at` | UTC timestamp. |
 
@@ -36,8 +37,15 @@ verdict against the live PR at execution time:
 | `stale` (unbound) | No binding, or a binding with no `head_sha`. | Treated as stale; the verdict is never reused. |
 | `stale` (uncomputable) | The live patch-id could not be computed and the head moved. | Treated as stale; currency fails closed. |
 
-A missing live head SHA leaves the node pending (`live_state_gate`) rather
-than guessing. The merge itself is pinned with `gh pr merge
+A live head SHA that is missing, empty, or not 40 lowercase hex characters
+leaves the node pending (`live_state_gate`, reason `live head sha unavailable`)
+rather than guessing; this applies on every path, including the cheap path and
+a waived merge.
+
+`vendor_review.py` also reads the PR head immediately before and after vendor
+dispatch. If the two reads differ (or either fails), it returns
+`head_moved: true` and no consensus; execution stores the review without a
+binding and leaves the node pending with reason `head moved during review`. The merge itself is pinned with `gh pr merge
 --match-head-commit <live head>`, so a push that lands between the review
 check and the merge is refused (`head mismatch`) and the node stays pending.
 
@@ -55,7 +63,11 @@ decided it should. `POLICY_WAIVABLE_REASONS` is closed:
 | `automation_cheap_path` | `automation` node with green CI and zero comments. |
 
 A policy waiver is valid only when its `eligibility_reason` equals the live
-ineligibility reason and its approver is `policy:merge-pull-requests`. Any
+ineligibility reason and its approver is `policy:merge-pull-requests`. A stored
+policy waiver is never carried forward: execution recomputes it from the live
+eligibility on every run, so one whose reason no longer applies is cleared
+before the predicate runs. Every waiver records the live head it was granted
+for in `waived_head_sha`. Any
 other ineligibility (`draft_pr`, `changes_requested`, a missing or malformed
 eligibility, an unknown reason) blocks.
 
@@ -70,7 +82,9 @@ with two limits:
 - It never overrides unresolved change requests (`changes_requested`).
 
 The waiver is stored in the node's evidence and passed to the merge call, so
-the audit trail names who waived what and why.
+the audit trail names who waived what and why. A replay of the same claim
+reuses a stored operator waiver only while its `waived_head_sha` equals the
+live head; after a push the waiver is cleared and must be given again.
 
 ## Shape check
 
@@ -87,7 +101,9 @@ before the merge call, so a crash cannot lose the evidence the merge used.
 ## Independence
 
 `independence_violation(binding)` blocks a verdict that was not independent of
-the PR author:
+the PR author. Every identity in `authors` (plus `author`) is checked, so a
+reviewer that authored an earlier commit blocks even when a later commit came
+from another session:
 
 - **Self-review:** a reviewer whose `agent_id` equals the author's session
   blocks.
@@ -97,8 +113,8 @@ the PR author:
 - **Same vendor, different session:** accepted.
 - **Same family, different vendor:** recorded in `same_family`, not blocking.
 
-Dispatch already excludes the author's vendor alongside the orchestrating
-`claude_code` lane; the independence check catches stored verdicts and any
+Dispatch already excludes every author vendor (`author_vendors`) alongside
+the orchestrating `claude_code` lane; the independence check catches stored verdicts and any
 lane that slipped through.
 
 A reviewer's `agent_id` is a dispatcher adapter id (for example

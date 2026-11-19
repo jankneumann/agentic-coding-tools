@@ -133,6 +133,7 @@ def test_dispatch_quarantines_files_a_vendor_writes(
     fake.ReviewResult = object
     monkeypatch.setitem(sys.modules, "review_dispatcher", fake)
     monkeypatch.setattr(vendor_review, "build_review_prompt", lambda *_a: "prompt")
+    monkeypatch.setattr(vendor_review, "_read_head_sha", lambda _pr: "a" * 40)
     monkeypatch.setenv("MERGE_VENDOR_ARTIFACT_DIR", str(tmp_path / "artifacts"))
 
     result = vendor_review.dispatch_vendor_reviews(99, {"changed_lines": 100})
@@ -191,6 +192,7 @@ def _fake_dispatcher(monkeypatch: pytest.MonkeyPatch, dispatch) -> None:
     fake.ReviewResult = object
     monkeypatch.setitem(sys.modules, "review_dispatcher", fake)
     monkeypatch.setattr(vendor_review, "build_review_prompt", lambda *_a: "prompt")
+    monkeypatch.setattr(vendor_review, "_read_head_sha", lambda _pr: "a" * 40)
 
 
 def test_guard_runs_when_dispatch_raises(
