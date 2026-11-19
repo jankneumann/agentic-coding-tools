@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-11-19T02:34:27.056320+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "trust_resolution_failed: 500: Trust level unresolvable for registry-declared agent 'claude-remote' (type 'claude_code'): profile lookup failed: [Errno -2] Name or service not known. The agent_profiles projection of agents.yaml is broken; restart the coordinator to re-run profile sync. (HTTP 200)",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Validated at 7f4fa50 in a cloud container: 7/7 requirements pass by test, traceability gate passes, architecture advisory with no new cycles. The sandbox's behaviour on a host was not exercised and is deferred to the operator checklist.",
+    "completed_work": [
+      "Task drift gate and traceability gate pass",
+      "376 tests pass; openspec validate --strict passes; probe prints skipped",
+      "validation-report.md and architecture-impact.md written; evidence filled in change-context.md",
+      "CI not checked: no pull request exists"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Container phases recorded as not applicable",
+        "rationale": "gate_logic classified the change as having no deployable surface; Deploy, Smoke, Security and E2E could never have applied.",
+        "capability": "harness-engineering",
+        "supersedes": null
+      },
+      {
+        "title": "Linter findings on test data left unchanged",
+        "rationale": "The three 'canonical skills/ path' findings are command strings the permission rules are tested against; they are never executed, and architecture mode is advisory.",
+        "capability": "harness-engineering",
+        "supersedes": null
+      },
+      {
+        "title": "Gen-eval skipped",
+        "rationale": "The only descriptor covers agent-coordinator, which the change does not touch, and no service runs in the container.",
+        "capability": "harness-engineering",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Operator: run the checklist in docs/guides/lead-session-sandbox.md on a macOS and a Linux host",
+      "/cleanup-feature after a PR is opened and merged"
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/sandbox-the-interactive-lead-session/validation-report.md",
+        "description": "validation report"
+      }
+    ]
+  }
+}

@@ -29,6 +29,17 @@
 
 ## 2026-11-19 — sandbox-the-interactive-lead-session
 
+### Phase: Validation
+
+**Container phases recorded as not applicable** — gate_logic classified the change as having no deployable surface; Deploy, Smoke, Security and E2E could never have applied.
+
+- Status: `active`
+- Source: [openspec/changes/sandbox-the-interactive-lead-session/session-log.md](/openspec/changes/sandbox-the-interactive-lead-session/session-log.md) (D1)
+
+---
+
+## 2026-11-19 — sandbox-the-interactive-lead-session
+
 ### Phase: Plan
 
 **Git hosts stay off the sandbox network allowlist; push, fetch, pull, gh, railway and docker are excluded commands** — Outward actions are decided by the existing permission rules and cannot be reached from inside the sandbox by wrapping the command.
@@ -51,6 +62,17 @@
 
 ## 2026-11-19 — sandbox-the-interactive-lead-session
 
+### Phase: Validation
+
+**Linter findings on test data left unchanged** — The three 'canonical skills/ path' findings are command strings the permission rules are tested against; they are never executed, and architecture mode is advisory.
+
+- Status: `active`
+- Source: [openspec/changes/sandbox-the-interactive-lead-session/session-log.md](/openspec/changes/sandbox-the-interactive-lead-session/session-log.md) (D2)
+
+---
+
+## 2026-11-19 — sandbox-the-interactive-lead-session
+
 ### Phase: Plan
 
 **The allow list grants no general reader or interpreter** — Such a rule approves the same command when retried outside the sandbox, which bypasses denyRead.
@@ -65,6 +87,17 @@
 ### Phase: Implementation
 
 **The probe takes its read, write and connect functions as parameters** — It can then be tested against a temporary tree in a container that has no sandbox, without touching the real home directory or the network.
+
+- Status: `active`
+- Source: [openspec/changes/sandbox-the-interactive-lead-session/session-log.md](/openspec/changes/sandbox-the-interactive-lead-session/session-log.md) (D3)
+
+---
+
+## 2026-11-19 — sandbox-the-interactive-lead-session
+
+### Phase: Validation
+
+**Gen-eval skipped** — The only descriptor covers agent-coordinator, which the change does not touch, and no service runs in the container.
 
 - Status: `active`
 - Source: [openspec/changes/sandbox-the-interactive-lead-session/session-log.md](/openspec/changes/sandbox-the-interactive-lead-session/session-log.md) (D3)

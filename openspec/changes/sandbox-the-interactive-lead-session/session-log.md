@@ -82,3 +82,33 @@ Refined the roadmap scaffold for sandboxed-flow ri-01 into a full plan: native B
 ### Context
 Implemented the lead-session Bash sandbox: sandbox block and reduced allow list in project settings, ask rules for irreversible and gate-recording commands, a host probe, and guidance for agents and operators. Not exercised against a real sandbox: the cloud container has none.
 
+---
+
+## Phase: Validation (2026-11-19)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Container phases recorded as not applicable** `architectural: harness-engineering` — gate_logic classified the change as having no deployable surface; Deploy, Smoke, Security and E2E could never have applied.
+2. **Linter findings on test data left unchanged** `architectural: harness-engineering` — The three 'canonical skills/ path' findings are command strings the permission rules are tested against; they are never executed, and architecture mode is advisory.
+3. **Gen-eval skipped** `architectural: harness-engineering` — The only descriptor covers agent-coordinator, which the change does not touch, and no service runs in the container.
+
+### Open Questions
+- [ ] Host behaviour: read precedence of '.' over '..', and whether ask rules prompt for sandboxed commands under auto-allow.
+
+### Completed Work
+- Task drift gate and traceability gate pass
+- 376 tests pass; openspec validate --strict passes; probe prints skipped
+- validation-report.md and architecture-impact.md written; evidence filled in change-context.md
+- CI not checked: no pull request exists
+
+### Next Steps
+- Operator: run the checklist in docs/guides/lead-session-sandbox.md on a macOS and a Linux host
+- /cleanup-feature after a PR is opened and merged
+
+### Relevant Files
+- `openspec/changes/sandbox-the-interactive-lead-session/validation-report.md` — validation report
+
+### Context
+Validated at 7f4fa50 in a cloud container: 7/7 requirements pass by test, traceability gate passes, architecture advisory with no new cycles. The sandbox's behaviour on a host was not exercised and is deferred to the operator checklist.
+
