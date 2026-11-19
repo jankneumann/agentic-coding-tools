@@ -2,19 +2,19 @@
 
 ## 1. Settings
 
-- [ ] 1.1 Write failing tests for the sandbox block of the real settings file
+- [x] 1.1 Write failing tests for the sandbox block of the real settings file
   - File: `skills/tests/session-bootstrap/test_lead_session_sandbox_settings.py`
   - Spec scenarios: Sandbox and auto-allow are on; A host without sandbox prerequisites still works; Toolchain caches are writable; Credential locations are denied; Sibling checkouts are denied and the project is not; Outward commands are excluded; Git hosts are not reachable from inside the sandbox; Network allowlist is limited to registries and the coordinator
   - Design: D1, D2, D3, D4, D9
   - Size: M
-- [ ] 1.2 Write failing tests for the allow list
+- [x] 1.2 Write failing tests for the allow list
   - Same file. Spec scenarios: Readers and interpreters are absent; The list is shorter; Excluded fetch commands stay promptless; Ask rules are content-scoped
   - Design: D5
   - Size: S
-- [ ] 1.3 Add the `sandbox` block to `.claude/settings.json`
+- [x] 1.3 Add the `sandbox` block to `.claude/settings.json`
   - Depends on: 1.1
   - Size: S
-- [ ] 1.4 Remove reader and interpreter rules from `permissions.allow`
+- [x] 1.4 Remove reader and interpreter rules from `permissions.allow`
   - Adds `git fetch *` and `git pull *`. Depends on: 1.2
   - Size: S
 
