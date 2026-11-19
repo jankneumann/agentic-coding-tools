@@ -35,15 +35,15 @@ Checkpoint: both test files pass; `test_irreversible_guard.py` still passes.
 
 ## 3. Probe
 
-- [ ] 3.1 Write failing tests for the probe
+- [x] 3.1 Write failing tests for the probe
   - File: `skills/tests/session-bootstrap/test_sandbox_probe.py`
   - Spec scenarios: Probe is skipped where isolation is provided; Probe reports an unenforced denial; Probe does not leak content; Probe targets come from the settings file; The denial is demonstrated on a sandboxed host (with a faked filesystem)
   - Design: D7, D8
   - Size: M
-- [ ] 3.2 Implement `skills/session-bootstrap/scripts/sandbox_probe.py`
+- [x] 3.2 Implement `skills/session-bootstrap/scripts/sandbox_probe.py`
   - Depends on: 3.1
   - Size: M
-- [ ] 3.3 Sync runtime skill copies
+- [x] 3.3 Sync runtime skill copies
   - `bash skills/install.sh --mode rsync --deps none --python-tools none`. Depends on: 3.2
   - Size: S
 
