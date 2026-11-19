@@ -41,7 +41,14 @@
       "id": "5c5a735e-f27e-4363-b3b1-0644974472b4",
       "rationale": "operator approved via /supervise: first wave ri-01, ri-02, ri-04, ri-09; one PR per change",
       "scope": "verification-enforcement-discipline"
+    },
+    {
+      "decided_at": "2026-11-19T02:10:55.044792+00:00",
+      "decision": "roadmap_approval:proceed",
+      "id": "083b13aa-3e1e-4de6-b47a-29af7e4930bc",
+      "rationale": "direct invocation",
+      "scope": "sandboxed-flow"
     }
   ],
-  "written_at": "2026-10-23T11:56:11.616115Z"
+  "written_at": "2026-11-19T02:10:55.013155Z"
 }
