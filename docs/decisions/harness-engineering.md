@@ -18,9 +18,31 @@
 
 ## 2026-11-19 — sandbox-the-interactive-lead-session
 
+### Phase: Implementation
+
+**Gate recording gets explicit ask rules** — The old allow list gated runner.py gate-answer only by omitting it; under sandbox auto-allow that omission gates nothing, so ask rules restore the prompt (design D10).
+
+- Status: `active`
+- Source: [openspec/changes/sandbox-the-interactive-lead-session/session-log.md](/openspec/changes/sandbox-the-interactive-lead-session/session-log.md) (D1)
+
+---
+
+## 2026-11-19 — sandbox-the-interactive-lead-session
+
 ### Phase: Plan
 
 **Git hosts stay off the sandbox network allowlist; push, fetch, pull, gh, railway and docker are excluded commands** — Outward actions are decided by the existing permission rules and cannot be reached from inside the sandbox by wrapping the command.
+
+- Status: `active`
+- Source: [openspec/changes/sandbox-the-interactive-lead-session/session-log.md](/openspec/changes/sandbox-the-interactive-lead-session/session-log.md) (D2)
+
+---
+
+## 2026-11-19 — sandbox-the-interactive-lead-session
+
+### Phase: Implementation
+
+**Guard-hook gaps are closed with ask rules, not hook changes** — irreversible_guard.py is kept in step with the coordinator guardrails by tests outside this change (design D11).
 
 - Status: `active`
 - Source: [openspec/changes/sandbox-the-interactive-lead-session/session-log.md](/openspec/changes/sandbox-the-interactive-lead-session/session-log.md) (D2)
@@ -40,9 +62,31 @@
 
 ## 2026-11-19 — sandbox-the-interactive-lead-session
 
+### Phase: Implementation
+
+**The probe takes its read, write and connect functions as parameters** — It can then be tested against a temporary tree in a container that has no sandbox, without touching the real home directory or the network.
+
+- Status: `active`
+- Source: [openspec/changes/sandbox-the-interactive-lead-session/session-log.md](/openspec/changes/sandbox-the-interactive-lead-session/session-log.md) (D3)
+
+---
+
+## 2026-11-19 — sandbox-the-interactive-lead-session
+
 ### Phase: Plan
 
 **failIfUnavailable is not set** — Hosts without prerequisites and cloud sessions fall back to permission rules; with the reduced allow list the fallback prompts.
+
+- Status: `active`
+- Source: [openspec/changes/sandbox-the-interactive-lead-session/session-log.md](/openspec/changes/sandbox-the-interactive-lead-session/session-log.md) (D4)
+
+---
+
+## 2026-11-19 — sandbox-the-interactive-lead-session
+
+### Phase: Implementation
+
+**alembic --help prompts** — The existing 'alembic *' ask rule is kept as is; the guide uses that prompt to confirm ask rules apply to sandboxed commands.
 
 - Status: `active`
 - Source: [openspec/changes/sandbox-the-interactive-lead-session/session-log.md](/openspec/changes/sandbox-the-interactive-lead-session/session-log.md) (D4)

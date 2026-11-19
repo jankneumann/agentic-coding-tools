@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-11-19T02:30:11.957155+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "trust_resolution_failed: 500: Trust level unresolvable for registry-declared agent 'claude-remote' (type 'claude_code'): profile lookup failed: [Errno -2] Name or service not known. The agent_profiles projection of agents.yaml is broken; restart the coordinator to re-run profile sync. (HTTP 200)",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Implemented the lead-session Bash sandbox: sandbox block and reduced allow list in project settings, ask rules for irreversible and gate-recording commands, a host probe, and guidance for agents and operators. Not exercised against a real sandbox: the cloud container has none.",
+    "completed_work": [
+      "Tasks 1.1-4.3, one commit per task group, tests first in each",
+      "376 tests pass in skills/tests/session-bootstrap; ruff clean; openspec validate --strict passes",
+      "Sequential tier, implemented inline by the lead agent: single package, four small dependent task groups",
+      "Coordinator task seeding skipped: coordinator unreachable",
+      "Smoke gate skipped: no Docker in the cloud container"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Gate recording gets explicit ask rules",
+        "rationale": "The old allow list gated runner.py gate-answer only by omitting it; under sandbox auto-allow that omission gates nothing, so ask rules restore the prompt (design D10).",
+        "capability": "harness-engineering",
+        "supersedes": null
+      },
+      {
+        "title": "Guard-hook gaps are closed with ask rules, not hook changes",
+        "rationale": "irreversible_guard.py is kept in step with the coordinator guardrails by tests outside this change (design D11).",
+        "capability": "harness-engineering",
+        "supersedes": null
+      },
+      {
+        "title": "The probe takes its read, write and connect functions as parameters",
+        "rationale": "It can then be tested against a temporary tree in a container that has no sandbox, without touching the real home directory or the network.",
+        "capability": "harness-engineering",
+        "supersedes": null
+      },
+      {
+        "title": "alembic --help prompts",
+        "rationale": "The existing 'alembic *' ask rule is kept as is; the guide uses that prompt to confirm ask rules apply to sandboxed commands.",
+        "capability": "harness-engineering",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "/validate-feature sandbox-the-interactive-lead-session",
+      "Operator: run the probe and the guide checklist on each local host"
+    ],
+    "relevant_files": [
+      {
+        "path": ".claude/settings.json",
+        "description": "sandbox block, reduced allow list, new ask rules"
+      },
+      {
+        "path": "skills/session-bootstrap/scripts/sandbox_probe.py",
+        "description": "host probe"
+      },
+      {
+        "path": "docs/guides/lead-session-sandbox.md",
+        "description": "operator guide"
+      },
+      {
+        "path": "CLAUDE.md",
+        "description": "agent guidance on matchable Bash commands"
+      }
+    ]
+  }
+}

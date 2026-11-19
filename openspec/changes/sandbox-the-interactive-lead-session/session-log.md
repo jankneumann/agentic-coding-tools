@@ -39,3 +39,46 @@
 ### Context
 Refined the roadmap scaffold for sandboxed-flow ri-01 into a full plan: native Bash sandbox in project settings, outward commands excluded, allow list reduced to non-readers, a probe for host verification.
 
+---
+
+## Phase: Implementation (2026-11-19)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Gate recording gets explicit ask rules** `architectural: harness-engineering` — The old allow list gated runner.py gate-answer only by omitting it; under sandbox auto-allow that omission gates nothing, so ask rules restore the prompt (design D10).
+2. **Guard-hook gaps are closed with ask rules, not hook changes** `architectural: harness-engineering` — irreversible_guard.py is kept in step with the coordinator guardrails by tests outside this change (design D11).
+3. **The probe takes its read, write and connect functions as parameters** `architectural: harness-engineering` — It can then be tested against a temporary tree in a container that has no sandbox, without touching the real home directory or the network.
+4. **alembic --help prompts** `architectural: harness-engineering` — The existing 'alembic *' ask rule is kept as is; the guide uses that prompt to confirm ask rules apply to sandboxed commands.
+
+### Alternatives Considered
+- Extend irreversible_guard.py to cover the gaps: rejected because Would require a matching coordinator guardrails change outside this item's scope.
+
+### Trade-offs
+- Accepted Text-matched ask rules that a wrapper script can evade over No gate on gate recording until the approval-gate service enforces it because Same strength as the gate it replaces; the durable control is the service.
+
+### Open Questions
+- [ ] Does allowRead '.' take precedence over denyRead '..'? Probe check project_readable on the operator's hosts.
+- [ ] Do ask rules and hook 'ask' verdicts prompt for sandboxed, auto-allowed commands? Guide checklist steps 3 and 5.
+- [ ] Do ask patterns with a leading '*' match as intended in the real permission matcher? Tested only against a reimplemented matcher.
+
+### Completed Work
+- Tasks 1.1-4.3, one commit per task group, tests first in each
+- 376 tests pass in skills/tests/session-bootstrap; ruff clean; openspec validate --strict passes
+- Sequential tier, implemented inline by the lead agent: single package, four small dependent task groups
+- Coordinator task seeding skipped: coordinator unreachable
+- Smoke gate skipped: no Docker in the cloud container
+
+### Next Steps
+- /validate-feature sandbox-the-interactive-lead-session
+- Operator: run the probe and the guide checklist on each local host
+
+### Relevant Files
+- `.claude/settings.json` — sandbox block, reduced allow list, new ask rules
+- `skills/session-bootstrap/scripts/sandbox_probe.py` — host probe
+- `docs/guides/lead-session-sandbox.md` — operator guide
+- `CLAUDE.md` — agent guidance on matchable Bash commands
+
+### Context
+Implemented the lead-session Bash sandbox: sandbox block and reduced allow list in project settings, ask rules for irreversible and gate-recording commands, a host probe, and guidance for agents and operators. Not exercised against a real sandbox: the cloud container has none.
+
