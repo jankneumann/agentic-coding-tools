@@ -457,6 +457,32 @@ class ReviewQueueConfig:
 
 
 @dataclass
+class GateProjectionConfig:
+    """Project-keyed gate projection (see src/gate_projection.py).
+
+    Environment variables:
+        GATE_PROJECTION_PROJECTS: Comma-separated ``owner/name`` list of
+            enrolled projects. Only these may push a snapshot and only these
+            appear in the listing (empty = none, the feature is off).
+        GATE_PROJECTION_STALE_SECONDS: Age, by the coordinator's clock, after
+            which a project's snapshot is reported as stale (default 86400).
+    """
+
+    projects: frozenset[str] = frozenset()
+    stale_seconds: int = 86400
+
+    @classmethod
+    def from_env(cls) -> GateProjectionConfig:
+        raw = os.environ.get("GATE_PROJECTION_PROJECTS", "")
+        return cls(
+            projects=frozenset(p.strip() for p in raw.split(",") if p.strip()),
+            stale_seconds=max(
+                1, int(os.environ.get("GATE_PROJECTION_STALE_SECONDS", "86400"))
+            ),
+        )
+
+
+@dataclass
 class ApiConfig:
     """HTTP API configuration."""
 
@@ -737,6 +763,9 @@ class Config:
     review_queue: ReviewQueueConfig = field(
         default_factory=ReviewQueueConfig.from_env
     )
+    gate_projection: GateProjectionConfig = field(
+        default_factory=GateProjectionConfig.from_env
+    )
     cloudflare_access: CloudflareAccessConfig = field(
         default_factory=CloudflareAccessConfig.from_env
     )
@@ -803,6 +832,7 @@ class Config:
             policy_engine=PolicyEngineConfig.from_env(),
             api=ApiConfig.from_env(),
             review_queue=ReviewQueueConfig.from_env(),
+            gate_projection=GateProjectionConfig.from_env(),
             cloudflare_access=CloudflareAccessConfig.from_env(),
             port_allocator=PortAllocatorConfig.from_env(),
             openbao=OpenBaoConfig.from_env(),

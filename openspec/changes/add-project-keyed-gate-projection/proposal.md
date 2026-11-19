@@ -122,7 +122,7 @@ changing the store.
 | Compatibility | Behaviour with `GATE_PROJECTION_PROJECTS` unset | Listing returns no gates and no projects; existing routes unchanged | coordinator unit tests |
 | Resilience | An unreadable gate file in a checkout | Reported in `source_errors`; other gates still collected; project shown degraded | collector tests |
 | Resilience | Snapshot size | At most 500 gates per project; larger is refused with 422 | service tests |
-| Operability | Listing cost | One table read plus one approval-queue read, independent of the number of gates | service tests (call counts) |
+| Operability | Listing cost | One snapshot-table read plus at most two approval-queue reads, independent of the number of gates | service tests (call counts) |
 
 ## Impact
 

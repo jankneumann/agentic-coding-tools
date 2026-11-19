@@ -5,6 +5,50 @@
 
 ---
 
+## 2026-11-19 — add-project-keyed-gate-projection
+
+### Phase: Plan
+
+**The repository pushes a whole snapshot** — The coordinator cannot read a checkout; a full replacement makes the projection rebuildable and leaves the repository as the only record.
+
+- Status: `active`
+- Source: [openspec/changes/add-project-keyed-gate-projection/session-log.md](/openspec/changes/add-project-keyed-gate-projection/session-log.md) (D1)
+
+---
+
+## 2026-11-19 — add-project-keyed-gate-projection
+
+### Phase: Plan
+
+**Degraded state is computed at read time** — A project with no snapshot, a stale one or source errors must be visible, and its last known gates still listed, without a background job.
+
+- Status: `active`
+- Source: [openspec/changes/add-project-keyed-gate-projection/session-log.md](/openspec/changes/add-project-keyed-gate-projection/session-log.md) (D2)
+
+---
+
+## 2026-11-19 — add-project-keyed-gate-projection
+
+### Phase: Plan
+
+**Decisions go through the approval service only** — The projection must never become a second decision record; a gate with no pending approval request is refused with the command that answers it in its repository.
+
+- Status: `active`
+- Source: [openspec/changes/add-project-keyed-gate-projection/session-log.md](/openspec/changes/add-project-keyed-gate-projection/session-log.md) (D3)
+
+---
+
+## 2026-11-19 — add-project-keyed-gate-projection
+
+### Phase: Plan
+
+**Contract authored in the promoted tree** — The coordinator's OpenAPI contract test reads only openspec/contracts, and its drift baseline must not grow.
+
+- Status: `active`
+- Source: [openspec/changes/add-project-keyed-gate-projection/session-log.md](/openspec/changes/add-project-keyed-gate-projection/session-log.md) (D4)
+
+---
+
 ## 2026-09-25 — 2026-09-25-restructure-openbao-per-agent-secrets
 
 ### Phase: Implementation

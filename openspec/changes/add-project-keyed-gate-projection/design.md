@@ -78,7 +78,11 @@ listing it would show history as work. Archived changes
 ### D7. The approval service is joined at read time, never copied
 
 A snapshot gate may carry `approval_id`. The listing reads
-`ApprovalService.list_pending` once and then:
+`ApprovalService.list_pending` once. Approval ids that are referenced but not
+pending are then looked up in one further read (`ApprovalService.get_requests`),
+which tells a decided or expired request from an id that names nothing. So the
+listing costs one snapshot read and at most two approval-queue reads, whatever
+the number of gates. An `approval_id` that is not a UUID names no request.
 
 | Gate's `approval_id` | Listed as |
 |---|---|
