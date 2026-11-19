@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import uuid
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -27,6 +28,16 @@ class ApprovalRequest:
     reason: str | None
     expires_at: datetime
     created_at: datetime
+
+
+def normalize_request_id(value: object) -> str | None:
+    """Canonical form of an approval request id, or None if it is not a UUID."""
+    if not isinstance(value, str):
+        return None
+    try:
+        return str(uuid.UUID(value))
+    except ValueError:
+        return None
 
 
 class ApprovalService:
@@ -162,6 +173,22 @@ class ApprovalService:
             filters += f"&agent_id=eq.{agent_id}"
         rows = await self.db.query("approval_queue", filters)
         return [self._row_to_request(r) for r in rows[:limit]]
+
+    async def get_requests(self, request_ids: Iterable[str]) -> list[ApprovalRequest]:
+        """Fetch several requests, whatever their status, in one read.
+
+        Ids that are not UUIDs are skipped: they cannot name a request, and
+        they are never interpolated into the filter. No valid id, no read.
+        """
+        ids: list[str] = []
+        for raw in request_ids:
+            normalized = normalize_request_id(raw)
+            if normalized is not None and normalized not in ids:
+                ids.append(normalized)
+        if not ids:
+            return []
+        rows = await self.db.query("approval_queue", f"id=in.({','.join(ids)})")
+        return [self._row_to_request(r) for r in rows]
 
     def _row_to_request(self, row: dict[str, Any]) -> ApprovalRequest:
         ctx = row.get("context", {})

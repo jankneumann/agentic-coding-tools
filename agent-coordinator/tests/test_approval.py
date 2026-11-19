@@ -325,6 +325,34 @@ class TestApprovalService:
         assert len(results) == 3
 
     @pytest.mark.asyncio
+    async def test_get_requests_reads_many_ids_in_one_query(self) -> None:
+        """get_requests fetches several requests, of any status, in one read."""
+        first = "11111111-1111-4111-8111-111111111111"
+        second = "22222222-2222-4222-8222-222222222222"
+        db = FakeDB()
+        db.set_query_results([
+            _make_row(request_id=first, status="approved"),
+            _make_row(request_id=second),
+        ])
+        service = ApprovalService(db=db)
+
+        results = await service.get_requests([first, second.upper(), first])
+
+        assert [r.id for r in results] == [first, second]
+        assert db.query_calls == [("approval_queue", f"id=in.({first},{second})")]
+
+    @pytest.mark.asyncio
+    async def test_get_requests_ignores_ids_that_are_not_uuids(self) -> None:
+        """A value that cannot name a request never reaches the filter string."""
+        db = FakeDB()
+        service = ApprovalService(db=db)
+
+        results = await service.get_requests(["x)&status=eq.pending", "", "req-1"])
+
+        assert results == []
+        assert db.query_calls == []
+
+    @pytest.mark.asyncio
     async def test_row_to_request_parses_context_string(self) -> None:
         """_row_to_request parses JSON string context."""
         db = FakeDB()
