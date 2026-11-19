@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-11-19T02:20:12.869494+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "trust_resolution_failed: 500: Trust level unresolvable for registry-declared agent 'claude-remote' (type 'claude_code'): profile lookup failed: [Errno -2] Name or service not known. The agent_profiles projection of agents.yaml is broken; restart the coordinator to re-run profile sync. (HTTP 200)",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Refined the roadmap scaffold for sandboxed-flow ri-01 into a full plan: native Bash sandbox in project settings, outward commands excluded, allow list reduced to non-readers, a probe for host verification.",
+    "completed_work": [
+      "proposal.md, design.md, tasks.md, spec delta under harness-engineering, contracts stub, work-packages.yaml",
+      "Discovery questions and both approval gates not asked: item pre-approved in the roadmap and dispatched by autopilot-roadmap; assumptions listed in proposal.md"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Sandbox configuration ships in project-shared settings",
+        "rationale": "Versioned, identical on both hosts and in every worktree, testable from the repository.",
+        "capability": "harness-engineering",
+        "supersedes": null
+      },
+      {
+        "title": "Git hosts stay off the sandbox network allowlist; push, fetch, pull, gh, railway and docker are excluded commands",
+        "rationale": "Outward actions are decided by the existing permission rules and cannot be reached from inside the sandbox by wrapping the command.",
+        "capability": "harness-engineering",
+        "supersedes": null
+      },
+      {
+        "title": "The allow list grants no general reader or interpreter",
+        "rationale": "Such a rule approves the same command when retried outside the sandbox, which bypasses denyRead.",
+        "capability": "harness-engineering",
+        "supersedes": null
+      },
+      {
+        "title": "failIfUnavailable is not set",
+        "rationale": "Hosts without prerequisites and cloud sessions fall back to permission rules; with the reduced allow list the fallback prompts.",
+        "capability": "harness-engineering",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "/implement-feature sandbox-the-interactive-lead-session"
+    ],
+    "relevant_files": [
+      {
+        "path": ".claude/settings.json",
+        "description": "target of the sandbox block"
+      },
+      {
+        "path": "skills/session-bootstrap/scripts/hooks/irreversible_guard.py",
+        "description": "existing second layer, unchanged"
+      }
+    ]
+  }
+}

@@ -1,0 +1,67 @@
+schema_version: 1
+
+feature:
+  id: sandbox-the-interactive-lead-session
+  title: "Sandbox the interactive lead session"
+  plan_revision: 1
+  created_by: claude-code
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/sandbox-the-interactive-lead-session/contracts/README.md"
+    files:
+      - "openspec/changes/sandbox-the-interactive-lead-session/contracts/README.md"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-main
+    title: "Sandbox settings, allow-list reduction, probe and guidance"
+    task_type: backend
+    description: |
+      Single sequential package: tasks 1.1-4.3. Settings, tests, probe and
+      documentation all meet in .claude/settings.json and session-bootstrap,
+      so there is no safe parallel split.
+    role: runner
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - ".claude/settings.json"
+        - "CLAUDE.md"
+      keys: []
+      ttl_minutes: 120
+      reason: "Shared harness settings and instructions"
+    scope:
+      write_allow:
+        - "**"
+      read_allow:
+        - "**"
+    worktree:
+      name: sandbox-the-interactive-lead-session
+      mode: shared
+    timeout_minutes: 60
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "session-bootstrap tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/session-bootstrap -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["session_bootstrap_tests_green"]
+    inputs: {}
+    outputs:
+      result_keys: ["session_bootstrap_tests_green"]
+      artifacts: [".claude/settings.json", "skills/session-bootstrap/scripts/sandbox_probe.py", "docs/guides/lead-session-sandbox.md"]
