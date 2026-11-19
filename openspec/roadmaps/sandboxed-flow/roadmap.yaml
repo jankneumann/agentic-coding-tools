@@ -39,24 +39,27 @@ items:
   effort: S
   depends_on: []
   description: A spike that records, for each of Claude, Codex, Antigravity and Grok,
-    whether subscription terms permit programmatic or headless use, where the OAuth
-    material lives on disk, whether token refresh needs a writable path, which hosts
-    inference and refresh contact, and whether the CLI accepts a base-URL or proxy
-    override. The result is a checked-in table that later items read, not production
-    code.
+    what the vendor's terms permit per lane (interactive, attended headless dispatch,
+    unattended daemon, CI), where the credential material lives, whether token refresh
+    needs a writable path, which hosts inference and refresh contact, and whether
+    the CLI accepts a base-URL or proxy override. The Claude column starts from claude-auth-strategy.md
+    in this workspace and re-verifies each quote against the live page. The result
+    is a checked-in table that later items read, not production code.
   rationale: Subscription logins must be used unattended only where the vendor audit
     records that the terms permit it; the credential profile and the token injection
     spike both read this table.
   change_id: audit-vendor-headless-auth-and-terms
   acceptance_outcomes:
-  - A checked-in document states, per vendor, the permitted headless use under its
-    subscription, with the source of each statement.
-  - For each vendor the OAuth material paths, refresh-write requirement, inference
+  - A checked-in document states, per vendor and per lane, whether subscription authentication
+    is permitted, prohibited or unaddressed, with the governing sentence and its source.
+  - Every quote in claude-auth-strategy.md is re-verified against the live page, and
+    any that differs is corrected.
+  - For each vendor the credential material, refresh-write requirement, inference
     hosts and proxy-override support are recorded from an observed run, not from memory.
-  - Any vendor whose terms forbid unattended subscription use is marked as requiring
-    an API-key or gateway-key lane.
-  - The existing record that the Claude review lane uses an API key is either confirmed
-    or updated by the audit.
+  - Any lane a vendor's terms prohibit or leave unaddressed for unattended use is
+    marked as requiring an API-key or gateway-key lane.
+  - The statement in docs/proposals/factory-local-cloud-split.md about why the Claude
+    review lane uses an API key is corrected to match the audit.
 - item_id: ri-03
   title: Add per-vendor credential profile
   status: candidate
@@ -64,25 +67,33 @@ items:
   effort: L
   depends_on:
   - ri-02
-  description: Add a credential_profile to each vendor entry in agents.yaml carrying
-    the auth mode (subscription-oauth, api-key or gateway-key), the OAuth material
-    paths to bind into the sandbox and whether they are read-only, the inference and
-    refresh hosts for the egress allowlist, and whether unattended use is permitted.
-    The dg-07 sandbox renderer reads the profile so a sandboxed dispatch of one vendor
-    sees that vendor's login and no other credential.
+  description: Add a credential_profile to each vendor entry in agents.yaml carrying,
+    per lane, the auth mode (subscription-oauth, subscription-token, api-key or gateway-key),
+    how the credential enters the sandbox (a read-only file bind or an environment
+    variable), the inference and refresh hosts for the egress allowlist, and a cap
+    on concurrent subscription-authenticated dispatches. The dg-07 sandbox renderer
+    reads the profile so a sandboxed dispatch of one vendor sees that vendor's credential
+    and no other. For Claude the subscription credential is a setup-token value passed
+    as an environment variable; the login directory is never bound, and unattended
+    lanes use an API key.
   rationale: This is the piece that lets subscription OAuth logins work inside a sandbox,
     which neither dg-07 nor the credential roadmap covers, and it enforces that a
     process shaped by model output holds only the credentials its role needs.
   change_id: add-per-vendor-credential-profile
   acceptance_outcomes:
-  - A sandboxed dispatch of each subscription-oauth vendor completes an authenticated
-    inference call.
+  - A sandboxed dispatch of each vendor completes an authenticated inference call
+    using the auth mode its profile names for that lane.
+  - A sandboxed Claude dispatch authenticates with no path under the operator's Claude
+    login directory readable inside the sandbox; a test asserts it.
   - Inside that sandbox, the other vendors' credential paths, ~/.ssh and the operator's
     GitHub token are unreadable; a test asserts each.
   - Egress from the sandbox reaches only the hosts in the profile, the coordinator
     and the hosts the task declares.
-  - A vendor with unattended use not permitted is refused for headless dispatch with
-    an audit event naming the profile field.
+  - A dispatch in a lane whose profile does not permit subscription authentication
+    uses the API-key lane or is refused, with an audit event naming the profile field.
+  - Subscription-authenticated dispatches beyond the profile's concurrency cap are
+    routed to the API-key lane, and each dispatch record states the auth mode used.
+  - No subscription credential is written to the coordinator database or to OpenBao.
   external_depends_on:
   - dispatch-governance:dg-07
 - item_id: ri-04
@@ -170,20 +181,23 @@ items:
   - ri-02
   - ri-03
   description: A spike testing whether the OS sandbox from dg-07 gives real interception
-    on the local hosts and whether each vendor CLI works when its bearer token is
-    injected at a boundary proxy rather than read from disk, including across a token
-    refresh. It ends in a decision record choosing between extending dispatch-governance
-    dg-08 to the local-sandbox posture and keeping read-only binds with a tight allowlist.
+    on the local hosts and whether each vendor CLI works when its credential is injected
+    at a boundary proxy rather than read inside the sandbox, including across a token
+    refresh. Claude is tested with an API key only, because Anthropic's terms forbid
+    intermediating subscription session tokens. It ends in a decision record choosing
+    between extending dispatch-governance dg-08 to the local-sandbox posture and keeping
+    in-sandbox credentials with a tight allowlist.
   rationale: A login file readable inside the sandbox can still leave through any
     allowed host; the spike decides whether the stronger keep-the-token- outside design
     is viable locally without building the egress gateway here.
   change_id: spike-oauth-token-injection-at-the-sandbox-boundary
   acceptance_outcomes:
-  - For each vendor, a recorded result states whether an injected-token dispatch authenticates
-    and survives a token refresh.
+  - For each vendor, a recorded result states whether an injected-credential dispatch
+    authenticates and survives a token refresh, and which credential type was injected.
+  - No Claude subscription token is placed behind the proxy at any point in the spike.
   - A recorded result states whether a sandboxed process on macOS and on Linux can
     reach a host without passing the proxy.
-  - A decision record chooses between extending dg-08 and keeping read-only binds,
+  - A decision record chooses between extending dg-08 and keeping in-sandbox credentials,
     with the residual exfiltration paths named.
 - item_id: ri-14
   title: Clamp effective trust by isolation posture
@@ -371,7 +385,7 @@ items:
     delivered; an undelivered notification leaves the gate blocked.
   - Notification volume respects a per-day limit, with the overflow collected into
     one digest.
-updated_at: '2026-11-19T01:58:09.832888+00:00'
+updated_at: '2026-11-19T02:01:29.735272+00:00'
 refinements:
 - timestamp: '2026-11-19T01:58:09.832888+00:00'
   actor: claude-code (cloud session)
@@ -386,3 +400,15 @@ refinements:
   - adopt:ri-15
   - edit:ri-09
   - edit:ri-12
+- timestamp: '2026-11-19T02:01:29.735272+00:00'
+  actor: claude-code (cloud session)
+  source: openspec/roadmaps/sandboxed-flow/claude-auth-strategy.md (operator request
+    2026-11-19)
+  rationale: Research into Anthropic's published terms showed the line is not interactive
+    versus headless but own use of the official client versus sharing, proxying or
+    intermediating a subscription credential; three items assumed the former.
+  base_sha256: a955a46ea937f3fbf8cfa258309bf6d66fd0dee88dc6e3d7f28d0448abfaa16d
+  operations:
+  - edit:ri-02
+  - edit:ri-03
+  - edit:ri-07
