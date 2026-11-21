@@ -16,7 +16,7 @@
 # ---------------------------------------------------------------------------
 # Stage 1: Build — install production dependencies via uv
 # ---------------------------------------------------------------------------
-FROM python:3.14-slim AS builder
+FROM python:3.15-slim AS builder
 
 # Build tools needed to compile native deps (e.g. asyncpg, cryptography)
 RUN apt-get update && apt-get install -y --no-install-recommends gcc libffi-dev && rm -rf /var/lib/apt/lists/*
@@ -66,7 +66,7 @@ RUN touch README.md && uv sync --locked --all-extras --no-dev --no-install-proje
 # ---------------------------------------------------------------------------
 # Stage 2: Runtime — lean image with only venv + source
 # ---------------------------------------------------------------------------
-FROM python:3.14-slim AS runtime
+FROM python:3.15-slim AS runtime
 
 WORKDIR /app
 
